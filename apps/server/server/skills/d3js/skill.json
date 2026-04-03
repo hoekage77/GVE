@@ -1,0 +1,56 @@
+{
+  "id": "d3js",
+  "name": "D3.js Visualizer",
+  "version": "7.9.0",
+  "description": "Data-driven charts, diagrams, and structured visual layouts using D3.js.",
+  "author": "Generative Visual Engine Team",
+  "license": "MIT",
+  "domainFocus": ["data-viz", "diagram"],
+  "capabilities": [
+    {
+      "name": "scales",
+      "description": "Create linear, band, ordinal, and time scales for data mapping"
+    },
+    {
+      "name": "axes",
+      "description": "Render x and y axes with labels, ticks, and formatting"
+    },
+    {
+      "name": "layout",
+      "description": "Arrange visual elements using force, tree, pack, and partition layouts"
+    },
+    {
+      "name": "binding",
+      "description": "Bind data arrays to DOM elements using enter/update/exit pattern"
+    },
+    {
+      "name": "transition",
+      "description": "Animate elements with smooth transitions, easing, and delays"
+    }
+  ],
+  "runtime": {
+    "baseImage": "node:20-alpine",
+    "adapter": "mock-d3js",
+    "dependencies": ["d3@7.9.0"],
+    "envVars": { "NODE_ENV": "production" },
+    "resources": { "memory": "256MB", "cpu": "0.5", "timeout": 20000 },
+    "ports": [3000],
+    "maxFrames": 40,
+    "timeoutMs": 1800,
+    "filesystem": {
+      "readOnly": ["/skills/d3js"],
+      "readWrite": ["/tmp", "/output"]
+    }
+  },
+  "templates": {
+    "entryPoint": "index.js",
+    "files": ["chart.js", "bindData.js"],
+    "sceneBootstrap": "const svg = d3.select(document.body).append('svg');"
+  },
+  "examples": [
+    {
+      "prompt": "Create a bar chart",
+      "code": "const data = [40, 80, 150, 100, 60, 200, 120];\nconst svg = d3.select(document.body).append('svg').attr('width', 400).attr('height', 300);\nconst x = d3.scaleBand().domain(data.map((d, i) => i)).range([0, 400]).padding(0.1);\nconst y = d3.scaleLinear().domain([0, d3.max(data)]).range([300, 0]);\nsvg.selectAll('rect').data(data).enter().append('rect').attr('x', (d, i) => x(i)).attr('y', d => y(d)).attr('width', x.bandwidth()).attr('height', d => 300 - y(d)).attr('fill', '#4f8cf8');"
+    }
+  ]
+}

@@ -1,0 +1,266 @@
+{
+  "sessionId": "68cb3584-3570-4d94-b120-3f0f4380f20a",
+  "createdAt": "2026-03-27T08:21:16.313Z",
+  "updatedAt": "2026-03-27T08:27:45.854Z",
+  "status": "parsing",
+  "currentScene": {
+    "versionId": "version-1",
+    "version": 1,
+    "sessionId": "68cb3584-3570-4d94-b120-3f0f4380f20a",
+    "sceneId": "scene-1774599849060",
+    "code": "// Local fallback output\nconst geometry = new THREE.BoxGeometry(1, 1, 1);\nconst material = new THREE.MeshStandardMaterial({ color: 0x1d8cf8, metalness: 0.8, roughness: 0.2 });\nconst mesh = new THREE.Mesh(geometry, material);\nscene.add(mesh);\nfunction animate() {\n  requestAnimationFrame(animate);\n  mesh.rotation.x += 0.01;\n  mesh.rotation.y += 0.01;\n  renderer.render(scene, camera);\n}\nanimate();",
+    "previewUrl": "about:blank",
+    "skill": "threejs",
+    "explanation": "Generated through LangGraph orchestration pipeline. Generated via local fallback pipeline. Warning: Moonshot temporarily overloaded; used local fallback. Runtime: completed with 49 renders and 48 frames.",
+    "messageId": "message-1",
+    "source": "generate",
+    "createdAt": "2026-03-27T08:24:10.714Z",
+    "updatedAt": "2026-03-27T08:24:10.714Z"
+  },
+  "versions": [
+    {
+      "versionId": "version-1",
+      "version": 1,
+      "sessionId": "68cb3584-3570-4d94-b120-3f0f4380f20a",
+      "sceneId": "scene-1774599849060",
+      "code": "// Local fallback output\nconst geometry = new THREE.BoxGeometry(1, 1, 1);\nconst material = new THREE.MeshStandardMaterial({ color: 0x1d8cf8, metalness: 0.8, roughness: 0.2 });\nconst mesh = new THREE.Mesh(geometry, material);\nscene.add(mesh);\nfunction animate() {\n  requestAnimationFrame(animate);\n  mesh.rotation.x += 0.01;\n  mesh.rotation.y += 0.01;\n  renderer.render(scene, camera);\n}\nanimate();",
+      "previewUrl": "about:blank",
+      "skill": "threejs",
+      "explanation": "Generated through LangGraph orchestration pipeline. Generated via local fallback pipeline. Warning: Moonshot temporarily overloaded; used local fallback. Runtime: completed with 49 renders and 48 frames.",
+      "messageId": "message-1",
+      "source": "generate",
+      "createdAt": "2026-03-27T08:24:10.714Z",
+      "updatedAt": "2026-03-27T08:24:10.714Z"
+    }
+  ],
+  "sceneVersions": [
+    {
+      "versionId": "version-1",
+      "version": 1,
+      "sessionId": "68cb3584-3570-4d94-b120-3f0f4380f20a",
+      "sceneId": "scene-1774599849060",
+      "code": "// Local fallback output\nconst geometry = new THREE.BoxGeometry(1, 1, 1);\nconst material = new THREE.MeshStandardMaterial({ color: 0x1d8cf8, metalness: 0.8, roughness: 0.2 });\nconst mesh = new THREE.Mesh(geometry, material);\nscene.add(mesh);\nfunction animate() {\n  requestAnimationFrame(animate);\n  mesh.rotation.x += 0.01;\n  mesh.rotation.y += 0.01;\n  renderer.render(scene, camera);\n}\nanimate();",
+      "previewUrl": "about:blank",
+      "skill": "threejs",
+      "explanation": "Generated through LangGraph orchestration pipeline. Generated via local fallback pipeline. Warning: Moonshot temporarily overloaded; used local fallback. Runtime: completed with 49 renders and 48 frames.",
+      "messageId": "message-1",
+      "source": "generate",
+      "createdAt": "2026-03-27T08:24:10.714Z",
+      "updatedAt": "2026-03-27T08:24:10.714Z"
+    }
+  ],
+  "versionPointer": 0,
+  "messages": [
+    {
+      "id": "client-9d2a6585-aa50-415e-ad2e-372246aaee01",
+      "role": "user",
+      "content": "show me how fusion works",
+      "kind": "input",
+      "meta": [],
+      "createdAt": "2026-03-27T08:21:16.395Z",
+      "updatedAt": "2026-03-27T08:21:16.395Z"
+    },
+    {
+      "id": "message-1",
+      "role": "assistant",
+      "content": "Generated through LangGraph orchestration pipeline. Generated via local fallback pipeline. Warning: Moonshot temporarily overloaded; used local fallback. Runtime: completed with 49 renders and 48 frames.",
+      "kind": "generate",
+      "meta": [
+        "scene:scene-1774599849060",
+        "skill:threejs"
+      ],
+      "createdAt": "2026-03-27T08:21:16.395Z",
+      "updatedAt": "2026-03-27T08:24:12.783Z"
+    },
+    {
+      "id": "thought-turn_started-1774599715437",
+      "role": "thought",
+      "content": "The user wants an educational visualization of nuclear fusion—likely showing atomic nuclei colliding, overcoming electrostatic repulsion, and releasing energy as they fuse into heavier elements like helium.",
+      "kind": "thought",
+      "meta": [
+        "turn_started"
+      ],
+      "createdAt": "2026-03-27T08:21:55.437Z",
+      "updatedAt": "2026-03-27T08:21:55.437Z"
+    },
+    {
+      "id": "thought-intent_parsed-1774599716597",
+      "role": "thought",
+      "content": "The user wants an educational visualization of nuclear fusion—likely showing atomic nuclei colliding, overcoming electrostatic repulsion, and releasing energy as they fuse into heavier elements like helium.",
+      "kind": "thought",
+      "meta": [
+        "intent_parsed"
+      ],
+      "createdAt": "2026-03-27T08:21:56.597Z",
+      "updatedAt": "2026-03-27T08:21:56.597Z"
+    },
+    {
+      "id": "thought-plan_created-1774599718525",
+      "role": "thought",
+      "content": "I'll build this in five steps: initialize the scene with post-processing bloom, create deuterium and tritium spheres with proton/neutron textures, animate them accelerating toward each other under heat/pressure, trigger the fusion event with a particle burst representing the neutron and helium release, and add UI overlays explaining each phase of the process.",
+      "kind": "thought",
+      "meta": [
+        "plan_created"
+      ],
+      "createdAt": "2026-03-27T08:21:58.525Z",
+      "updatedAt": "2026-03-27T08:21:58.525Z"
+    },
+    {
+      "id": "thought-code_generated-1774599850714",
+      "role": "thought",
+      "content": "I'm writing code for SphereGeometry instances representing hydrogen isotopes, a Points particle system for the energy burst and background plasma, animated positions using lerp for the collision trajectory, PointLights with intensity spikes for the flash, and post-processing bloom to simulate the intense heat glow during fusion.",
+      "kind": "thought",
+      "meta": [
+        "code_generated"
+      ],
+      "createdAt": "2026-03-27T08:24:10.714Z",
+      "updatedAt": "2026-03-27T08:24:10.714Z"
+    },
+    {
+      "id": "thought-executing-1774599851359",
+      "role": "thought",
+      "content": "Spinning up the sandbox environment now to render the fusion sequence with camera orbits and real-time lighting updates.",
+      "kind": "thought",
+      "meta": [
+        "executing"
+      ],
+      "createdAt": "2026-03-27T08:24:11.359Z",
+      "updatedAt": "2026-03-27T08:24:11.359Z"
+    },
+    {
+      "id": "thought-sync_state-1774599852782",
+      "role": "thought",
+      "content": "I've created an interactive 3D visualization showing deuterium and tritium nuclei accelerating under extreme heat, fusing into helium with a bright energy burst and neutron release, complete with glowing plasma effects to illustrate how stars and fusion reactors generate power.",
+      "kind": "thought",
+      "meta": [
+        "sync_state"
+      ],
+      "createdAt": "2026-03-27T08:24:12.782Z",
+      "updatedAt": "2026-03-27T08:24:12.782Z"
+    },
+    {
+      "id": "thought-turn_complete-1774599854213",
+      "role": "thought",
+      "content": "I've created an interactive 3D visualization showing deuterium and tritium nuclei accelerating under extreme heat, fusing into helium with a bright energy burst and neutron release, complete with glowing plasma effects to illustrate how stars and fusion reactors generate power.",
+      "kind": "thought",
+      "meta": [
+        "turn_complete"
+      ],
+      "createdAt": "2026-03-27T08:24:14.214Z",
+      "updatedAt": "2026-03-27T08:24:14.214Z"
+    },
+    {
+      "id": "thought-post_narration-1774599884727",
+      "role": "thought",
+      "content": "Processing step: post narration...",
+      "kind": "thought",
+      "meta": [
+        "post_narration"
+      ],
+      "createdAt": "2026-03-27T08:24:44.727Z",
+      "updatedAt": "2026-03-27T08:24:44.727Z"
+    },
+    {
+      "id": "message-11",
+      "role": "user",
+      "content": "show me how fusion works",
+      "kind": "input",
+      "meta": [],
+      "createdAt": "2026-03-27T08:27:06.675Z",
+      "updatedAt": "2026-03-27T08:27:06.675Z"
+    },
+    {
+      "id": "thought-turn_started-1774600063500",
+      "role": "thought",
+      "content": "The user wants to visualize nuclear fusion—specifically the moment when two light atomic nuclei overcome electrostatic repulsion, merge, and release energy as heavier elements and radiation.",
+      "kind": "thought",
+      "meta": [
+        "turn_started"
+      ],
+      "createdAt": "2026-03-27T08:27:43.500Z",
+      "updatedAt": "2026-03-27T08:27:43.500Z"
+    },
+    {
+      "id": "thought-intent_parsed-1774600064544",
+      "role": "thought",
+      "content": "The user wants to visualize nuclear fusion—specifically the moment when two light atomic nuclei overcome electrostatic repulsion, merge, and release energy as heavier elements and radiation.",
+      "kind": "thought",
+      "meta": [
+        "intent_parsed"
+      ],
+      "createdAt": "2026-03-27T08:27:44.544Z",
+      "updatedAt": "2026-03-27T08:27:44.544Z"
+    },
+    {
+      "id": "thought-plan_created-1774600065854",
+      "role": "thought",
+      "content": "I'll build a 4-stage animation loop: nuclei approach with growing repulsion glow, quantum tunneling flash at close proximity, the snap-to fusion event with geometry morphing, and an explosive particle burst representing the released neutron and gamma rays.",
+      "kind": "thought",
+      "meta": [
+        "plan_created"
+      ],
+      "createdAt": "2026-03-27T08:27:45.854Z",
+      "updatedAt": "2026-03-27T08:27:45.854Z"
+    }
+  ],
+  "orchestrationTrace": [
+    {
+      "id": "trace-1",
+      "step": "intent_parsed",
+      "payload": {
+        "sessionId": "68cb3584-3570-4d94-b120-3f0f4380f20a",
+        "content": "show me how fusion works"
+      },
+      "createdAt": "2026-03-27T08:21:55.438Z"
+    },
+    {
+      "id": "trace-2",
+      "step": "validate_code",
+      "payload": {
+        "sessionId": "68cb3584-3570-4d94-b120-3f0f4380f20a",
+        "status": "completed",
+        "error": null
+      },
+      "createdAt": "2026-03-27T08:24:09.075Z"
+    },
+    {
+      "id": "trace-3",
+      "step": "code_generated",
+      "payload": {
+        "sessionId": "68cb3584-3570-4d94-b120-3f0f4380f20a",
+        "mode": "generate",
+        "sceneId": "scene-1774599849060"
+      },
+      "createdAt": "2026-03-27T08:24:10.714Z"
+    },
+    {
+      "id": "trace-4",
+      "step": "sync_state",
+      "payload": {
+        "sessionId": "68cb3584-3570-4d94-b120-3f0f4380f20a",
+        "sceneVersion": 1
+      },
+      "createdAt": "2026-03-27T08:24:11.360Z"
+    },
+    {
+      "id": "trace-5",
+      "step": "turn_complete",
+      "payload": {
+        "sessionId": "68cb3584-3570-4d94-b120-3f0f4380f20a",
+        "mode": "generate",
+        "messageCount": 10,
+        "error": null
+      },
+      "createdAt": "2026-03-27T08:24:44.727Z"
+    },
+    {
+      "id": "trace-6",
+      "step": "intent_parsed",
+      "payload": {
+        "sessionId": "68cb3584-3570-4d94-b120-3f0f4380f20a",
+        "content": "show me how fusion works"
+      },
+      "createdAt": "2026-03-27T08:27:43.501Z"
+    }
+  ]
+}

@@ -1,0 +1,19 @@
+{
+  "name": "dosco-visual-engine",
+  "version": "1.0.0",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev:web": "npm run dev --workspace=@visual-runtime/web",
+    "dev:server": "npm run dev --workspace=@visual-runtime/server",
+    "build": "npm run build --workspaces --if-present",
+    "start:server": "npm run start --workspace=@visual-runtime/server",
+    "start:web": "npm run start --workspace=@visual-runtime/web"
+  },
+  "dependencies": {
+    "p-limit": "^7.3.0"
+  }
+}

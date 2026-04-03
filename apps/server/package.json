@@ -1,0 +1,20 @@
+{
+  "name": "@visual-runtime/server",
+  "version": "1.0.0",
+  "type": "module",
+  "main": "server/index.js",
+  "scripts": {
+    "dev": "node --env-file=server/.env --watch server/index.js",
+    "start": "node --env-file=server/.env server/index.js"
+  },
+  "dependencies": {
+    "@langchain/core": "^1.1.36",
+    "@langchain/langgraph": "^1.2.5",
+    "@visual-runtime/sandbox-pool": "*",
+    "@visual-runtime/shared": "*",
+    "acorn": "^8.16.0",
+    "cors": "^2.8.6",
+    "express": "^5.2.1",
+    "ws": "^8.20.0"
+  }
+}

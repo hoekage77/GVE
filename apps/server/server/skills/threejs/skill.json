@@ -1,0 +1,106 @@
+{
+  "id": "threejs",
+  "name": "Three.js Renderer",
+  "version": "0.160.0",
+  "description": "3D scene generation using Three.js with lighting, materials, camera controls, and animations.",
+  "author": "Generative Visual Engine Team",
+  "license": "MIT",
+  "domainFocus": ["3d", "animation"],
+  "capabilities": [
+    {
+      "name": "primitive",
+      "description": "Create basic 3D primitives (cube, sphere, cylinder, cone, torus)",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "shape": { "enum": ["cube", "sphere", "cylinder", "cone", "torus"] },
+          "size": { "type": "number" },
+          "position": { "type": "array", "items": { "type": "number" }, "minItems": 3, "maxItems": 3 },
+          "color": { "type": "string" }
+        }
+      }
+    },
+    {
+      "name": "material",
+      "description": "Apply PBR materials (metallic, roughness, etc.)",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "type": { "enum": ["basic", "standard", "physical"] },
+          "color": { "type": "string" },
+          "metalness": { "type": "number", "minimum": 0, "maximum": 1 },
+          "roughness": { "type": "number", "minimum": 0, "maximum": 1 }
+        }
+      }
+    },
+    {
+      "name": "lighting",
+      "description": "Add lighting (ambient, directional, point, spot)",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "type": { "enum": ["ambient", "directional", "point", "spot"] },
+          "color": { "type": "string" },
+          "intensity": { "type": "number" },
+          "position": { "type": "array", "items": { "type": "number" }, "minItems": 3, "maxItems": 3 }
+        }
+      }
+    },
+    {
+      "name": "animation",
+      "description": "Add animations (rotation, translation, scaling)",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "type": { "enum": ["rotation", "translation", "scaling"] },
+          "target": { "type": "string" },
+          "duration": { "type": "number" },
+          "loop": { "type": "boolean" }
+        }
+      }
+    },
+    {
+      "name": "camera",
+      "description": "Camera controls and positioning",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "type": { "enum": ["perspective", "orthographic"] },
+          "position": { "type": "array", "items": { "type": "number" }, "minItems": 3, "maxItems": 3 },
+          "lookAt": { "type": "array", "items": { "type": "number" }, "minItems": 3, "maxItems": 3 },
+          "controls": { "type": "boolean" }
+        }
+      }
+    }
+  ],
+  "runtime": {
+    "baseImage": "node:20-alpine",
+    "adapter": "mock-threejs",
+    "dependencies": ["three@0.160.0"],
+    "envVars": { "NODE_ENV": "production" },
+    "resources": { "memory": "512MB", "cpu": "1", "timeout": 30000 },
+    "ports": [3000],
+    "maxFrames": 48,
+    "timeoutMs": 2200,
+    "filesystem": {
+      "readOnly": ["/skills/threejs"],
+      "readWrite": ["/tmp", "/output"]
+    }
+  },
+  "templates": {
+    "entryPoint": "index.js",
+    "files": ["scene.js", "primitives.js", "materials.js", "animation.js"],
+    "schema": "schema.json",
+    "sceneBootstrap": "const scene = globalThis.scene; const camera = globalThis.camera; const renderer = globalThis.renderer;"
+  },
+  "examples": [
+    {
+      "prompt": "Create a red spinning cube",
+      "code": "const geometry = new THREE.BoxGeometry(1, 1, 1);\nconst material = new THREE.MeshStandardMaterial({ color: 0xff0000 });\nconst cube = new THREE.Mesh(geometry, material);\nscene.add(cube);\n\nfunction animate() {\n  requestAnimationFrame(animate);\n  cube.rotation.x += 0.01;\n  cube.rotation.y += 0.01;\n  renderer.render(scene, camera);\n}\nanimate();"
+    },
+    {
+      "prompt": "Create a blue metallic sphere",
+      "code": "const geometry = new THREE.SphereGeometry(1, 32, 32);\nconst material = new THREE.MeshStandardMaterial({ color: 0x1d8cf8, metalness: 0.8, roughness: 0.2 });\nconst sphere = new THREE.Mesh(geometry, material);\nscene.add(sphere);\nconst light = new THREE.DirectionalLight(0xffffff, 1);\nlight.position.set(5, 5, 5);\nscene.add(light);\nrenderer.render(scene, camera);"
+    }
+  ]
+}

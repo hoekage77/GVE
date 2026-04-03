@@ -1,0 +1,56 @@
+{
+  "id": "p5js",
+  "name": "p5.js Sketcher",
+  "version": "1.9.0",
+  "description": "Expressive 2D motion, sketches, particles, and interactive visuals using p5.js.",
+  "author": "Generative Visual Engine Team",
+  "license": "MIT",
+  "domainFocus": ["2d", "animation"],
+  "capabilities": [
+    {
+      "name": "canvas",
+      "description": "Create and configure an HTML5 canvas for drawing"
+    },
+    {
+      "name": "drawing",
+      "description": "Draw shapes (ellipse, rect, line, triangle, arc) with fill and stroke"
+    },
+    {
+      "name": "interaction",
+      "description": "Handle mouse, keyboard, and touch input events"
+    },
+    {
+      "name": "animation",
+      "description": "Frame-based animation loop with setup() and draw()"
+    },
+    {
+      "name": "particles",
+      "description": "Particle systems with motion, color, and lifecycle"
+    }
+  ],
+  "runtime": {
+    "baseImage": "node:20-alpine",
+    "adapter": "mock-p5js",
+    "dependencies": ["p5@1.9.0"],
+    "envVars": { "NODE_ENV": "production" },
+    "resources": { "memory": "256MB", "cpu": "0.5", "timeout": 20000 },
+    "ports": [3000],
+    "maxFrames": 60,
+    "timeoutMs": 1800,
+    "filesystem": {
+      "readOnly": ["/skills/p5js"],
+      "readWrite": ["/tmp", "/output"]
+    }
+  },
+  "templates": {
+    "entryPoint": "index.js",
+    "files": ["sketch.js", "particles.js"],
+    "sceneBootstrap": "const canvas = createCanvas(800, 600);"
+  },
+  "examples": [
+    {
+      "prompt": "Draw a bouncing ball",
+      "code": "let x = 400, y = 300, vx = 3, vy = 2;\n\nfunction setup() {\n  createCanvas(800, 600);\n}\n\nfunction draw() {\n  background(20);\n  fill(255, 100, 100);\n  noStroke();\n  ellipse(x, y, 40, 40);\n  x += vx;\n  y += vy;\n  if (x < 20 || x > 780) vx *= -1;\n  if (y < 20 || y > 580) vy *= -1;\n}"
+    }
+  ]
+}

@@ -1,0 +1,9 @@
+{
+  "name": "@visual-runtime/sandbox-pool",
+  "version": "1.0.0",
+  "type": "module",
+  "main": "src/index.js",
+  "dependencies": {
+    "@daytonaio/sdk": "^0.157.0"
+  }
+}

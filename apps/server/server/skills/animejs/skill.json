@@ -1,0 +1,56 @@
+{
+  "id": "animejs",
+  "name": "Anime.js Animator",
+  "version": "3.2.2",
+  "description": "High-fidelity DOM and SVG motion graphics using Anime.js timelines, easing, and staggered choreography.",
+  "author": "Generative Visual Engine Team",
+  "license": "MIT",
+  "domainFocus": ["animation", "2d", "motion-graphics"],
+  "capabilities": [
+    {
+      "name": "timeline",
+      "description": "Compose multi-step timeline animations with precise offsets and overlap"
+    },
+    {
+      "name": "easing",
+      "description": "Use easing curves and spring-like motion for expressive transitions"
+    },
+    {
+      "name": "stagger",
+      "description": "Animate groups with staggered delays and coordinated choreography"
+    },
+    {
+      "name": "svg",
+      "description": "Animate SVG paths, transforms, and stroke properties"
+    },
+    {
+      "name": "interaction",
+      "description": "Respond to hover/click input and trigger timeline segments"
+    }
+  ],
+  "runtime": {
+    "baseImage": "node:20-alpine",
+    "adapter": "mock-animejs",
+    "dependencies": ["animejs@3.2.2"],
+    "envVars": { "NODE_ENV": "production" },
+    "resources": { "memory": "256MB", "cpu": "0.5", "timeout": 20000 },
+    "ports": [3000],
+    "maxFrames": 60,
+    "timeoutMs": 1800,
+    "filesystem": {
+      "readOnly": ["/skills/animejs"],
+      "readWrite": ["/tmp", "/output"]
+    }
+  },
+  "templates": {
+    "entryPoint": "index.js",
+    "files": ["scene.js", "timeline.js"],
+    "sceneBootstrap": "const stage = document.getElementById('stage') || document.body;"
+  },
+  "examples": [
+    {
+      "prompt": "Create a smooth pulse animation",
+      "code": "const stage = document.getElementById('stage') || document.body;\nconst dot = document.createElement('div');\ndot.style.width = '72px';\ndot.style.height = '72px';\ndot.style.borderRadius = '999px';\ndot.style.background = 'linear-gradient(135deg, #60a5fa, #34d399)';\ndot.style.margin = '120px auto';\nstage.appendChild(dot);\n\nanime({\n  targets: dot,\n  scale: [0.85, 1.12],\n  opacity: [0.75, 1],\n  duration: 1400,\n  direction: 'alternate',\n  loop: true,\n  easing: 'easeInOutSine'\n});"
+    }
+  ]
+}

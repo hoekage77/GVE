@@ -1,0 +1,2953 @@
+import { Annotation, END, START, StateGraph } from "@langchain/langgraph";
+import { z } from "zod";
+
+import "./env.js";
+import { buildConversationPromptBundle, buildGenerationPromptBundle, buildModificationPromptBundle, buildImageToCodePromptBundle } from "./prompt-manager.js";
+import { executeSkillRuntime } from "./skill-runtime.js";
+import { selectSkillForIntent } from "./skill-registry.js";
+import { validateCode } from "./code-validator.js";
+import { getGenerationCacheKey, getCachedGeneration, setCachedGeneration } from "./cache-manager.js";
+import { runSelfDebugSession, runRuntimeDebugSession } from "./agent-runner.js";
+import { getDebugTools, getRuntimeDebugTools, setErrorContext, clearErrorContext } from "./agent-tools.js";
+
+const skillValues = ["threejs", "p5js", "d3js", "animejs", "auto"];
+const qualityValues = ["draft", "standard", "high"];
+const moonshotBaseUrl = process.env.MOONSHOT_BASE_URL ?? "https://api.moonshot.ai/v1";
+const moonshotModel = process.env.MOONSHOT_MODEL ?? "kimi-k2.5";
+const moonshotApiKey = process.env.MOONSHOT_API_KEY;
+const moonshotOverloadedMessage = "Moonshot temporarily overloaded; used local fallback.";
+
+function parseBooleanEnv(rawValue, fallbackValue) {
+  if (rawValue === undefined || rawValue === null || rawValue === "") {
+    return fallbackValue;
+  }
+
+  const normalized = String(rawValue).trim().toLowerCase();
+  if (["1", "true", "yes", "on"].includes(normalized)) {
+    return true;
+  }
+
+  if (["0", "false", "no", "off"].includes(normalized)) {
+    return false;
+  }
+
+  return fallbackValue;
+}
+
+function parseRetryDelays(rawValue, fallbackValue) {
+  if (rawValue === undefined || rawValue === null || String(rawValue).trim() === "") {
+    return fallbackValue;
+  }
+
+  const parsed = String(rawValue)
+    .split(",")
+    .map((value) => Number.parseInt(value.trim(), 10))
+    .filter((value) => Number.isFinite(value) && value >= 0);
+
+  return parsed.length > 0 ? parsed : fallbackValue;
+}
+
+function parsePositiveIntEnv(rawValue, fallbackValue, minimum = 1) {
+  const parsed = Number.parseInt(String(rawValue ?? ""), 10);
+  if (!Number.isFinite(parsed)) {
+    return fallbackValue;
+  }
+
+  return Math.max(minimum, parsed);
+}
+
+const fastModeEnabled = parseBooleanEnv(process.env.FAST_MODE, true);
+const moonshotRetryDelaysMs = parseRetryDelays(
+  process.env.MOONSHOT_RETRY_DELAYS_MS,
+  fastModeEnabled ? [150, 350] : [250, 750]
+);
+const narrationRetryDelaysMs = parseRetryDelays(
+  process.env.MOONSHOT_NARRATION_RETRY_DELAYS_MS,
+  fastModeEnabled ? [] : [1000, 2500, 5000]
+);
+const runtimeExecutionTimeoutMs = parsePositiveIntEnv(
+  process.env.RUNTIME_EXEC_TIMEOUT_MS,
+  2200,
+  300
+);
+const runtimeExecutionMaxFrames = parsePositiveIntEnv(
+  process.env.RUNTIME_EXEC_MAX_FRAMES,
+  48,
+  1
+);
+const turnBudgetMs = parsePositiveIntEnv(
+  process.env.TURN_BUDGET_MS,
+  60_000,
+  5_000
+);
+const runtimeRecoveryBudgetMs = parsePositiveIntEnv(
+  process.env.RUNTIME_RECOVERY_BUDGET_MS,
+  fastModeEnabled ? 18_000 : 24_000,
+  1_000
+);
+const runtimeDebugSessionTimeoutMs = parsePositiveIntEnv(
+  process.env.RUNTIME_DEBUG_SESSION_TIMEOUT_MS,
+  fastModeEnabled ? 10_000 : 15_000,
+  1_000
+);
+const selfDebugSessionTimeoutMs = parsePositiveIntEnv(
+  process.env.SELF_DEBUG_SESSION_TIMEOUT_MS,
+  fastModeEnabled ? 9_000 : 14_000,
+  1_000
+);
+const selfDebugMaxIterations = parsePositiveIntEnv(
+  process.env.SELF_DEBUG_MAX_ITERATIONS,
+  2,
+  1
+);
+const runtimeDebugMaxIterations = parsePositiveIntEnv(
+  process.env.RUNTIME_DEBUG_MAX_ITERATIONS,
+  2,
+  1
+);
+
+function getTurnDeadlineAtMs(turnStartedAtMs) {
+  if (Number.isFinite(turnStartedAtMs)) {
+    return turnStartedAtMs + turnBudgetMs;
+  }
+
+  return Date.now() + turnBudgetMs;
+}
+
+function getRemainingBudgetMs(deadlineAtMs) {
+  if (!Number.isFinite(deadlineAtMs)) {
+    return Number.POSITIVE_INFINITY;
+  }
+
+  return Math.max(0, deadlineAtMs - Date.now());
+}
+
+function computeBoundedTimeoutMs(deadlineAtMs, configuredTimeoutMs, minimumTimeoutMs = 300) {
+  const remainingMs = getRemainingBudgetMs(deadlineAtMs);
+  if (!Number.isFinite(remainingMs)) {
+    return configuredTimeoutMs;
+  }
+
+  if (remainingMs <= 0) {
+    return 0;
+  }
+
+  const minimum = Math.min(minimumTimeoutMs, remainingMs);
+  return Math.max(minimum, Math.min(configuredTimeoutMs, remainingMs));
+}
+
+async function withTimeout(promise, timeoutMs, timeoutMessage) {
+  if (!Number.isFinite(timeoutMs) || timeoutMs <= 0) {
+    throw new Error(timeoutMessage);
+  }
+
+  let timeoutHandle;
+  const timeoutPromise = new Promise((_, reject) => {
+    timeoutHandle = setTimeout(() => {
+      reject(new Error(timeoutMessage));
+    }, timeoutMs);
+  });
+
+  try {
+    return await Promise.race([promise, timeoutPromise]);
+  } finally {
+    clearTimeout(timeoutHandle);
+  }
+}
+
+function parseTemperature(value, fallback) {
+  const parsed = Number.parseFloat(value);
+  return Number.isFinite(parsed) ? parsed : fallback;
+}
+
+function resolveMoonshotTemperature(model, requestedTemperature) {
+  // Kimi models currently require temperature=1.
+  if (/kimi/i.test(model)) {
+    return 1;
+  }
+
+  return requestedTemperature;
+}
+
+function resolveRequestedQuality(request, selectedSkill) {
+  const explicitQuality = request?.preferences?.quality;
+  if (explicitQuality) {
+    return explicitQuality;
+  }
+
+  return selectedSkill === "threejs" || selectedSkill === "animejs" ? "high" : "standard";
+}
+
+const moonshotModeProfiles = Object.freeze({
+  instant: Object.freeze({
+    temperature: parseTemperature(process.env.MOONSHOT_INSTANT_TEMPERATURE, 1.0),
+    thinking: false
+  }),
+  thinking: Object.freeze({
+    temperature: parseTemperature(process.env.MOONSHOT_THINKING_TEMPERATURE, 1.0)
+  })
+});
+
+function emitPipelineProgress(progress, step, status = "running", payload = {}) {
+  if (typeof progress !== "function") {
+    return;
+  }
+
+  try {
+    progress({ step, status, payload });
+  } catch {
+    // Progress callbacks are best-effort and must never break orchestration.
+  }
+}
+
+const requestSchema = z.object({
+  query: z.string().min(3),
+  sessionId: z.string().optional(),
+  preferences: z
+    .object({
+      skill: z.enum(skillValues).optional(),
+      quality: z.enum(qualityValues).optional()
+    })
+    .optional()
+});
+
+const modifyRequestSchema = z.object({
+  sessionId: z.string().min(3),
+  instruction: z.string().min(3),
+  preferences: z
+    .object({
+      skill: z.enum(skillValues).optional(),
+      quality: z.enum(qualityValues).optional()
+    })
+    .optional(),
+  sceneState: z.any().optional()
+});
+
+const taskSchema = z.object({
+  id: z.string(),
+  title: z.string(),
+  description: z.string(),
+  action: z.enum([
+    "parse_intent",
+    "select_skill",
+    "build_prompt",
+    "generate_code",
+    "validate_code",
+    "execute_code",
+    "sync_state"
+  ]),
+  command: z.string(),
+  status: z.enum(["pending", "running", "completed", "failed"]),
+  dependsOn: z.array(z.string())
+});
+
+const executeRequestSchema = z.object({
+  planId: z.string().min(3),
+  task: taskSchema
+});
+
+function normalizeQuery(query) {
+  return query.trim().toLowerCase();
+}
+
+function isGreetingQuery(normalizedQuery) {
+  return /^(hi|hey|hello|yo|sup|hiya|good\s+(morning|afternoon|evening))\b/.test(normalizedQuery);
+}
+
+function isCapabilityQuery(normalizedQuery) {
+  return /(what can (you|u) do|what do you do|how can you help|help me|what can i do here|what should i ask)/.test(
+    normalizedQuery
+  );
+}
+
+function isSmallTalkQuery(normalizedQuery) {
+  return /(thanks|thank you|cool|nice|okay|ok|got it|sounds good|hey there|hello there)/.test(normalizedQuery);
+}
+
+function hasActionIntent(normalizedQuery) {
+  return /\b(create|make|build|generate|design|draw|sketch|render|animate|modify|change|update|edit|revise|refine|polish|enhance|improve|upgrade|tweak|adjust|add|explain|describe|walkthrough|show|preview)\b/.test(
+    normalizedQuery
+  );
+}
+
+function hasVisualTopicIntent(normalizedQuery) {
+  return /\b(scene|visual|image|3d|2d|canvas|diagram|chart|graph|data|cube|sphere|particle|color|rotation|spin|orbit|layout|lighting|material|shader|threejs|p5js|d3js|anime|animejs|motion|timeline|tween|easing|mermaid|wave|waves|scalar|interference|frequency|resonance|field|fields)\b/.test(
+    normalizedQuery
+  );
+}
+
+function hasRefinementIntent(normalizedQuery) {
+  if (/(\bmodify\b|\bchange\b|\bupdate\b|\bedit\b|\brefine\b|\bpolish\b|\benhance\b|\bimprove\b|\bupgrade\b|\btweak\b|\badjust\b|more\s+detail|high\s*quality|premium|cinematic|look\s+better)/.test(normalizedQuery)) {
+    return true;
+  }
+
+  return /\bmake\b/.test(normalizedQuery) && /(better|cleaner|sharper|richer|deeper|premium)/.test(normalizedQuery);
+}
+
+function isQuestionQuery(normalizedQuery) {
+  return /^(what|why|how|who|where|when|can|could|would|should|do|does|did|is|are|tell me|help|what's|whats)\b/.test(
+    normalizedQuery
+  );
+}
+
+function isConversationQuery(normalizedQuery) {
+  if (isGreetingQuery(normalizedQuery) || isCapabilityQuery(normalizedQuery) || isSmallTalkQuery(normalizedQuery)) {
+    return true;
+  }
+
+  if (isQuestionQuery(normalizedQuery) && !hasActionIntent(normalizedQuery)) {
+    return true;
+  }
+
+  return !hasActionIntent(normalizedQuery) && !hasVisualTopicIntent(normalizedQuery);
+}
+
+function buildConversationHelpText(sessionState, query, parsedIntent) {
+  const hasScene = Boolean(sessionState?.currentScene?.sceneId);
+  const sceneLabel = hasScene ? `current scene ${sessionState.currentScene.sceneId}` : "no scene yet";
+  const queryLabel = query.trim() ? `for “${query.trim()}”` : "for now";
+
+  if (parsedIntent.isGreeting) {
+    return [
+      `Hi. I can generate a new visual, modify the current one, or explain ${sceneLabel}.`,
+      `Try asking me to make something, change a detail, or explain what you already have ${queryLabel}.`,
+      hasScene ? `If you want, I can continue from ${sceneLabel} right away.` : "If you do not have a scene yet, I can start one from scratch."
+    ].join(" ");
+  }
+
+  if (parsedIntent.isCapabilityQuestion) {
+    return [
+      "I can create scenes, edit existing ones, explain the current result, and keep the session history organized.",
+      hasScene
+        ? `Right now I can work from ${sceneLabel}. Ask for a color change, rotation tweak, layout shift, or a full new scene.`
+        : "Right now there is no active scene, so the fastest path is to ask me to create one.",
+      "Examples: ‘make a spinning cube’, ‘make it greener’, or ‘explain this scene’."
+    ].join(" ");
+  }
+
+  return [
+    "I can help with visuals, edits, and explanations.",
+    hasScene
+      ? `This session already has ${sceneLabel}, so you can ask me to modify it or explain it.`
+      : "There is no generated scene yet, so I can start by creating one.",
+    "If you want a specific result, mention the object, style, motion, color, or layout."
+  ].join(" ");
+}
+
+function extractAssistantText(rawContent) {
+  if (!rawContent || typeof rawContent !== "string") {
+    return "";
+  }
+
+  const cleaned = rawContent.replace(/^```(?:text|markdown)?\s*/i, "").replace(/```\s*$/i, "").trim();
+  return cleaned;
+}
+
+async function generateConversationReplyWithMoonshot({ sessionState, request, parsedIntent, mode, onChunk }) {
+  if (!moonshotApiKey) {
+    const replyText = buildConversationHelpText(sessionState, request.query, parsedIntent);
+    await emitTextChunks(replyText, onChunk);
+
+    return {
+      replyText,
+      replySource: "fallback",
+      replyWarning: "MOONSHOT_API_KEY not configured; used fallback conversation reply."
+    };
+  }
+
+  const { systemPrompt, userPrompt } = buildConversationPromptBundle({
+    sessionState,
+    request,
+    parsedIntent,
+    mode
+  });
+
+  try {
+    const response = await fetchMoonshotChatCompletion({
+      model: moonshotModel,
+      stream: true,
+      messages: [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: userPrompt }
+      ]
+    }, { mode: "thinking" });
+
+    const contentType = response.headers.get("content-type") ?? "";
+    const replyText = contentType.includes("text/event-stream")
+      ? extractAssistantText(await streamMoonshotAssistantText(response, onChunk))
+      : extractAssistantText((await response.json())?.choices?.[0]?.message?.content);
+
+    if (!replyText) {
+      throw new Error("Moonshot returned empty conversational output.");
+    }
+
+    return {
+      replyText,
+      replySource: "moonshot-kimi",
+      replyWarning: null
+    };
+  } catch (error) {
+    return {
+      replyText: buildConversationHelpText(sessionState, request.query, parsedIntent),
+      replySource: "fallback",
+      replyWarning: isMoonshotOverloaded(error)
+        ? moonshotOverloadedMessage
+        : `Conversation fallback used after model error: ${error instanceof Error ? error.message : "Unknown error"}`
+    };
+  }
+}
+
+function extractCodeContent(rawContent) {
+  if (!rawContent || typeof rawContent !== "string") {
+    return "";
+  }
+
+  const fencedBlock = rawContent.match(/```(?:javascript|js)?\s*([\s\S]*?)```/i);
+  const output = fencedBlock ? fencedBlock[1] : rawContent;
+  return output.trim();
+}
+
+function splitCodeLines(code) {
+  return String(code ?? "").replace(/\r\n/g, "\n").split("\n");
+}
+
+function buildLineDiffOperations(previousLines, nextLines) {
+  const rowCount = previousLines.length;
+  const columnCount = nextLines.length;
+  const matrix = Array.from({ length: rowCount + 1 }, () => Array(columnCount + 1).fill(0));
+
+  for (let row = rowCount - 1; row >= 0; row -= 1) {
+    for (let column = columnCount - 1; column >= 0; column -= 1) {
+      if (previousLines[row] === nextLines[column]) {
+        matrix[row][column] = matrix[row + 1][column + 1] + 1;
+      } else {
+        matrix[row][column] = Math.max(matrix[row + 1][column], matrix[row][column + 1]);
+      }
+    }
+  }
+
+  const operations = [];
+  let row = 0;
+  let column = 0;
+
+  while (row < rowCount && column < columnCount) {
+    if (previousLines[row] === nextLines[column]) {
+      operations.push({ type: "equal", line: previousLines[row] });
+      row += 1;
+      column += 1;
+      continue;
+    }
+
+    if (matrix[row + 1][column] >= matrix[row][column + 1]) {
+      operations.push({ type: "remove", line: previousLines[row] });
+      row += 1;
+    } else {
+      operations.push({ type: "add", line: nextLines[column] });
+      column += 1;
+    }
+  }
+
+  while (row < rowCount) {
+    operations.push({ type: "remove", line: previousLines[row] });
+    row += 1;
+  }
+
+  while (column < columnCount) {
+    operations.push({ type: "add", line: nextLines[column] });
+    column += 1;
+  }
+
+  return operations;
+}
+
+function buildCodeDiffDetails(previousCode, nextCode) {
+  if (previousCode === nextCode) {
+    return {
+      patch: "",
+      addedLines: 0,
+      removedLines: 0,
+      changedLines: 0
+    };
+  }
+
+  const previousLines = splitCodeLines(previousCode);
+  const nextLines = splitCodeLines(nextCode);
+  const operations = buildLineDiffOperations(previousLines, nextLines);
+  const addedLines = operations.reduce((total, operation) => total + (operation.type === "add" ? 1 : 0), 0);
+  const removedLines = operations.reduce((total, operation) => total + (operation.type === "remove" ? 1 : 0), 0);
+
+  const patchLines = [
+    "--- previous.js",
+    "+++ updated.js",
+    `@@ -1,${previousLines.length} +1,${nextLines.length} @@`,
+    ...operations.map((operation) => {
+      if (operation.type === "add") {
+        return `+${operation.line}`;
+      }
+
+      if (operation.type === "remove") {
+        return `-${operation.line}`;
+      }
+
+      return ` ${operation.line}`;
+    })
+  ];
+
+  return {
+    patch: patchLines.join("\n"),
+    addedLines,
+    removedLines,
+    changedLines: addedLines + removedLines
+  };
+}
+
+function normalizeCodeForSemanticCompare(code) {
+  return String(code ?? "")
+    .replace(/\/\*[\s\S]*?\*\//g, "")
+    .replace(/^\s*\/\/.*$/gm, "")
+    .replace(/\s+/g, "")
+    .trim();
+}
+
+function patchAddsOnlyCommentLines(patch) {
+  if (!patch) {
+    return false;
+  }
+
+  const lines = String(patch).split("\n");
+  let hasAddedLine = false;
+
+  for (const line of lines) {
+    if (!line.startsWith("+") || line.startsWith("+++")) {
+      continue;
+    }
+
+    const addedLine = line.slice(1).trim();
+    if (!addedLine) {
+      continue;
+    }
+
+    hasAddedLine = true;
+    if (!(addedLine.startsWith("//") || addedLine.startsWith("/*") || addedLine.startsWith("*"))) {
+      return false;
+    }
+  }
+
+  return hasAddedLine;
+}
+
+function detectNoopModification({ previousCode, nextCode, changeSummary, diffDetails }) {
+  if (String(previousCode ?? "") === String(nextCode ?? "")) {
+    return { isNoop: true, reason: "identical_output" };
+  }
+
+  const previousSemantic = normalizeCodeForSemanticCompare(previousCode);
+  const nextSemantic = normalizeCodeForSemanticCompare(nextCode);
+  if (previousSemantic === nextSemantic) {
+    return { isNoop: true, reason: "non_semantic_diff" };
+  }
+
+  if (patchAddsOnlyCommentLines(diffDetails?.patch)) {
+    return { isNoop: true, reason: "comment_only_patch" };
+  }
+
+  const summary = String(changeSummary ?? "");
+  if ((diffDetails?.changedLines ?? 0) <= 1 && /instruction marker|no direct code match/i.test(summary)) {
+    return { isNoop: true, reason: "instruction_marker_only" };
+  }
+
+  return { isNoop: false, reason: null };
+}
+
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function truncateDiagnostic(value, maxLength = 320) {
+  if (value === undefined || value === null) {
+    return null;
+  }
+
+  const text = String(value);
+  return text.length > maxLength ? `${text.slice(0, maxLength)}...` : text;
+}
+
+function serializeErrorForDiagnostics(error, context = {}) {
+  const diagnostics = {
+    stage: context.stage ?? null,
+    context,
+    message: "Unknown error",
+    code: null,
+    status: null,
+    cause: null,
+    stack: null,
+    timestamp: new Date().toISOString()
+  };
+
+  if (error instanceof Error) {
+    diagnostics.message = truncateDiagnostic(error.message) ?? diagnostics.message;
+    diagnostics.code = truncateDiagnostic(error.code, 96);
+    diagnostics.status = Number.isFinite(error.status) ? Number(error.status) : null;
+    diagnostics.cause = truncateDiagnostic(
+      error.cause instanceof Error ? error.cause.message : error.cause,
+      240
+    );
+    diagnostics.stack = truncateDiagnostic(error.stack?.split("\n").slice(0, 3).join(" | "), 500);
+    return diagnostics;
+  }
+
+  diagnostics.message = truncateDiagnostic(error, 320) ?? diagnostics.message;
+  return diagnostics;
+}
+
+function isMoonshotOverloaded(error) {
+  return Boolean(
+    error &&
+      typeof error === "object" &&
+      ((error.code && error.code === "MOONSHOT_OVERLOADED") ||
+        (error instanceof Error && /(temporarily overloaded|engine_overloaded_error|\b429\b)/i.test(error.message)))
+  );
+}
+
+function createMoonshotOverloadedError() {
+  const error = new Error(moonshotOverloadedMessage);
+  error.code = "MOONSHOT_OVERLOADED";
+  return error;
+}
+
+async function withNarrationRetries(operationName, fn, options = {}) {
+  const retryDelays = Array.isArray(options.retryDelays) ? options.retryDelays : narrationRetryDelaysMs;
+  let attempt = 0;
+  let lastError = null;
+
+  while (attempt <= retryDelays.length) {
+    try {
+      return await fn();
+    } catch (error) {
+      lastError = error;
+
+      if (!isMoonshotOverloaded(error) || attempt >= retryDelays.length) {
+        throw error;
+      }
+
+      const delayMs = retryDelays[attempt] ?? 0;
+      if (delayMs > 0) {
+        console.warn(
+          `[${operationName}] Moonshot overloaded. Retrying in ${delayMs}ms (attempt ${attempt + 1}/${retryDelays.length + 1}).`
+        );
+        await sleep(delayMs);
+      }
+      attempt += 1;
+    }
+  }
+
+  throw lastError ?? new Error(`${operationName} failed.`);
+}
+
+function buildMoonshotRequestPayload(payload, options = {}) {
+  const mode = options.mode ?? "thinking";
+  const modeProfile = moonshotModeProfiles[mode] ?? moonshotModeProfiles.thinking;
+  const enrichedPayload = { ...payload };
+  const requestModel = enrichedPayload.model ?? moonshotModel;
+  const requestedTemperature = payload.temperature ?? modeProfile.temperature;
+
+  enrichedPayload.temperature = resolveMoonshotTemperature(requestModel, requestedTemperature);
+
+  if (mode === "instant" && modeProfile.thinking === false) {
+    const existingExtraBody = payload.extra_body ?? {};
+    const existingTemplateArgs = existingExtraBody.chat_template_kwargs ?? {};
+
+    enrichedPayload.extra_body = {
+      ...existingExtraBody,
+      chat_template_kwargs: {
+        ...existingTemplateArgs,
+        thinking: false
+      }
+    };
+  } else if (payload.extra_body) {
+    enrichedPayload.extra_body = payload.extra_body;
+  }
+
+  return enrichedPayload;
+}
+
+async function streamMoonshotAssistantText(response, onChunk) {
+  if (!response.body) {
+    throw new Error("Moonshot streaming response did not include a body.");
+  }
+
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+  let assistantText = "";
+
+  while (true) {
+    const { value, done } = await reader.read();
+    if (done) {
+      break;
+    }
+
+    buffer += decoder.decode(value, { stream: true });
+
+    while (buffer.includes("\n\n")) {
+      const separatorIndex = buffer.indexOf("\n\n");
+      const rawEvent = buffer.slice(0, separatorIndex).trim();
+      buffer = buffer.slice(separatorIndex + 2);
+
+      if (!rawEvent) {
+        continue;
+      }
+
+      const data = rawEvent
+        .split("\n")
+        .filter((line) => line.startsWith("data:"))
+        .map((line) => line.replace(/^data:\s?/, ""))
+        .join("\n");
+
+      if (!data || data === "[DONE]") {
+        continue;
+      }
+
+      let parsed;
+      try {
+        parsed = JSON.parse(data);
+      } catch {
+        continue;
+      }
+
+      const delta = parsed?.choices?.[0]?.delta?.content ?? parsed?.choices?.[0]?.message?.content ?? "";
+      if (!delta) {
+        continue;
+      }
+
+      assistantText += delta;
+      if (typeof onChunk === "function") {
+        await onChunk(delta, assistantText);
+      }
+    }
+  }
+
+  const trailing = buffer.trim();
+  if (trailing && trailing !== "[DONE]") {
+    try {
+      const parsed = JSON.parse(trailing.replace(/^data:\s?/, ""));
+      const delta = parsed?.choices?.[0]?.delta?.content ?? parsed?.choices?.[0]?.message?.content ?? "";
+      if (delta) {
+        assistantText += delta;
+        if (typeof onChunk === "function") {
+          await onChunk(delta, assistantText);
+        }
+      }
+    } catch {
+      // Ignore trailing partial data.
+    }
+  }
+
+  return assistantText;
+}
+
+async function emitTextChunks(text, onChunk) {
+  if (typeof onChunk !== "function" || !text) {
+    return;
+  }
+
+  const segments = text.match(/[^\n\.?!]+[\n\.?!]?|\s+/g) ?? [text];
+  let runningText = "";
+
+  for (const segment of segments) {
+    runningText += segment;
+    await onChunk(segment, runningText);
+  }
+}
+
+/**
+ * Fetch chat completion from Moonshot API with model mode routing.
+ *
+ * @param {object} payload - Standard OpenAI-compatible chat completion payload
+ * @param {object} [options] - Additional options
+ * @param {string} [options.mode='thinking'] - 'instant' | 'thinking' — controls Kimi K2.5 mode
+ */
+async function fetchMoonshotChatCompletion(payload, options = {}) {
+  const mode = options.mode ?? "thinking";
+  let lastError = null;
+  let attempt = 0;
+
+  while (attempt <= moonshotRetryDelaysMs.length) {
+    const enrichedPayload = buildMoonshotRequestPayload(payload, { mode });
+
+    try {
+      const response = await fetch(`${moonshotBaseUrl.replace(/\/$/, "")}/chat/completions`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${moonshotApiKey}`
+        },
+        body: JSON.stringify(enrichedPayload)
+      });
+
+      if (response.ok) {
+        return response;
+      }
+
+      const bodyText = await response.text();
+
+      const error = new Error(`Moonshot request failed (${response.status}): ${bodyText.slice(0, 220)}`);
+
+      if (response.status !== 429 || attempt >= moonshotRetryDelaysMs.length) {
+        throw error;
+      }
+
+      lastError = error;
+      await sleep(moonshotRetryDelaysMs[attempt]);
+      attempt += 1;
+    } catch (error) {
+      lastError = error;
+
+      if (!isMoonshotOverloaded(error) || attempt >= moonshotRetryDelaysMs.length) {
+        throw error;
+      }
+
+      await sleep(moonshotRetryDelaysMs[attempt]);
+      attempt += 1;
+    }
+  }
+
+  if (isMoonshotOverloaded(lastError)) {
+    throw createMoonshotOverloadedError();
+  }
+
+  throw lastError ?? new Error("Moonshot request failed.");
+}
+
+/**
+ * Pre-turn LLM thinking analysis.
+ * Makes a single thinking-mode call to generate context-aware narrations
+ * for each pipeline step before the turn runs.
+ *
+ * @param {string} query - The user's raw query
+ * @param {object} [sessionContext] - Optional session state for context
+ * @returns {Promise<object|null>} Object with step narrations, or null on failure
+ */
+export async function generateThinkingAnalysis(query, sessionContext = {}, options = {}) {
+  if (!moonshotApiKey) {
+    return null;
+  }
+
+  const hasScene = Boolean(sessionContext?.currentScene?.code);
+  const sceneHint = hasScene
+    ? `The user already has an active scene (skill: ${sessionContext.currentScene.skill ?? "unknown"}, version ${sessionContext.currentScene.version ?? 1}).`
+    : "The user does not have an active scene yet.";
+
+  const systemPrompt = [
+    "You are the internal reasoning voice of a visual generation AI called GVE.",
+    "Given the user's request, produce a JSON object with first-person thoughts for each pipeline stage.",
+    "Write naturally as internal monologue. Be specific about the user's request — mention what they want, which technology fits, and what your approach is.",
+    "Keep each thought to 1-2 sentences. Do NOT use markdown or code blocks. Output ONLY valid JSON.",
+    "",
+    "Required keys (all strings):",
+    '  "intent" — your analysis of what the user wants',
+    '  "skill" — which rendering engine (Three.js / p5.js / D3.js) you chose and why',
+    '  "plan" — how many steps you\'ll take and what the approach is',
+    '  "generating" — what code you\'re about to write (mention specific geometries, effects, etc.)',
+    '  "validating" — a brief note about checking the code',
+    '  "executing" — spinning up the sandbox',
+    '  "complete" — a natural summary of the finished result for the user'
+  ].join("\n");
+
+  const userPrompt = [
+    `The user asked: "${query}"`,
+    sceneHint,
+    "",
+    "Produce the JSON object now."
+  ].join("\n");
+
+  try {
+    const payload = await withNarrationRetries("ThinkingAnalysis", async () => {
+      const response = await fetchMoonshotChatCompletion(
+        {
+          model: moonshotModel,
+          messages: [
+            { role: "system", content: systemPrompt },
+            { role: "user", content: userPrompt }
+          ]
+        },
+        { mode: "thinking" }
+      );
+
+      return response.json();
+    });
+
+    const content = payload?.choices?.[0]?.message?.content ?? "";
+
+    // Extract JSON from response (may be wrapped in code blocks)
+    const jsonMatch = content.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) {
+      console.warn("[ThinkingAnalysis] Could not extract JSON from response.");
+      return null;
+    }
+
+    const parsed = JSON.parse(jsonMatch[0]);
+    console.log("[ThinkingAnalysis] Generated context-aware thoughts for:", query.slice(0, 60));
+    return parsed;
+  } catch (err) {
+    const diagnostics = serializeErrorForDiagnostics(err, {
+      stage: "thinking_analysis",
+      queryPreview: truncateDiagnostic(query, 96),
+      hasScene
+    });
+
+    console.warn("[ThinkingAnalysis] Failed:", JSON.stringify(diagnostics));
+
+    if (typeof options?.onError === "function") {
+      try {
+        options.onError(diagnostics);
+      } catch {
+        // Diagnostic hooks are best-effort and must never break turn flow.
+      }
+    }
+
+    return null;
+  }
+}
+
+/**
+ * Post-turn LLM narration.
+ * Makes a single thinking-mode call after execution to produce a natural
+ * summary of the generated result.
+ *
+ * @param {object} turnResult - The completed turn result
+ * @param {string} query - The original user query
+ * @returns {Promise<string|null>} Natural language summary, or null on failure
+ */
+export async function generatePostTurnNarration(turnResult, query, options = {}) {
+  const fastNarrationMode = options.fastMode ?? fastModeEnabled;
+  if (!moonshotApiKey) {
+    return buildLocalPostTurnNarration(turnResult, query);
+  }
+
+  const skill = turnResult?.result?.skill ?? "unknown";
+  const runtimeStatus = turnResult?.result?.runtime?.status ?? "unknown";
+  const renderCount = turnResult?.result?.runtime?.renderCount ?? 0;
+  const frameCount = turnResult?.result?.runtime?.frameCount ?? 0;
+  const durationMs = turnResult?.result?.runtime?.durationMs ?? 0;
+  const success = turnResult?.result?.runtime?.success ?? false;
+
+  const systemPrompt = [
+    "You are explaining what you just built to the user. Be concise, specific, and natural.",
+    "Mention what you created, the key visual elements, and any notable details.",
+    "Keep it to 1-3 sentences. Do NOT use markdown. Do NOT start with \"I\"."
+  ].join("\n");
+
+  const userPrompt = [
+    `I generated a ${skill} scene for "${query}"`,
+    `Result: ${success ? "success" : "failed"}, ${renderCount} renders, ${frameCount} frames, ${durationMs}ms.`,
+    runtimeStatus === "skipped" ? "Execution was skipped due to validation issues." : "",
+    "",
+    "Describe what was built in 1-3 sentences."
+  ].filter(Boolean).join("\n");
+
+  try {
+    const narrationRetryDelays = fastNarrationMode ? [] : narrationRetryDelaysMs;
+    const payload = await withNarrationRetries("PostTurnNarration", async () => {
+      const response = await fetchMoonshotChatCompletion(
+        {
+          model: moonshotModel,
+          messages: [
+            { role: "system", content: systemPrompt },
+            { role: "user", content: userPrompt }
+          ]
+        },
+        { mode: "thinking" }
+      );
+
+      return response.json();
+    }, { retryDelays: narrationRetryDelays });
+
+    const content = extractAssistantText(payload?.choices?.[0]?.message?.content ?? "");
+
+    if (content) {
+      console.log("[PostTurnNarration] Generated summary for:", query.slice(0, 60));
+    }
+
+    return content || null;
+  } catch (err) {
+    console.warn("[PostTurnNarration] Failed:", err instanceof Error ? err.message : "Unknown error");
+    return buildLocalPostTurnNarration(turnResult, query);
+  }
+}
+
+function buildLocalPostTurnNarration(turnResult, query) {
+  const skill = turnResult?.result?.skill ?? "unknown";
+  const runtimeStatus = turnResult?.result?.runtime?.status ?? "unknown";
+  const renderCount = turnResult?.result?.runtime?.renderCount ?? 0;
+  const frameCount = turnResult?.result?.runtime?.frameCount ?? 0;
+  const success = turnResult?.result?.runtime?.success ?? false;
+
+  if (success) {
+    return `Built a ${skill} scene for \"${query}\" with ${renderCount} renders across ${frameCount} frames.`;
+  }
+
+  return `Attempted a ${skill} scene for \"${query}\", but runtime finished with status ${runtimeStatus}.`;
+}
+
+function buildFallbackGeneratedCode() {
+  return [
+    "// Local fallback output",
+    "const geometry = new THREE.BoxGeometry(1, 1, 1);",
+    "const material = new THREE.MeshStandardMaterial({ color: 0x1d8cf8, metalness: 0.8, roughness: 0.2 });",
+    "const mesh = new THREE.Mesh(geometry, material);",
+    "scene.add(mesh);",
+    "function animate() {",
+    "  requestAnimationFrame(animate);",
+    "  mesh.rotation.x += 0.01;",
+    "  mesh.rotation.y += 0.01;",
+    "  renderer.render(scene, camera);",
+    "}",
+    "animate();"
+  ].join("\n");
+}
+
+async function generateCodeWithMoonshot(state) {
+  if (!moonshotApiKey) {
+    return {
+      generatedCode: buildFallbackGeneratedCode(),
+      generationSource: "fallback",
+      generationWarning: "MOONSHOT_API_KEY not configured; used fallback generator."
+    };
+  }
+
+  const { systemPrompt, userPrompt } = buildGenerationPromptBundle(state);
+
+  try {
+    const response = await fetchMoonshotChatCompletion({
+      model: moonshotModel,
+      messages: [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: userPrompt }
+      ]
+    }, { mode: "instant" });
+
+    const payload = await response.json();
+    const content = payload?.choices?.[0]?.message?.content;
+    const generatedCode = extractCodeContent(content);
+
+    if (!generatedCode) {
+      throw new Error("Moonshot returned empty code output.");
+    }
+
+    return {
+      generatedCode,
+      generationSource: "moonshot-kimi",
+      generationWarning: null
+    };
+  } catch (error) {
+    if (!isMoonshotOverloaded(error)) {
+      throw error;
+    }
+
+    return {
+      generatedCode: buildFallbackGeneratedCode(),
+      generationSource: "fallback",
+      generationWarning: moonshotOverloadedMessage
+    };
+  }
+}
+
+function applyFallbackSceneEdit(currentCode, instruction) {
+  const normalizedInstruction = instruction.trim().toLowerCase();
+  let nextCode = currentCode;
+  const notes = [];
+
+  if (/(faster|speed up|quicker)/.test(normalizedInstruction)) {
+    nextCode = nextCode.replace(/0\.0?1/g, "0.02");
+    notes.push("Increased animation speed.");
+  }
+
+  if (/(slower|reduce speed|gentler)/.test(normalizedInstruction)) {
+    nextCode = nextCode.replace(/0\.0?1/g, "0.005");
+    notes.push("Reduced animation speed.");
+  }
+
+  const colorMap = {
+    blue: "0x1d8cf8",
+    red: "0xef4444",
+    green: "0x22c55e",
+    yellow: "0xeab308",
+    purple: "0x8b5cf6",
+    pink: "0xec4899",
+    orange: "0xf97316",
+    white: "0xf8fafc"
+  };
+
+  const requestedColor = Object.entries(colorMap).find(([name]) => normalizedInstruction.includes(name));
+  if (requestedColor) {
+    const [colorName, colorHex] = requestedColor;
+    nextCode = nextCode.replace(/color:\s*0x[0-9a-f]+/i, `color: ${colorHex}`);
+    notes.push(`Adjusted color to ${colorName}.`);
+  }
+
+  const sphereMatch = normalizedInstruction.match(/sphere|orb|planet|ball/);
+  const cubeMatch = normalizedInstruction.match(/cube|box/);
+  const sphereIndex = sphereMatch ? normalizedInstruction.indexOf(sphereMatch[0]) : -1;
+  const cubeIndex = cubeMatch ? normalizedInstruction.indexOf(cubeMatch[0]) : -1;
+
+  if (sphereIndex !== -1 && (cubeIndex === -1 || sphereIndex > cubeIndex)) {
+    nextCode = nextCode.replace(/BoxGeometry\(([^)]*)\)/g, "SphereGeometry(0.75, 32, 32)");
+    notes.push("Swapped box geometry for sphere geometry.");
+  } else if (cubeIndex !== -1) {
+    nextCode = nextCode.replace(/SphereGeometry\(([^)]*)\)/g, "BoxGeometry(1, 1, 1)");
+    notes.push("Swapped sphere geometry back to a cube.");
+  }
+
+  if (nextCode === currentCode) {
+    nextCode = `// Modification requested: ${instruction}\n${currentCode}`;
+    notes.push("Added instruction marker because no direct code match was available.");
+  } else {
+    nextCode = `// Modified scene: ${instruction}\n${nextCode}`;
+  }
+
+  return {
+    generatedCode: nextCode,
+    changeSummary: notes.length > 0 ? notes.join(" ") : "Applied fallback scene edit."
+  };
+}
+
+async function modifyCodeWithMoonshot(state, options = {}) {
+  if (!moonshotApiKey) {
+    const fallback = applyFallbackSceneEdit(state.currentCode, state.instruction);
+    return {
+      generatedCode: fallback.generatedCode,
+      generationSource: "fallback",
+      generationWarning: "MOONSHOT_API_KEY not configured; used fallback modifier.",
+      changeSummary: fallback.changeSummary
+    };
+  }
+
+  const { systemPrompt, userPrompt } = buildModificationPromptBundle(state);
+
+  try {
+    const response = await fetchMoonshotChatCompletion({
+      model: moonshotModel,
+      messages: [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: userPrompt }
+      ]
+    }, { mode: "instant" });
+
+    const payload = await response.json();
+    const content = payload?.choices?.[0]?.message?.content;
+    const generatedCode = extractCodeContent(content);
+
+    if (!generatedCode) {
+      throw new Error("Moonshot returned empty code output for modification.");
+    }
+
+    return {
+      generatedCode,
+      generationSource: "moonshot-kimi",
+      generationWarning: null,
+      changeSummary: "Applied model-driven scene modification."
+    };
+  } catch (error) {
+    if (!isMoonshotOverloaded(error)) {
+      throw error;
+    }
+
+    if (options.allowFallback === false) {
+      throw error;
+    }
+
+    const fallback = applyFallbackSceneEdit(state.currentCode, state.instruction);
+    return {
+      generatedCode: fallback.generatedCode,
+      generationSource: "fallback",
+      generationWarning: moonshotOverloadedMessage,
+      changeSummary: fallback.changeSummary
+    };
+  }
+}
+
+function parseIntentFromQuery(query) {
+  const normalized = normalizeQuery(query);
+  const greeting = isGreetingQuery(normalized);
+  const capabilityQuestion = isCapabilityQuery(normalized);
+  const smallTalk = isSmallTalkQuery(normalized);
+  const conversationQuery = isConversationQuery(normalized);
+
+  let intentType = "create";
+  if (/(explain|describe|walkthrough)/.test(normalized)) intentType = "explain";
+  if (/(modify|change|update|edit|refine|polish|enhance|improve|upgrade|tweak|adjust)/.test(normalized) || hasRefinementIntent(normalized)) {
+    intentType = "modify";
+  }
+  if (/(animate|rotation|spin|orbit)/.test(normalized)) intentType = "animate";
+  if (/(create|make|build|generate|design|draw|sketch|render|animation|video)/.test(normalized)) intentType = "create";
+  if (conversationQuery) intentType = "chat";
+
+  let targetDomain = "3d";
+  if (/(data|chart|graph|dataset|bar|line)/.test(normalized)) targetDomain = "data-viz";
+  if (/(diagram|flow|sequence|class diagram|mermaid)/.test(normalized)) targetDomain = "diagram";
+  if (/(2d|canvas|particle)/.test(normalized)) targetDomain = "2d";
+
+  const entities = [];
+  if (/cube/.test(normalized)) entities.push({ kind: "object", name: "cube" });
+  if (/sphere|planet|sun/.test(normalized)) entities.push({ kind: "object", name: "sphere" });
+  if (/blue|red|green|yellow/.test(normalized)) {
+    const color = ["blue", "red", "green", "yellow"].find((c) => normalized.includes(c));
+    entities.push({ kind: "color", name: color });
+  }
+  if (/metallic|pbr/.test(normalized)) entities.push({ kind: "material", name: "metallic" });
+  if (/rotate|rotation|spin|orbit/.test(normalized)) entities.push({ kind: "animation", name: "rotation" });
+
+  const constraints = [];
+  if (/real-time|realtime|interactive/.test(normalized)) {
+    constraints.push({ name: "rendering", value: "realtime" });
+  }
+
+  let confidence = query.length > 20 ? 0.9 : 0.72;
+  if (hasActionIntent(normalized)) {
+    confidence += 0.16;
+  }
+  if (hasVisualTopicIntent(normalized)) {
+    confidence += 0.1;
+  }
+  if (hasRefinementIntent(normalized)) {
+    confidence += 0.05;
+  }
+  if (isQuestionQuery(normalized) && !hasActionIntent(normalized)) {
+    confidence -= 0.18;
+  }
+  confidence = Math.min(0.99, Math.max(0.05, confidence));
+  const ambiguous = confidence < 0.7;
+  const conversationalConfidence = conversationQuery ? 0.96 : confidence;
+  const conversationalAmbiguous = conversationQuery ? false : ambiguous;
+
+  return {
+    rawQuery: query,
+    intentType,
+    targetDomain,
+    entities,
+    constraints,
+    confidence: conversationalConfidence,
+    ambiguous: conversationalAmbiguous,
+    isGreeting: greeting,
+    isCapabilityQuestion: capabilityQuestion,
+    isSmallTalk: smallTalk,
+    isConversation: conversationQuery,
+    clarificationPrompt: conversationalAmbiguous
+      ? "I can generate a new scene, modify the current one, or explain the existing result. Which should I do?"
+      : null
+  };
+}
+
+function applySessionAwareIntentOverrides(parsedIntent, query, sessionState) {
+  if (!parsedIntent || !query || !sessionState?.currentScene?.code) {
+    return parsedIntent;
+  }
+
+  const normalized = normalizeQuery(query);
+  if (!hasRefinementIntent(normalized)) {
+    return parsedIntent;
+  }
+
+  return {
+    ...parsedIntent,
+    intentType: "modify",
+    ambiguous: false,
+    isConversation: false,
+    clarificationPrompt: null
+  };
+}
+
+function selectSkill(parsedIntent, requestedSkill) {
+  return selectSkillForIntent(parsedIntent, requestedSkill);
+}
+
+export async function resolveChatTurn(request, sessionState, options = {}) {
+  const forcedMode = String(request?.preferences?.mode ?? "").trim().toLowerCase();
+  let parsedIntent = applySessionAwareIntentOverrides(parseIntentFromQuery(request.query), request.query, sessionState);
+
+  if (forcedMode === "modify" && sessionState?.currentScene?.code) {
+    parsedIntent = {
+      ...parsedIntent,
+      intentType: "modify",
+      ambiguous: false,
+      isConversation: false,
+      clarificationPrompt: null
+    };
+  } else if (forcedMode === "generate") {
+    parsedIntent = {
+      ...parsedIntent,
+      intentType: "generate",
+      ambiguous: false,
+      isConversation: false,
+      clarificationPrompt: null
+    };
+  }
+
+  if (parsedIntent.intentType === "chat") {
+    const reply = await generateConversationReplyWithMoonshot({
+      sessionState,
+      request,
+      parsedIntent,
+      mode: "chat",
+      onChunk: options.onAssistantChunk
+    });
+
+    return {
+      mode: "chat",
+      parsedIntent,
+      assistantText: reply.replyText,
+      assistantSource: reply.replySource,
+      assistantWarning: reply.replyWarning,
+      result: null,
+      sceneState: sessionState ?? null
+    };
+  }
+
+  if (parsedIntent.ambiguous) {
+    const reply = await generateConversationReplyWithMoonshot({
+      sessionState,
+      request,
+      parsedIntent,
+      mode: "clarify",
+      onChunk: options.onAssistantChunk
+    });
+
+    return {
+      mode: "clarify",
+      parsedIntent,
+      assistantText: reply.replyText,
+      assistantSource: reply.replySource,
+      assistantWarning: reply.replyWarning,
+      result: null,
+      sceneState: sessionState ?? null
+    };
+  }
+
+  if (parsedIntent.intentType === "explain") {
+    const reply = await generateConversationReplyWithMoonshot({
+      sessionState,
+      request,
+      parsedIntent,
+      mode: "explain",
+      onChunk: options.onAssistantChunk
+    });
+
+    return {
+      mode: "explain",
+      parsedIntent,
+      assistantText: reply.replyText,
+      assistantSource: reply.replySource,
+      assistantWarning: reply.replyWarning,
+      result: null,
+      sceneState: sessionState ?? null
+    };
+  }
+
+  if (parsedIntent.intentType === "modify" && sessionState?.currentScene?.code) {
+    const result = await modifyVisual({
+      sessionId: request.sessionId,
+      instruction: request.query,
+      preferences: request.preferences,
+      sceneState: sessionState
+    }, { onProgress: options.onStep });
+
+    return {
+      mode: "modify",
+      parsedIntent,
+      assistantText: result.explanation,
+      result,
+      sceneState: result.sceneState
+    };
+  }
+
+  const result = await generateVisual(request, { onProgress: options.onStep });
+
+  return {
+    mode: "generate",
+    parsedIntent,
+    assistantText: result.explanation,
+    result,
+    sceneState: result.sceneState
+  };
+}
+
+function createTasks(selectedSkill) {
+  return [
+    {
+      id: "t1",
+      title: "Parse Intent",
+      description: "Extract intent, entities, constraints, and confidence from query.",
+      action: "parse_intent",
+      command: "router.intentParser.parse(query)",
+      status: "pending",
+      dependsOn: []
+    },
+    {
+      id: "t2",
+      title: "Select Skill",
+      description: `Rank capabilities and choose primary skill (${selectedSkill}).`,
+      action: "select_skill",
+      command: "router.skillSelector.rank(parsedIntent, capabilityIndex)",
+      status: "pending",
+      dependsOn: ["t1"]
+    },
+    {
+      id: "t3",
+      title: "Build Prompt",
+      description: "Assemble system prompt, user prompt, skill context, and constraints.",
+      action: "build_prompt",
+      command: "agent.promptBuilder.build(parsedIntent, selectedSkill, sceneContext)",
+      status: "pending",
+      dependsOn: ["t1", "t2"]
+    },
+    {
+      id: "t4",
+      title: "Generate Code",
+      description: "Generate executable code via model invocation.",
+      action: "generate_code",
+      command: "agent.codeGenerator.generate(prompt, { temperature: 1 })",
+      status: "pending",
+      dependsOn: ["t3"]
+    },
+    {
+      id: "t5",
+      title: "Validate Code",
+      description: "Validate syntax, security, API usage, and schema.",
+      action: "validate_code",
+      command: "agent.validator.runAll(generatedCode)",
+      status: "pending",
+      dependsOn: ["t4"]
+    },
+    {
+      id: "t6",
+      title: "Execute Code",
+      description: "Run validated code in isolated skill runtime sandbox.",
+      action: "execute_code",
+      command: "skill.runtime.execute(generatedCode)",
+      status: "pending",
+      dependsOn: ["t5"]
+    },
+    {
+      id: "t7",
+      title: "Synchronize State",
+      description: "Commit scene state and broadcast updates to clients.",
+      action: "sync_state",
+      command: "stateSync.broadcast(sceneStateDiff, sessionId)",
+      status: "pending",
+      dependsOn: ["t6"]
+    }
+  ];
+}
+
+const planState = Annotation.Root({
+  request: Annotation,
+  parsedIntent: Annotation,
+  selectedSkill: Annotation,
+  skillFallback: Annotation,
+  planId: Annotation,
+  tasks: Annotation,
+  summary: Annotation
+});
+
+const parseIntentNode = (state) => {
+  emitPipelineProgress(state.progress, "parse_intent", "running");
+  return { parsedIntent: parseIntentFromQuery(state.request.query) };
+};
+
+const selectSkillNode = (state) => {
+  emitPipelineProgress(state.progress, "select_skill", "running");
+  const requestedSkill = state.request.preferences?.skill;
+  const selection = selectSkill(state.parsedIntent, requestedSkill);
+
+  if (selection.fallbackRequired && requestedSkill && requestedSkill !== "auto") {
+    return {
+      selectedSkill: selection.selectedSkill,
+      skillFallback: {
+        from: requestedSkill,
+        to: selection.selectedSkill,
+        reason: selection.reason
+      },
+      skillRanking: selection.ranked,
+      selectionReason: selection.reason
+    };
+  }
+
+  return {
+    selectedSkill: selection.selectedSkill,
+    skillFallback: selection.fallbackRequired ? { from: "auto", to: selection.selectedSkill, reason: selection.reason } : null,
+    skillRanking: selection.ranked,
+    selectionReason: selection.reason
+  };
+};
+
+const buildTaskPlanNode = (state) => {
+  const planId = `plan-${Date.now()}`;
+  const quality = resolveRequestedQuality(state.request, state.selectedSkill);
+  const tasks = createTasks(state.selectedSkill);
+  return {
+    planId,
+    tasks,
+    summary: `Planned ${tasks.length} LangGraph-orchestrated tasks for ${state.selectedSkill} (${quality} quality).${
+      state.skillFallback
+        ? ` Fallback applied: ${state.skillFallback.from} -> ${state.skillFallback.to}.`
+        : ""
+    } ${state.selectionReason ? `Selection note: ${state.selectionReason}` : ""}`
+  };
+};
+
+const planningGraph = new StateGraph(planState)
+  .addNode("parse_intent", parseIntentNode)
+  .addNode("select_skill", selectSkillNode)
+  .addNode("build_task_plan", buildTaskPlanNode)
+  .addEdge(START, "parse_intent")
+  .addEdge("parse_intent", "select_skill")
+  .addEdge("select_skill", "build_task_plan")
+  .addEdge("build_task_plan", END)
+  .compile();
+
+const executionState = Annotation.Root({
+  planId: Annotation,
+  task: Annotation,
+  output: Annotation,
+  artifact: Annotation,
+  status: Annotation
+});
+
+const runTaskNode = (state) => {
+  const outputs = {
+    parse_intent: "Intent parsed with confidence 0.94 and extracted entities.",
+    select_skill: "Skill selected from weighted ranking with deterministic tie-break.",
+    build_prompt: "Prompt built from templates, examples, and policy constraints.",
+    generate_code: "Code generated from model using deterministic parameters.",
+    validate_code: "Validation passed for syntax, security, API, and schema checks.",
+    execute_code: "Code executed successfully in sandbox runtime.",
+    sync_state: "Scene state committed and sync event published."
+  };
+
+  return {
+    status: "completed",
+    output: outputs[state.task.action],
+    artifact: state.task.action === "execute_code" ? "preview://sandbox/mock-scene" : undefined
+  };
+};
+
+const taskExecutionGraph = new StateGraph(executionState)
+  .addNode("run_task", runTaskNode)
+  .addEdge(START, "run_task")
+  .addEdge("run_task", END)
+  .compile();
+
+const generateState = Annotation.Root({
+  progress: Annotation,
+  turnStartedAtMs: Annotation,
+  turnDeadlineAtMs: Annotation,
+  request: Annotation,
+  parsedIntent: Annotation,
+  selectedSkill: Annotation,
+  skillFallback: Annotation,
+  prompt: Annotation,
+  generatedCode: Annotation,
+  generationSource: Annotation,
+  generationWarning: Annotation,
+  validation: Annotation,
+  validationRecoveryUsed: Annotation,
+  runtimeRecoveryUsed: Annotation,
+  agentDebugUsed: Annotation,
+  agentDebugIterations: Annotation,
+  execution: Annotation,
+  runtime: Annotation,
+  sceneState: Annotation,
+  response: Annotation
+});
+
+const buildPromptNode = (state) => {
+  emitPipelineProgress(state.progress, "build_prompt", "running");
+  return {
+    prompt: {
+      system: "You are a visual generation assistant. Produce safe, valid JavaScript scene code.",
+      user: state.request.query,
+      context: {
+        intent: state.parsedIntent,
+        skill: state.selectedSkill,
+        constraints: state.parsedIntent.constraints
+      }
+    }
+  };
+};
+
+const generateCodeNode = async (state) => {
+  console.log(`[Graph] [TRACE] generateCodeNode started.`);
+  emitPipelineProgress(state.progress, "generate_code", "running");
+  const normalizedQuery = normalizeQuery(state.request.query);
+
+  let generationResult;
+
+  if (/(unsafe|eval)/.test(normalizedQuery)) {
+    generationResult = {
+      generatedCode: [
+        "// Intentionally unsafe draft used to trigger recovery path",
+        "const output = eval('2 + 2');",
+        "console.log(output);"
+      ].join("\n"),
+      generationSource: "recovery-test",
+      generationWarning: null
+    };
+  } else {
+    // Check generation cache
+    const quality = resolveRequestedQuality(state.request, state.selectedSkill);
+    const cacheKey = getGenerationCacheKey(state.request.query, state.selectedSkill, quality);
+    const cached = getCachedGeneration(cacheKey);
+    if (cached) {
+      generationResult = {
+        generatedCode: cached.code,
+        generationSource: "cache",
+        generationWarning: null
+      };
+    } else {
+      try {
+        const result = await generateCodeWithMoonshot(state);
+
+        // Cache successful generations
+        if (result.generatedCode && result.generationSource !== "fallback") {
+          setCachedGeneration(cacheKey, { code: result.generatedCode, skill: state.selectedSkill });
+        }
+
+        generationResult = result;
+      } catch (error) {
+        generationResult = {
+          generatedCode: buildFallbackGeneratedCode(),
+          generationSource: "fallback",
+          generationWarning: error instanceof Error ? error.message : "Moonshot generation failed; used fallback."
+        };
+      }
+    }
+  }
+
+  emitPipelineProgress(state.progress, "generate_code", "completed", {
+    selectedSkill: state.selectedSkill,
+    source: generationResult.generationSource,
+    code: generationResult.generatedCode
+  });
+
+  return generationResult;
+};
+
+const validateCodeNode = (state) => {
+  console.log(`[Graph] [TRACE] validateCodeNode started for skill ${state.selectedSkill}.`);
+  emitPipelineProgress(state.progress, "validate_code", "running");
+  const result = validateCode(state.generatedCode, state.selectedSkill ?? "threejs");
+
+  if (!result.passable) {
+    emitPipelineProgress(state.progress, "validate_code", "failed", { errors: result.errors });
+    return {
+      validation: {
+        valid: false,
+        errors: result.errors
+      }
+    };
+  }
+
+  emitPipelineProgress(state.progress, "validate_code", "completed");
+
+  return {
+    validation: {
+      valid: result.valid,
+      errors: result.errors
+    }
+  };
+};
+
+function escapeForRegex(value) {
+  return String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function parseRuntimeMismatch(runtimeError) {
+  const detail = String(runtimeError ?? "").trim();
+  if (!detail) {
+    return null;
+  }
+
+  const constructorMatch = detail.match(/([A-Za-z0-9_$.]+)\s+is not a constructor/i);
+  if (constructorMatch) {
+    return {
+      kind: "constructor",
+      symbol: constructorMatch[1],
+      detail
+    };
+  }
+
+  const functionMatch = detail.match(/([A-Za-z0-9_$.]+)\s+is not a function/i);
+  if (functionMatch) {
+    const symbol = functionMatch[1];
+    const lastDot = symbol.lastIndexOf(".");
+    return {
+      kind: "function",
+      symbol,
+      receiver: lastDot > -1 ? symbol.slice(0, lastDot) : null,
+      member: lastDot > -1 ? symbol.slice(lastDot + 1) : symbol,
+      detail
+    };
+  }
+
+  return null;
+}
+
+function resolveConstructorFallback(symbol) {
+  const explicitFallbacks = {
+    "THREE.ShadowMaterial": "THREE.MeshStandardMaterial",
+    "THREE.MeshPhysicalNodeMaterial": "THREE.MeshPhysicalMaterial"
+  };
+
+  if (explicitFallbacks[symbol]) {
+    return explicitFallbacks[symbol];
+  }
+
+  if (/Material$/i.test(symbol)) {
+    return "THREE.MeshStandardMaterial";
+  }
+
+  if (/Curve3?$/i.test(symbol)) {
+    return "THREE.CatmullRomCurve3";
+  }
+
+  if (/Geometry$/i.test(symbol)) {
+    return "THREE.BoxGeometry";
+  }
+
+  return null;
+}
+
+function applyDeterministicRuntimePatch({ code, runtimeError, skill }) {
+  if (!code || skill !== "threejs") {
+    return null;
+  }
+
+  const mismatch = parseRuntimeMismatch(runtimeError);
+  if (!mismatch) {
+    return null;
+  }
+
+  let patchedCode = code;
+  const appliedFixes = [];
+
+  if (mismatch.kind === "function" && mismatch.member === "setScalar") {
+    const scalarRegex = /\.setScalar\(\s*([^()]+?)\s*\)/g;
+    const replaced = patchedCode.replace(scalarRegex, ".set($1, $1, $1)");
+    if (replaced !== patchedCode) {
+      patchedCode = replaced;
+      appliedFixes.push("Replaced .setScalar(value) with .set(value, value, value)");
+    }
+  }
+
+  if (mismatch.kind === "constructor" && mismatch.symbol) {
+    const fallbackCtor = resolveConstructorFallback(mismatch.symbol);
+    if (fallbackCtor && fallbackCtor !== mismatch.symbol) {
+      const ctorRegex = new RegExp(`new\\s+${escapeForRegex(mismatch.symbol)}\\s*\\(`, "g");
+      const replaced = patchedCode.replace(ctorRegex, `new ${fallbackCtor}(`);
+      const directCtorRegex = new RegExp(`${escapeForRegex(mismatch.symbol)}\\s*\\(`, "g");
+      const replacedDirect = replaced.replace(directCtorRegex, `${fallbackCtor}(`);
+      if (replacedDirect !== patchedCode) {
+        patchedCode = replacedDirect;
+        appliedFixes.push(`Replaced unsupported constructor ${mismatch.symbol} with ${fallbackCtor}`);
+      }
+    }
+  }
+
+  if (patchedCode === code || appliedFixes.length === 0) {
+    return null;
+  }
+
+  return {
+    patchedCode,
+    mismatch,
+    appliedFixes
+  };
+}
+
+function buildRuntimeCompatibilityHints(runtimeError, deterministicFixes = []) {
+  const mismatch = parseRuntimeMismatch(runtimeError);
+  const hints = [];
+
+  if (mismatch?.kind === "constructor") {
+    const fallbackCtor = resolveConstructorFallback(mismatch.symbol);
+    hints.push(`Avoid constructor ${mismatch.symbol}; it is not available in this runtime.`);
+    if (fallbackCtor) {
+      hints.push(`Prefer ${fallbackCtor} as a compatibility-safe fallback.`);
+    }
+  }
+
+  if (mismatch?.kind === "function" && mismatch.member) {
+    hints.push(`Method ${mismatch.symbol} is unavailable in this runtime.`);
+    if (mismatch.member === "setScalar") {
+      hints.push("Use .set(v, v, v) instead of .setScalar(v) for vector-like scale updates.");
+    }
+  }
+
+  if (Array.isArray(deterministicFixes) && deterministicFixes.length > 0) {
+    hints.push(`Deterministic fixes already attempted: ${deterministicFixes.join("; ")}`);
+  }
+
+  return hints;
+}
+
+async function attemptRuntimeAgentRecovery({
+  originalQuery,
+  failedCode,
+  runtimeResult,
+  skill,
+  maxIterations = runtimeDebugMaxIterations,
+  turnDeadlineAtMs
+}) {
+  let workingCode = failedCode;
+  let workingRuntime = runtimeResult;
+  let deterministicFixApplied = false;
+  let deterministicFixes = [];
+
+  const MAX_DETERMINISTIC_RUNTIME_PASSES = 3;
+  const seenMismatchSignatures = new Set();
+  const recoveryDeadlineAtMs = Number.isFinite(turnDeadlineAtMs)
+    ? Math.min(turnDeadlineAtMs, Date.now() + runtimeRecoveryBudgetMs)
+    : Date.now() + runtimeRecoveryBudgetMs;
+
+  for (let pass = 0; pass < MAX_DETERMINISTIC_RUNTIME_PASSES; pass += 1) {
+    const runtimeErrorText = workingRuntime?.error ?? workingRuntime?.warning ?? "";
+    const deterministicPatch = applyDeterministicRuntimePatch({
+      code: workingCode,
+      runtimeError: runtimeErrorText,
+      skill
+    });
+
+    if (!deterministicPatch?.patchedCode) {
+      break;
+    }
+
+    const mismatchSignature = deterministicPatch.mismatch
+      ? `${deterministicPatch.mismatch.kind}:${deterministicPatch.mismatch.symbol ?? deterministicPatch.mismatch.detail}`
+      : `unknown:${runtimeErrorText}`;
+
+    if (seenMismatchSignatures.has(mismatchSignature) || deterministicPatch.patchedCode === workingCode) {
+      break;
+    }
+
+    seenMismatchSignatures.add(mismatchSignature);
+
+    const patchValidation = validateCode(deterministicPatch.patchedCode, skill ?? "threejs");
+    if (!patchValidation.passable) {
+      break;
+    }
+
+    deterministicFixApplied = true;
+    deterministicFixes = [...new Set([...deterministicFixes, ...deterministicPatch.appliedFixes])];
+    const deterministicTimeoutMs = computeBoundedTimeoutMs(recoveryDeadlineAtMs, runtimeExecutionTimeoutMs);
+    if (deterministicTimeoutMs <= 0) {
+      return {
+        recovered: false,
+        recoveredCode: workingCode,
+        recoveredRuntime: workingRuntime,
+        warning: "Runtime recovery budget exhausted before deterministic retry.",
+        iterations: 0,
+        debugUsed: false,
+        deterministicFixApplied,
+        deterministicFixes
+      };
+    }
+
+    try {
+      const deterministicRuntime = await executeSkillRuntime({
+        skillId: skill,
+        code: deterministicPatch.patchedCode,
+        timeoutMs: deterministicTimeoutMs,
+        maxFrames: runtimeExecutionMaxFrames
+      });
+
+      if (deterministicRuntime.success) {
+        return {
+          recovered: true,
+          recoveredCode: deterministicPatch.patchedCode,
+          recoveredRuntime: deterministicRuntime,
+          warning: null,
+          iterations: 0,
+          debugUsed: false,
+          deterministicFixApplied: true,
+          deterministicFixes
+        };
+      }
+
+      workingCode = deterministicPatch.patchedCode;
+      workingRuntime = deterministicRuntime;
+    } catch {
+      // If deterministic execution crashes, continue into runtime agent debug.
+      workingCode = deterministicPatch.patchedCode;
+      break;
+    }
+  }
+
+  const compatibilityHints = buildRuntimeCompatibilityHints(
+    workingRuntime?.error ?? workingRuntime?.warning ?? "Unknown runtime error",
+    deterministicFixes
+  );
+
+  setErrorContext({
+    originalQuery,
+    failedCode: workingCode,
+    validationErrors: [],
+    skill,
+    runtimeError: workingRuntime?.error ?? workingRuntime?.warning ?? "Unknown runtime error",
+    runtimeStatus: workingRuntime?.status ?? "error",
+    runtimeDetails: {
+      status: workingRuntime?.status ?? "error",
+      renderCount: workingRuntime?.renderCount ?? 0,
+      frameCount: workingRuntime?.frameCount ?? 0
+    },
+    runtimeHints: compatibilityHints,
+    compatibilityMode: "strict",
+    runtimeDebugDeadlineAtMs: recoveryDeadlineAtMs
+  });
+
+  let debugResult;
+  const runtimeDebugTimeoutMs = computeBoundedTimeoutMs(recoveryDeadlineAtMs, runtimeDebugSessionTimeoutMs, 500);
+  if (runtimeDebugTimeoutMs <= 0) {
+    clearErrorContext();
+    return {
+      recovered: false,
+      recoveredCode: workingCode,
+      recoveredRuntime: workingRuntime,
+      warning: "Runtime recovery budget exhausted before agent debug.",
+      iterations: 0,
+      debugUsed: false,
+      deterministicFixApplied,
+      deterministicFixes
+    };
+  }
+
+  try {
+    debugResult = await withTimeout(
+      runRuntimeDebugSession({
+        originalQuery,
+        failedCode: workingCode,
+        runtimeError: workingRuntime?.error ?? workingRuntime?.warning ?? "Unknown runtime error",
+        runtimeStatus: workingRuntime?.status ?? "error",
+        skill,
+        tools: getRuntimeDebugTools(),
+        maxIterations,
+        compatibilityHints
+      }),
+      runtimeDebugTimeoutMs,
+      `Runtime debug session timed out after ${runtimeDebugTimeoutMs}ms.`
+    );
+  } catch (error) {
+    return {
+      recovered: false,
+      recoveredCode: workingCode,
+      recoveredRuntime: workingRuntime,
+      warning: `Runtime agent debug failed: ${error instanceof Error ? error.message : "Unknown error"}`,
+      iterations: 0,
+      debugUsed: false,
+      deterministicFixApplied,
+      deterministicFixes
+    };
+  } finally {
+    clearErrorContext();
+  }
+
+  if (!debugResult?.fixedCode) {
+    return {
+      recovered: false,
+      recoveredCode: workingCode,
+      recoveredRuntime: workingRuntime,
+      warning: "Runtime agent debug did not produce a fix.",
+      iterations: debugResult?.iterations ?? 0,
+      debugUsed: true,
+      deterministicFixApplied,
+      deterministicFixes
+    };
+  }
+
+  const revalidated = validateCode(debugResult.fixedCode, skill ?? "threejs");
+  if (!revalidated.passable) {
+    return {
+      recovered: false,
+      recoveredCode: workingCode,
+      recoveredRuntime: workingRuntime,
+      warning: "Runtime debug produced code that failed validation.",
+      iterations: debugResult.iterations,
+      debugUsed: true,
+      deterministicFixApplied,
+      deterministicFixes
+    };
+  }
+
+  let retriedRuntime;
+  const retryTimeoutMs = computeBoundedTimeoutMs(recoveryDeadlineAtMs, runtimeExecutionTimeoutMs);
+  if (retryTimeoutMs <= 0) {
+    return {
+      recovered: false,
+      recoveredCode: debugResult.fixedCode,
+      recoveredRuntime: {
+        ...runtimeResult,
+        success: false,
+        status: "error",
+        error: "Runtime recovery budget exhausted before retry execution."
+      },
+      warning: "Runtime recovery budget exhausted before retry execution.",
+      iterations: debugResult.iterations,
+      debugUsed: true,
+      deterministicFixApplied,
+      deterministicFixes
+    };
+  }
+
+  try {
+    retriedRuntime = await executeSkillRuntime({
+      skillId: skill,
+      code: debugResult.fixedCode,
+      timeoutMs: retryTimeoutMs,
+      maxFrames: runtimeExecutionMaxFrames
+    });
+  } catch (error) {
+    return {
+      recovered: false,
+      recoveredCode: debugResult.fixedCode,
+      recoveredRuntime: {
+        ...runtimeResult,
+        success: false,
+        status: "error",
+        error: error instanceof Error ? error.message : "Unknown runtime retry error"
+      },
+      warning: `Runtime retry execution crashed: ${error instanceof Error ? error.message : "Unknown error"}`,
+      iterations: debugResult.iterations,
+      debugUsed: true
+    };
+  }
+
+  if (retriedRuntime.success) {
+    return {
+      recovered: true,
+      recoveredCode: debugResult.fixedCode,
+      recoveredRuntime: retriedRuntime,
+      warning: null,
+      iterations: debugResult.iterations,
+      debugUsed: true,
+      deterministicFixApplied,
+      deterministicFixes
+    };
+  }
+
+  return {
+    recovered: false,
+    recoveredCode: debugResult.fixedCode,
+    recoveredRuntime: retriedRuntime,
+    warning: `Runtime agent debug attempted ${debugResult.iterations} iteration(s) but execution still failed: ${retriedRuntime.error ?? retriedRuntime.warning ?? "Unknown error"}`,
+    iterations: debugResult.iterations,
+    debugUsed: true,
+    deterministicFixApplied,
+    deterministicFixes
+  };
+}
+
+const executeCodeNode = async (state) => {
+  console.log(`[Graph] [TRACE] executeCodeNode started.`);
+  emitPipelineProgress(state.progress, "execute_code", "running");
+  if (!state.validation.valid) {
+    emitPipelineProgress(state.progress, "execute_code", "failed", {
+      error: "Validation failed; execution skipped."
+    });
+    return {
+      execution: {
+        success: false,
+        previewUrl: null,
+        message: "Validation failed; execution skipped."
+      },
+      runtime: {
+        success: false,
+        status: "skipped",
+        previewUrl: null,
+        skillId: state.selectedSkill,
+        skillName: state.selectedSkill,
+        dependencyCount: 0,
+        durationMs: 0,
+        renderCount: 0,
+        frameCount: 0,
+        logs: [],
+        summary: { childCount: 0, types: [] },
+        error: "Validation failed before runtime execution."
+      }
+    };
+  }
+
+  const initialRuntimeTimeoutMs = computeBoundedTimeoutMs(state.turnDeadlineAtMs, runtimeExecutionTimeoutMs);
+  const initialRuntimeResult = initialRuntimeTimeoutMs > 0
+    ? await executeSkillRuntime({
+      skillId: state.selectedSkill,
+      code: state.generatedCode,
+      timeoutMs: initialRuntimeTimeoutMs,
+      maxFrames: runtimeExecutionMaxFrames
+    })
+    : {
+      success: false,
+      status: "error",
+      previewUrl: null,
+      skillId: state.selectedSkill,
+      skillName: state.selectedSkill,
+      dependencyCount: 0,
+      durationMs: 0,
+      renderCount: 0,
+      frameCount: 0,
+      logs: [],
+      summary: { childCount: 0, types: [] },
+      error: "Turn budget exhausted before runtime execution."
+    };
+
+  let finalRuntimeResult = initialRuntimeResult;
+  let finalCode = state.generatedCode;
+  let runtimeRecoveryUsed = false;
+  let generationSource = state.generationSource;
+  let generationWarning = state.generationWarning;
+  let agentDebugUsed = state.agentDebugUsed ?? false;
+  let agentDebugIterations = state.agentDebugIterations ?? 0;
+  let deterministicRuntimeFixApplied = false;
+  let deterministicRuntimeFixes = [];
+
+  if (!initialRuntimeResult.success) {
+    console.log(`[Graph] [TRACE] Runtime failed. Attempting agent runtime recovery...`);
+
+    const recovery = await attemptRuntimeAgentRecovery({
+      originalQuery: state.request.query,
+      failedCode: state.generatedCode,
+      runtimeResult: initialRuntimeResult,
+      skill: state.selectedSkill,
+      maxIterations: runtimeDebugMaxIterations,
+      turnDeadlineAtMs: state.turnDeadlineAtMs
+    });
+
+    if (recovery.recovered) {
+      console.log(`[Graph] [TRACE] Runtime recovery succeeded after ${recovery.iterations} iteration(s).`);
+      finalRuntimeResult = recovery.recoveredRuntime;
+      finalCode = recovery.recoveredCode;
+      runtimeRecoveryUsed = true;
+      deterministicRuntimeFixApplied = Boolean(recovery.deterministicFixApplied);
+      deterministicRuntimeFixes = recovery.deterministicFixes ?? [];
+      generationSource = recovery.debugUsed ? "agent-runtime-debug" : "runtime-auto-fix";
+      generationWarning = recovery.warning ?? generationWarning;
+      agentDebugUsed = Boolean(recovery.debugUsed);
+      agentDebugIterations = recovery.debugUsed ? recovery.iterations : 0;
+    } else if (recovery.debugUsed) {
+      console.warn(`[Graph] [TRACE] Runtime recovery attempted but did not succeed.`);
+      finalRuntimeResult = recovery.recoveredRuntime ?? initialRuntimeResult;
+      finalCode = recovery.recoveredCode ?? state.generatedCode;
+      generationWarning = recovery.warning ?? generationWarning;
+      agentDebugUsed = true;
+      agentDebugIterations = recovery.iterations;
+      deterministicRuntimeFixApplied = Boolean(recovery.deterministicFixApplied);
+      deterministicRuntimeFixes = recovery.deterministicFixes ?? [];
+    }
+  }
+
+  emitPipelineProgress(state.progress, "execute_code", finalRuntimeResult.success ? "completed" : "failed", {
+    error: finalRuntimeResult.success ? null : finalRuntimeResult.error,
+    status: finalRuntimeResult.status,
+    runtimeRecoveryUsed
+  });
+
+  return {
+    generatedCode: finalCode,
+    generationSource,
+    generationWarning,
+    runtimeRecoveryUsed,
+    agentDebugUsed,
+    agentDebugIterations,
+    deterministicRuntimeFixApplied,
+    deterministicRuntimeFixes,
+    execution: {
+      success: finalRuntimeResult.success,
+      previewUrl: finalRuntimeResult.previewUrl,
+      message: finalRuntimeResult.success
+        ? `Executed in isolated ${finalRuntimeResult.skillName} sandbox (${finalRuntimeResult.status}, ${finalRuntimeResult.renderCount} renders).`
+        : `Sandbox execution ${finalRuntimeResult.status}: ${finalRuntimeResult.error}`
+    },
+    runtime: finalRuntimeResult
+  };
+};
+
+const syncStateNode = (state) => {
+  emitPipelineProgress(state.progress, "sync_state", "running");
+  return {
+    sceneState: {
+      id: `scene-${Date.now()}`,
+      version: 1
+    }
+  };
+};
+
+/**
+ * Agent-powered self-debugging node.
+ * When code fails validation, this node uses the agent loop to autonomously fix it.
+ * Falls back to a static green box only if the agent also fails.
+ */
+const agentSelfDebugNode = async (state) => {
+  console.log(`[Graph] [TRACE] agentSelfDebugNode started — attempting agent self-debug.`);
+
+  // Set error context for the get_error_context tool
+  setErrorContext({
+    originalQuery: state.request.query,
+    failedCode: state.generatedCode,
+    validationErrors: state.validation.errors,
+    skill: state.selectedSkill
+  });
+
+  try {
+    const debugTimeoutMs = computeBoundedTimeoutMs(state.turnDeadlineAtMs, selfDebugSessionTimeoutMs, 500);
+    if (debugTimeoutMs <= 0) {
+      throw new Error("Turn budget exhausted before self-debug session.");
+    }
+
+    const debugResult = await withTimeout(
+      runSelfDebugSession({
+        originalQuery: state.request.query,
+        failedCode: state.generatedCode,
+        validationErrors: state.validation.errors,
+        skill: state.selectedSkill,
+        tools: getDebugTools(),
+        maxIterations: selfDebugMaxIterations
+      }),
+      debugTimeoutMs,
+      `Self-debug session timed out after ${debugTimeoutMs}ms.`
+    );
+
+    clearErrorContext();
+
+    if (debugResult.success && debugResult.fixedCode) {
+      console.log(`[Graph] [TRACE] Agent self-debug SUCCEEDED after ${debugResult.iterations} iteration(s).`);
+      return {
+        generatedCode: debugResult.fixedCode,
+        agentDebugUsed: true,
+        agentDebugIterations: debugResult.iterations,
+        generationSource: "agent-debug",
+        generationWarning: null
+      };
+    }
+
+    // Agent produced code but we need to verify it
+    if (debugResult.fixedCode) {
+      console.log(`[Graph] [TRACE] Agent produced code (unverified). Returning for re-validation.`);
+      return {
+        generatedCode: debugResult.fixedCode,
+        agentDebugUsed: true,
+        agentDebugIterations: debugResult.iterations,
+        generationSource: "agent-debug-unverified",
+        generationWarning: debugResult.aborted
+          ? `Agent debug loop hit max iterations (${debugResult.iterations}). Code may still have issues.`
+          : null
+      };
+    }
+
+    // Agent failed entirely — fall back to safe code
+    console.warn(`[Graph] [TRACE] Agent self-debug FAILED. Using static fallback.`);
+    return buildStaticFallback();
+  } catch (err) {
+    clearErrorContext();
+    console.warn(`[Graph] [TRACE] Agent self-debug ERROR: ${err instanceof Error ? err.message : "Unknown error"}. Using static fallback.`);
+    return buildStaticFallback();
+  }
+};
+
+/** Static green-box fallback — last resort when agent debug also fails. */
+function buildStaticFallback() {
+  const safeCode = [
+    "// Validation recovery path (static fallback)",
+    "const geometry = new THREE.BoxGeometry(1, 1, 1);",
+    "const material = new THREE.MeshBasicMaterial({ color: 0x22c55e });",
+    "const mesh = new THREE.Mesh(geometry, material);",
+    "scene.add(mesh);",
+    "renderer.render(scene, camera);"
+  ].join("\n");
+
+  return {
+    generatedCode: safeCode,
+    agentDebugUsed: false,
+    agentDebugIterations: 0,
+    generationSource: "static-fallback",
+    validationRecoveryUsed: true
+  };
+}
+
+const abortExecutionNode = () => {
+  return {
+    execution: {
+      success: false,
+      previewUrl: null,
+      message: "Execution aborted after agent debug and validation recovery failure."
+    }
+  };
+};
+
+function routeAfterValidation(state) {
+  return state.validation?.valid ? "execute_code" : "agent_self_debug";
+}
+
+function routeAfterRecoveryValidation(state) {
+  return state.validation?.valid ? "execute_code" : "abort_execution";
+}
+
+function routeAfterExecution(state) {
+  return state.execution?.success ? "sync_state" : "build_response";
+}
+
+const buildResponseNode = (state) => {
+  const sourceNoteMap = {
+    "moonshot-kimi": ` Generated via Moonshot Kimi (${moonshotModel}).`,
+    "agent-debug": ` Self-debugged via Agent Mode (${state.agentDebugIterations ?? 0} iteration(s)).`,
+    "agent-runtime-debug": ` Runtime-recovered via Agent Mode (${state.agentDebugIterations ?? 0} iteration(s)).`,
+    "runtime-auto-fix": " Runtime-recovered via deterministic compatibility fixes.",
+    "agent-debug-unverified": ` Agent debug produced code (unverified, ${state.agentDebugIterations ?? 0} iteration(s)).`,
+    "static-fallback": " Generated via static fallback after agent debug failure.",
+    "image-to-code": ` Generated from reference image via Moonshot Kimi (${moonshotModel}).`,
+    "fallback": " Generated via local fallback pipeline.",
+    "cache": " Served from generation cache."
+  };
+  const sourceNote = sourceNoteMap[state.generationSource] ?? " Generated via local fallback pipeline.";
+  const warningNote = state.generationWarning ? ` Warning: ${state.generationWarning}` : "";
+  const failureNote = !state.execution.success
+    ? ` Failure details: ${state.execution.message ?? state.runtime?.error ?? state.runtime?.warning ?? "No runtime detail available."}`
+    : "";
+  const runtimeNote = state.runtime
+    ? ` Runtime: ${state.runtime.status} with ${state.runtime.renderCount ?? 0} renders and ${state.runtime.frameCount ?? 0} frames.${
+        state.runtime.warning ? ` ${state.runtime.warning}` : ""
+      }`
+    : "";
+  const debugNote = state.agentDebugUsed
+    ? ` Agent self-debug was used (${state.agentDebugIterations} iteration(s)).`
+    : "";
+  const runtimeRecoveryNote = state.runtimeRecoveryUsed
+    ? " Runtime self-debug recovery was applied after execution failure."
+    : "";
+  const deterministicFixNote = state.deterministicRuntimeFixApplied
+    ? ` Deterministic runtime fixes applied: ${(state.deterministicRuntimeFixes ?? []).join("; ")}.`
+    : "";
+
+  const response = {
+    sceneId: state.sceneState?.id ?? `scene-failed-${Date.now()}`,
+    previewUrl: state.execution.previewUrl,
+    skill: state.selectedSkill,
+    explanation: state.execution.success
+      ? `Generated through LangGraph orchestration pipeline.${
+          state.validationRecoveryUsed ? " Recovery path used after validation failure." : ""
+        }${runtimeRecoveryNote}${deterministicFixNote}${debugNote}${sourceNote}${warningNote}${runtimeNote}`
+      : `Generation failed validation and execution was aborted.${deterministicFixNote}${debugNote}${failureNote}${runtimeNote}`,
+    code: state.generatedCode,
+    runtime: state.runtime,
+    runtimeRecoveryUsed: Boolean(state.runtimeRecoveryUsed),
+    deterministicRuntimeFixApplied: Boolean(state.deterministicRuntimeFixApplied),
+    deterministicRuntimeFixes: state.deterministicRuntimeFixes ?? [],
+    agentDebug: state.agentDebugUsed ? {
+      used: true,
+      iterations: state.agentDebugIterations,
+      source: state.generationSource
+    } : null
+  };
+
+  return { response };
+};
+
+const generationGraph = new StateGraph(generateState)
+  .addNode("parse_intent", parseIntentNode)
+  .addNode("select_skill", selectSkillNode)
+  .addNode("build_prompt", buildPromptNode)
+  .addNode("generate_code", generateCodeNode)
+  .addNode("validate_code", validateCodeNode)
+  .addNode("agent_self_debug", agentSelfDebugNode)
+  .addNode("validate_recovery_code", validateCodeNode)
+  .addNode("execute_code", executeCodeNode)
+  .addNode("abort_execution", abortExecutionNode)
+  .addNode("sync_state", syncStateNode)
+  .addNode("build_response", buildResponseNode)
+  .addEdge(START, "parse_intent")
+  .addEdge("parse_intent", "select_skill")
+  .addEdge("select_skill", "build_prompt")
+  .addEdge("build_prompt", "generate_code")
+  .addEdge("generate_code", "validate_code")
+  .addConditionalEdges("validate_code", routeAfterValidation, {
+    execute_code: "execute_code",
+    agent_self_debug: "agent_self_debug"
+  })
+  .addEdge("agent_self_debug", "validate_recovery_code")
+  .addConditionalEdges("validate_recovery_code", routeAfterRecoveryValidation, {
+    execute_code: "execute_code",
+    abort_execution: "abort_execution"
+  })
+  .addConditionalEdges("execute_code", routeAfterExecution, {
+    sync_state: "sync_state",
+    build_response: "build_response"
+  })
+  .addEdge("abort_execution", "build_response")
+  .addEdge("sync_state", "build_response")
+  .addEdge("build_response", END)
+  .compile();
+
+export async function planTasks(input) {
+  const request = requestSchema.parse(input);
+  const result = await planningGraph.invoke({ request });
+
+  return {
+    planId: result.planId,
+    summary: result.summary,
+    tasks: result.tasks
+  };
+}
+
+export async function executeTask(input) {
+  const request = executeRequestSchema.parse(input);
+  const result = await taskExecutionGraph.invoke({
+    planId: request.planId,
+    task: request.task
+  });
+
+  return {
+    planId: request.planId,
+    taskId: request.task.id,
+    status: result.status,
+    output: result.output,
+    artifact: result.artifact
+  };
+}
+
+export async function generateVisual(input, options = {}) {
+  const request = requestSchema.parse(input);
+  const turnStartedAtMs = Date.now();
+  const turnDeadlineAtMs = getTurnDeadlineAtMs(turnStartedAtMs);
+  const result = await generationGraph.invoke({
+    request,
+    progress: options.onProgress ?? null,
+    turnStartedAtMs,
+    turnDeadlineAtMs
+  });
+  return result.response;
+}
+
+export async function modifyVisual(input, options = {}) {
+  const onProgress = options.onProgress ?? null;
+  const request = modifyRequestSchema.parse(input);
+  const sessionState = request.sceneState;
+  const turnStartedAtMs = Date.now();
+  const turnDeadlineAtMs = getTurnDeadlineAtMs(turnStartedAtMs);
+
+  if (!sessionState?.currentScene?.code) {
+    throw new Error("No scene available to modify.");
+  }
+
+  const currentSkill = sessionState.currentScene.skill ?? request.preferences?.skill ?? "threejs";
+  const requestedSkill = request.preferences?.skill ?? currentSkill;
+  const selectedSkill = requestedSkill === "auto" ? currentSkill : requestedSkill;
+  emitPipelineProgress(onProgress, "parse_intent", "completed");
+  emitPipelineProgress(onProgress, "select_skill", "completed", { selectedSkill });
+  emitPipelineProgress(onProgress, "build_prompt", "completed", { selectedSkill });
+  emitPipelineProgress(onProgress, "generate_code", "running", { selectedSkill });
+
+  const requestedQuality = resolveRequestedQuality(request, selectedSkill);
+  const modificationState = {
+    sessionId: request.sessionId,
+    instruction: request.instruction,
+    currentCode: sessionState.currentScene.code,
+    selectedSkill,
+    quality: requestedQuality
+  };
+
+  let modificationResult;
+  try {
+    modificationResult = await modifyCodeWithMoonshot(modificationState);
+  } catch (error) {
+    const fallback = applyFallbackSceneEdit(modificationState.currentCode, modificationState.instruction);
+    modificationResult = {
+      generatedCode: fallback.generatedCode,
+      generationSource: "fallback",
+      generationWarning: isMoonshotOverloaded(error)
+        ? moonshotOverloadedMessage
+        : error instanceof Error
+          ? error.message
+          : "Moonshot modification failed; used fallback modifier.",
+      changeSummary: fallback.changeSummary
+    };
+  }
+
+  let retriedAfterNoop = false;
+  let modifyOutcome = "applied";
+  let noopReason = null;
+  let codeDiff = buildCodeDiffDetails(sessionState.currentScene.code ?? "", modificationResult.generatedCode);
+  let noopCheck = detectNoopModification({
+    previousCode: sessionState.currentScene.code,
+    nextCode: modificationResult.generatedCode,
+    changeSummary: modificationResult.changeSummary,
+    diffDetails: codeDiff
+  });
+
+  if (noopCheck.isNoop && moonshotApiKey) {
+    retriedAfterNoop = true;
+
+    emitPipelineProgress(onProgress, "generate_code", "running", {
+      selectedSkill,
+      mode: "modify",
+      retryAfterNoop: true,
+      noopReason: noopCheck.reason
+    });
+
+    const rewriteInstruction = [
+      request.instruction,
+      "",
+      "Apply concrete functional scene code changes.",
+      "Do not return comment-only or metadata-only edits.",
+      "Change geometry, materials, lighting, camera, animation, or composition as needed."
+    ].join("\n");
+
+    try {
+      const retryResult = await modifyCodeWithMoonshot(
+        {
+          ...modificationState,
+          instruction: rewriteInstruction
+        },
+        { allowFallback: false }
+      );
+
+      modificationResult = {
+        ...retryResult,
+        changeSummary: `${retryResult.changeSummary} Retried after no-op candidate.`
+      };
+    } catch (retryError) {
+      const retryErrorMessage = retryError instanceof Error ? retryError.message : "Unknown retry failure";
+      modificationResult = {
+        ...modificationResult,
+        generationWarning: modificationResult.generationWarning
+          ? `${modificationResult.generationWarning}; retry after no-op failed: ${retryErrorMessage}`
+          : `Retry after no-op failed: ${retryErrorMessage}`
+      };
+    }
+
+    codeDiff = buildCodeDiffDetails(sessionState.currentScene.code ?? "", modificationResult.generatedCode);
+    noopCheck = detectNoopModification({
+      previousCode: sessionState.currentScene.code,
+      nextCode: modificationResult.generatedCode,
+      changeSummary: modificationResult.changeSummary,
+      diffDetails: codeDiff
+    });
+  }
+
+  emitPipelineProgress(onProgress, "generate_code", "completed", {
+    selectedSkill,
+    mode: "modify",
+    source: modificationResult.generationSource,
+    code: modificationResult.generatedCode,
+    retriedAfterNoop,
+    noopReason: noopCheck.isNoop ? noopCheck.reason : null
+  });
+
+  if (noopCheck.isNoop) {
+    modifyOutcome = "rejected_noop";
+    noopReason = noopCheck.reason ?? "non_semantic_diff";
+
+    emitPipelineProgress(onProgress, "validate_code", "completed", {
+      selectedSkill,
+      skipped: true,
+      noopReason
+    });
+    emitPipelineProgress(onProgress, "execute_code", "completed", {
+      selectedSkill,
+      skipped: true,
+      noopReason
+    });
+    emitPipelineProgress(onProgress, "sync_state", "completed", {
+      selectedSkill,
+      skipped: true,
+      noopReason
+    });
+
+    const skippedRuntime = {
+      success: true,
+      status: "skipped",
+      previewUrl: sessionState.currentScene.previewUrl ?? "about:blank",
+      skillId: selectedSkill,
+      skillName: selectedSkill,
+      dependencyCount: 0,
+      durationMs: 0,
+      renderCount: 0,
+      frameCount: 0,
+      logs: [],
+      summary: {
+        childCount: 0,
+        types: []
+      },
+      warning: "Skipped runtime execution because the modification produced no semantic code changes.",
+      error: null
+    };
+
+    const explanation = [
+      `Applied modification: ${request.instruction}`,
+      modificationResult.changeSummary,
+      retriedAfterNoop ? "Retried once with model rewrite after no-op detection." : null,
+      "No meaningful code changes were produced, so runtime execution was skipped.",
+      `Outcome: ${modifyOutcome} (${noopReason}).`
+    ]
+      .filter(Boolean)
+      .join(" ");
+
+    return {
+      sceneId: sessionState.currentScene.sceneId,
+      skill: selectedSkill,
+      previewUrl: skippedRuntime.previewUrl,
+      code: sessionState.currentScene.code,
+      explanation,
+      diff: {
+        instruction: request.instruction,
+        currentVersion: sessionState.currentScene.version,
+        changed: false,
+        changeSummary: modificationResult.changeSummary,
+        source: modificationResult.generationSource,
+        patch: codeDiff.patch,
+        addedLines: codeDiff.addedLines,
+        removedLines: codeDiff.removedLines,
+        changedLines: codeDiff.changedLines
+      },
+      runtime: skippedRuntime,
+      generationSource: modificationResult.generationSource,
+      generationWarning: modificationResult.generationWarning,
+      runtimeRecoveryUsed: false,
+      modifyOutcome,
+      noopReason,
+      retriedAfterNoop
+    };
+  }
+
+  if (retriedAfterNoop) {
+    modifyOutcome = "applied_after_retry";
+  }
+
+  emitPipelineProgress(onProgress, "validate_code", "completed", { selectedSkill });
+  emitPipelineProgress(onProgress, "execute_code", "running", { selectedSkill });
+
+  const modifyRuntimeTimeoutMs = computeBoundedTimeoutMs(turnDeadlineAtMs, runtimeExecutionTimeoutMs);
+  const runtimeResult = modifyRuntimeTimeoutMs > 0
+    ? await executeSkillRuntime({
+      skillId: selectedSkill,
+      code: modificationResult.generatedCode,
+      timeoutMs: modifyRuntimeTimeoutMs,
+      maxFrames: runtimeExecutionMaxFrames
+    })
+    : {
+      success: false,
+      status: "error",
+      previewUrl: null,
+      skillId: selectedSkill,
+      skillName: selectedSkill,
+      dependencyCount: 0,
+      durationMs: 0,
+      renderCount: 0,
+      frameCount: 0,
+      logs: [],
+      summary: { childCount: 0, types: [] },
+      error: "Turn budget exhausted before runtime execution."
+    };
+
+  let finalRuntimeResult = runtimeResult;
+  let finalCode = modificationResult.generatedCode;
+  let finalGenerationSource = modificationResult.generationSource;
+  let finalGenerationWarning = modificationResult.generationWarning;
+  let runtimeRecoveryUsed = false;
+  let deterministicRuntimeFixApplied = false;
+  let deterministicRuntimeFixes = [];
+
+  if (!runtimeResult.success) {
+    const recovery = await attemptRuntimeAgentRecovery({
+      originalQuery: request.instruction,
+      failedCode: modificationResult.generatedCode,
+      runtimeResult,
+      skill: selectedSkill,
+      maxIterations: runtimeDebugMaxIterations,
+      turnDeadlineAtMs
+    });
+
+    if (recovery.recovered) {
+      finalRuntimeResult = recovery.recoveredRuntime;
+      finalCode = recovery.recoveredCode;
+      finalGenerationSource = recovery.debugUsed ? "agent-runtime-debug" : "runtime-auto-fix";
+      finalGenerationWarning = recovery.warning ?? finalGenerationWarning;
+      runtimeRecoveryUsed = true;
+      deterministicRuntimeFixApplied = Boolean(recovery.deterministicFixApplied);
+      deterministicRuntimeFixes = recovery.deterministicFixes ?? [];
+    } else if (recovery.debugUsed) {
+      finalRuntimeResult = recovery.recoveredRuntime ?? runtimeResult;
+      finalCode = recovery.recoveredCode ?? modificationResult.generatedCode;
+      finalGenerationWarning = recovery.warning ?? finalGenerationWarning;
+      deterministicRuntimeFixApplied = Boolean(recovery.deterministicFixApplied);
+      deterministicRuntimeFixes = recovery.deterministicFixes ?? [];
+    }
+  }
+
+  emitPipelineProgress(onProgress, "execute_code", finalRuntimeResult.success ? "completed" : "failed", {
+    selectedSkill,
+    error: finalRuntimeResult.success ? null : finalRuntimeResult.error,
+    runtimeRecoveryUsed
+  });
+  emitPipelineProgress(onProgress, "sync_state", finalRuntimeResult.success ? "completed" : "failed", {
+    selectedSkill,
+    error: finalRuntimeResult.success ? null : finalRuntimeResult.error,
+    runtimeRecoveryUsed
+  });
+
+  const explanation = [
+    `Applied modification: ${request.instruction}`,
+    modificationResult.changeSummary,
+    retriedAfterNoop ? "Applied after no-op retry." : null,
+    runtimeRecoveryUsed ? "Runtime self-debug recovery was applied." : null,
+    finalRuntimeResult.warning ? finalRuntimeResult.warning : null,
+    finalRuntimeResult.success ? `Runtime completed in ${finalRuntimeResult.durationMs}ms.` : `Runtime failed: ${finalRuntimeResult.error}`,
+    finalGenerationSource === "moonshot-kimi"
+      ? `Generated via Moonshot Kimi (${moonshotModel}).`
+      : finalGenerationSource === "agent-runtime-debug"
+        ? "Recovered via runtime self-debug agent."
+      : `Generated via local fallback modifier.`
+  ]
+    .filter(Boolean)
+    .join(" ");
+
+  codeDiff = buildCodeDiffDetails(sessionState.currentScene.code ?? "", finalCode);
+
+  return {
+    sceneId: sessionState.currentScene.sceneId,
+    skill: selectedSkill,
+    previewUrl: finalRuntimeResult.previewUrl ?? sessionState.currentScene.previewUrl ?? "about:blank",
+    code: finalCode,
+    explanation,
+    diff: {
+      instruction: request.instruction,
+      currentVersion: sessionState.currentScene.version,
+      changed: finalCode !== sessionState.currentScene.code,
+      changeSummary: modificationResult.changeSummary,
+      source: finalGenerationSource,
+      patch: codeDiff.patch,
+      addedLines: codeDiff.addedLines,
+      removedLines: codeDiff.removedLines,
+      changedLines: codeDiff.changedLines
+    },
+    runtime: finalRuntimeResult,
+    generationSource: finalGenerationSource,
+    generationWarning: finalGenerationWarning,
+    runtimeRecoveryUsed,
+    deterministicRuntimeFixApplied,
+    deterministicRuntimeFixes,
+    modifyOutcome,
+    noopReason,
+    retriedAfterNoop
+  };
+}
+
+/**
+ * Generate a visual scene from a reference image.
+ *
+ * Uses Kimi K2.5's native vision capabilities to analyze the image
+ * and produce matching scene code. Validates and optionally self-debugs.
+ *
+ * @param {object} input
+ * @param {string} input.imageUrl - URL or base64 data URI of the reference image
+ * @param {string} [input.query] - Optional text instruction alongside the image
+ * @param {string} [input.sessionId] - Session ID
+ * @param {object} [input.preferences] - { skill, quality }
+ * @returns {Promise<object>} Generation result with code, skill, explanation, runtime
+ */
+export async function generateFromImage(input) {
+  const imageUrl = input.imageUrl;
+  const query = input.query ?? "";
+  const sessionId = input.sessionId ?? null;
+  const turnStartedAtMs = Date.now();
+  const turnDeadlineAtMs = getTurnDeadlineAtMs(turnStartedAtMs);
+
+  if (!imageUrl) {
+    throw new Error("imageUrl is required for image-to-code generation.");
+  }
+
+  if (!moonshotApiKey) {
+    throw new Error("MOONSHOT_API_KEY is not configured. Image-to-code requires the Moonshot API.");
+  }
+
+  // Determine skill — default to threejs for image-to-code
+  const requestedSkill = input.preferences?.skill ?? "auto";
+  let selectedSkill = requestedSkill;
+
+  if (requestedSkill === "auto") {
+    // For images, default to threejs unless there's a text hint
+    const normalizedQuery = (query || "").toLowerCase();
+    if (/(chart|graph|data|bar|pie|line chart)/.test(normalizedQuery)) {
+      selectedSkill = "d3js";
+    } else if (/(2d|canvas|sketch|drawing|pixel|flat)/.test(normalizedQuery)) {
+      selectedSkill = "p5js";
+    } else {
+      selectedSkill = "threejs";
+    }
+  }
+
+  console.log(`[ImageToCode] Generating from image for skill=${selectedSkill}, query="${query.slice(0, 60)}"`);
+
+  // Build the multimodal prompt
+  const { systemPrompt, userContent } = buildImageToCodePromptBundle({
+    imageUrl,
+    query,
+    selectedSkill,
+    parsedIntent: query ? parseIntentFromQuery(query) : null
+  });
+
+  // Call Kimi K2.5 with vision-enabled message format
+  const response = await fetchMoonshotChatCompletion({
+    model: moonshotModel,
+    messages: [
+      { role: "system", content: systemPrompt },
+      { role: "user", content: userContent }
+    ]
+  }, { mode: "thinking" });
+
+  const payload = await response.json();
+  const content = payload?.choices?.[0]?.message?.content ?? "";
+  let generatedCode = extractCodeContent(content);
+
+  if (!generatedCode) {
+    throw new Error("Moonshot returned empty code output for image-to-code generation.");
+  }
+
+  let generationSource = "image-to-code";
+  let generationWarning = null;
+  let agentDebugInfo = null;
+
+  // Validate the generated code
+  const validation = validateCode(generatedCode, selectedSkill);
+
+  if (!validation.passable) {
+    console.log(`[ImageToCode] Code failed validation. Attempting agent self-debug...`);
+
+    // Try agent self-debug
+    setErrorContext({
+      originalQuery: query || "Generate scene from reference image",
+      failedCode: generatedCode,
+      validationErrors: validation.errors,
+      skill: selectedSkill
+    });
+
+    try {
+      const imageSelfDebugTimeoutMs = computeBoundedTimeoutMs(turnDeadlineAtMs, selfDebugSessionTimeoutMs, 500);
+      const debugResult = await withTimeout(
+        runSelfDebugSession({
+          originalQuery: query || "Generate scene from reference image",
+          failedCode: generatedCode,
+          validationErrors: validation.errors,
+          skill: selectedSkill,
+          tools: getDebugTools(),
+          maxIterations: selfDebugMaxIterations
+        }),
+        imageSelfDebugTimeoutMs,
+        `Self-debug session timed out after ${imageSelfDebugTimeoutMs}ms.`
+      );
+
+      clearErrorContext();
+
+      if (debugResult.fixedCode) {
+        generatedCode = debugResult.fixedCode;
+        generationSource = "image-to-code-debugged";
+        agentDebugInfo = {
+          used: true,
+          iterations: debugResult.iterations,
+          success: debugResult.success
+        };
+        console.log(`[ImageToCode] Agent debug resolved code in ${debugResult.iterations} iteration(s).`);
+      } else {
+        generationWarning = "Code failed validation and agent debug could not fix it.";
+      }
+    } catch (debugErr) {
+      clearErrorContext();
+      generationWarning = `Agent debug failed: ${debugErr instanceof Error ? debugErr.message : "Unknown error"}`;
+    }
+  }
+
+  // Execute in sandbox
+  const imageRuntimeTimeoutMs = computeBoundedTimeoutMs(turnDeadlineAtMs, runtimeExecutionTimeoutMs);
+  const runtimeResult = imageRuntimeTimeoutMs > 0
+    ? await executeSkillRuntime({
+      skillId: selectedSkill,
+      code: generatedCode,
+      timeoutMs: imageRuntimeTimeoutMs,
+      maxFrames: runtimeExecutionMaxFrames
+    })
+    : {
+      success: false,
+      status: "error",
+      previewUrl: null,
+      skillId: selectedSkill,
+      skillName: selectedSkill,
+      dependencyCount: 0,
+      durationMs: 0,
+      renderCount: 0,
+      frameCount: 0,
+      logs: [],
+      summary: { childCount: 0, types: [] },
+      error: "Turn budget exhausted before runtime execution."
+    };
+
+  let finalRuntimeResult = runtimeResult;
+  let runtimeRecoveryUsed = false;
+
+  if (!runtimeResult.success) {
+    const recovery = await attemptRuntimeAgentRecovery({
+      originalQuery: query || "Generate scene from reference image",
+      failedCode: generatedCode,
+      runtimeResult,
+      skill: selectedSkill,
+      maxIterations: runtimeDebugMaxIterations,
+      turnDeadlineAtMs
+    });
+
+    if (recovery.recovered) {
+      generatedCode = recovery.recoveredCode;
+      finalRuntimeResult = recovery.recoveredRuntime;
+      generationSource = "image-to-code-runtime-debugged";
+      generationWarning = recovery.warning ?? generationWarning;
+      runtimeRecoveryUsed = true;
+      agentDebugInfo = {
+        used: true,
+        iterations: recovery.iterations,
+        success: true,
+        mode: "runtime"
+      };
+    } else if (recovery.debugUsed) {
+      finalRuntimeResult = recovery.recoveredRuntime ?? runtimeResult;
+      generationWarning = recovery.warning ?? generationWarning;
+      agentDebugInfo = {
+        used: true,
+        iterations: recovery.iterations,
+        success: false,
+        mode: "runtime"
+      };
+    }
+  }
+
+  const explanation = [
+    query ? `Generated from reference image with instruction: "${query}"` : "Generated from reference image.",
+    runtimeRecoveryUsed ? "Runtime self-debug recovery was applied." : null,
+    finalRuntimeResult.success
+      ? `Runtime completed in ${finalRuntimeResult.durationMs}ms with ${finalRuntimeResult.renderCount} renders.`
+      : `Runtime failed: ${finalRuntimeResult.error}`,
+    generationWarning,
+    agentDebugInfo?.used
+      ? `Agent self-debug was used (${agentDebugInfo.iterations} iteration(s)).`
+      : null
+  ].filter(Boolean).join(" ");
+
+  return {
+    sceneId: `scene-img-${Date.now()}`,
+    skill: selectedSkill,
+    previewUrl: finalRuntimeResult.previewUrl ?? "about:blank",
+    code: generatedCode,
+    explanation,
+    runtime: finalRuntimeResult,
+    generationSource,
+    generationWarning,
+    agentDebug: agentDebugInfo,
+    runtimeRecoveryUsed,
+    imageUrl
+  };
+}
+
