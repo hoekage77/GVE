@@ -1,0 +1,329 @@
+{
+  "sessionId": "45b20f61-3acc-4aea-8157-8e5595360797",
+  "createdAt": "2026-04-03T16:58:47.927Z",
+  "updatedAt": "2026-04-03T17:02:34.412Z",
+  "status": "idle",
+  "currentScene": {
+    "sessionId": "45b20f61-3acc-4aea-8157-8e5595360797",
+    "sceneId": "scene-1775235731298",
+    "code": "const clock = new THREE.Clock();\nscene.background = new THREE.Color(0xdde6f0);\nscene.fog = new THREE.FogExp2(0xdde6f0, 0.015);\n\nrenderer.toneMapping = THREE.ACESFilmicToneMapping;\nrenderer.toneMappingExposure = 1.12;\nrenderer.shadowMap.enabled = true;\nrenderer.shadowMap.type = THREE.PCFSoftShadowMap;\n\nconst keyLight = new THREE.DirectionalLight(0xfff4e0, 1.45);\nkeyLight.position.set(40, 60, 30);\nkeyLight.castShadow = true;\nkeyLight.shadow.mapSize.width = 2048;\nkeyLight.shadow.mapSize.height = 2048;\nkeyLight.shadow.camera.near = 0.1;\nkeyLight.shadow.camera.far = 200;\nkeyLight.shadow.camera.left = -60;\nkeyLight.shadow.camera.right = 60;\nkeyLight.shadow.camera.top = 60;\nkeyLight.shadow.camera.bottom = -60;\nkeyLight.shadow.bias = -0.0005;\n\nconst fillLight = new THREE.DirectionalLight(0x8fbfff, 0.65);\nfillLight.position.set(-50, 40, -30);\n\nconst rimLight = new THREE.DirectionalLight(0xcceeff, 0.95);\nrimLight.position.set(0, 30, -70);\n\nconst ambientLight = new THREE.AmbientLight(0x4a5568, 0.45);\n\nscene.add(keyLight, fillLight, rimLight, ambientLight);\n\nconst cityGroup = new THREE.Group();\nscene.add(cityGroup);\n\nconst buildingGeo = new THREE.BoxGeometry(1, 1, 1);\nconst buildingMat = new THREE.MeshStandardMaterial({\n  color: 0xe2e8f0,\n  roughness: 0.25,\n  metalness: 0.75\n});\n\nconst buildingCount = 1200;\nconst instancedBuildings = new THREE.InstancedMesh(buildingGeo, buildingMat, buildingCount);\ninstancedBuildings.castShadow = true;\ninstancedBuildings.receiveShadow = true;\n\nconst dummy = new THREE.Object3D();\nconst color = new THREE.Color();\nlet idx = 0;\n\nfor (let x = -50; x <= 50; x += 2.5) {\n  for (let z = -50; z <= 50; z += 2.5) {\n    if (idx >= buildingCount) break;\n    if (Math.random() > 0.75) continue;\n    \n    const dist = Math.sqrt(x * x + z * z);\n    const heightFalloff = Math.max(0.2, 1 - dist / 70);\n    const height = (8 + Math.random() * 30 * heightFalloff) * (Math.random() > 0.95 ? 1.6 : 1);\n    const width = 1.2 + Math.random() * 1.8;\n    const depth = 1.2 + Math.random() * 1.8;\n    \n    dummy.position.set(x + (Math.random() - 0.5) * 0.5, height / 2 - 8, z + (Math.random() - 0.5) * 0.5);\n    dummy.scale.set(width, height, depth);\n    dummy.rotation.y = (Math.random() - 0.5) * 0.08;\n    dummy.updateMatrix();\n    instancedBuildings.setMatrixAt(idx, dummy.matrix);\n    \n    const brightness = 0.82 + Math.random() * 0.18;\n    color.setRGB(brightness, brightness, brightness + 0.03);\n    instancedBuildings.setColorAt(idx, color);\n    idx++;\n  }\n}\n\ncityGroup.add(instancedBuildings);\n\nconst detailGroup = new THREE.Group();\ncityGroup.add(detailGroup);\n\nconst windowMat = new THREE.MeshStandardMaterial({\n  color: 0xffb347,\n  emissive: 0xff8c00,\n  emissiveIntensity: 0.6,\n  roughness: 0.2\n});\n\nconst glassMat = new THREE.MeshStandardMaterial({\n  color: 0x4299e1,\n  roughness: 0.05,\n  metalness: 0.95,\n  transparent: true,\n  opacity: 0.75\n});\n\nfor (let i = 0; i < 35; i++) {\n  const h = 20 + Math.random() * 25;\n  const w = 2.5 + Math.random() * 2;\n  const d = 2.5 + Math.random() * 2;\n  \n  const building = new THREE.Mesh(\n    new THREE.BoxGeometry(w, h, d),\n    new THREE.MeshStandardMaterial({\n      color: 0xf7fafc,\n      roughness: 0.15,\n      metalness: 0.8\n    })\n  );\n  \n  building.position.set(\n    (Math.random() - 0.5) * 40,\n    h / 2 - 5,\n    (Math.random() - 0.5) * 40 + 15\n  );\n  building.castShadow = true;\n  building.receiveShadow = true;\n  \n  const floors = Math.floor(h / 3);\n  for (let f = 2; f < floors; f++) {\n    if (Math.random() > 0.4) {\n      const winMesh = new THREE.Mesh(new THREE.PlaneGeometry(w * 0.7, 0.4), windowMat.clone());\n      winMesh.position.set(0, -h / 2 + f * 3, d / 2 + 0.02);\n      winMesh.material.emissiveIntensity = 0.4 + Math.random() * 0.6;\n      building.add(winMesh);\n      \n      const winMesh2 = winMesh.clone();\n      winMesh2.position.set(0, -h / 2 + f * 3, -d / 2 - 0.02);\n      winMesh2.rotation.y = Math.PI;\n      building.add(winMesh2);\n      \n      const winMesh3 = winMesh.clone();\n      winMesh3.position.set(w / 2 + 0.02, -h / 2 + f * 3, 0);\n      winMesh3.rotation.y = Math.PI / 2;\n      building.add(winMesh3);\n      \n      const winMesh4 = winMesh.clone();\n      winMesh4.position.set(-w / 2 - 0.02, -h / 2 + f * 3, 0);\n      winMesh4.rotation.y = -Math.PI / 2;\n      building.add(winMesh4);\n    }\n  }\n  \n  if (Math.random() > 0.6) {\n    const antenna = new THREE.Mesh(\n      new THREE.CylinderGeometry(0.05, 0.1, 4, 8),\n      new THREE.MeshStandardMaterial({ color: 0x718096, metalness: 0.9, roughness: 0.2 })\n    );\n    antenna.position.y = h / 2 + 2;\n    building.add(antenna);\n    \n    const beacon = new THREE.PointLight(0xff0000, 0.8, 8);\n    beacon.position.y = 2.5;\n    antenna.add(beacon);\n    building.userData.beacon = beacon;\n    building.userData.beaconPhase = Math.random() * Math.PI * 2;\n  }\n  \n  detailGroup.add(building);\n}\n\nconst vehicleGroup = new THREE.Group();\nscene.add(vehicleGroup);\n\nconst vehicleGeo = new THREE.CapsuleGeometry(0.12, 0.5, 4, 8);\nconst vehicleMat = new THREE.MeshStandardMaterial({\n  color: 0xcbd5e0,\n  metalness: 0.85,\n  roughness: 0.15\n});\n\nconst vehicles = [];\nfor (let i = 0; i < 40; i++) {\n  const vehicle = new THREE.Mesh(vehicleGeo, vehicleMat);\n  const laneHeight = 6 + Math.random() * 20;\n  const angle = Math.random() * Math.PI * 2;\n  const radius = 10 + Math.random() * 35;\n  \n  vehicle.position.set(Math.cos(angle) * radius, laneHeight, Math.sin(angle) * radius);\n  vehicle.rotation.z = Math.PI / 2;\n  vehicle.rotation.y = angle + (Math.random() > 0.5 ? 0 : Math.PI);\n  \n  const engine = new THREE.PointLight(0x00ddee, 0.6, 4);\n  engine.position.set(-0.4, 0, 0);\n  vehicle.add(engine);\n  \n  const trail = new THREE.Mesh(\n    new THREE.ConeGeometry(0.08, 0.8, 8),\n    new THREE.MeshBasicMaterial({ color: 0x00ddee, transparent: true, opacity: 0.3, blending: THREE.AdditiveBlending })\n  );\n  trail.rotation.z = Math.PI / 2;\n  trail.position.set(-0.9, 0, 0);\n  vehicle.add(trail);\n  \n  vehicle.userData = {\n    speed: 0.15 + Math.random() * 0.25,\n    direction: new THREE.Vector3(Math.sin(angle + Math.PI / 2), 0, -Math.cos(angle + Math.PI / 2)),\n    radius: radius,\n    center: new THREE.Vector3(0, laneHeight, 0),\n    angle: angle,\n    engine: engine,\n    trail: trail\n  };\n  \n  vehicles.push(vehicle);\n  vehicleGroup.add(vehicle);\n}\n\nconst particleCount = 1500;\nconst particleGeo = new THREE.BufferGeometry();\nconst particlePos = new Float32Array(particleCount * 3);\nconst particleVel = [];\n\nfor (let i = 0; i < particleCount * 3; i += 3) {\n  particlePos[i] = (Math.random() - 0.5) * 120;\n  particlePos[i + 1] = Math.random() * 50 - 10;\n  particlePos[i + 2] = (Math.random() - 0.5) * 120;\n  particleVel.push({\n    x: (Math.random() - 0.5) * 0.02,\n    y: Math.random() * 0.01,\n    z: (Math.random() - 0.5) * 0.02\n  });\n}\n\nparticleGeo.setAttribute('position', new THREE.BufferAttribute(particlePos, 3));\nconst particleMat = new THREE.PointsMaterial({\n  color: 0xffffff,\n  size: 0.12,\n  transparent: true,\n  opacity: 0.4,\n  blending: THREE.AdditiveBlending\n});\nconst particles = new THREE.Points(particleGeo, particleMat);\nscene.add(particles);\n\nconst controls = new OrbitControls(camera, renderer.domElement);\ncontrols.enableDamping = true;\ncontrols.dampingFactor = 0.05;\ncontrols.minDistance = 8;\ncontrols.maxDistance = 80;\ncontrols.maxPolarAngle = Math.PI / 2 - 0.05;\ncontrols.target.set(0, 8, 0);\n\ncamera.position.set(35, 20, 45);\n\nfunction animate() {\n  requestAnimationFrame(animate);\n  const t = clock.getElapsedTime();\n  const dt = clock.getDelta();\n  \n  controls.update();\n  \n  vehicles.forEach((v, i) => {\n    v.userData.angle += v.userData.speed * 0.02;\n    v.position.x = Math.cos(v.userData.angle) * v.userData.radius;\n    v.position.z = Math.sin(v.userData.angle) * v.userData.radius;\n    v.rotation.y = v.userData.angle + Math.PI / 2;\n    \n    v.userData.engine.intensity = 0.4 + Math.sin(t * 15 + i) * 0.2;\n    v.userData.trail.scale.x = 1 + Math.sin(t * 20 + i) * 0.3;\n    \n    v.position.y = v.userData.center.y + Math.sin(t * 2 + i) * 0.5;\n  });\n  \n  const positions = particles.geometry.attributes.position.array;\n  for (let i = 0; i < particleCount; i++) {\n    const i3 = i * 3;\n    positions[i3] += particleVel[i].x + Math.sin(t * 0.5 + i) * 0.01;\n    positions[i3 + 1] += particleVel[i].y;\n    positions[i3 + 2] += particleVel[i].z;\n    \n    if (positions[i3 + 1] > 40) positions[i3 + 1] = -10;\n    if (Math.abs(positions[i3]) > 60) positions[i3] *= -0.5;\n    if (Math.abs(positions[i3 + 2]) > 60) positions[i3 + 2] *= -0.5;\n  }\n  particles.geometry.attributes.position.needsUpdate = true;\n  \n  detailGroup.children.forEach((building, i) => {\n    if (building.userData.beacon) {\n      const pulse = Math.sin(t * 3 + building.userData.beaconPhase) > 0.8 ? 1.2 : 0.2;\n      building.userData.beacon.intensity = pulse;\n    }\n  });\n  \n  rimLight.intensity = 0.95 + Math.sin(t * 0.4) * 0.15;\n  \n  cityGroup.rotation.y = Math.sin(t * 0.05) * 0.05;\n  \n  renderer.render(scene, camera);\n}\n\nanimate();",
+    "previewUrl": "about:blank",
+    "skill": "threejs",
+    "explanation": "Generated through LangGraph orchestration pipeline. Generated via Moonshot Kimi (kimi-k2.5). Warning: Regenerated once to satisfy OrbitControls interaction invariant. Runtime recovery skipped because immutable-generate mode is enabled. Runtime: degraded with 0 renders and 0 frames. Runtime degraded due to sandbox provisioning constraints: Turn budget exhausted before runtime execution.",
+    "messageId": "message-2",
+    "source": "generate",
+    "createdAt": "2026-04-03T17:02:11.308Z",
+    "updatedAt": "2026-04-03T17:02:11.308Z",
+    "versionId": "version-1",
+    "version": 1,
+    "artifactId": "artifact-1775235731308-aabeda",
+    "artifactVersion": 1
+  },
+  "artifacts": [
+    {
+      "artifactId": "artifact-1775235731308-aabeda",
+      "title": "scene-1775235731298",
+      "createdAt": "2026-04-03T17:02:11.308Z",
+      "updatedAt": "2026-04-03T17:02:11.308Z",
+      "revisions": [
+        {
+          "sessionId": "45b20f61-3acc-4aea-8157-8e5595360797",
+          "sceneId": "scene-1775235731298",
+          "code": "const clock = new THREE.Clock();\nscene.background = new THREE.Color(0xdde6f0);\nscene.fog = new THREE.FogExp2(0xdde6f0, 0.015);\n\nrenderer.toneMapping = THREE.ACESFilmicToneMapping;\nrenderer.toneMappingExposure = 1.12;\nrenderer.shadowMap.enabled = true;\nrenderer.shadowMap.type = THREE.PCFSoftShadowMap;\n\nconst keyLight = new THREE.DirectionalLight(0xfff4e0, 1.45);\nkeyLight.position.set(40, 60, 30);\nkeyLight.castShadow = true;\nkeyLight.shadow.mapSize.width = 2048;\nkeyLight.shadow.mapSize.height = 2048;\nkeyLight.shadow.camera.near = 0.1;\nkeyLight.shadow.camera.far = 200;\nkeyLight.shadow.camera.left = -60;\nkeyLight.shadow.camera.right = 60;\nkeyLight.shadow.camera.top = 60;\nkeyLight.shadow.camera.bottom = -60;\nkeyLight.shadow.bias = -0.0005;\n\nconst fillLight = new THREE.DirectionalLight(0x8fbfff, 0.65);\nfillLight.position.set(-50, 40, -30);\n\nconst rimLight = new THREE.DirectionalLight(0xcceeff, 0.95);\nrimLight.position.set(0, 30, -70);\n\nconst ambientLight = new THREE.AmbientLight(0x4a5568, 0.45);\n\nscene.add(keyLight, fillLight, rimLight, ambientLight);\n\nconst cityGroup = new THREE.Group();\nscene.add(cityGroup);\n\nconst buildingGeo = new THREE.BoxGeometry(1, 1, 1);\nconst buildingMat = new THREE.MeshStandardMaterial({\n  color: 0xe2e8f0,\n  roughness: 0.25,\n  metalness: 0.75\n});\n\nconst buildingCount = 1200;\nconst instancedBuildings = new THREE.InstancedMesh(buildingGeo, buildingMat, buildingCount);\ninstancedBuildings.castShadow = true;\ninstancedBuildings.receiveShadow = true;\n\nconst dummy = new THREE.Object3D();\nconst color = new THREE.Color();\nlet idx = 0;\n\nfor (let x = -50; x <= 50; x += 2.5) {\n  for (let z = -50; z <= 50; z += 2.5) {\n    if (idx >= buildingCount) break;\n    if (Math.random() > 0.75) continue;\n    \n    const dist = Math.sqrt(x * x + z * z);\n    const heightFalloff = Math.max(0.2, 1 - dist / 70);\n    const height = (8 + Math.random() * 30 * heightFalloff) * (Math.random() > 0.95 ? 1.6 : 1);\n    const width = 1.2 + Math.random() * 1.8;\n    const depth = 1.2 + Math.random() * 1.8;\n    \n    dummy.position.set(x + (Math.random() - 0.5) * 0.5, height / 2 - 8, z + (Math.random() - 0.5) * 0.5);\n    dummy.scale.set(width, height, depth);\n    dummy.rotation.y = (Math.random() - 0.5) * 0.08;\n    dummy.updateMatrix();\n    instancedBuildings.setMatrixAt(idx, dummy.matrix);\n    \n    const brightness = 0.82 + Math.random() * 0.18;\n    color.setRGB(brightness, brightness, brightness + 0.03);\n    instancedBuildings.setColorAt(idx, color);\n    idx++;\n  }\n}\n\ncityGroup.add(instancedBuildings);\n\nconst detailGroup = new THREE.Group();\ncityGroup.add(detailGroup);\n\nconst windowMat = new THREE.MeshStandardMaterial({\n  color: 0xffb347,\n  emissive: 0xff8c00,\n  emissiveIntensity: 0.6,\n  roughness: 0.2\n});\n\nconst glassMat = new THREE.MeshStandardMaterial({\n  color: 0x4299e1,\n  roughness: 0.05,\n  metalness: 0.95,\n  transparent: true,\n  opacity: 0.75\n});\n\nfor (let i = 0; i < 35; i++) {\n  const h = 20 + Math.random() * 25;\n  const w = 2.5 + Math.random() * 2;\n  const d = 2.5 + Math.random() * 2;\n  \n  const building = new THREE.Mesh(\n    new THREE.BoxGeometry(w, h, d),\n    new THREE.MeshStandardMaterial({\n      color: 0xf7fafc,\n      roughness: 0.15,\n      metalness: 0.8\n    })\n  );\n  \n  building.position.set(\n    (Math.random() - 0.5) * 40,\n    h / 2 - 5,\n    (Math.random() - 0.5) * 40 + 15\n  );\n  building.castShadow = true;\n  building.receiveShadow = true;\n  \n  const floors = Math.floor(h / 3);\n  for (let f = 2; f < floors; f++) {\n    if (Math.random() > 0.4) {\n      const winMesh = new THREE.Mesh(new THREE.PlaneGeometry(w * 0.7, 0.4), windowMat.clone());\n      winMesh.position.set(0, -h / 2 + f * 3, d / 2 + 0.02);\n      winMesh.material.emissiveIntensity = 0.4 + Math.random() * 0.6;\n      building.add(winMesh);\n      \n      const winMesh2 = winMesh.clone();\n      winMesh2.position.set(0, -h / 2 + f * 3, -d / 2 - 0.02);\n      winMesh2.rotation.y = Math.PI;\n      building.add(winMesh2);\n      \n      const winMesh3 = winMesh.clone();\n      winMesh3.position.set(w / 2 + 0.02, -h / 2 + f * 3, 0);\n      winMesh3.rotation.y = Math.PI / 2;\n      building.add(winMesh3);\n      \n      const winMesh4 = winMesh.clone();\n      winMesh4.position.set(-w / 2 - 0.02, -h / 2 + f * 3, 0);\n      winMesh4.rotation.y = -Math.PI / 2;\n      building.add(winMesh4);\n    }\n  }\n  \n  if (Math.random() > 0.6) {\n    const antenna = new THREE.Mesh(\n      new THREE.CylinderGeometry(0.05, 0.1, 4, 8),\n      new THREE.MeshStandardMaterial({ color: 0x718096, metalness: 0.9, roughness: 0.2 })\n    );\n    antenna.position.y = h / 2 + 2;\n    building.add(antenna);\n    \n    const beacon = new THREE.PointLight(0xff0000, 0.8, 8);\n    beacon.position.y = 2.5;\n    antenna.add(beacon);\n    building.userData.beacon = beacon;\n    building.userData.beaconPhase = Math.random() * Math.PI * 2;\n  }\n  \n  detailGroup.add(building);\n}\n\nconst vehicleGroup = new THREE.Group();\nscene.add(vehicleGroup);\n\nconst vehicleGeo = new THREE.CapsuleGeometry(0.12, 0.5, 4, 8);\nconst vehicleMat = new THREE.MeshStandardMaterial({\n  color: 0xcbd5e0,\n  metalness: 0.85,\n  roughness: 0.15\n});\n\nconst vehicles = [];\nfor (let i = 0; i < 40; i++) {\n  const vehicle = new THREE.Mesh(vehicleGeo, vehicleMat);\n  const laneHeight = 6 + Math.random() * 20;\n  const angle = Math.random() * Math.PI * 2;\n  const radius = 10 + Math.random() * 35;\n  \n  vehicle.position.set(Math.cos(angle) * radius, laneHeight, Math.sin(angle) * radius);\n  vehicle.rotation.z = Math.PI / 2;\n  vehicle.rotation.y = angle + (Math.random() > 0.5 ? 0 : Math.PI);\n  \n  const engine = new THREE.PointLight(0x00ddee, 0.6, 4);\n  engine.position.set(-0.4, 0, 0);\n  vehicle.add(engine);\n  \n  const trail = new THREE.Mesh(\n    new THREE.ConeGeometry(0.08, 0.8, 8),\n    new THREE.MeshBasicMaterial({ color: 0x00ddee, transparent: true, opacity: 0.3, blending: THREE.AdditiveBlending })\n  );\n  trail.rotation.z = Math.PI / 2;\n  trail.position.set(-0.9, 0, 0);\n  vehicle.add(trail);\n  \n  vehicle.userData = {\n    speed: 0.15 + Math.random() * 0.25,\n    direction: new THREE.Vector3(Math.sin(angle + Math.PI / 2), 0, -Math.cos(angle + Math.PI / 2)),\n    radius: radius,\n    center: new THREE.Vector3(0, laneHeight, 0),\n    angle: angle,\n    engine: engine,\n    trail: trail\n  };\n  \n  vehicles.push(vehicle);\n  vehicleGroup.add(vehicle);\n}\n\nconst particleCount = 1500;\nconst particleGeo = new THREE.BufferGeometry();\nconst particlePos = new Float32Array(particleCount * 3);\nconst particleVel = [];\n\nfor (let i = 0; i < particleCount * 3; i += 3) {\n  particlePos[i] = (Math.random() - 0.5) * 120;\n  particlePos[i + 1] = Math.random() * 50 - 10;\n  particlePos[i + 2] = (Math.random() - 0.5) * 120;\n  particleVel.push({\n    x: (Math.random() - 0.5) * 0.02,\n    y: Math.random() * 0.01,\n    z: (Math.random() - 0.5) * 0.02\n  });\n}\n\nparticleGeo.setAttribute('position', new THREE.BufferAttribute(particlePos, 3));\nconst particleMat = new THREE.PointsMaterial({\n  color: 0xffffff,\n  size: 0.12,\n  transparent: true,\n  opacity: 0.4,\n  blending: THREE.AdditiveBlending\n});\nconst particles = new THREE.Points(particleGeo, particleMat);\nscene.add(particles);\n\nconst controls = new OrbitControls(camera, renderer.domElement);\ncontrols.enableDamping = true;\ncontrols.dampingFactor = 0.05;\ncontrols.minDistance = 8;\ncontrols.maxDistance = 80;\ncontrols.maxPolarAngle = Math.PI / 2 - 0.05;\ncontrols.target.set(0, 8, 0);\n\ncamera.position.set(35, 20, 45);\n\nfunction animate() {\n  requestAnimationFrame(animate);\n  const t = clock.getElapsedTime();\n  const dt = clock.getDelta();\n  \n  controls.update();\n  \n  vehicles.forEach((v, i) => {\n    v.userData.angle += v.userData.speed * 0.02;\n    v.position.x = Math.cos(v.userData.angle) * v.userData.radius;\n    v.position.z = Math.sin(v.userData.angle) * v.userData.radius;\n    v.rotation.y = v.userData.angle + Math.PI / 2;\n    \n    v.userData.engine.intensity = 0.4 + Math.sin(t * 15 + i) * 0.2;\n    v.userData.trail.scale.x = 1 + Math.sin(t * 20 + i) * 0.3;\n    \n    v.position.y = v.userData.center.y + Math.sin(t * 2 + i) * 0.5;\n  });\n  \n  const positions = particles.geometry.attributes.position.array;\n  for (let i = 0; i < particleCount; i++) {\n    const i3 = i * 3;\n    positions[i3] += particleVel[i].x + Math.sin(t * 0.5 + i) * 0.01;\n    positions[i3 + 1] += particleVel[i].y;\n    positions[i3 + 2] += particleVel[i].z;\n    \n    if (positions[i3 + 1] > 40) positions[i3 + 1] = -10;\n    if (Math.abs(positions[i3]) > 60) positions[i3] *= -0.5;\n    if (Math.abs(positions[i3 + 2]) > 60) positions[i3 + 2] *= -0.5;\n  }\n  particles.geometry.attributes.position.needsUpdate = true;\n  \n  detailGroup.children.forEach((building, i) => {\n    if (building.userData.beacon) {\n      const pulse = Math.sin(t * 3 + building.userData.beaconPhase) > 0.8 ? 1.2 : 0.2;\n      building.userData.beacon.intensity = pulse;\n    }\n  });\n  \n  rimLight.intensity = 0.95 + Math.sin(t * 0.4) * 0.15;\n  \n  cityGroup.rotation.y = Math.sin(t * 0.05) * 0.05;\n  \n  renderer.render(scene, camera);\n}\n\nanimate();",
+          "previewUrl": "about:blank",
+          "skill": "threejs",
+          "explanation": "Generated through LangGraph orchestration pipeline. Generated via Moonshot Kimi (kimi-k2.5). Warning: Regenerated once to satisfy OrbitControls interaction invariant. Runtime recovery skipped because immutable-generate mode is enabled. Runtime: degraded with 0 renders and 0 frames. Runtime degraded due to sandbox provisioning constraints: Turn budget exhausted before runtime execution.",
+          "messageId": "message-2",
+          "source": "generate",
+          "createdAt": "2026-04-03T17:02:11.308Z",
+          "updatedAt": "2026-04-03T17:02:11.308Z",
+          "versionId": "version-1",
+          "version": 1,
+          "artifactId": "artifact-1775235731308-aabeda",
+          "artifactVersion": 1
+        }
+      ],
+      "revisionPointer": 0
+    }
+  ],
+  "artifactPointer": 0,
+  "versions": [
+    {
+      "sessionId": "45b20f61-3acc-4aea-8157-8e5595360797",
+      "sceneId": "scene-1775235731298",
+      "code": "const clock = new THREE.Clock();\nscene.background = new THREE.Color(0xdde6f0);\nscene.fog = new THREE.FogExp2(0xdde6f0, 0.015);\n\nrenderer.toneMapping = THREE.ACESFilmicToneMapping;\nrenderer.toneMappingExposure = 1.12;\nrenderer.shadowMap.enabled = true;\nrenderer.shadowMap.type = THREE.PCFSoftShadowMap;\n\nconst keyLight = new THREE.DirectionalLight(0xfff4e0, 1.45);\nkeyLight.position.set(40, 60, 30);\nkeyLight.castShadow = true;\nkeyLight.shadow.mapSize.width = 2048;\nkeyLight.shadow.mapSize.height = 2048;\nkeyLight.shadow.camera.near = 0.1;\nkeyLight.shadow.camera.far = 200;\nkeyLight.shadow.camera.left = -60;\nkeyLight.shadow.camera.right = 60;\nkeyLight.shadow.camera.top = 60;\nkeyLight.shadow.camera.bottom = -60;\nkeyLight.shadow.bias = -0.0005;\n\nconst fillLight = new THREE.DirectionalLight(0x8fbfff, 0.65);\nfillLight.position.set(-50, 40, -30);\n\nconst rimLight = new THREE.DirectionalLight(0xcceeff, 0.95);\nrimLight.position.set(0, 30, -70);\n\nconst ambientLight = new THREE.AmbientLight(0x4a5568, 0.45);\n\nscene.add(keyLight, fillLight, rimLight, ambientLight);\n\nconst cityGroup = new THREE.Group();\nscene.add(cityGroup);\n\nconst buildingGeo = new THREE.BoxGeometry(1, 1, 1);\nconst buildingMat = new THREE.MeshStandardMaterial({\n  color: 0xe2e8f0,\n  roughness: 0.25,\n  metalness: 0.75\n});\n\nconst buildingCount = 1200;\nconst instancedBuildings = new THREE.InstancedMesh(buildingGeo, buildingMat, buildingCount);\ninstancedBuildings.castShadow = true;\ninstancedBuildings.receiveShadow = true;\n\nconst dummy = new THREE.Object3D();\nconst color = new THREE.Color();\nlet idx = 0;\n\nfor (let x = -50; x <= 50; x += 2.5) {\n  for (let z = -50; z <= 50; z += 2.5) {\n    if (idx >= buildingCount) break;\n    if (Math.random() > 0.75) continue;\n    \n    const dist = Math.sqrt(x * x + z * z);\n    const heightFalloff = Math.max(0.2, 1 - dist / 70);\n    const height = (8 + Math.random() * 30 * heightFalloff) * (Math.random() > 0.95 ? 1.6 : 1);\n    const width = 1.2 + Math.random() * 1.8;\n    const depth = 1.2 + Math.random() * 1.8;\n    \n    dummy.position.set(x + (Math.random() - 0.5) * 0.5, height / 2 - 8, z + (Math.random() - 0.5) * 0.5);\n    dummy.scale.set(width, height, depth);\n    dummy.rotation.y = (Math.random() - 0.5) * 0.08;\n    dummy.updateMatrix();\n    instancedBuildings.setMatrixAt(idx, dummy.matrix);\n    \n    const brightness = 0.82 + Math.random() * 0.18;\n    color.setRGB(brightness, brightness, brightness + 0.03);\n    instancedBuildings.setColorAt(idx, color);\n    idx++;\n  }\n}\n\ncityGroup.add(instancedBuildings);\n\nconst detailGroup = new THREE.Group();\ncityGroup.add(detailGroup);\n\nconst windowMat = new THREE.MeshStandardMaterial({\n  color: 0xffb347,\n  emissive: 0xff8c00,\n  emissiveIntensity: 0.6,\n  roughness: 0.2\n});\n\nconst glassMat = new THREE.MeshStandardMaterial({\n  color: 0x4299e1,\n  roughness: 0.05,\n  metalness: 0.95,\n  transparent: true,\n  opacity: 0.75\n});\n\nfor (let i = 0; i < 35; i++) {\n  const h = 20 + Math.random() * 25;\n  const w = 2.5 + Math.random() * 2;\n  const d = 2.5 + Math.random() * 2;\n  \n  const building = new THREE.Mesh(\n    new THREE.BoxGeometry(w, h, d),\n    new THREE.MeshStandardMaterial({\n      color: 0xf7fafc,\n      roughness: 0.15,\n      metalness: 0.8\n    })\n  );\n  \n  building.position.set(\n    (Math.random() - 0.5) * 40,\n    h / 2 - 5,\n    (Math.random() - 0.5) * 40 + 15\n  );\n  building.castShadow = true;\n  building.receiveShadow = true;\n  \n  const floors = Math.floor(h / 3);\n  for (let f = 2; f < floors; f++) {\n    if (Math.random() > 0.4) {\n      const winMesh = new THREE.Mesh(new THREE.PlaneGeometry(w * 0.7, 0.4), windowMat.clone());\n      winMesh.position.set(0, -h / 2 + f * 3, d / 2 + 0.02);\n      winMesh.material.emissiveIntensity = 0.4 + Math.random() * 0.6;\n      building.add(winMesh);\n      \n      const winMesh2 = winMesh.clone();\n      winMesh2.position.set(0, -h / 2 + f * 3, -d / 2 - 0.02);\n      winMesh2.rotation.y = Math.PI;\n      building.add(winMesh2);\n      \n      const winMesh3 = winMesh.clone();\n      winMesh3.position.set(w / 2 + 0.02, -h / 2 + f * 3, 0);\n      winMesh3.rotation.y = Math.PI / 2;\n      building.add(winMesh3);\n      \n      const winMesh4 = winMesh.clone();\n      winMesh4.position.set(-w / 2 - 0.02, -h / 2 + f * 3, 0);\n      winMesh4.rotation.y = -Math.PI / 2;\n      building.add(winMesh4);\n    }\n  }\n  \n  if (Math.random() > 0.6) {\n    const antenna = new THREE.Mesh(\n      new THREE.CylinderGeometry(0.05, 0.1, 4, 8),\n      new THREE.MeshStandardMaterial({ color: 0x718096, metalness: 0.9, roughness: 0.2 })\n    );\n    antenna.position.y = h / 2 + 2;\n    building.add(antenna);\n    \n    const beacon = new THREE.PointLight(0xff0000, 0.8, 8);\n    beacon.position.y = 2.5;\n    antenna.add(beacon);\n    building.userData.beacon = beacon;\n    building.userData.beaconPhase = Math.random() * Math.PI * 2;\n  }\n  \n  detailGroup.add(building);\n}\n\nconst vehicleGroup = new THREE.Group();\nscene.add(vehicleGroup);\n\nconst vehicleGeo = new THREE.CapsuleGeometry(0.12, 0.5, 4, 8);\nconst vehicleMat = new THREE.MeshStandardMaterial({\n  color: 0xcbd5e0,\n  metalness: 0.85,\n  roughness: 0.15\n});\n\nconst vehicles = [];\nfor (let i = 0; i < 40; i++) {\n  const vehicle = new THREE.Mesh(vehicleGeo, vehicleMat);\n  const laneHeight = 6 + Math.random() * 20;\n  const angle = Math.random() * Math.PI * 2;\n  const radius = 10 + Math.random() * 35;\n  \n  vehicle.position.set(Math.cos(angle) * radius, laneHeight, Math.sin(angle) * radius);\n  vehicle.rotation.z = Math.PI / 2;\n  vehicle.rotation.y = angle + (Math.random() > 0.5 ? 0 : Math.PI);\n  \n  const engine = new THREE.PointLight(0x00ddee, 0.6, 4);\n  engine.position.set(-0.4, 0, 0);\n  vehicle.add(engine);\n  \n  const trail = new THREE.Mesh(\n    new THREE.ConeGeometry(0.08, 0.8, 8),\n    new THREE.MeshBasicMaterial({ color: 0x00ddee, transparent: true, opacity: 0.3, blending: THREE.AdditiveBlending })\n  );\n  trail.rotation.z = Math.PI / 2;\n  trail.position.set(-0.9, 0, 0);\n  vehicle.add(trail);\n  \n  vehicle.userData = {\n    speed: 0.15 + Math.random() * 0.25,\n    direction: new THREE.Vector3(Math.sin(angle + Math.PI / 2), 0, -Math.cos(angle + Math.PI / 2)),\n    radius: radius,\n    center: new THREE.Vector3(0, laneHeight, 0),\n    angle: angle,\n    engine: engine,\n    trail: trail\n  };\n  \n  vehicles.push(vehicle);\n  vehicleGroup.add(vehicle);\n}\n\nconst particleCount = 1500;\nconst particleGeo = new THREE.BufferGeometry();\nconst particlePos = new Float32Array(particleCount * 3);\nconst particleVel = [];\n\nfor (let i = 0; i < particleCount * 3; i += 3) {\n  particlePos[i] = (Math.random() - 0.5) * 120;\n  particlePos[i + 1] = Math.random() * 50 - 10;\n  particlePos[i + 2] = (Math.random() - 0.5) * 120;\n  particleVel.push({\n    x: (Math.random() - 0.5) * 0.02,\n    y: Math.random() * 0.01,\n    z: (Math.random() - 0.5) * 0.02\n  });\n}\n\nparticleGeo.setAttribute('position', new THREE.BufferAttribute(particlePos, 3));\nconst particleMat = new THREE.PointsMaterial({\n  color: 0xffffff,\n  size: 0.12,\n  transparent: true,\n  opacity: 0.4,\n  blending: THREE.AdditiveBlending\n});\nconst particles = new THREE.Points(particleGeo, particleMat);\nscene.add(particles);\n\nconst controls = new OrbitControls(camera, renderer.domElement);\ncontrols.enableDamping = true;\ncontrols.dampingFactor = 0.05;\ncontrols.minDistance = 8;\ncontrols.maxDistance = 80;\ncontrols.maxPolarAngle = Math.PI / 2 - 0.05;\ncontrols.target.set(0, 8, 0);\n\ncamera.position.set(35, 20, 45);\n\nfunction animate() {\n  requestAnimationFrame(animate);\n  const t = clock.getElapsedTime();\n  const dt = clock.getDelta();\n  \n  controls.update();\n  \n  vehicles.forEach((v, i) => {\n    v.userData.angle += v.userData.speed * 0.02;\n    v.position.x = Math.cos(v.userData.angle) * v.userData.radius;\n    v.position.z = Math.sin(v.userData.angle) * v.userData.radius;\n    v.rotation.y = v.userData.angle + Math.PI / 2;\n    \n    v.userData.engine.intensity = 0.4 + Math.sin(t * 15 + i) * 0.2;\n    v.userData.trail.scale.x = 1 + Math.sin(t * 20 + i) * 0.3;\n    \n    v.position.y = v.userData.center.y + Math.sin(t * 2 + i) * 0.5;\n  });\n  \n  const positions = particles.geometry.attributes.position.array;\n  for (let i = 0; i < particleCount; i++) {\n    const i3 = i * 3;\n    positions[i3] += particleVel[i].x + Math.sin(t * 0.5 + i) * 0.01;\n    positions[i3 + 1] += particleVel[i].y;\n    positions[i3 + 2] += particleVel[i].z;\n    \n    if (positions[i3 + 1] > 40) positions[i3 + 1] = -10;\n    if (Math.abs(positions[i3]) > 60) positions[i3] *= -0.5;\n    if (Math.abs(positions[i3 + 2]) > 60) positions[i3 + 2] *= -0.5;\n  }\n  particles.geometry.attributes.position.needsUpdate = true;\n  \n  detailGroup.children.forEach((building, i) => {\n    if (building.userData.beacon) {\n      const pulse = Math.sin(t * 3 + building.userData.beaconPhase) > 0.8 ? 1.2 : 0.2;\n      building.userData.beacon.intensity = pulse;\n    }\n  });\n  \n  rimLight.intensity = 0.95 + Math.sin(t * 0.4) * 0.15;\n  \n  cityGroup.rotation.y = Math.sin(t * 0.05) * 0.05;\n  \n  renderer.render(scene, camera);\n}\n\nanimate();",
+      "previewUrl": "about:blank",
+      "skill": "threejs",
+      "explanation": "Generated through LangGraph orchestration pipeline. Generated via Moonshot Kimi (kimi-k2.5). Warning: Regenerated once to satisfy OrbitControls interaction invariant. Runtime recovery skipped because immutable-generate mode is enabled. Runtime: degraded with 0 renders and 0 frames. Runtime degraded due to sandbox provisioning constraints: Turn budget exhausted before runtime execution.",
+      "messageId": "message-2",
+      "source": "generate",
+      "createdAt": "2026-04-03T17:02:11.308Z",
+      "updatedAt": "2026-04-03T17:02:11.308Z",
+      "versionId": "version-1",
+      "version": 1,
+      "artifactId": "artifact-1775235731308-aabeda",
+      "artifactVersion": 1
+    }
+  ],
+  "sceneVersions": [
+    {
+      "sessionId": "45b20f61-3acc-4aea-8157-8e5595360797",
+      "sceneId": "scene-1775235731298",
+      "code": "const clock = new THREE.Clock();\nscene.background = new THREE.Color(0xdde6f0);\nscene.fog = new THREE.FogExp2(0xdde6f0, 0.015);\n\nrenderer.toneMapping = THREE.ACESFilmicToneMapping;\nrenderer.toneMappingExposure = 1.12;\nrenderer.shadowMap.enabled = true;\nrenderer.shadowMap.type = THREE.PCFSoftShadowMap;\n\nconst keyLight = new THREE.DirectionalLight(0xfff4e0, 1.45);\nkeyLight.position.set(40, 60, 30);\nkeyLight.castShadow = true;\nkeyLight.shadow.mapSize.width = 2048;\nkeyLight.shadow.mapSize.height = 2048;\nkeyLight.shadow.camera.near = 0.1;\nkeyLight.shadow.camera.far = 200;\nkeyLight.shadow.camera.left = -60;\nkeyLight.shadow.camera.right = 60;\nkeyLight.shadow.camera.top = 60;\nkeyLight.shadow.camera.bottom = -60;\nkeyLight.shadow.bias = -0.0005;\n\nconst fillLight = new THREE.DirectionalLight(0x8fbfff, 0.65);\nfillLight.position.set(-50, 40, -30);\n\nconst rimLight = new THREE.DirectionalLight(0xcceeff, 0.95);\nrimLight.position.set(0, 30, -70);\n\nconst ambientLight = new THREE.AmbientLight(0x4a5568, 0.45);\n\nscene.add(keyLight, fillLight, rimLight, ambientLight);\n\nconst cityGroup = new THREE.Group();\nscene.add(cityGroup);\n\nconst buildingGeo = new THREE.BoxGeometry(1, 1, 1);\nconst buildingMat = new THREE.MeshStandardMaterial({\n  color: 0xe2e8f0,\n  roughness: 0.25,\n  metalness: 0.75\n});\n\nconst buildingCount = 1200;\nconst instancedBuildings = new THREE.InstancedMesh(buildingGeo, buildingMat, buildingCount);\ninstancedBuildings.castShadow = true;\ninstancedBuildings.receiveShadow = true;\n\nconst dummy = new THREE.Object3D();\nconst color = new THREE.Color();\nlet idx = 0;\n\nfor (let x = -50; x <= 50; x += 2.5) {\n  for (let z = -50; z <= 50; z += 2.5) {\n    if (idx >= buildingCount) break;\n    if (Math.random() > 0.75) continue;\n    \n    const dist = Math.sqrt(x * x + z * z);\n    const heightFalloff = Math.max(0.2, 1 - dist / 70);\n    const height = (8 + Math.random() * 30 * heightFalloff) * (Math.random() > 0.95 ? 1.6 : 1);\n    const width = 1.2 + Math.random() * 1.8;\n    const depth = 1.2 + Math.random() * 1.8;\n    \n    dummy.position.set(x + (Math.random() - 0.5) * 0.5, height / 2 - 8, z + (Math.random() - 0.5) * 0.5);\n    dummy.scale.set(width, height, depth);\n    dummy.rotation.y = (Math.random() - 0.5) * 0.08;\n    dummy.updateMatrix();\n    instancedBuildings.setMatrixAt(idx, dummy.matrix);\n    \n    const brightness = 0.82 + Math.random() * 0.18;\n    color.setRGB(brightness, brightness, brightness + 0.03);\n    instancedBuildings.setColorAt(idx, color);\n    idx++;\n  }\n}\n\ncityGroup.add(instancedBuildings);\n\nconst detailGroup = new THREE.Group();\ncityGroup.add(detailGroup);\n\nconst windowMat = new THREE.MeshStandardMaterial({\n  color: 0xffb347,\n  emissive: 0xff8c00,\n  emissiveIntensity: 0.6,\n  roughness: 0.2\n});\n\nconst glassMat = new THREE.MeshStandardMaterial({\n  color: 0x4299e1,\n  roughness: 0.05,\n  metalness: 0.95,\n  transparent: true,\n  opacity: 0.75\n});\n\nfor (let i = 0; i < 35; i++) {\n  const h = 20 + Math.random() * 25;\n  const w = 2.5 + Math.random() * 2;\n  const d = 2.5 + Math.random() * 2;\n  \n  const building = new THREE.Mesh(\n    new THREE.BoxGeometry(w, h, d),\n    new THREE.MeshStandardMaterial({\n      color: 0xf7fafc,\n      roughness: 0.15,\n      metalness: 0.8\n    })\n  );\n  \n  building.position.set(\n    (Math.random() - 0.5) * 40,\n    h / 2 - 5,\n    (Math.random() - 0.5) * 40 + 15\n  );\n  building.castShadow = true;\n  building.receiveShadow = true;\n  \n  const floors = Math.floor(h / 3);\n  for (let f = 2; f < floors; f++) {\n    if (Math.random() > 0.4) {\n      const winMesh = new THREE.Mesh(new THREE.PlaneGeometry(w * 0.7, 0.4), windowMat.clone());\n      winMesh.position.set(0, -h / 2 + f * 3, d / 2 + 0.02);\n      winMesh.material.emissiveIntensity = 0.4 + Math.random() * 0.6;\n      building.add(winMesh);\n      \n      const winMesh2 = winMesh.clone();\n      winMesh2.position.set(0, -h / 2 + f * 3, -d / 2 - 0.02);\n      winMesh2.rotation.y = Math.PI;\n      building.add(winMesh2);\n      \n      const winMesh3 = winMesh.clone();\n      winMesh3.position.set(w / 2 + 0.02, -h / 2 + f * 3, 0);\n      winMesh3.rotation.y = Math.PI / 2;\n      building.add(winMesh3);\n      \n      const winMesh4 = winMesh.clone();\n      winMesh4.position.set(-w / 2 - 0.02, -h / 2 + f * 3, 0);\n      winMesh4.rotation.y = -Math.PI / 2;\n      building.add(winMesh4);\n    }\n  }\n  \n  if (Math.random() > 0.6) {\n    const antenna = new THREE.Mesh(\n      new THREE.CylinderGeometry(0.05, 0.1, 4, 8),\n      new THREE.MeshStandardMaterial({ color: 0x718096, metalness: 0.9, roughness: 0.2 })\n    );\n    antenna.position.y = h / 2 + 2;\n    building.add(antenna);\n    \n    const beacon = new THREE.PointLight(0xff0000, 0.8, 8);\n    beacon.position.y = 2.5;\n    antenna.add(beacon);\n    building.userData.beacon = beacon;\n    building.userData.beaconPhase = Math.random() * Math.PI * 2;\n  }\n  \n  detailGroup.add(building);\n}\n\nconst vehicleGroup = new THREE.Group();\nscene.add(vehicleGroup);\n\nconst vehicleGeo = new THREE.CapsuleGeometry(0.12, 0.5, 4, 8);\nconst vehicleMat = new THREE.MeshStandardMaterial({\n  color: 0xcbd5e0,\n  metalness: 0.85,\n  roughness: 0.15\n});\n\nconst vehicles = [];\nfor (let i = 0; i < 40; i++) {\n  const vehicle = new THREE.Mesh(vehicleGeo, vehicleMat);\n  const laneHeight = 6 + Math.random() * 20;\n  const angle = Math.random() * Math.PI * 2;\n  const radius = 10 + Math.random() * 35;\n  \n  vehicle.position.set(Math.cos(angle) * radius, laneHeight, Math.sin(angle) * radius);\n  vehicle.rotation.z = Math.PI / 2;\n  vehicle.rotation.y = angle + (Math.random() > 0.5 ? 0 : Math.PI);\n  \n  const engine = new THREE.PointLight(0x00ddee, 0.6, 4);\n  engine.position.set(-0.4, 0, 0);\n  vehicle.add(engine);\n  \n  const trail = new THREE.Mesh(\n    new THREE.ConeGeometry(0.08, 0.8, 8),\n    new THREE.MeshBasicMaterial({ color: 0x00ddee, transparent: true, opacity: 0.3, blending: THREE.AdditiveBlending })\n  );\n  trail.rotation.z = Math.PI / 2;\n  trail.position.set(-0.9, 0, 0);\n  vehicle.add(trail);\n  \n  vehicle.userData = {\n    speed: 0.15 + Math.random() * 0.25,\n    direction: new THREE.Vector3(Math.sin(angle + Math.PI / 2), 0, -Math.cos(angle + Math.PI / 2)),\n    radius: radius,\n    center: new THREE.Vector3(0, laneHeight, 0),\n    angle: angle,\n    engine: engine,\n    trail: trail\n  };\n  \n  vehicles.push(vehicle);\n  vehicleGroup.add(vehicle);\n}\n\nconst particleCount = 1500;\nconst particleGeo = new THREE.BufferGeometry();\nconst particlePos = new Float32Array(particleCount * 3);\nconst particleVel = [];\n\nfor (let i = 0; i < particleCount * 3; i += 3) {\n  particlePos[i] = (Math.random() - 0.5) * 120;\n  particlePos[i + 1] = Math.random() * 50 - 10;\n  particlePos[i + 2] = (Math.random() - 0.5) * 120;\n  particleVel.push({\n    x: (Math.random() - 0.5) * 0.02,\n    y: Math.random() * 0.01,\n    z: (Math.random() - 0.5) * 0.02\n  });\n}\n\nparticleGeo.setAttribute('position', new THREE.BufferAttribute(particlePos, 3));\nconst particleMat = new THREE.PointsMaterial({\n  color: 0xffffff,\n  size: 0.12,\n  transparent: true,\n  opacity: 0.4,\n  blending: THREE.AdditiveBlending\n});\nconst particles = new THREE.Points(particleGeo, particleMat);\nscene.add(particles);\n\nconst controls = new OrbitControls(camera, renderer.domElement);\ncontrols.enableDamping = true;\ncontrols.dampingFactor = 0.05;\ncontrols.minDistance = 8;\ncontrols.maxDistance = 80;\ncontrols.maxPolarAngle = Math.PI / 2 - 0.05;\ncontrols.target.set(0, 8, 0);\n\ncamera.position.set(35, 20, 45);\n\nfunction animate() {\n  requestAnimationFrame(animate);\n  const t = clock.getElapsedTime();\n  const dt = clock.getDelta();\n  \n  controls.update();\n  \n  vehicles.forEach((v, i) => {\n    v.userData.angle += v.userData.speed * 0.02;\n    v.position.x = Math.cos(v.userData.angle) * v.userData.radius;\n    v.position.z = Math.sin(v.userData.angle) * v.userData.radius;\n    v.rotation.y = v.userData.angle + Math.PI / 2;\n    \n    v.userData.engine.intensity = 0.4 + Math.sin(t * 15 + i) * 0.2;\n    v.userData.trail.scale.x = 1 + Math.sin(t * 20 + i) * 0.3;\n    \n    v.position.y = v.userData.center.y + Math.sin(t * 2 + i) * 0.5;\n  });\n  \n  const positions = particles.geometry.attributes.position.array;\n  for (let i = 0; i < particleCount; i++) {\n    const i3 = i * 3;\n    positions[i3] += particleVel[i].x + Math.sin(t * 0.5 + i) * 0.01;\n    positions[i3 + 1] += particleVel[i].y;\n    positions[i3 + 2] += particleVel[i].z;\n    \n    if (positions[i3 + 1] > 40) positions[i3 + 1] = -10;\n    if (Math.abs(positions[i3]) > 60) positions[i3] *= -0.5;\n    if (Math.abs(positions[i3 + 2]) > 60) positions[i3 + 2] *= -0.5;\n  }\n  particles.geometry.attributes.position.needsUpdate = true;\n  \n  detailGroup.children.forEach((building, i) => {\n    if (building.userData.beacon) {\n      const pulse = Math.sin(t * 3 + building.userData.beaconPhase) > 0.8 ? 1.2 : 0.2;\n      building.userData.beacon.intensity = pulse;\n    }\n  });\n  \n  rimLight.intensity = 0.95 + Math.sin(t * 0.4) * 0.15;\n  \n  cityGroup.rotation.y = Math.sin(t * 0.05) * 0.05;\n  \n  renderer.render(scene, camera);\n}\n\nanimate();",
+      "previewUrl": "about:blank",
+      "skill": "threejs",
+      "explanation": "Generated through LangGraph orchestration pipeline. Generated via Moonshot Kimi (kimi-k2.5). Warning: Regenerated once to satisfy OrbitControls interaction invariant. Runtime recovery skipped because immutable-generate mode is enabled. Runtime: degraded with 0 renders and 0 frames. Runtime degraded due to sandbox provisioning constraints: Turn budget exhausted before runtime execution.",
+      "messageId": "message-2",
+      "source": "generate",
+      "createdAt": "2026-04-03T17:02:11.308Z",
+      "updatedAt": "2026-04-03T17:02:11.308Z",
+      "versionId": "version-1",
+      "version": 1,
+      "artifactId": "artifact-1775235731308-aabeda",
+      "artifactVersion": 1
+    }
+  ],
+  "versionPointer": 0,
+  "revisionPointer": 0,
+  "messages": [
+    {
+      "id": "coruscant-fresh-1775235527937",
+      "role": "user",
+      "content": "show me coruscant city scape",
+      "kind": "input",
+      "meta": [],
+      "error": null,
+      "createdAt": "2026-04-03T16:58:47.954Z",
+      "updatedAt": "2026-04-03T16:58:47.954Z"
+    },
+    {
+      "id": "message-2",
+      "role": "assistant",
+      "content": "Generated through LangGraph orchestration pipeline. Generated via Moonshot Kimi (kimi-k2.5). Warning: Regenerated once to satisfy OrbitControls interaction invariant. Runtime recovery skipped because immutable-generate mode is enabled. Runtime: degraded with 0 renders and 0 frames. Runtime degraded due to sandbox provisioning constraints: Turn budget exhausted before runtime execution.",
+      "kind": "generate",
+      "meta": [
+        "scene:scene-1775235731298",
+        "skill:threejs"
+      ],
+      "error": null,
+      "createdAt": "2026-04-03T16:58:47.955Z",
+      "updatedAt": "2026-04-03T17:02:11.310Z"
+    },
+    {
+      "id": "thought-turn_started-1775235527970",
+      "role": "thought",
+      "content": "Let me think about this... I need to understand what you're asking for.",
+      "kind": "thought",
+      "meta": [
+        "turn_started"
+      ],
+      "error": null,
+      "createdAt": "2026-04-03T16:58:47.970Z",
+      "updatedAt": "2026-04-03T16:58:47.970Z"
+    },
+    {
+      "id": "thought-intent_parsed-1775235528078",
+      "role": "thought",
+      "content": "Got it. You're looking for a visual scene. I'm selecting the right rendering engine now.",
+      "kind": "thought",
+      "meta": [
+        "intent_parsed"
+      ],
+      "error": null,
+      "createdAt": "2026-04-03T16:58:48.078Z",
+      "updatedAt": "2026-04-03T16:58:48.078Z"
+    },
+    {
+      "id": "thought-plan_created-1775235528078",
+      "role": "thought",
+      "content": "I've outlined 7 steps. Kicking off code generation...",
+      "kind": "thought",
+      "meta": [
+        "plan_created"
+      ],
+      "error": null,
+      "createdAt": "2026-04-03T16:58:48.078Z",
+      "updatedAt": "2026-04-03T16:58:48.078Z"
+    },
+    {
+      "id": "thought-code_generated-1775235731308",
+      "role": "thought",
+      "content": "I'm writing code for an InstancedMesh with thousands of BoxGeometries stacked in layers, mixing in PointLights for neon signage, a deep blue Fog for atmospheric perspective, and small animated meshes for air traffic zipping between towers.",
+      "kind": "thought",
+      "meta": [
+        "code_generated"
+      ],
+      "error": null,
+      "createdAt": "2026-04-03T17:02:11.308Z",
+      "updatedAt": "2026-04-03T17:02:11.308Z"
+    },
+    {
+      "id": "thought-executing-1775235731309",
+      "role": "thought",
+      "content": "Spinning up the WebGL sandbox now to render the dense vertical city.",
+      "kind": "thought",
+      "meta": [
+        "executing"
+      ],
+      "error": null,
+      "createdAt": "2026-04-03T17:02:11.309Z",
+      "updatedAt": "2026-04-03T17:02:11.309Z"
+    },
+    {
+      "id": "thought-sync_state-1775235731310",
+      "role": "thought",
+      "content": "Here's your Coruscant cityscape—endless towers stretching into the fog with pulsing neon lights and drifting traffic creating that iconic galaxy-core metropolis feel.",
+      "kind": "thought",
+      "meta": [
+        "sync_state"
+      ],
+      "error": null,
+      "createdAt": "2026-04-03T17:02:11.310Z",
+      "updatedAt": "2026-04-03T17:02:11.310Z"
+    },
+    {
+      "id": "thought-turn_complete-1775235731311",
+      "role": "thought",
+      "content": "Here's your Coruscant cityscape—endless towers stretching into the fog with pulsing neon lights and drifting traffic creating that iconic galaxy-core metropolis feel.",
+      "kind": "thought",
+      "meta": [
+        "turn_complete"
+      ],
+      "error": null,
+      "createdAt": "2026-04-03T17:02:11.311Z",
+      "updatedAt": "2026-04-03T17:02:11.311Z"
+    },
+    {
+      "id": "thought-post_narration-1775235754412",
+      "role": "thought",
+      "content": "Processing step: post narration...",
+      "kind": "thought",
+      "meta": [
+        "post_narration"
+      ],
+      "error": null,
+      "createdAt": "2026-04-03T17:02:34.412Z",
+      "updatedAt": "2026-04-03T17:02:34.412Z"
+    }
+  ],
+  "orchestrationTrace": [
+    {
+      "id": "trace-1",
+      "step": "intent_parsed",
+      "payload": {
+        "sessionId": "45b20f61-3acc-4aea-8157-8e5595360797",
+        "content": "show me coruscant city scape"
+      },
+      "createdAt": "2026-04-03T16:58:48.022Z"
+    },
+    {
+      "id": "trace-2",
+      "step": "parse_intent",
+      "payload": {
+        "sessionId": "45b20f61-3acc-4aea-8157-8e5595360797",
+        "status": "running"
+      },
+      "createdAt": "2026-04-03T16:58:48.085Z"
+    },
+    {
+      "id": "trace-3",
+      "step": "select_skill",
+      "payload": {
+        "sessionId": "45b20f61-3acc-4aea-8157-8e5595360797",
+        "status": "running"
+      },
+      "createdAt": "2026-04-03T16:58:48.090Z"
+    },
+    {
+      "id": "trace-4",
+      "step": "build_prompt",
+      "payload": {
+        "sessionId": "45b20f61-3acc-4aea-8157-8e5595360797",
+        "status": "running"
+      },
+      "createdAt": "2026-04-03T16:58:48.095Z"
+    },
+    {
+      "id": "trace-5",
+      "step": "generate_code",
+      "payload": {
+        "sessionId": "45b20f61-3acc-4aea-8157-8e5595360797",
+        "status": "running"
+      },
+      "createdAt": "2026-04-03T16:58:48.100Z"
+    },
+    {
+      "id": "trace-6",
+      "step": "generate_code",
+      "payload": {
+        "sessionId": "45b20f61-3acc-4aea-8157-8e5595360797",
+        "status": "completed",
+        "selectedSkill": "threejs",
+        "source": "moonshot-kimi",
+        "code": "const clock = new THREE.Clock();\nscene.background = new THREE.Color(0xdde6f0);\nscene.fog = new THREE.FogExp2(0xdde6f0, 0.015);\n\nrenderer.toneMapping = THREE.ACESFilmicToneMapping;\nrenderer.toneMappingExposure = 1.12;\nrenderer.shadowMap.enabled = true;\nrenderer.shadowMap.type = THREE.PCFSoftShadowMap;\n\nconst keyLight = new THREE.DirectionalLight(0xfff4e0, 1.45);\nkeyLight.position.set(40, 60, 30);\nkeyLight.castShadow = true;\nkeyLight.shadow.mapSize.width = 2048;\nkeyLight.shadow.mapSize.height = 2048;\nkeyLight.shadow.camera.near = 0.1;\nkeyLight.shadow.camera.far = 200;\nkeyLight.shadow.camera.left = -60;\nkeyLight.shadow.camera.right = 60;\nkeyLight.shadow.camera.top = 60;\nkeyLight.shadow.camera.bottom = -60;\nkeyLight.shadow.bias = -0.0005;\n\nconst fillLight = new THREE.DirectionalLight(0x8fbfff, 0.65);\nfillLight.position.set(-50, 40, -30);\n\nconst rimLight = new THREE.DirectionalLight(0xcceeff, 0.95);\nrimLight.position.set(0, 30, -70);\n\nconst ambientLight = new THREE.AmbientLight(0x4a5568, 0.45);\n\nscene.add(keyLight, fillLight, rimLight, ambientLight);\n\nconst cityGroup = new THREE.Group();\nscene.add(cityGroup);\n\nconst buildingGeo = new THREE.BoxGeometry(1, 1, 1);\nconst buildingMat = new THREE.MeshStandardMaterial({\n  color: 0xe2e8f0,\n  roughness: 0.25,\n  metalness: 0.75\n});\n\nconst buildingCount = 1200;\nconst instancedBuildings = new THREE.InstancedMesh(buildingGeo, buildingMat, buildingCount);\ninstancedBuildings.castShadow = true;\ninstancedBuildings.receiveShadow = true;\n\nconst dummy = new THREE.Object3D();\nconst color = new THREE.Color();\nlet idx = 0;\n\nfor (let x = -50; x <= 50; x += 2.5) {\n  for (let z = -50; z <= 50; z += 2.5) {\n    if (idx >= buildingCount) break;\n    if (Math.random() > 0.75) continue;\n    \n    const dist = Math.sqrt(x * x + z * z);\n    const heightFalloff = Math.max(0.2, 1 - dist / 70);\n    const height = (8 + Math.random() * 30 * heightFalloff) * (Math.random() > 0.95 ? 1.6 : 1);\n    const width = 1.2 + Math.random() * 1.8;\n    const depth = 1.2 + Math.random() * 1.8;\n    \n    dummy.position.set(x + (Math.random() - 0.5) * 0.5, height / 2 - 8, z + (Math.random() - 0.5) * 0.5);\n    dummy.scale.set(width, height, depth);\n    dummy.rotation.y = (Math.random() - 0.5) * 0.08;\n    dummy.updateMatrix();\n    instancedBuildings.setMatrixAt(idx, dummy.matrix);\n    \n    const brightness = 0.82 + Math.random() * 0.18;\n    color.setRGB(brightness, brightness, brightness + 0.03);\n    instancedBuildings.setColorAt(idx, color);\n    idx++;\n  }\n}\n\ncityGroup.add(instancedBuildings);\n\nconst detailGroup = new THREE.Group();\ncityGroup.add(detailGroup);\n\nconst windowMat = new THREE.MeshStandardMaterial({\n  color: 0xffb347,\n  emissive: 0xff8c00,\n  emissiveIntensity: 0.6,\n  roughness: 0.2\n});\n\nconst glassMat = new THREE.MeshStandardMaterial({\n  color: 0x4299e1,\n  roughness: 0.05,\n  metalness: 0.95,\n  transparent: true,\n  opacity: 0.75\n});\n\nfor (let i = 0; i < 35; i++) {\n  const h = 20 + Math.random() * 25;\n  const w = 2.5 + Math.random() * 2;\n  const d = 2.5 + Math.random() * 2;\n  \n  const building = new THREE.Mesh(\n    new THREE.BoxGeometry(w, h, d),\n    new THREE.MeshStandardMaterial({\n      color: 0xf7fafc,\n      roughness: 0.15,\n      metalness: 0.8\n    })\n  );\n  \n  building.position.set(\n    (Math.random() - 0.5) * 40,\n    h / 2 - 5,\n    (Math.random() - 0.5) * 40 + 15\n  );\n  building.castShadow = true;\n  building.receiveShadow = true;\n  \n  const floors = Math.floor(h / 3);\n  for (let f = 2; f < floors; f++) {\n    if (Math.random() > 0.4) {\n      const winMesh = new THREE.Mesh(new THREE.PlaneGeometry(w * 0.7, 0.4), windowMat.clone());\n      winMesh.position.set(0, -h / 2 + f * 3, d / 2 + 0.02);\n      winMesh.material.emissiveIntensity = 0.4 + Math.random() * 0.6;\n      building.add(winMesh);\n      \n      const winMesh2 = winMesh.clone();\n      winMesh2.position.set(0, -h / 2 + f * 3, -d / 2 - 0.02);\n      winMesh2.rotation.y = Math.PI;\n      building.add(winMesh2);\n      \n      const winMesh3 = winMesh.clone();\n      winMesh3.position.set(w / 2 + 0.02, -h / 2 + f * 3, 0);\n      winMesh3.rotation.y = Math.PI / 2;\n      building.add(winMesh3);\n      \n      const winMesh4 = winMesh.clone();\n      winMesh4.position.set(-w / 2 - 0.02, -h / 2 + f * 3, 0);\n      winMesh4.rotation.y = -Math.PI / 2;\n      building.add(winMesh4);\n    }\n  }\n  \n  if (Math.random() > 0.6) {\n    const antenna = new THREE.Mesh(\n      new THREE.CylinderGeometry(0.05, 0.1, 4, 8),\n      new THREE.MeshStandardMaterial({ color: 0x718096, metalness: 0.9, roughness: 0.2 })\n    );\n    antenna.position.y = h / 2 + 2;\n    building.add(antenna);\n    \n    const beacon = new THREE.PointLight(0xff0000, 0.8, 8);\n    beacon.position.y = 2.5;\n    antenna.add(beacon);\n    building.userData.beacon = beacon;\n    building.userData.beaconPhase = Math.random() * Math.PI * 2;\n  }\n  \n  detailGroup.add(building);\n}\n\nconst vehicleGroup = new THREE.Group();\nscene.add(vehicleGroup);\n\nconst vehicleGeo = new THREE.CapsuleGeometry(0.12, 0.5, 4, 8);\nconst vehicleMat = new THREE.MeshStandardMaterial({\n  color: 0xcbd5e0,\n  metalness: 0.85,\n  roughness: 0.15\n});\n\nconst vehicles = [];\nfor (let i = 0; i < 40; i++) {\n  const vehicle = new THREE.Mesh(vehicleGeo, vehicleMat);\n  const laneHeight = 6 + Math.random() * 20;\n  const angle = Math.random() * Math.PI * 2;\n  const radius = 10 + Math.random() * 35;\n  \n  vehicle.position.set(Math.cos(angle) * radius, laneHeight, Math.sin(angle) * radius);\n  vehicle.rotation.z = Math.PI / 2;\n  vehicle.rotation.y = angle + (Math.random() > 0.5 ? 0 : Math.PI);\n  \n  const engine = new THREE.PointLight(0x00ddee, 0.6, 4);\n  engine.position.set(-0.4, 0, 0);\n  vehicle.add(engine);\n  \n  const trail = new THREE.Mesh(\n    new THREE.ConeGeometry(0.08, 0.8, 8),\n    new THREE.MeshBasicMaterial({ color: 0x00ddee, transparent: true, opacity: 0.3, blending: THREE.AdditiveBlending })\n  );\n  trail.rotation.z = Math.PI / 2;\n  trail.position.set(-0.9, 0, 0);\n  vehicle.add(trail);\n  \n  vehicle.userData = {\n    speed: 0.15 + Math.random() * 0.25,\n    direction: new THREE.Vector3(Math.sin(angle + Math.PI / 2), 0, -Math.cos(angle + Math.PI / 2)),\n    radius: radius,\n    center: new THREE.Vector3(0, laneHeight, 0),\n    angle: angle,\n    engine: engine,\n    trail: trail\n  };\n  \n  vehicles.push(vehicle);\n  vehicleGroup.add(vehicle);\n}\n\nconst particleCount = 1500;\nconst particleGeo = new THREE.BufferGeometry();\nconst particlePos = new Float32Array(particleCount * 3);\nconst particleVel = [];\n\nfor (let i = 0; i < particleCount * 3; i += 3) {\n  particlePos[i] = (Math.random() - 0.5) * 120;\n  particlePos[i + 1] = Math.random() * 50 - 10;\n  particlePos[i + 2] = (Math.random() - 0.5) * 120;\n  particleVel.push({\n    x: (Math.random() - 0.5) * 0.02,\n    y: Math.random() * 0.01,\n    z: (Math.random() - 0.5) * 0.02\n  });\n}\n\nparticleGeo.setAttribute('position', new THREE.BufferAttribute(particlePos, 3));\nconst particleMat = new THREE.PointsMaterial({\n  color: 0xffffff,\n  size: 0.12,\n  transparent: true,\n  opacity: 0.4,\n  blending: THREE.AdditiveBlending\n});\nconst particles = new THREE.Points(particleGeo, particleMat);\nscene.add(particles);\n\nconst controls = new OrbitControls(camera, renderer.domElement);\ncontrols.enableDamping = true;\ncontrols.dampingFactor = 0.05;\ncontrols.minDistance = 8;\ncontrols.maxDistance = 80;\ncontrols.maxPolarAngle = Math.PI / 2 - 0.05;\ncontrols.target.set(0, 8, 0);\n\ncamera.position.set(35, 20, 45);\n\nfunction animate() {\n  requestAnimationFrame(animate);\n  const t = clock.getElapsedTime();\n  const dt = clock.getDelta();\n  \n  controls.update();\n  \n  vehicles.forEach((v, i) => {\n    v.userData.angle += v.userData.speed * 0.02;\n    v.position.x = Math.cos(v.userData.angle) * v.userData.radius;\n    v.position.z = Math.sin(v.userData.angle) * v.userData.radius;\n    v.rotation.y = v.userData.angle + Math.PI / 2;\n    \n    v.userData.engine.intensity = 0.4 + Math.sin(t * 15 + i) * 0.2;\n    v.userData.trail.scale.x = 1 + Math.sin(t * 20 + i) * 0.3;\n    \n    v.position.y = v.userData.center.y + Math.sin(t * 2 + i) * 0.5;\n  });\n  \n  const positions = particles.geometry.attributes.position.array;\n  for (let i = 0; i < particleCount; i++) {\n    const i3 = i * 3;\n    positions[i3] += particleVel[i].x + Math.sin(t * 0.5 + i) * 0.01;\n    positions[i3 + 1] += particleVel[i].y;\n    positions[i3 + 2] += particleVel[i].z;\n    \n    if (positions[i3 + 1] > 40) positions[i3 + 1] = -10;\n    if (Math.abs(positions[i3]) > 60) positions[i3] *= -0.5;\n    if (Math.abs(positions[i3 + 2]) > 60) positions[i3 + 2] *= -0.5;\n  }\n  particles.geometry.attributes.position.needsUpdate = true;\n  \n  detailGroup.children.forEach((building, i) => {\n    if (building.userData.beacon) {\n      const pulse = Math.sin(t * 3 + building.userData.beaconPhase) > 0.8 ? 1.2 : 0.2;\n      building.userData.beacon.intensity = pulse;\n    }\n  });\n  \n  rimLight.intensity = 0.95 + Math.sin(t * 0.4) * 0.15;\n  \n  cityGroup.rotation.y = Math.sin(t * 0.05) * 0.05;\n  \n  renderer.render(scene, camera);\n}\n\nanimate();",
+        "stageDurationMs": 203114
+      },
+      "createdAt": "2026-04-03T17:02:11.219Z"
+    },
+    {
+      "id": "trace-7",
+      "step": "validate_code",
+      "payload": {
+        "sessionId": "45b20f61-3acc-4aea-8157-8e5595360797",
+        "status": "running"
+      },
+      "createdAt": "2026-04-03T17:02:11.227Z"
+    },
+    {
+      "id": "trace-8",
+      "step": "validate_code",
+      "payload": {
+        "sessionId": "45b20f61-3acc-4aea-8157-8e5595360797",
+        "status": "completed",
+        "stageDurationMs": 56
+      },
+      "createdAt": "2026-04-03T17:02:11.283Z"
+    },
+    {
+      "id": "trace-9",
+      "step": "execute_code",
+      "payload": {
+        "sessionId": "45b20f61-3acc-4aea-8157-8e5595360797",
+        "status": "running"
+      },
+      "createdAt": "2026-04-03T17:02:11.292Z"
+    },
+    {
+      "id": "trace-10",
+      "step": "execute_code",
+      "payload": {
+        "sessionId": "45b20f61-3acc-4aea-8157-8e5595360797",
+        "status": "degraded",
+        "error": null,
+        "runtimeRecoveryUsed": false,
+        "stageDurationMs": 1
+      },
+      "createdAt": "2026-04-03T17:02:11.293Z"
+    },
+    {
+      "id": "trace-11",
+      "step": "sync_state",
+      "payload": {
+        "sessionId": "45b20f61-3acc-4aea-8157-8e5595360797",
+        "status": "running"
+      },
+      "createdAt": "2026-04-03T17:02:11.298Z"
+    },
+    {
+      "id": "trace-12",
+      "step": "turn_complete",
+      "payload": {
+        "sessionId": "45b20f61-3acc-4aea-8157-8e5595360797",
+        "mode": "generate",
+        "messageCount": 9,
+        "error": null
+      },
+      "createdAt": "2026-04-03T17:02:11.312Z"
+    }
+  ]
+}

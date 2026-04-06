@@ -1,0 +1,844 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Architecture - GVE Knowledgebase</title>
+  <link rel="stylesheet" href="assets/styles.css">
+</head>
+<body>
+  <div class="layout">
+    <aside class="sidebar">
+      <div class="logo">
+        <h1>📐 GVE Knowledgebase</h1>
+        <span class="version">v1.0.0</span>
+      </div>
+      
+      <nav class="nav">
+        <div class="nav-section">
+          <h3>Overview</h3>
+          <ul>
+            <li><a href="index.html">Introduction</a></li>
+            <li><a href="architecture.html" class="active">Architecture</a></li>
+            <li><a href="quickstart.html">Quick Start</a></li>
+          </ul>
+        </div>
+        
+        <div class="nav-section">
+          <h3>System Architecture</h3>
+          <ul>
+            <li><a href="#high-level">High-Level Flow</a></li>
+            <li><a href="#request-router">Request Router</a></li>
+            <li><a href="#agent-orchestrator">Agent Orchestrator</a></li>
+            <li><a href="#sandbox-pool">Sandbox Pool</a></li>
+            <li><a href="#state-management">State Management</a></li>
+            <li><a href="#error-handling">Error Handling</a></li>
+          </ul>
+        </div>
+        
+        <div class="nav-section">
+          <h3>API Reference</h3>
+          <ul>
+            <li><a href="api-rest.html">REST API</a></li>
+            <li><a href="api-websocket.html">WebSocket Events</a></li>
+            <li><a href="api-types.html">Type Definitions</a></li>
+          </ul>
+        </div>
+        
+        <div class="nav-section">
+          <h3>Components</h3>
+          <ul>
+            <li><a href="components-web.html">Web Components</a></li>
+            <li><a href="components-server.html">Server Modules</a></li>
+            <li><a href="components-ui.html">UI Primitives</a></li>
+          </ul>
+        </div>
+        
+        <div class="nav-section">
+          <h3>Data & Skills</h3>
+          <ul>
+            <li><a href="data-models.html">Data Models</a></li>
+            <li><a href="skills.html">Skill System</a></li>
+            <li><a href="skills.html#registry">Skill Registry</a></li>
+          </ul>
+        </div>
+        
+        <div class="nav-section">
+          <h3>Operations</h3>
+          <ul>
+            <li><a href="configuration.html">Configuration</a></li>
+            <li><a href="deployment.html">Deployment</a></li>
+            <li><a href="troubleshooting.html">Troubleshooting</a></li>
+          </ul>
+        </div>
+      </nav>
+    </aside>
+    
+    <main class="content">
+      <header class="page-header">
+        <h1>System Architecture</h1>
+        <p class="subtitle">Deep dive into GVE's technical design</p>
+      </header>
+      
+      <section id="high-level" class="section">
+        <h2>High-Level Architecture</h2>
+        <p class="lead">
+          The Generative Visual Engine uses a layered architecture with clear separation between 
+          the client interface, orchestration layer, and skill execution environment.
+        </p>
+        
+        <div class="diagram-container">
+          <pre class="diagram">
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                           CLIENT LAYER                                       │
+│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐    │
+│  │   React UI   │  │  Code Editor │  │ Scene Viewer │  │  Chat Panel  │    │
+│  │   (Vite)     │  │  (Prettier)  │  │   (iframe)   │  │  (WebSocket) │    │
+│  └──────┬───────┘  └──────┬───────┘  └──────┬───────┘  └──────┬───────┘    │
+└─────────┼─────────────────┼─────────────────┼─────────────────┼────────────┘
+          │                 │                 │                 │
+          └─────────────────┴────────┬────────┴─────────────────┘
+                                     │
+                              ┌──────▼──────┐
+                              │  WebSocket  │  ← Real-time bidirectional
+                              │   Gateway   │    Event replay, streaming
+                              └──────┬──────┘
+                                     │
+┌────────────────────────────────────┼────────────────────────────────────────┐
+│                         ORCHESTRATION LAYER (Node.js + Express)          │
+│  ┌───────────────────────────▼──────────────────────────────────────────┐  │
+│  │                         REQUEST ROUTER                               │  │
+│  │  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐  │  │
+│  │  │   Intent    │  │   Context   │  │   Skill     │  │   Session   │  │  │
+│  │  │   Parser    │→ │   Manager   │→ │  Selector   │→ │   Manager   │  │  │
+│  │  └─────────────┘  └─────────────┘  └─────────────┘  └─────────────┘  │  │
+│  └──────────────────────────────────┬───────────────────────────────────┘  │
+│                                     │                                       │
+│  ┌──────────────────────────────────▼───────────────────────────────────┐  │
+│  │                      AGENT ORCHESTRATOR (LangGraph)                    │  │
+│  │  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐  │  │
+│  │  │   Agent     │  │   Skill     │  │   Code      │  │   State     │  │  │
+│  │  │   Factory   │  │   Loader    │  │  Generator  │  │   Sync      │  │  │
+│  │  └─────────────┘  └─────────────┘  └─────────────┘  └─────────────┘  │  │
+│  └──────────────────────────────────┬───────────────────────────────────┘  │
+└─────────────────────────────────────┼──────────────────────────────────────┘
+                                      │
+┌─────────────────────────────────────┼──────────────────────────────────────┐
+│                         SKILL EXECUTION LAYER                              │
+│  ┌───────────────────────────▼──────────────────────────────────────────┐  │
+│  │                    DAYTONA SANDBOX POOL                              │  │
+│  │   ┌─────────────┐    ┌─────────────┐    ┌─────────────┐              │  │
+│  │   │  Sandbox 1  │    │  Sandbox 2  │    │  Sandbox N  │              │  │
+│  │   │  (threejs)  │    │   (p5js)    │    │   (d3js)    │              │  │
+│  │   │ ┌─────────┐ │    │ ┌─────────┐ │    │ ┌─────────┐ │              │  │
+│  │   │ │  Skill  │ │    │ │  Skill  │ │    │ │  Skill  │ │              │  │
+│  │   │ │ Runtime │ │    │ │ Runtime │ │    │ │ Runtime │ │              │  │
+│  │   │ │ + Agent │ │    │ │ + Agent │ │    │ │ + Agent │ │              │  │
+│  │   │ └─────────┘ │    │ └─────────┘ │    │ └─────────┘ │              │  │
+│  │   └─────────────┘    └─────────────┘    └─────────────┘              │  │
+│  │                                                                        │  │
+│  │   ┌─────────────────────────────────────────────────────────────────┐  │  │
+│  │   │                     SKILL REGISTRY                              │  │  │
+│  │   │  ┌─────────┐ ┌─────────┐ ┌─────────┐ ┌─────────┐ ┌─────────┐   │  │  │
+│  │   │  │threejs  │ │  p5js   │ │  d3js   │ │babylonjs│ │mermaid  │   │  │  │
+│  │   │  │  skill  │ │  skill  │ │  skill  │ │  skill  │ │  skill  │   │  │  │
+│  │   │  └─────────┘ └─────────┘ └─────────┘ └─────────┘ └─────────┘   │  │  │
+│  │   └─────────────────────────────────────────────────────────────────┘  │  │
+│  └────────────────────────────────────────────────────────────────────────┘  │
+└──────────────────────────────────────────────────────────────────────────────┘
+          </pre>
+        </div>
+      </section>
+      
+      <section id="request-router" class="section">
+        <h2>Request Router</h2>
+        <p>The entry point that processes all incoming user requests through a 4-stage pipeline:</p>
+        
+        <div class="flow-step">
+          <div class="flow-step-number">1</div>
+          <div class="flow-step-content">
+            <div class="flow-step-title">Intent Parser</div>
+            <div class="flow-step-desc">
+              Parses natural language into structured intent with entities, constraints, and confidence scores.
+              Detects greetings, capability questions, and small talk.
+            </div>
+          </div>
+        </div>
+        
+        <div class="flow-step">
+          <div class="flow-step-number">2</div>
+          <div class="flow-step-content">
+            <div class="flow-step-title">Context Manager</div>
+            <div class="flow-step-desc">
+              Maintains conversation history and scene context across multiple turns.
+              Tracks current artifact, revision pointers, and undo/redo state.
+            </div>
+          </div>
+        </div>
+        
+        <div class="flow-step">
+          <div class="flow-step-number">3</div>
+          <div class="flow-step-content">
+            <div class="flow-step-title">Skill Selector</div>
+            <div class="flow-step-desc">
+              Scores and ranks skills based on domain match, capability coverage, constraints,
+              execution reliability, and warm pool availability.
+            </div>
+          </div>
+        </div>
+        
+        <div class="flow-step">
+          <div class="flow-step-number">4</div>
+          <div class="flow-step-content">
+            <div class="flow-step-title">Session Manager</div>
+            <div class="flow-step-desc">
+              Manages user sessions with file-based persistence. Handles session creation,
+              message appending, and scene versioning.
+            </div>
+          </div>
+        </div>
+        
+        <h3>Intent Parsing Logic</h3>
+        <pre class="code-block">
+User Query: "Create a rotating 3D cube with blue metallic material"
+                    ↓
+┌─────────────────────────────────────────────────────────────────┐
+│                     INTENT PARSER                               │
+├─────────────────────────────────────────────────────────────────┤
+│  Intent Type: CREATE                                            │
+│  Target Domain: 3D (confidence: 0.95)                         │
+│  Entities:                                                      │
+│    - Object: cube (primitive)                                   │
+│    - Animation: rotation (continuous)                           │
+│    - Material: metallic (PBR)                                   │
+│    - Color: blue (#0000FF)                                      │
+│  Constraints:                                                   │
+│    - Real-time rendering required                               │
+│    - Interactive camera control expected                        │
+└─────────────────────────────────────────────────────────────────┘
+                    ↓
+┌─────────────────────────────────────────────────────────────────┐
+│                    SKILL SELECTOR                               │
+├─────────────────────────────────────────────────────────────────┤
+│  Primary Match: threejs (score: 0.98)                           │
+│  Capabilities Required:                                         │
+│    - 3D primitive generation                                      │
+│    - PBR material support                                       │
+│    - Animation loop                                               │
+│    - OrbitControls                                              │
+│  Fallback: babylonjs (score: 0.85)                              │
+└─────────────────────────────────────────────────────────────────┘
+        </pre>
+        
+        <h3>Skill Scoring Algorithm</h3>
+        <table>
+          <tr>
+            <th>Factor</th>
+            <th>Weight</th>
+            <th>Description</th>
+          </tr>
+          <tr>
+            <td>Domain Match</td>
+            <td>45%</td>
+            <td>How well the skill's domain matches the intent domain</td>
+          </tr>
+          <tr>
+            <td>Capability Coverage</td>
+            <td>25%</td>
+            <td>Percentage of required capabilities the skill provides</td>
+          </tr>
+          <tr>
+            <td>Constraint Fit</td>
+            <td>15%</td>
+            <td>How well the skill meets performance/interactivity constraints</td>
+          </tr>
+          <tr>
+            <td>Execution Reliability</td>
+            <td>10%</td>
+            <td>Historical success rate of the skill</td>
+          </tr>
+          <tr>
+            <td>Warm Pool Availability</td>
+            <td>5%</td>
+            <td>Whether a pre-warmed sandbox is available</td>
+          </tr>
+        </table>
+      </section>
+      
+      <section id="agent-orchestrator" class="section">
+        <h2>Agent Orchestrator</h2>
+        <p>
+          The orchestrator uses <strong>LangGraph</strong> to manage workflow state machines 
+          for code generation pipelines.
+        </p>
+        
+        <h3>Generation Pipeline (Main Graph)</h3>
+        <div class="diagram-container">
+          <pre class="diagram">
+┌─────────────────────────────────────────────────────────────────┐
+│                    GENERATION PIPELINE                          │
+│                     (LangGraph State Machine)                   │
+└─────────────────────────────────────────────────────────────────┘
+
+  ┌──────────────┐
+  │   parse_intent │ ← Extract action, entities, constraints
+  └──────┬───────┘
+         ↓
+  ┌──────────────┐
+  │  select_skill  │ ← Score and rank skills, handle fallback
+  └──────┬───────┘
+         ↓
+  ┌──────────────┐
+  │  build_prompt  │ ← Assemble prompts with skill context
+  └──────┬───────┘
+         ↓
+  ┌──────────────┐
+  │ generate_code  │ ← LLM code generation (with caching)
+  └──────┬───────┘
+         ↓
+  ┌──────────────┐
+  │ validate_code  │ ← Syntax, security, API, schema checks
+  └──────┬───────┘
+         │
+         ├───[validation failed]──→┌─────────────┐
+         │                        │agent_self_  │ ← Auto-fix with LLM
+         │                        │   debug     │
+         │                        └──────┬──────┘
+         │                               │
+         │                               ↓
+         │                        ┌─────────────┐
+         │                        │  validate   │ ← Re-validate
+         │                        │  recovery   │
+         │                        └──────┬──────┘
+         │                               │
+         │[recovery failed]              │[success]
+         ↓                               ↓
+  ┌──────────────┐             ┌──────────────┐
+  │ execute_code   │ ← Run in Daytona sandbox│
+  └──────┬───────┘             │(degraded mode if no sandbox)
+         │                     └──────────────┘
+         │
+         ├───[execution failed]──→┌─────────────┐
+         │                         │   retry or  │
+         │                         │   degraded  │
+         ↓                         └─────────────┘
+  ┌──────────────┐
+  │  sync_state    │ ← Commit scene version, broadcast update
+  └──────┬───────┘
+         ↓
+  ┌──────────────┐
+  │ build_response │ ← Generate explanation and metadata
+  └──────────────┘
+          </pre>
+        </div>
+        
+        <h3>Conditional Routing Logic</h3>
+        <pre class="code-block">
+// From orchestrator.js - conditional edges
+function routeFromValidation(state) {
+  if (state.skip_validation_if_degraded && state.degraded) {
+    return "execute_code";
+  }
+  if (state.validation_result?.passed) {
+    return "execute_code";
+  }
+  if ((state.validation_result?.attempt || 0) < 2) {
+    return "agent_self_debug";  // Try to fix
+  }
+  return "execute_code";  // Proceed anyway (may fail)
+}
+
+function routeFromExecution(state) {
+  if (state.execution_result?.status === "completed") {
+    return "sync_state";
+  }
+  if ((state.execution_result?.attempt || 0) < 2) {
+    return "retry_recovery";
+  }
+  return "degraded_mode";
+}
+        </pre>
+        
+        <h3>LLM Provider Pool</h3>
+        <p>The system supports multiple LLM providers with automatic failover:</p>
+        <table>
+          <tr>
+            <th>Provider</th>
+            <th>Models</th>
+            <th>Use Case</th>
+            <th>Rate Limit</th>
+          </tr>
+          <tr>
+            <td>Moonshot</td>
+            <td>Kimi K2.5</td>
+            <td>Primary generation</td>
+            <td>5/min</td>
+          </tr>
+          <tr>
+            <td>DeepSeek</td>
+            <td>DeepSeek Coder</td>
+            <td>Code generation</td>
+            <td>10/min</td>
+          </tr>
+          <tr>
+            <td>Groq</td>
+            <td>Mixtral, Llama</td>
+            <td>Fast inference</td>
+            <td>30/min</td>
+          </tr>
+          <tr>
+            <td>Gemini</td>
+            <td>Gemini Pro</td>
+            <td>Vision tasks</td>
+            <td>60/min</td>
+          </tr>
+          <tr>
+            <td>Together</td>
+            <td>Various</td>
+            <td>Fallback</td>
+            <td>10/min</td>
+          </tr>
+        </table>
+      </section>
+      
+      <section id="sandbox-pool" class="section">
+        <h2>Sandbox Pool Architecture</h2>
+        <p>
+          The <strong>SandboxPoolManager</strong> provides resilient sandbox lifecycle management 
+          with dual-tier creation strategy and circuit breaker protection.
+        </p>
+        
+        <h3>Sandbox Acquisition Flow</h3>
+        <div class="flow-step">
+          <div class="flow-step-number">1</div>
+          <div class="flow-step-content">
+            <div class="flow-step-title">Check Warm Pool</div>
+            <div class="flow-step-desc">
+              First, try to acquire from pre-warmed sandboxes (idleSandbacks).
+              These are ready-to-use with base dependencies pre-installed.
+            </div>
+          </div>
+        </div>
+        
+        <div class="flow-step">
+          <div class="flow-step-number">2</div>
+          <div class="flow-step-content">
+            <div class="flow-step-title">Direct Create (Fast Path)</div>
+            <div class="flow-step-desc">
+              If circuit is closed, try direct workspace creation (10s timeout).
+              Uses custom image if configured. Fast but may fail.
+            </div>
+          </div>
+        </div>
+        
+        <div class="flow-step">
+          <div class="flow-step-number">3</div>
+          <div class="flow-step-content">
+            <div class="flow-step-title">Fallback Create (Reliable)</div>
+            <div class="flow-step-desc">
+              If direct fails, use fallback creation (25s timeout).
+              More reliable but slower. Includes retry logic.
+            </div>
+          </div>
+        </div>
+        
+        <div class="flow-step">
+          <div class="flow-step-number">4</div>
+          <div class="flow-step-content">
+            <div class="flow-step-title">Skill Setup</div>
+            <div class="flow-step-desc">
+              Install skill-specific dependencies, mount templates, and start runtime.
+            </div>
+          </div>
+        </div>
+        
+        <h3>Circuit Breaker Pattern</h3>
+        <pre class="code-block">
+// Circuit breaker for direct create
+class CircuitBreaker {
+  failureThreshold = 3;      // Open after 3 failures
+  windowMs = 120000;         // Within 2 minutes
+  cooldownMs = 90000;        // Stay open for 90s
+  
+  failures = [];             // Rolling window
+  openUntilMs = 0;           // Circuit state
+  
+  recordFailure() {
+    failures.push(Date.now());
+    failures = failures.filter(t => t > Date.now() - windowMs);
+    if (failures.length >= threshold) {
+      openUntilMs = Date.now() + cooldownMs;
+    }
+  }
+  
+  isOpen() {
+    return Date.now() < openUntilMs;
+  }
+}
+        </pre>
+        
+        <h3>Configuration Environment Variables</h3>
+        <table>
+          <tr>
+            <th>Variable</th>
+            <th>Default</th>
+            <th>Description</th>
+          </tr>
+          <tr>
+            <td>DAYTONA_API_KEY</td>
+            <td>-</td>
+            <td>API key for Daytona SDK</td>
+          </tr>
+          <tr>
+            <td>DAYTONA_JWT_TOKEN</td>
+            <td>-</td>
+            <td>JWT token (alternative auth)</td>
+          </tr>
+          <tr>
+            <td>DAYTONA_ORG_ID</td>
+            <td>-</td>
+            <td>Organization ID (with JWT)</td>
+          </tr>
+          <tr>
+            <td>DAYTONA_PREWARM_SIZE</td>
+            <td>1</td>
+            <td>Target warm pool size</td>
+          </tr>
+          <tr>
+            <td>DAYTONA_PREWARM_CHECK_INTERVAL_SECONDS</td>
+            <td>15</td>
+            <td>Maintenance loop interval</td>
+          </tr>
+          <tr>
+            <td>DAYTONA_DIRECT_CREATE_TIMEOUT_SECONDS</td>
+            <td>10</td>
+            <td>Fast path timeout</td>
+          </tr>
+          <tr>
+            <td>DAYTONA_FALLBACK_CREATE_TIMEOUT_SECONDS</td>
+            <td>25</td>
+            <td>Reliable path timeout</td>
+          </tr>
+          <tr>
+            <td>DAYTONA_ACQUIRE_RETRY_ATTEMPTS</td>
+            <td>2</td>
+            <td>Retry attempts for provisioning</td>
+          </tr>
+          <tr>
+            <td>DAYTONA_DIRECT_CIRCUIT_BREAKER_THRESHOLD</td>
+            <td>3</td>
+            <td>Failures before opening circuit</td>
+          </tr>
+        </table>
+        
+        <h3>Code Execution Runtime</h3>
+        <p>
+          The <code>runner-script.js</code> executes user code in a Node.js vm context 
+          with skill-specific shims and mock environments.
+        </p>
+        <pre class="code-block">
+// Execution context setup
+const context = {
+  console: { log, error, warn },
+  setTimeout, clearTimeout,
+  setInterval, clearInterval,
+  requestAnimationFrame: (cb) => setTimeout(cb, 16),
+  
+  // Skill-specific mocks
+  THREE: createThreeJSShim(),
+  p5: createP5Shim(),
+  d3: createD3Shim(),
+  anime: createAnimeShim(),
+  
+  // Scene tracking
+  __sceneObjects: [],
+  __animations: [],
+  __renderCount: 0,
+  __frameCount: 0
+};
+
+// Execution with timeout
+vm.createContext(context);
+const script = new vm.Script(code, { timeout: maxMs });
+script.runInContext(context);
+        </pre>
+      </section>
+      
+      <section id="state-management" class="section">
+        <h2>State Management & Synchronization</h2>
+        
+        <h3>Session State Structure</h3>
+        <pre class="code-block">
+interface SessionState {
+  sessionId: string;
+  createdAt: ISOString;
+  updatedAt: ISOString;
+  status: "idle" | "parsing" | "generating" | "executing";
+  
+  // Scene versioning
+  currentScene: SceneVersion | null;
+  artifacts: Artifact[];        // Major versions
+  artifactPointer: number;       // Current artifact index
+  
+  // Legacy flat versions
+  versions: SceneVersion[];
+  versionPointer: number;
+  revisionPointer: number;
+  
+  // Chat history
+  messages: Message[];
+  
+  // Debugging
+  orchestrationTrace: TraceEntry[];
+}
+
+interface SceneVersion {
+  id: string;
+  artifactIndex: number;
+  revisionIndex: number;
+  code: string;
+  skill: string;
+  preview?: string;
+  explanation?: string;
+  source: "generation" | "edit" | "undo" | "redo";
+  createdAt: ISOString;
+}
+
+interface Artifact {
+  id: string;
+  name: string;
+  revisions: SceneVersion[];
+  createdAt: ISOString;
+}
+        </pre>
+        
+        <h3>State Synchronization Flow</h3>
+        <div class="diagram-container">
+          <pre class="diagram">
+  Client A (Editor)                    Server                      Client B (Viewer)
+       │                                  │                               │
+       │  1. Code Change                  │                               │
+       │  ───────────────────────────────>│                               │
+       │                                  │                               │
+       │                                  │  2. Validate & Execute        │
+       │                                  │  ┌─────────────────────────┐  │
+       │                                  │  │ Run in sandbox          │  │
+       │                                  │  │ Generate new scene state│  │
+       │                                  │  └─────────────────────────┘  │
+       │                                  │                               │
+       │                                  │  3. Broadcast Update          │
+       │  4. Update Preview               │  ────────────────────────────>│
+       │  <───────────────────────────────│                               │
+       │                                  │                               │
+       │                                  │                               │  5. Update Preview
+       │                                  │                               │  (synced view)
+       │                                  │                               │
+       │  6. Edit Request                 │                               │
+       │  "Make the sun bigger"           │                               │
+       │  ───────────────────────────────>│                               │
+       │                                  │                               │
+       │                                  │  7. Generate Diff             │
+       │                                  │  ┌─────────────────────────┐  │
+       │                                  │  │ LLM generates code diff │  │
+       │                                  │  │ Apply to existing code  │  │
+       │                                  │  └─────────────────────────┘  │
+       │                                  │                               │
+       │                                  │  8. Execute & Sync            │
+       │  9. Show Diff + New Preview      │  ────────────────────────────>│
+       │  <───────────────────────────────│                               │
+       │                                  │                               │
+       │  10. User Accepts                │                               │
+       │  ───────────────────────────────>│                               │
+       │                                  │                               │
+       │                                  │  11. Commit to History        │
+       │                                  │  (new version created)        │
+       │                                  │                               │
+       │                                  │  12. Final Broadcast          │
+       │  13. Update UI                   │  ────────────────────────────>│
+       │  <───────────────────────────────│                               │
+          </pre>
+        </div>
+        
+        <h3>Persistence Strategy</h3>
+        <p>
+          Sessions are persisted to disk using atomic writes with debouncing 
+          to minimize I/O while ensuring durability.
+        </p>
+        <pre class="code-block">
+// File-based persistence (session-state.js)
+const PERSISTENCE_DEBOUNCE_MS = 500;
+const PERSISTENCE_DIR = ".data/sessions";
+
+async function persistSession(sessionId, state) {
+  const filePath = `${PERSISTENCE_DIR}/${sessionId}.json`;
+  const tempPath = `${filePath}.tmp`;
+  
+  // Atomic write
+  await fs.writeFile(tempPath, JSON.stringify(state, null, 2));
+  await fs.rename(tempPath, filePath);
+}
+
+// Debounced save
+function saveSession(sessionId) {
+  clearTimeout(saveTimeouts[sessionId]);
+  saveTimeouts[sessionId] = setTimeout(() => {
+    persistSession(sessionId, sessions[sessionId]);
+  }, PERSISTENCE_DEBOUNCE_MS);
+}
+        </pre>
+      </section>
+      
+      <section id="error-handling" class="section">
+        <h2>Error Handling & Recovery</h2>
+        
+        <h3>Error Classification</h3>
+        <table>
+          <tr>
+            <th>Error Type</th>
+            <th>Recoverable</th>
+            <th>Strategy</th>
+          </tr>
+          <tr>
+            <td>AMBIGUOUS_INTENT</td>
+            <td><span class="badge badge-success">Yes</span></td>
+            <td>Clarify with user, suggest options</td>
+          </tr>
+          <tr>
+            <td>SKILL_NOT_FOUND</td>
+            <td><span class="badge badge-success">Yes</span></td>
+            <td>Suggest alternatives, use default</td>
+          </tr>
+          <tr>
+            <td>GENERATION_FAILED</td>
+            <td><span class="badge badge-success">Yes</span></td>
+            <td>Retry (max 3), simplify prompt, use example</td>
+          </tr>
+          <tr>
+            <td>VALIDATION_FAILED</td>
+            <td><span class="badge badge-success">Yes</span></td>
+            <td>Agent self-debug loop (max 2 iterations)</td>
+          </tr>
+          <tr>
+            <td>RUNTIME_ERROR</td>
+            <td><span class="badge badge-success">Yes</span></td>
+            <td>Fix with LLM, isolate error, show partial</td>
+          </tr>
+          <tr>
+            <td>SANDBOX_UNAVAILABLE</td>
+            <td><span class="badge badge-success">Yes</span></td>
+            <td>Wait, scale up, queue request</td>
+          </tr>
+          <tr>
+            <td>TIMEOUT_ERROR</td>
+            <td><span class="badge badge-warning">Maybe</span></td>
+            <td>Degraded mode, partial results</td>
+          </tr>
+        </table>
+        
+        <h3>Agent Self-Debug Loop</h3>
+        <p>
+          When validation fails, the system attempts automatic code fixing 
+          using an agent loop with validation and execution tools.
+        </p>
+        <pre class="code-block">
+// Agent loop for self-debugging (agent-runner.js)
+async function runAgentLoop(context, tools) {
+  const maxIterations = 2;
+  
+  for (let i = 0; i < maxIterations; i++) {
+    // 1. Analyze error
+    const analysis = await llm.analyze({
+      code: context.code,
+      error: context.error,
+      validation: context.validation
+    });
+    
+    // 2. Generate fix
+    const fix = await llm.generateFix({
+      analysis,
+      skill: context.skill
+    });
+    
+    // 3. Validate fix
+    const validation = await tools.validate_code(fix.code);
+    if (validation.passed) {
+      return { success: true, code: fix.code };
+    }
+    
+    // 4. Update context for next iteration
+    context.error = validation.error;
+    context.code = fix.code;
+  }
+  
+  return { success: false, attempts: maxIterations };
+}
+        </pre>
+        
+        <h3>Deterministic Fixes</h3>
+        <p>
+          Common API errors are automatically patched without LLM intervention 
+          for faster recovery.
+        </p>
+        <pre class="code-block">
+// Deterministic code patches (orchestrator.js)
+const DETERMINISTIC_FIXES = [
+  {
+    // Fix: setScalar is not a function
+    pattern: /\.setScalar\(/g,
+    replacement: '.set('
+  },
+  {
+    // Fix: Invalid constructor names
+    pattern: /new THREE\.([A-Z][a-zA-Z]+)BufferGeometry/g,
+    replacement: (match, name) => {
+      const validName = normalizeGeometryName(name);
+      return `new THREE.${validName}Geometry`;
+    }
+  },
+  {
+    // Fix: Missing imports for p5.js
+    pattern: /^(?!.*import.*p5).*createCanvas/m,
+    replacement: 'import p5 from "p5";\n$&'
+  }
+];
+
+function applyDeterministicFixes(code) {
+  for (const fix of DETERMINISTIC_FIXES) {
+    if (fix.pattern.test(code)) {
+      code = code.replace(fix.pattern, fix.replacement);
+    }
+  }
+  return code;
+}
+        </pre>
+        
+        <h3>Degraded Mode</h3>
+        <p>
+          When sandboxes are unavailable or execution consistently fails, 
+          the system switches to degraded mode returning code without execution.
+        </p>
+        <pre class="code-block">
+// Degraded mode response
+{
+  success: false,
+  degraded: true,
+  code: "// Generated code (not executed)\n" + generatedCode,
+  error: "Sandbox unavailable - code generation only",
+  suggestions: [
+    "Try again in a few moments",
+    "Code has been generated but not validated",
+    "You can manually run this code in the editor"
+  ]
+}
+        </pre>
+      </section>
+      
+      <footer class="footer">
+        <p>Generative Visual Engine Knowledgebase • Generated from source analysis</p>
+      </footer>
+    </main>
+  </div>
+  
+  <script src="assets/navigation.js"></script>
+</body>
+</html>

@@ -23,8 +23,23 @@ import {
 
 import SceneViewer from "./components/SceneViewer";
 import CodeEditor from "./components/CodeEditor";
-import TaskPlanViewer from "./components/TaskPlanViewer";
+import ThoughtsBar from "./components/ThoughtsBar";
 import ThinkingBubble from "./components/ThinkingBubble";
+import { MarkdownMessage } from "./components/MarkdownMessage";
+import { MessageActions } from "./components/MessageActions";
+import { TypingIndicator, TypingStatus } from "./components/TypingIndicator";
+import { InlineSuggestions } from "./components/ContextAwareSuggestions";
+import { SlashCommandMenu, createDefaultSlashCommands } from "./components/SlashCommandMenu";
+import { MessageTimestamp, MessageTimestampCompact } from "./components/MessageTimestamp";
+import { useAutoResize } from "./hooks/useAutoResize";
+import { useSlashCommands } from "./hooks/useSlashCommands";
+
+import "./components/MarkdownMessage.css";
+import "./components/MessageActions.css";
+import "./components/TypingIndicator.css";
+import "./components/ContextAwareSuggestions.css";
+import "./components/SlashCommandMenu.css";
+import "./components/MessageTimestamp.css";
 
 import {
   createSession,
@@ -53,6 +68,8 @@ type ChatMessage = {
   sourceCreatedAtMs?: number;
   assistantGroupKey?: string;
 };
+
+type AssistantCardVisualState = "generated" | "thinking" | "error";
 
 type SessionGroup = {
   title: string;
@@ -774,6 +791,23 @@ function buildChatItems(messages: SessionMessage[]): ChatMessage[] {
     const isUserSpeaker = msg.role === "user" && (msg.kind === "input" || msg.kind === null);
     const hasAssistantContent = typeof msg.content === "string" && msg.content.trim().length > 0;
 
+    // Filter out metadata/system messages that shouldn't appear in chat
+    const isMetadataMessage = msg.role === "assistant" && msg.content && (
+      msg.content.includes("Generated through LangGraph") ||
+      msg.content.includes("orchestration pipeline") ||
+      msg.content.includes("local fallback pipeline") ||
+      msg.content.includes("Runtime: degraded") ||
+      msg.content.includes("Runtime recovery skipped") ||
+      msg.content.includes("liveness ping") ||
+      msg.content.includes("Sandbox gve-") ||
+      msg.content.startsWith("Generated through") ||
+      msg.content.startsWith("Runtime degraded")
+    );
+
+    if (isMetadataMessage) {
+      continue;
+    }
+
     if (!isUserSpeaker && !hasAssistantContent && !msg.error) {
       continue;
     }
@@ -984,6 +1018,31 @@ function formatOrchestrationStep(step: string): string {
   return labels[step] ?? step.replace(/_/g, " ");
 }
 
+function getTurnErrorGuidance(errorCode: string | null | undefined): string | null {
+  if (!errorCode) {
+    return null;
+  }
+
+  const normalized = String(errorCode).toUpperCase();
+  if (normalized === "SANDBOX_DNS_UNAVAILABLE") {
+    return "Retry in a few seconds while DNS recovers.";
+  }
+
+  if (normalized === "SANDBOX_ACQUIRE_TIMEOUT") {
+    return "Retry now or simplify the request to reduce startup time.";
+  }
+
+  if (normalized === "SANDBOX_ACQUIRE_BUDGET_EXHAUSTED") {
+    return "Start a fresh turn or simplify the request to fit the turn budget.";
+  }
+
+  if (normalized === "SANDBOX_NETWORK_UNAVAILABLE") {
+    return "Retry now.";
+  }
+
+  return null;
+}
+
 function mapWorkspaceTabForStep(step: string): WorkspaceTab | null {
   if (
     step === "generate_code" ||
@@ -1070,6 +1129,14 @@ function App() {
   const [rawLiveStepStatus, setRawLiveStepStatus] = useState<GveTaskStatus | null>(null);
   const [websocketUrl, setWebsocketUrl] = useState(resolveWebSocketUrl());
   const [websocketConnectVersion, setWebsocketConnectVersion] = useState(0);
+  
+  // Auto-resize textarea hook
+  const { ref: composerTextareaRef, reset: resetComposerHeight } = useAutoResize<HTMLTextAreaElement>({
+    minHeight: 80,
+    maxHeight: 400,
+    enabled: true
+  });
+  
   const composerAbortControllerRef = useRef<AbortController | null>(null);
   const websocketRef = useRef<WebSocket | null>(null);
   const websocketReconnectTimerRef = useRef<number | null>(null);
@@ -2070,13 +2137,14 @@ function App() {
           const turnErrorText = payload.payload?.error?.userMessage ?? payloadMessage ?? "Turn failed";
           const turnTechnicalDetail = payload.payload?.error?.technicalDetail ?? null;
           const turnErrorCode = payload.payload?.error?.code ?? null;
+          const turnSuggestedAction = payload.payload?.error?.suggestedAction ?? getTurnErrorGuidance(turnErrorCode);
 
           if (turnTechnicalDetail || turnErrorCode) {
             const codeSuffix = turnErrorCode ? ` (${turnErrorCode})` : "";
             console.warn(`[WS] turn:error${codeSuffix}: ${turnTechnicalDetail ?? turnErrorText}`);
           }
 
-          setLiveStep(turnErrorText);
+          setLiveStep(turnSuggestedAction ? `${turnErrorText} ${turnSuggestedAction}` : turnErrorText);
           setRawLiveStep("turn_error");
           setRawLiveStepStatus("failed");
           setIsSending(false);
@@ -2352,6 +2420,7 @@ function App() {
       sessionId = session.sessionId;
       inFlightSessionIdRef.current = sessionId;
       setComposerValue("");
+      resetComposerHeight();
       setSourceMenuOpen(false);
       setEditedCode(null);
 
@@ -2699,6 +2768,119 @@ function App() {
   const showPendingThinkingIndicator = conversationStarted && hasThinkingSignal && !hasLiveAssistantAnchor;
   const pendingThinkingStep = thinkingStep || rawLiveStep || "turn_started";
 
+  // Slash commands setup
+  const slashCommands = useMemo(() => createDefaultSlashCommands({
+    onUndo: handleUndo,
+    onRedo: handleRedo,
+    onClear: () => {
+      setComposerValue("");
+      resetComposerHeight();
+    },
+    onExplain: () => {
+      setComposerValue("Explain how this code works");
+      composerTextareaRef.current?.focus();
+    },
+    onHelp: () => {
+      console.log("Available commands: /undo, /redo, /clear, /explain, /help");
+    }
+  }), [handleUndo, handleRedo, resetComposerHeight]);
+
+  const {
+    isOpen: isSlashMenuOpen,
+    filteredCommands,
+    selectedIndex: slashSelectedIndex,
+    handleInput: handleSlashInput,
+    handleSelect: handleSlashSelect,
+    handleKeyDown: handleSlashKeyDown,
+    closeMenu: closeSlashMenu
+  } = useSlashCommands({ commands: slashCommands });
+
+  function renderAssistantMessageCard({
+    cardKey,
+    message,
+    isThinkingActive,
+    avatarStep,
+    forcedState
+  }: {
+    cardKey: string;
+    message: ChatMessage;
+    isThinkingActive: boolean;
+    avatarStep: string;
+    forcedState?: AssistantCardVisualState;
+  }) {
+    const segments = (message.segments && message.segments.length > 0 ? message.segments : [message.title ?? ""])
+      .map((segment) => segment.trim())
+      .filter((segment) => segment.length > 0);
+
+    const hasSegments = segments.length > 0;
+    const state: AssistantCardVisualState =
+      forcedState ?? (message.error ? "error" : isThinkingActive && !hasSegments ? "thinking" : "generated");
+
+    return (
+      <article
+        key={cardKey}
+        className={`bubble-card bubble-card--assistant bubble-card--assistant-message bubble-card--assistant-message--${state}`}
+      >
+        <div className="message-row">
+          {/* Avatar - shows thinking animation when active */}
+          <div 
+            className={`message-avatar ${isThinkingActive ? "message-avatar--thinking" : ""}`}
+            aria-hidden="true"
+          >
+            {isThinkingActive ? (
+              <ThinkingBubble
+                thought=""
+                step={avatarStep}
+                isActive={true}
+                variant="avatar"
+              />
+            ) : (
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
+              </svg>
+            )}
+          </div>
+
+          {/* Message Content */}
+          <div className="message-content">
+            <div className="message-author">AI</div>
+            
+            {hasSegments ? (
+              <div className="message-text">
+                <MarkdownMessage 
+                  content={segments.join("\n\n")} 
+                  className="assistant-message__markdown" 
+                />
+              </div>
+            ) : state === "thinking" ? (
+              <div className="message-thinking">
+                <div className="thinking-dots">
+                  <span className="thinking-dot" />
+                  <span className="thinking-dot" />
+                  <span className="thinking-dot" />
+                </div>
+                <span>Thinking...</span>
+              </div>
+            ) : null}
+
+            {message.error ? (
+              <div className="assistant-error" aria-label="Generation error">
+                <p className="assistant-error__title">{message.error.title}</p>
+                <p className="assistant-error__message">{message.error.userMessage}</p>
+              </div>
+            ) : null}
+
+            {message.sourceCreatedAtMs && (
+              <div className="message-time">
+                {new Date(message.sourceCreatedAtMs).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}
+              </div>
+            )}
+          </div>
+        </div>
+      </article>
+    );
+  }
+
   function isChatNearBottom(element: HTMLElement): boolean {
     return element.scrollHeight - element.scrollTop - element.clientHeight <= 80;
   }
@@ -2942,125 +3124,71 @@ function App() {
                       message.id === liveAssistantMessageId
                   );
                   const messageKey = message.id ?? `${message.speaker}-${message.eyebrow}-${message.title}-${index}`;
+                  const assistantSegments =
+                    message.segments && message.segments.length > 0
+                      ? message.segments.filter((segment) => segment.trim().length > 0)
+                      : (message.title ? [message.title.trim()] : []);
                   const hasAssistantVisibleContent = Boolean(
-                    message.title ||
-                      message.body ||
-                      (message.segments && message.segments.length > 0) ||
-                      message.error
+                    assistantSegments.length > 0 || message.error
                   );
 
                   if (isAssistant && !hasAssistantVisibleContent && !liveThinkingAttached) {
                     return null;
                   }
 
+                  if (isAssistant) {
+                    return renderAssistantMessageCard({
+                      cardKey: messageKey,
+                      message,
+                      isThinkingActive: liveThinkingAttached,
+                      avatarStep: thinkingStep || "turn_started"
+                    });
+                  }
+
+                  // User message with new clean layout
                   return (
                   <article
                     key={messageKey}
-                    className={isAssistant ? "bubble-card--assistant bubble-card--assistant-message" : "bubble-card bubble-card--user"}
+                    className="bubble-card bubble-card--user"
                   >
-                    {isAssistant ? (
-                      <div className="assistant-message">
-                        <header className="assistant-message__head">
-                          <div className="assistant-message__avatar" aria-hidden="true">
-                            <ThinkingBubble
-                              thought=""
-                              step={thinkingStep || "turn_started"}
-                              isActive={liveThinkingAttached}
-                              variant="avatar"
-                            />
-                          </div>
-
-                          <div className="assistant-message__head-main">
-                            {message.body || (message.segments && message.segments.length > 0) || message.title ? (
-                              <div className="assistant-message__title-row">
-                                <h2 className="bubble-card__title assistant-message__title">Generated</h2>
-                                {message.body ? <p className="assistant-message__time">{message.body}</p> : null}
-                              </div>
-                            ) : null}
-                          </div>
-                        </header>
-
-                        {(message.segments && message.segments.length > 0) || message.title ? (
-                          <div className="assistant-message__body">
-                            <div className="assistant-message__segments" aria-label="Assistant response segments">
-                              {(message.segments && message.segments.length > 0 ? message.segments : [message.title ?? ""])
-                                .filter((segment) => segment.trim().length > 0)
-                                .map((segment, segmentIndex) => (
-                                  <p key={`${message.id ?? "assistant"}-segment-${segmentIndex}`} className="assistant-message__segment">
-                                    {segment}
-                                  </p>
-                                ))}
-                            </div>
-                          </div>
-                        ) : null}
-
-                        {message.error ? (
-                          <div className="assistant-message__body">
-                            <section className="assistant-error" aria-label="Generation error">
-                              <p className="assistant-error__title">{message.error.title}</p>
-                              <p className="assistant-error__message">{message.error.userMessage}</p>
-                              <p className="assistant-error__meta">
-                                <span>Code: {message.error.code}</span>
-                                {message.error.retryable ? <span>Retryable</span> : <span>Manual fix needed</span>}
-                              </p>
-                              {message.error.suggestedAction ? (
-                                <p className="assistant-error__hint">Next: {message.error.suggestedAction}</p>
-                              ) : null}
-                              {message.error.technicalDetail ? (
-                                <details className="assistant-error__details">
-                                  <summary>Technical details</summary>
-                                  <p>{message.error.technicalDetail}</p>
-                                </details>
-                              ) : null}
-                            </section>
-                          </div>
-                        ) : null}
+                    <div className="message-row message-row--user">
+                      <div className="message-avatar message-avatar--user">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                          <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+                          <circle cx="12" cy="7" r="4"/>
+                        </svg>
                       </div>
-                    ) : (
-                      <>
-                        {message.eyebrow ? <p className="bubble-card__eyebrow">{message.eyebrow}</p> : null}
-                        {message.title ? <h2 className="bubble-card__title">{message.title}</h2> : null}
-                        {message.body ? <p className="bubble-card__body">{message.body}</p> : null}
-                        {message.meta && message.meta.length > 0 ? <p className="bubble-card__body">{message.meta.join(" · ")}</p> : null}
-                      </>
-                    )}
+                      <div className="message-content">
+                        <div className="message-author message-author--user">You</div>
+                        <div className="message-text">{message.title}</div>
+                        {message.sourceCreatedAtMs && (
+                          <div className="message-time">
+                            {new Date(message.sourceCreatedAtMs).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}
+                          </div>
+                        )}
+                      </div>
+                    </div>
                   </article>
                   );
                 })}
                 {showPendingThinkingIndicator ? (
-                  <article key="pending-thinking" className="bubble-card--assistant bubble-card--assistant-message">
-                    <div className="assistant-message">
-                      <header className="assistant-message__head">
-                        <div className="assistant-message__avatar" aria-hidden="true">
-                          <ThinkingBubble thought="" step={pendingThinkingStep} isActive variant="avatar" />
-                        </div>
-
-                        <div className="assistant-message__head-main">
-                          <div className="assistant-message__title-row">
-                            <h2 className="bubble-card__title assistant-message__title">Generated</h2>
-                          </div>
-                        </div>
-                      </header>
-                    </div>
-                  </article>
+                  renderAssistantMessageCard({
+                    cardKey: "pending-thinking",
+                    message: { speaker: "assistant" },
+                    isThinkingActive: true,
+                    avatarStep: pendingThinkingStep,
+                    forcedState: "thinking"
+                  })
                 ) : null}
                 </>
               ) : showPendingThinkingIndicator ? (
-                <article key="pending-thinking-empty" className="bubble-card--assistant bubble-card--assistant-message">
-                  <div className="assistant-message">
-                    <header className="assistant-message__head">
-                      <div className="assistant-message__avatar" aria-hidden="true">
-                        <ThinkingBubble thought="" step={pendingThinkingStep} isActive variant="avatar" />
-                      </div>
-
-                      <div className="assistant-message__head-main">
-                        <div className="assistant-message__title-row">
-                          <h2 className="bubble-card__title assistant-message__title">Generated</h2>
-                        </div>
-                      </div>
-                    </header>
-                  </div>
-                </article>
+                renderAssistantMessageCard({
+                  cardKey: "pending-thinking-empty",
+                  message: { speaker: "assistant" },
+                  isThinkingActive: true,
+                  avatarStep: pendingThinkingStep,
+                  forcedState: "thinking"
+                })
               ) : messageLoadingSessionId === activeSessionId ? (
                 <article className="bubble-card bubble-card--assistant bubble-card--welcome">
                   <p className="bubble-card__eyebrow">AGENT</p>
@@ -3104,89 +3232,105 @@ function App() {
           </section>
         )}
 
+        {/* Agent Thoughts Bar - Collapsible component above composer */}
+        <ThoughtsBar
+          thoughts={activeThoughtMessages}
+          liveThought={thinkingText ? { text: thinkingText, step: thinkingStep || "turn_started" } : null}
+          isThinking={isSending}
+        />
+
         <section className="composer-stage" aria-label="Composer">
           <form className="composer-shell" onSubmit={handleComposerSubmit}>
             <div className="composer-shell__input-wrap">
+              {/* Plus Button */}
+              <div className="composer-menu-anchor">
+                <button
+                  type="button"
+                  className="composer-add-button"
+                  aria-label="Add source"
+                  aria-expanded={sourceMenuOpen}
+                  onClick={() => setSourceMenuOpen((value) => !value)}
+                >
+                  <Plus className="h-4 w-4" />
+                </button>
+
+                {sourceMenuOpen && (
+                  <div className="composer-source-menu" role="menu" aria-label="Add source menu">
+                    <button type="button" className="composer-source-menu__item" role="menuitem">
+                      <Sparkles className="h-3.5 w-3.5" />
+                      <span>Upload spec</span>
+                    </button>
+                    <button type="button" className="composer-source-menu__item" role="menuitem">
+                      <Search className="h-3.5 w-3.5" />
+                      <span>Import meeting notes</span>
+                    </button>
+                    <button type="button" className="composer-source-menu__item" role="menuitem">
+                      <LayoutGrid className="h-3.5 w-3.5" />
+                      <span>Connect repo</span>
+                    </button>
+                    <button type="button" className="composer-source-menu__item" role="menuitem">
+                      <Database className="h-3.5 w-3.5" />
+                      <span>Attach dataset</span>
+                    </button>
+                    <button type="button" className="composer-source-menu__item" role="menuitem">
+                      <MessageSquarePlus className="h-3.5 w-3.5" />
+                      <span>Choose from Library</span>
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              {/* Text Input */}
               <textarea
                 id="composer-input"
+                ref={composerTextareaRef}
                 className="composer-input"
-                placeholder="Ask dosco to build visuals for you"
+                placeholder="Type a new message"
                 aria-label="Composer input"
                 value={composerValue}
-                onChange={(event) => setComposerValue(event.target.value)}
+                onChange={(event) => {
+                  setComposerValue(event.target.value);
+                  // Handle slash command input
+                  handleSlashInput(event.target.value, event.target.selectionStart || 0);
+                }}
+                onKeyDown={(event) => {
+                  // Handle slash command menu navigation
+                  if (isSlashMenuOpen) {
+                    const handled = handleSlashKeyDown(event);
+                    if (handled) return;
+                  }
+                }}
+                rows={1}
               />
 
-              <div className="composer-shell__actions">
-                <div className="composer-shell__actions-left">
-                  <div className="composer-menu-anchor">
-                    <button
-                      type="button"
-                      className="composer-add-button"
-                      aria-label="Add source"
-                      aria-expanded={sourceMenuOpen}
-                      onClick={() => setSourceMenuOpen((value) => !value)}
-                    >
-                      <Plus className="h-4 w-4" />
-                    </button>
+              {/* Slash Command Menu */}
+              {isSlashMenuOpen && (
+                <SlashCommandMenu
+                  commands={filteredCommands}
+                  selectedIndex={slashSelectedIndex}
+                  onSelect={handleSlashSelect}
+                />
+              )}
 
-                    {sourceMenuOpen && (
-                      <div className="composer-source-menu" role="menu" aria-label="Add source menu">
-                        <button type="button" className="composer-source-menu__item" role="menuitem">
-                          <Sparkles className="h-3.5 w-3.5" />
-                          <span>Upload spec</span>
-                        </button>
-                        <button type="button" className="composer-source-menu__item" role="menuitem">
-                          <Search className="h-3.5 w-3.5" />
-                          <span>Import meeting notes</span>
-                        </button>
-                        <button type="button" className="composer-source-menu__item" role="menuitem">
-                          <LayoutGrid className="h-3.5 w-3.5" />
-                          <span>Connect repo</span>
-                        </button>
-                        <button type="button" className="composer-source-menu__item" role="menuitem">
-                          <Database className="h-3.5 w-3.5" />
-                          <span>Attach dataset</span>
-                        </button>
-                        <button type="button" className="composer-source-menu__item" role="menuitem">
-                          <MessageSquarePlus className="h-3.5 w-3.5" />
-                          <span>Choose from Library</span>
-                        </button>
-                      </div>
-                    )}
-                  </div>
-
-                  <button type="button" className="composer-mode-pill" aria-label="Composer mode">
-                    <LayoutGrid className="h-3.5 w-3.5" />
-                    <span>Agent | Websites</span>
-                  </button>
-
-                  <p className="composer-quota-copy">
-                    <span>Quota used up</span>
-                    <button type="button" className="composer-upgrade-link">Upgrade</button>
-                  </p>
-                </div>
-
-                <div className="composer-shell__actions-right">
-                  {isSending ? (
-                    <button type="button" className="composer-send-button composer-send-button--stop" aria-label="Stop generation" onClick={handleComposerStop}>
-                      <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-                        <rect x="6" y="6" width="12" height="12" rx="2" />
-                      </svg>
-                    </button>
-                  ) : (
-                    <button
-                      type="submit"
-                      className="composer-send-button"
-                      aria-label="Send message"
-                      disabled={composerValue.trim().length === 0}
-                    >
-                      <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-                        <path d="M12 5v14m0-14 6 6m-6-6-6 6" />
-                      </svg>
-                    </button>
-                  )}
-                </div>
-              </div>
+              {/* Send/Stop Button */}
+              {isSending ? (
+                <button type="button" className="composer-send-button composer-send-button--stop" aria-label="Stop generation" onClick={handleComposerStop}>
+                  <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                    <rect x="6" y="6" width="12" height="12" rx="2" />
+                  </svg>
+                </button>
+              ) : (
+                <button
+                  type="submit"
+                  className="composer-send-button"
+                  aria-label="Send message"
+                  disabled={composerValue.trim().length === 0}
+                >
+                  <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                    <path d="M12 5v14m0-14 6 6m-6-6-6 6" />
+                  </svg>
+                </button>
+              )}
             </div>
           </form>
         </section>
@@ -3212,14 +3356,6 @@ function App() {
               >
                 <Code2 className="h-3.5 w-3.5" style={{ display: "inline", verticalAlign: "-2px", marginRight: "4px" }} />
                 Code
-              </button>
-              <button
-                type="button"
-                className={`workspace-tab ${activeTab === "tasks" ? "workspace-tab--active" : ""}`}
-                onClick={() => setActiveTab("tasks")}
-              >
-                <ListChecks className="h-3.5 w-3.5" style={{ display: "inline", verticalAlign: "-2px", marginRight: "4px" }} />
-                Tasks
               </button>
             </div>
 
@@ -3287,9 +3423,6 @@ function App() {
               <SceneViewer
                 code={currentCode}
                 skill={currentSkill}
-                allowDarkBackground={allowDarkBackground}
-                onNaturalLanguageEdit={handlePreviewNaturalLanguageEdit}
-                isApplyingEdit={isApplyingPreviewEdit}
               />
             )}
             {activeTab === "code" && (
@@ -3297,17 +3430,6 @@ function App() {
                 code={currentCode}
                 skill={currentSkill}
                 onRun={handleCodeRun}
-              />
-            )}
-            {activeTab === "tasks" && (
-              <TaskPlanViewer
-                tasks={effectiveTaskPlan}
-                activities={activeSessionActivities}
-                thoughts={activeThoughtMessages}
-                liveThought={thinkingText ? { text: thinkingText, step: thinkingStep || "turn_started" } : null}
-                currentStep={rawLiveStep || ""}
-                currentStepStatus={rawLiveStepStatus}
-                planId={taskPlanId}
               />
             )}
           </div>

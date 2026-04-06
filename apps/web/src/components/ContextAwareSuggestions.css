@@ -1,0 +1,195 @@
+/* Context-Aware Suggestions Styles */
+
+.context-suggestions {
+  padding: 0.5rem 0.75rem;
+  background: rgba(255, 255, 255, 0.6);
+  border-radius: 0.75rem;
+  border: 1px solid rgba(218, 227, 239, 0.6);
+}
+
+.context-suggestions__header {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin-bottom: 0.5rem;
+  color: rgba(100, 116, 139, 0.8);
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.context-suggestions__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.context-suggestion-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.35rem 0.6rem;
+  border: 1px solid rgba(218, 227, 239, 0.9);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.9);
+  color: rgba(71, 85, 105, 0.9);
+  font-size: 0.72rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 150ms ease;
+  white-space: nowrap;
+}
+
+.context-suggestion-chip:hover {
+  background: rgba(89, 146, 255, 0.1);
+  border-color: rgba(89, 146, 255, 0.4);
+  color: rgba(37, 99, 235, 0.9);
+  transform: translateY(-1px);
+}
+
+.context-suggestion-chip:active {
+  transform: translateY(0);
+}
+
+.context-suggestion-chip__icon {
+  display: inline-flex;
+  color: currentColor;
+  opacity: 0.7;
+}
+
+.context-suggestion-chip__label {
+  line-height: 1;
+}
+
+/* Inline suggestions for message cards */
+.inline-suggestions {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin-top: 0.5rem;
+  padding: 0.35rem 0;
+}
+
+.inline-suggestions__label {
+  color: rgba(100, 116, 139, 0.7);
+  font-size: 0.7rem;
+  font-weight: 500;
+  margin-right: 0.2rem;
+}
+
+.inline-suggestion-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.25rem 0.5rem;
+  border: 1px solid rgba(218, 227, 239, 0.8);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.8);
+  color: rgba(71, 85, 105, 0.85);
+  font-size: 0.68rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 150ms ease;
+}
+
+.inline-suggestion-chip:hover {
+  background: rgba(89, 146, 255, 0.08);
+  border-color: rgba(89, 146, 255, 0.35);
+  color: rgba(37, 99, 235, 0.85);
+}
+
+/* Category groups */
+.context-suggestions__category {
+  margin-bottom: 0.5rem;
+}
+
+.context-suggestions__category-label {
+  display: block;
+  color: rgba(100, 116, 139, 0.7);
+  font-size: 0.65rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 0.3rem;
+  margin-left: 0.2rem;
+}
+
+/* Composer integration */
+.composer-shell .context-suggestions {
+  margin: 0.5rem 0.25rem 0;
+  padding: 0.5rem;
+  background: rgba(248, 250, 252, 0.8);
+  border-color: rgba(218, 227, 239, 0.5);
+}
+
+/* Dark mode adjustments */
+@media (prefers-color-scheme: dark) {
+  .context-suggestions {
+    background: rgba(30, 41, 59, 0.4);
+    border-color: rgba(71, 85, 105, 0.3);
+  }
+
+  .context-suggestions__header {
+    color: rgba(148, 163, 184, 0.7);
+  }
+
+  .context-suggestion-chip {
+    background: rgba(30, 41, 59, 0.6);
+    border-color: rgba(71, 85, 105, 0.4);
+    color: rgba(203, 213, 225, 0.85);
+  }
+
+  .context-suggestion-chip:hover {
+    background: rgba(59, 130, 246, 0.15);
+    border-color: rgba(59, 130, 246, 0.4);
+    color: rgba(147, 197, 253, 0.9);
+  }
+
+  .inline-suggestion-chip {
+    background: rgba(30, 41, 59, 0.5);
+    border-color: rgba(71, 85, 105, 0.4);
+    color: rgba(203, 213, 225, 0.8);
+  }
+
+  .inline-suggestion-chip:hover {
+    background: rgba(59, 130, 246, 0.12);
+    border-color: rgba(59, 130, 246, 0.35);
+    color: rgba(147, 197, 253, 0.85);
+  }
+
+  .inline-suggestions__label {
+    color: rgba(148, 163, 184, 0.6);
+  }
+}
+
+/* Animation for suggestions appearing */
+@keyframes suggestions-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.context-suggestions {
+  animation: suggestions-fade-in 200ms ease-out;
+}
+
+/* Responsive adjustments */
+@media (max-width: 640px) {
+  .context-suggestions__chips {
+    gap: 0.25rem;
+  }
+
+  .context-suggestion-chip {
+    padding: 0.3rem 0.5rem;
+    font-size: 0.68rem;
+  }
+
+  .context-suggestion-chip__icon {
+    display: none;
+  }
+}

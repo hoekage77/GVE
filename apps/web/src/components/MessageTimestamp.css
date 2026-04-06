@@ -1,0 +1,135 @@
+/* Message Timestamp Styles */
+
+.message-timestamp {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-size: 0.65rem;
+  color: rgba(100, 116, 139, 0.7);
+  cursor: pointer;
+  transition: color 150ms ease;
+  user-select: none;
+}
+
+.message-timestamp:hover {
+  color: rgba(59, 130, 246, 0.85);
+}
+
+.message-timestamp__icon {
+  width: 0.7rem;
+  height: 0.7rem;
+  opacity: 0.6;
+}
+
+.message-timestamp__text {
+  font-weight: 500;
+  letter-spacing: 0.02em;
+}
+
+/* Compact version */
+.message-timestamp--compact {
+  font-size: 0.6rem;
+  color: rgba(148, 163, 184, 0.6);
+}
+
+/* Timestamp group separator */
+.timestamp-group {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 1rem 0;
+  position: relative;
+}
+
+.timestamp-group::before,
+.timestamp-group::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: rgba(218, 227, 239, 0.5);
+}
+
+.timestamp-group__label {
+  padding: 0 0.75rem;
+  font-size: 0.65rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: rgba(100, 116, 139, 0.7);
+}
+
+/* Integration with message cards */
+.bubble-card--user .message-timestamp {
+  margin-top: 0.35rem;
+  justify-content: flex-end;
+}
+
+.bubble-card--assistant-message .message-timestamp {
+  margin-left: 3.3rem;
+  margin-top: 0.25rem;
+}
+
+/* Hover reveal in message header */
+.assistant-message__head-main .message-timestamp {
+  opacity: 0;
+  transition: opacity 200ms ease;
+}
+
+.bubble-card--assistant-message:hover .assistant-message__head-main .message-timestamp {
+  opacity: 1;
+}
+
+/* Dark mode adjustments */
+@media (prefers-color-scheme: dark) {
+  .message-timestamp {
+    color: rgba(148, 163, 184, 0.6);
+  }
+
+  .message-timestamp:hover {
+    color: rgba(147, 197, 253, 0.85);
+  }
+
+  .message-timestamp--compact {
+    color: rgba(100, 116, 139, 0.5);
+  }
+
+  .timestamp-group::before,
+  .timestamp-group::after {
+    background: rgba(71, 85, 105, 0.4);
+  }
+
+  .timestamp-group__label {
+    color: rgba(148, 163, 184, 0.6);
+  }
+}
+
+/* Mobile adjustments */
+@media (max-width: 768px) {
+  .message-timestamp {
+    font-size: 0.6rem;
+  }
+
+  .assistant-message__head-main .message-timestamp {
+    opacity: 1;
+  }
+
+  .bubble-card--assistant-message .message-timestamp {
+    margin-left: 2.7rem;
+  }
+
+  .timestamp-group {
+    margin: 0.75rem 0;
+  }
+
+  .timestamp-group__label {
+    font-size: 0.6rem;
+  }
+}
+
+/* Print styles */
+@media print {
+  .message-timestamp {
+    color: #666 !important;
+    opacity: 1 !important;
+  }
+}

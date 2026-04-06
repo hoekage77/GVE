@@ -1,0 +1,329 @@
+{
+  "sessionId": "111ab109-3cf7-42ea-9078-340b12f1fd30",
+  "createdAt": "2026-04-03T16:34:27.021Z",
+  "updatedAt": "2026-04-03T16:36:30.890Z",
+  "status": "idle",
+  "currentScene": {
+    "sessionId": "111ab109-3cf7-42ea-9078-340b12f1fd30",
+    "sceneId": "scene-1775234157222",
+    "code": "const clock = new THREE.Clock();\nscene.background = new THREE.Color(0xf4f7fb);\nrenderer.toneMapping = THREE.ACESFilmicToneMapping;\nrenderer.toneMappingExposure = 1.08;\nrenderer.shadowMap.enabled = true;\nrenderer.shadowMap.type = THREE.PCFSoftShadowMap;\n\nconst ambientLight = new THREE.AmbientLight(0xddeeff, 0.95);\nscene.add(ambientLight);\n\nconst floor = new THREE.Mesh(\n  new THREE.CircleGeometry(10, 96),\n  new THREE.MeshStandardMaterial({ color: 0xe6ecf5, roughness: 0.92, metalness: 0.02 })\n);\nfloor.rotation.x = -Math.PI / 2;\nfloor.position.y = -1.6;\nfloor.receiveShadow = true;\nscene.add(floor);\n\nconst heroGroup = new THREE.Group();\nscene.add(heroGroup);\n\nconst cubeGeometry = new THREE.BoxGeometry(1.6, 1.6, 1.6);\nconst cubeMaterial = new THREE.MeshPhysicalMaterial({\n  color: 0x2563eb,\n  metalness: 0.3,\n  roughness: 0.15,\n  clearcoat: 1.0,\n  clearcoatRoughness: 0.05,\n  reflectivity: 1.0,\n  ior: 1.5\n});\nconst cube = new THREE.Mesh(cubeGeometry, cubeMaterial);\ncube.castShadow = true;\ncube.receiveShadow = true;\nheroGroup.add(cube);\n\nconst edges = new THREE.EdgesGeometry(cubeGeometry);\nconst lineMaterial = new THREE.LineBasicMaterial({ color: 0x1e3a8a, transparent: true, opacity: 0.4 });\nconst wireframe = new THREE.LineSegments(edges, lineMaterial);\nheroGroup.add(wireframe);\n\ncamera.position.set(4.4, 2.4, 5.2);\ncamera.lookAt(0, 0, 0);\n\nconst controls = new OrbitControls(camera, renderer.domElement);\ncontrols.enableDamping = true;\ncontrols.dampingFactor = 0.05;\n\nfunction animate() {\n  requestAnimationFrame(animate);\n  const t = clock.getElapsedTime();\n  heroGroup.rotation.y = t * 0.4;\n  heroGroup.rotation.z = Math.sin(t * 0.2) * 0.05;\n  heroGroup.position.y = Math.sin(t * 0.8) * 0.08;\n  controls.update();\n  renderer.render(scene, camera);\n}\nanimate();",
+    "previewUrl": "about:blank",
+    "skill": "threejs",
+    "explanation": "Generated through LangGraph orchestration pipeline. Generated via Moonshot Kimi (kimi-k2.5). Warning: Sandbox runtime degraded due to provisioning constraints; returning generated code without full live execution. Runtime: degraded with 0 renders and 0 frames. Runtime degraded due to sandbox provisioning constraints: Daytona acquire failed after 1033ms. direct=Failed to create and start sandbox within 1 seconds. Operation timed out. | fallback=skipped: Daytona acquire budget exhausted before fallback create. remaining=1162ms.",
+    "messageId": "message-2",
+    "source": "generate",
+    "createdAt": "2026-04-03T16:35:57.242Z",
+    "updatedAt": "2026-04-03T16:35:57.242Z",
+    "versionId": "version-1",
+    "version": 1,
+    "artifactId": "artifact-1775234157243-fb644a",
+    "artifactVersion": 1
+  },
+  "artifacts": [
+    {
+      "artifactId": "artifact-1775234157243-fb644a",
+      "title": "scene-1775234157222",
+      "createdAt": "2026-04-03T16:35:57.242Z",
+      "updatedAt": "2026-04-03T16:35:57.242Z",
+      "revisions": [
+        {
+          "sessionId": "111ab109-3cf7-42ea-9078-340b12f1fd30",
+          "sceneId": "scene-1775234157222",
+          "code": "const clock = new THREE.Clock();\nscene.background = new THREE.Color(0xf4f7fb);\nrenderer.toneMapping = THREE.ACESFilmicToneMapping;\nrenderer.toneMappingExposure = 1.08;\nrenderer.shadowMap.enabled = true;\nrenderer.shadowMap.type = THREE.PCFSoftShadowMap;\n\nconst ambientLight = new THREE.AmbientLight(0xddeeff, 0.95);\nscene.add(ambientLight);\n\nconst floor = new THREE.Mesh(\n  new THREE.CircleGeometry(10, 96),\n  new THREE.MeshStandardMaterial({ color: 0xe6ecf5, roughness: 0.92, metalness: 0.02 })\n);\nfloor.rotation.x = -Math.PI / 2;\nfloor.position.y = -1.6;\nfloor.receiveShadow = true;\nscene.add(floor);\n\nconst heroGroup = new THREE.Group();\nscene.add(heroGroup);\n\nconst cubeGeometry = new THREE.BoxGeometry(1.6, 1.6, 1.6);\nconst cubeMaterial = new THREE.MeshPhysicalMaterial({\n  color: 0x2563eb,\n  metalness: 0.3,\n  roughness: 0.15,\n  clearcoat: 1.0,\n  clearcoatRoughness: 0.05,\n  reflectivity: 1.0,\n  ior: 1.5\n});\nconst cube = new THREE.Mesh(cubeGeometry, cubeMaterial);\ncube.castShadow = true;\ncube.receiveShadow = true;\nheroGroup.add(cube);\n\nconst edges = new THREE.EdgesGeometry(cubeGeometry);\nconst lineMaterial = new THREE.LineBasicMaterial({ color: 0x1e3a8a, transparent: true, opacity: 0.4 });\nconst wireframe = new THREE.LineSegments(edges, lineMaterial);\nheroGroup.add(wireframe);\n\ncamera.position.set(4.4, 2.4, 5.2);\ncamera.lookAt(0, 0, 0);\n\nconst controls = new OrbitControls(camera, renderer.domElement);\ncontrols.enableDamping = true;\ncontrols.dampingFactor = 0.05;\n\nfunction animate() {\n  requestAnimationFrame(animate);\n  const t = clock.getElapsedTime();\n  heroGroup.rotation.y = t * 0.4;\n  heroGroup.rotation.z = Math.sin(t * 0.2) * 0.05;\n  heroGroup.position.y = Math.sin(t * 0.8) * 0.08;\n  controls.update();\n  renderer.render(scene, camera);\n}\nanimate();",
+          "previewUrl": "about:blank",
+          "skill": "threejs",
+          "explanation": "Generated through LangGraph orchestration pipeline. Generated via Moonshot Kimi (kimi-k2.5). Warning: Sandbox runtime degraded due to provisioning constraints; returning generated code without full live execution. Runtime: degraded with 0 renders and 0 frames. Runtime degraded due to sandbox provisioning constraints: Daytona acquire failed after 1033ms. direct=Failed to create and start sandbox within 1 seconds. Operation timed out. | fallback=skipped: Daytona acquire budget exhausted before fallback create. remaining=1162ms.",
+          "messageId": "message-2",
+          "source": "generate",
+          "createdAt": "2026-04-03T16:35:57.242Z",
+          "updatedAt": "2026-04-03T16:35:57.242Z",
+          "versionId": "version-1",
+          "version": 1,
+          "artifactId": "artifact-1775234157243-fb644a",
+          "artifactVersion": 1
+        }
+      ],
+      "revisionPointer": 0
+    }
+  ],
+  "artifactPointer": 0,
+  "versions": [
+    {
+      "sessionId": "111ab109-3cf7-42ea-9078-340b12f1fd30",
+      "sceneId": "scene-1775234157222",
+      "code": "const clock = new THREE.Clock();\nscene.background = new THREE.Color(0xf4f7fb);\nrenderer.toneMapping = THREE.ACESFilmicToneMapping;\nrenderer.toneMappingExposure = 1.08;\nrenderer.shadowMap.enabled = true;\nrenderer.shadowMap.type = THREE.PCFSoftShadowMap;\n\nconst ambientLight = new THREE.AmbientLight(0xddeeff, 0.95);\nscene.add(ambientLight);\n\nconst floor = new THREE.Mesh(\n  new THREE.CircleGeometry(10, 96),\n  new THREE.MeshStandardMaterial({ color: 0xe6ecf5, roughness: 0.92, metalness: 0.02 })\n);\nfloor.rotation.x = -Math.PI / 2;\nfloor.position.y = -1.6;\nfloor.receiveShadow = true;\nscene.add(floor);\n\nconst heroGroup = new THREE.Group();\nscene.add(heroGroup);\n\nconst cubeGeometry = new THREE.BoxGeometry(1.6, 1.6, 1.6);\nconst cubeMaterial = new THREE.MeshPhysicalMaterial({\n  color: 0x2563eb,\n  metalness: 0.3,\n  roughness: 0.15,\n  clearcoat: 1.0,\n  clearcoatRoughness: 0.05,\n  reflectivity: 1.0,\n  ior: 1.5\n});\nconst cube = new THREE.Mesh(cubeGeometry, cubeMaterial);\ncube.castShadow = true;\ncube.receiveShadow = true;\nheroGroup.add(cube);\n\nconst edges = new THREE.EdgesGeometry(cubeGeometry);\nconst lineMaterial = new THREE.LineBasicMaterial({ color: 0x1e3a8a, transparent: true, opacity: 0.4 });\nconst wireframe = new THREE.LineSegments(edges, lineMaterial);\nheroGroup.add(wireframe);\n\ncamera.position.set(4.4, 2.4, 5.2);\ncamera.lookAt(0, 0, 0);\n\nconst controls = new OrbitControls(camera, renderer.domElement);\ncontrols.enableDamping = true;\ncontrols.dampingFactor = 0.05;\n\nfunction animate() {\n  requestAnimationFrame(animate);\n  const t = clock.getElapsedTime();\n  heroGroup.rotation.y = t * 0.4;\n  heroGroup.rotation.z = Math.sin(t * 0.2) * 0.05;\n  heroGroup.position.y = Math.sin(t * 0.8) * 0.08;\n  controls.update();\n  renderer.render(scene, camera);\n}\nanimate();",
+      "previewUrl": "about:blank",
+      "skill": "threejs",
+      "explanation": "Generated through LangGraph orchestration pipeline. Generated via Moonshot Kimi (kimi-k2.5). Warning: Sandbox runtime degraded due to provisioning constraints; returning generated code without full live execution. Runtime: degraded with 0 renders and 0 frames. Runtime degraded due to sandbox provisioning constraints: Daytona acquire failed after 1033ms. direct=Failed to create and start sandbox within 1 seconds. Operation timed out. | fallback=skipped: Daytona acquire budget exhausted before fallback create. remaining=1162ms.",
+      "messageId": "message-2",
+      "source": "generate",
+      "createdAt": "2026-04-03T16:35:57.242Z",
+      "updatedAt": "2026-04-03T16:35:57.242Z",
+      "versionId": "version-1",
+      "version": 1,
+      "artifactId": "artifact-1775234157243-fb644a",
+      "artifactVersion": 1
+    }
+  ],
+  "sceneVersions": [
+    {
+      "sessionId": "111ab109-3cf7-42ea-9078-340b12f1fd30",
+      "sceneId": "scene-1775234157222",
+      "code": "const clock = new THREE.Clock();\nscene.background = new THREE.Color(0xf4f7fb);\nrenderer.toneMapping = THREE.ACESFilmicToneMapping;\nrenderer.toneMappingExposure = 1.08;\nrenderer.shadowMap.enabled = true;\nrenderer.shadowMap.type = THREE.PCFSoftShadowMap;\n\nconst ambientLight = new THREE.AmbientLight(0xddeeff, 0.95);\nscene.add(ambientLight);\n\nconst floor = new THREE.Mesh(\n  new THREE.CircleGeometry(10, 96),\n  new THREE.MeshStandardMaterial({ color: 0xe6ecf5, roughness: 0.92, metalness: 0.02 })\n);\nfloor.rotation.x = -Math.PI / 2;\nfloor.position.y = -1.6;\nfloor.receiveShadow = true;\nscene.add(floor);\n\nconst heroGroup = new THREE.Group();\nscene.add(heroGroup);\n\nconst cubeGeometry = new THREE.BoxGeometry(1.6, 1.6, 1.6);\nconst cubeMaterial = new THREE.MeshPhysicalMaterial({\n  color: 0x2563eb,\n  metalness: 0.3,\n  roughness: 0.15,\n  clearcoat: 1.0,\n  clearcoatRoughness: 0.05,\n  reflectivity: 1.0,\n  ior: 1.5\n});\nconst cube = new THREE.Mesh(cubeGeometry, cubeMaterial);\ncube.castShadow = true;\ncube.receiveShadow = true;\nheroGroup.add(cube);\n\nconst edges = new THREE.EdgesGeometry(cubeGeometry);\nconst lineMaterial = new THREE.LineBasicMaterial({ color: 0x1e3a8a, transparent: true, opacity: 0.4 });\nconst wireframe = new THREE.LineSegments(edges, lineMaterial);\nheroGroup.add(wireframe);\n\ncamera.position.set(4.4, 2.4, 5.2);\ncamera.lookAt(0, 0, 0);\n\nconst controls = new OrbitControls(camera, renderer.domElement);\ncontrols.enableDamping = true;\ncontrols.dampingFactor = 0.05;\n\nfunction animate() {\n  requestAnimationFrame(animate);\n  const t = clock.getElapsedTime();\n  heroGroup.rotation.y = t * 0.4;\n  heroGroup.rotation.z = Math.sin(t * 0.2) * 0.05;\n  heroGroup.position.y = Math.sin(t * 0.8) * 0.08;\n  controls.update();\n  renderer.render(scene, camera);\n}\nanimate();",
+      "previewUrl": "about:blank",
+      "skill": "threejs",
+      "explanation": "Generated through LangGraph orchestration pipeline. Generated via Moonshot Kimi (kimi-k2.5). Warning: Sandbox runtime degraded due to provisioning constraints; returning generated code without full live execution. Runtime: degraded with 0 renders and 0 frames. Runtime degraded due to sandbox provisioning constraints: Daytona acquire failed after 1033ms. direct=Failed to create and start sandbox within 1 seconds. Operation timed out. | fallback=skipped: Daytona acquire budget exhausted before fallback create. remaining=1162ms.",
+      "messageId": "message-2",
+      "source": "generate",
+      "createdAt": "2026-04-03T16:35:57.242Z",
+      "updatedAt": "2026-04-03T16:35:57.242Z",
+      "versionId": "version-1",
+      "version": 1,
+      "artifactId": "artifact-1775234157243-fb644a",
+      "artifactVersion": 1
+    }
+  ],
+  "versionPointer": 0,
+  "revisionPointer": 0,
+  "messages": [
+    {
+      "id": "e2e-fix-1775234067031",
+      "role": "user",
+      "content": "Create a simple rotating blue cube with one ambient light.",
+      "kind": "input",
+      "meta": [],
+      "error": null,
+      "createdAt": "2026-04-03T16:34:27.047Z",
+      "updatedAt": "2026-04-03T16:34:27.047Z"
+    },
+    {
+      "id": "message-2",
+      "role": "assistant",
+      "content": "Generated through LangGraph orchestration pipeline. Generated via Moonshot Kimi (kimi-k2.5). Warning: Sandbox runtime degraded due to provisioning constraints; returning generated code without full live execution. Runtime: degraded with 0 renders and 0 frames. Runtime degraded due to sandbox provisioning constraints: Daytona acquire failed after 1033ms. direct=Failed to create and start sandbox within 1 seconds. Operation timed out. | fallback=skipped: Daytona acquire budget exhausted before fallback create. remaining=1162ms.",
+      "kind": "generate",
+      "meta": [
+        "scene:scene-1775234157222",
+        "skill:threejs"
+      ],
+      "error": null,
+      "createdAt": "2026-04-03T16:34:27.049Z",
+      "updatedAt": "2026-04-03T16:35:57.250Z"
+    },
+    {
+      "id": "thought-turn_started-1775234067067",
+      "role": "thought",
+      "content": "I'm on it. First, I need to parse your intent and figure out the best approach.",
+      "kind": "thought",
+      "meta": [
+        "turn_started"
+      ],
+      "error": null,
+      "createdAt": "2026-04-03T16:34:27.068Z",
+      "updatedAt": "2026-04-03T16:34:27.068Z"
+    },
+    {
+      "id": "thought-intent_parsed-1775234067185",
+      "role": "thought",
+      "content": "I see — you want me to create a visual visualization. Let me figure out the best tool for this.",
+      "kind": "thought",
+      "meta": [
+        "intent_parsed"
+      ],
+      "error": null,
+      "createdAt": "2026-04-03T16:34:27.185Z",
+      "updatedAt": "2026-04-03T16:34:27.185Z"
+    },
+    {
+      "id": "thought-plan_created-1775234067187",
+      "role": "thought",
+      "content": "I've outlined 7 steps. Kicking off code generation...",
+      "kind": "thought",
+      "meta": [
+        "plan_created"
+      ],
+      "error": null,
+      "createdAt": "2026-04-03T16:34:27.187Z",
+      "updatedAt": "2026-04-03T16:34:27.187Z"
+    },
+    {
+      "id": "thought-code_generated-1775234157240",
+      "role": "thought",
+      "content": "I'm writing code for a BoxGeometry cube with MeshStandardMaterial colored blue, an AmbientLight with moderate intensity, and a requestAnimationFrame loop that increments rotation.x and rotation.y each frame.",
+      "kind": "thought",
+      "meta": [
+        "code_generated"
+      ],
+      "error": null,
+      "createdAt": "2026-04-03T16:35:57.240Z",
+      "updatedAt": "2026-04-03T16:35:57.240Z"
+    },
+    {
+      "id": "thought-executing-1775234157244",
+      "role": "thought",
+      "content": "Spinning up the sandbox environment to compile and render the Three.js scene.",
+      "kind": "thought",
+      "meta": [
+        "executing"
+      ],
+      "error": null,
+      "createdAt": "2026-04-03T16:35:57.244Z",
+      "updatedAt": "2026-04-03T16:35:57.244Z"
+    },
+    {
+      "id": "thought-sync_state-1775234157246",
+      "role": "thought",
+      "content": "I've created your scene with a blue cube rotating smoothly in 3D space, softly illuminated by a single ambient light so you can see all sides as it turns.",
+      "kind": "thought",
+      "meta": [
+        "sync_state"
+      ],
+      "error": null,
+      "createdAt": "2026-04-03T16:35:57.246Z",
+      "updatedAt": "2026-04-03T16:35:57.246Z"
+    },
+    {
+      "id": "thought-turn_complete-1775234157252",
+      "role": "thought",
+      "content": "I've created your scene with a blue cube rotating smoothly in 3D space, softly illuminated by a single ambient light so you can see all sides as it turns.",
+      "kind": "thought",
+      "meta": [
+        "turn_complete"
+      ],
+      "error": null,
+      "createdAt": "2026-04-03T16:35:57.252Z",
+      "updatedAt": "2026-04-03T16:35:57.252Z"
+    },
+    {
+      "id": "thought-post_narration-1775234190890",
+      "role": "thought",
+      "content": "Processing step: post narration...",
+      "kind": "thought",
+      "meta": [
+        "post_narration"
+      ],
+      "error": null,
+      "createdAt": "2026-04-03T16:36:30.890Z",
+      "updatedAt": "2026-04-03T16:36:30.890Z"
+    }
+  ],
+  "orchestrationTrace": [
+    {
+      "id": "trace-1",
+      "step": "intent_parsed",
+      "payload": {
+        "sessionId": "111ab109-3cf7-42ea-9078-340b12f1fd30",
+        "content": "Create a simple rotating blue cube with one ambient light."
+      },
+      "createdAt": "2026-04-03T16:34:27.127Z"
+    },
+    {
+      "id": "trace-2",
+      "step": "parse_intent",
+      "payload": {
+        "sessionId": "111ab109-3cf7-42ea-9078-340b12f1fd30",
+        "status": "running"
+      },
+      "createdAt": "2026-04-03T16:34:27.196Z"
+    },
+    {
+      "id": "trace-3",
+      "step": "select_skill",
+      "payload": {
+        "sessionId": "111ab109-3cf7-42ea-9078-340b12f1fd30",
+        "status": "running"
+      },
+      "createdAt": "2026-04-03T16:34:27.203Z"
+    },
+    {
+      "id": "trace-4",
+      "step": "build_prompt",
+      "payload": {
+        "sessionId": "111ab109-3cf7-42ea-9078-340b12f1fd30",
+        "status": "running"
+      },
+      "createdAt": "2026-04-03T16:34:27.210Z"
+    },
+    {
+      "id": "trace-5",
+      "step": "generate_code",
+      "payload": {
+        "sessionId": "111ab109-3cf7-42ea-9078-340b12f1fd30",
+        "status": "running"
+      },
+      "createdAt": "2026-04-03T16:34:27.215Z"
+    },
+    {
+      "id": "trace-6",
+      "step": "generate_code",
+      "payload": {
+        "sessionId": "111ab109-3cf7-42ea-9078-340b12f1fd30",
+        "status": "completed",
+        "selectedSkill": "threejs",
+        "source": "moonshot-kimi",
+        "code": "const clock = new THREE.Clock();\nscene.background = new THREE.Color(0xf4f7fb);\nrenderer.toneMapping = THREE.ACESFilmicToneMapping;\nrenderer.toneMappingExposure = 1.08;\nrenderer.shadowMap.enabled = true;\nrenderer.shadowMap.type = THREE.PCFSoftShadowMap;\n\nconst ambientLight = new THREE.AmbientLight(0xddeeff, 0.95);\nscene.add(ambientLight);\n\nconst floor = new THREE.Mesh(\n  new THREE.CircleGeometry(10, 96),\n  new THREE.MeshStandardMaterial({ color: 0xe6ecf5, roughness: 0.92, metalness: 0.02 })\n);\nfloor.rotation.x = -Math.PI / 2;\nfloor.position.y = -1.6;\nfloor.receiveShadow = true;\nscene.add(floor);\n\nconst heroGroup = new THREE.Group();\nscene.add(heroGroup);\n\nconst cubeGeometry = new THREE.BoxGeometry(1.6, 1.6, 1.6);\nconst cubeMaterial = new THREE.MeshPhysicalMaterial({\n  color: 0x2563eb,\n  metalness: 0.3,\n  roughness: 0.15,\n  clearcoat: 1.0,\n  clearcoatRoughness: 0.05,\n  reflectivity: 1.0,\n  ior: 1.5\n});\nconst cube = new THREE.Mesh(cubeGeometry, cubeMaterial);\ncube.castShadow = true;\ncube.receiveShadow = true;\nheroGroup.add(cube);\n\nconst edges = new THREE.EdgesGeometry(cubeGeometry);\nconst lineMaterial = new THREE.LineBasicMaterial({ color: 0x1e3a8a, transparent: true, opacity: 0.4 });\nconst wireframe = new THREE.LineSegments(edges, lineMaterial);\nheroGroup.add(wireframe);\n\ncamera.position.set(4.4, 2.4, 5.2);\ncamera.lookAt(0, 0, 0);\n\nconst controls = new OrbitControls(camera, renderer.domElement);\ncontrols.enableDamping = true;\ncontrols.dampingFactor = 0.05;\n\nfunction animate() {\n  requestAnimationFrame(animate);\n  const t = clock.getElapsedTime();\n  heroGroup.rotation.y = t * 0.4;\n  heroGroup.rotation.z = Math.sin(t * 0.2) * 0.05;\n  heroGroup.position.y = Math.sin(t * 0.8) * 0.08;\n  controls.update();\n  renderer.render(scene, camera);\n}\nanimate();",
+        "stageDurationMs": 86699
+      },
+      "createdAt": "2026-04-03T16:35:53.925Z"
+    },
+    {
+      "id": "trace-7",
+      "step": "validate_code",
+      "payload": {
+        "sessionId": "111ab109-3cf7-42ea-9078-340b12f1fd30",
+        "status": "running"
+      },
+      "createdAt": "2026-04-03T16:35:53.936Z"
+    },
+    {
+      "id": "trace-8",
+      "step": "validate_code",
+      "payload": {
+        "sessionId": "111ab109-3cf7-42ea-9078-340b12f1fd30",
+        "status": "completed",
+        "stageDurationMs": 23
+      },
+      "createdAt": "2026-04-03T16:35:53.959Z"
+    },
+    {
+      "id": "trace-9",
+      "step": "execute_code",
+      "payload": {
+        "sessionId": "111ab109-3cf7-42ea-9078-340b12f1fd30",
+        "status": "running"
+      },
+      "createdAt": "2026-04-03T16:35:53.971Z"
+    },
+    {
+      "id": "trace-10",
+      "step": "execute_code",
+      "payload": {
+        "sessionId": "111ab109-3cf7-42ea-9078-340b12f1fd30",
+        "status": "degraded",
+        "error": null,
+        "runtimeRecoveryUsed": false,
+        "stageDurationMs": 3232
+      },
+      "createdAt": "2026-04-03T16:35:57.204Z"
+    },
+    {
+      "id": "trace-11",
+      "step": "sync_state",
+      "payload": {
+        "sessionId": "111ab109-3cf7-42ea-9078-340b12f1fd30",
+        "status": "running"
+      },
+      "createdAt": "2026-04-03T16:35:57.220Z"
+    },
+    {
+      "id": "trace-12",
+      "step": "turn_complete",
+      "payload": {
+        "sessionId": "111ab109-3cf7-42ea-9078-340b12f1fd30",
+        "mode": "generate",
+        "messageCount": 9,
+        "error": null
+      },
+      "createdAt": "2026-04-03T16:35:57.259Z"
+    }
+  ]
+}

@@ -5,7 +5,15 @@
   "main": "server/index.js",
   "scripts": {
     "dev": "node --env-file=server/.env --watch server/index.js",
-    "start": "node --env-file=server/.env server/index.js"
+    "start": "node --env-file=server/.env server/index.js",
+    "test:sandbox:direct": "node ./scripts/sandbox-direct-test.mjs",
+    "test:sandbox:runtime": "node ./scripts/sandbox-runtime-test.mjs",
+    "test:sandbox:soak": "node ./scripts/sandbox-soak-test.mjs",
+    "test:ws:direct": "node ./scripts/ws-direct-test.mjs",
+    "test:ws:runtime": "node ./scripts/ws-runtime-test.mjs",
+    "test:ws:soak": "node ./scripts/ws-soak-test.mjs",
+    "test:routing:regression": "node ./scripts/routing-regression-test.mjs",
+    "test:threejs:deepdive": "node ./scripts/threejs-constructor-deepdive.mjs"
   },
   "dependencies": {
     "@langchain/core": "^1.1.36",

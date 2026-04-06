@@ -1,0 +1,106 @@
+/* Message Actions Styles */
+
+.message-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.35rem 0;
+  opacity: 0;
+  transition: opacity 200ms ease;
+}
+
+/* Show actions on bubble hover */
+.bubble-card:hover .message-actions,
+.bubble-card--assistant-message:hover .message-actions {
+  opacity: 1;
+}
+
+/* Always show on touch devices */
+@media (hover: none) {
+  .message-actions {
+    opacity: 1;
+  }
+}
+
+.message-action-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.25rem 0.5rem;
+  border: 1px solid rgba(148, 163, 184, 0.3);
+  border-radius: 0.4rem;
+  background: rgba(255, 255, 255, 0.9);
+  color: rgba(71, 85, 105, 0.8);
+  font-size: 0.65rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 150ms ease;
+  white-space: nowrap;
+}
+
+.message-action-btn:hover {
+  background: rgba(255, 255, 255, 1);
+  border-color: rgba(148, 163, 184, 0.5);
+  color: rgba(43, 54, 74, 0.9);
+  transform: translateY(-1px);
+}
+
+.message-action-btn--success {
+  background: rgba(34, 197, 94, 0.1);
+  border-color: rgba(34, 197, 94, 0.3);
+  color: rgba(22, 101, 52, 0.9);
+}
+
+.message-action-btn--success:hover {
+  background: rgba(34, 197, 94, 0.15);
+  border-color: rgba(34, 197, 94, 0.4);
+}
+
+.message-action-btn--icon {
+  padding: 0.25rem;
+  aspect-ratio: 1;
+}
+
+.message-action-btn--active {
+  background: rgba(89, 146, 255, 0.15);
+  border-color: rgba(89, 146, 255, 0.4);
+  color: rgba(37, 99, 235, 0.9);
+}
+
+.message-actions__feedback {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.15rem;
+  margin-left: 0.2rem;
+  padding-left: 0.3rem;
+  border-left: 1px solid rgba(148, 163, 184, 0.2);
+}
+
+/* Position actions at bottom of assistant messages */
+.assistant-message__body {
+  position: relative;
+}
+
+.message-actions--assistant {
+  margin-top: 0.5rem;
+  padding-left: 0;
+}
+
+.message-actions--user {
+  justify-content: flex-end;
+}
+
+/* Dark mode adjustments */
+@media (prefers-color-scheme: dark) {
+  .message-action-btn {
+    background: rgba(30, 41, 59, 0.8);
+    border-color: rgba(71, 85, 105, 0.4);
+    color: rgba(203, 213, 225, 0.8);
+  }
+
+  .message-action-btn:hover {
+    background: rgba(51, 65, 85, 0.9);
+    border-color: rgba(100, 116, 139, 0.5);
+    color: rgba(226, 232, 240, 0.9);
+  }
+}

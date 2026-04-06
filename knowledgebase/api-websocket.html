@@ -1,0 +1,804 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>WebSocket API - GVE Knowledgebase</title>
+  <link rel="stylesheet" href="assets/styles.css">
+</head>
+<body>
+  <div class="layout">
+    <aside class="sidebar">
+      <div class="logo">
+        <h1>📐 GVE Knowledgebase</h1>
+        <span class="version">v1.0.0</span>
+      </div>
+      
+      <nav class="nav">
+        <div class="nav-section">
+          <h3>Overview</h3>
+          <ul>
+            <li><a href="index.html">Introduction</a></li>
+            <li><a href="architecture.html">Architecture</a></li>
+            <li><a href="quickstart.html">Quick Start</a></li>
+          </ul>
+        </div>
+        
+        <div class="nav-section">
+          <h3>API Reference</h3>
+          <ul>
+            <li><a href="api-rest.html">REST API</a></li>
+            <li><a href="api-websocket.html" class="active">WebSocket Events</a></li>
+            <li><a href="api-types.html">Type Definitions</a></li>
+          </ul>
+        </div>
+        
+        <div class="nav-section">
+          <h3>Events</h3>
+          <ul>
+            <li><a href="#connection">Connection</a></li>
+            <li><a href="#messaging">Messaging</a></li>
+            <li><a href="#orchestration">Orchestration</a></li>
+            <li><a href="#streaming">Streaming</a></li>
+            <li><a href="#scene">Scene Control</a></li>
+            <li><a href="#lifecycle">Turn Lifecycle</a></li>
+          </ul>
+        </div>
+        
+        <div class="nav-section">
+          <h3>Components</h3>
+          <ul>
+            <li><a href="components-web.html">Web Components</a></li>
+            <li><a href="components-server.html">Server Modules</a></li>
+            <li><a href="components-ui.html">UI Primitives</a></li>
+          </ul>
+        </div>
+        
+        <div class="nav-section">
+          <h3>Data & Skills</h3>
+          <ul>
+            <li><a href="data-models.html">Data Models</a></li>
+            <li><a href="skills.html">Skill System</a></li>
+            <li><a href="skills.html#registry">Skill Registry</a></li>
+          </ul>
+        </div>
+        
+        <div class="nav-section">
+          <h3>Operations</h3>
+          <ul>
+            <li><a href="configuration.html">Configuration</a></li>
+            <li><a href="deployment.html">Deployment</a></li>
+            <li><a href="troubleshooting.html">Troubleshooting</a></li>
+          </ul>
+        </div>
+      </nav>
+    </aside>
+    
+    <main class="content">
+      <header class="page-header">
+        <h1>WebSocket API</h1>
+        <p class="subtitle">Real-time bidirectional communication protocol</p>
+      </header>
+      
+      <section class="section">
+        <h2>Overview</h2>
+        <p class="lead">
+          The WebSocket API is the primary interface for the Generative Visual Engine. 
+          It provides real-time bidirectional communication with streaming support for 
+          code generation, thought processes, and live progress updates.
+        </p>
+        
+        <h3>Connection Details</h3>
+        <table>
+          <tr>
+            <th>Property</th>
+            <th>Value</th>
+          </tr>
+          <tr>
+            <td>Endpoint</td>
+            <td><code>ws://localhost:8000/ws</code></td>
+          </tr>
+          <tr>
+            <td>Protocol</td>
+            <td>WebSocket (ws/wss)</td>
+          </tr>
+          <tr>
+            <td>Frame Format</td>
+            <td>JSON</td>
+          </tr>
+          <tr>
+            <td>Heartbeat</td>
+            <td>Server pings every 30s</td>
+          </tr>
+          <tr>
+            <td>Reconnection</td>
+            <td>Client should auto-reconnect with backoff</td>
+          </tr>
+        </table>
+        
+        <h3>Message Format</h3>
+        <pre class="code-block">
+// Standard message envelope
+{
+  "type": "event_name",
+  "seq": 42,              // Event sequence number for replay
+  "timestamp": "2024-03-26T10:30:00.000Z",
+  "payload": { ... }      // Event-specific data
+}
+        </pre>
+        
+        <h3>Idempotency</h3>
+        <p>
+          All client messages should include an <code>idempotencyKey</code> to prevent 
+          duplicate processing. The server deduplicates messages based on this key 
+          within a 5-minute window.
+        </p>
+      </section>
+      
+      <section id="connection" class="section">
+        <h2>Connection Events</h2>
+        
+        <div class="endpoint">
+          <span class="method method-ws">WS</span>
+          <span class="path">connection:ready</span>
+          <span class="description">Server → Client: Connection established</span>
+        </div>
+        <pre class="code-block">
+// Server sends immediately after handshake
+{
+  "type": "connection:ready",
+  "seq": 0,
+  "timestamp": "2024-03-26T10:30:00.000Z",
+  "payload": {
+    "connectionId": "conn-abc123",
+    "serverVersion": "1.0.0",
+    "supportedProtocols": ["v1"]
+  }
+}
+        </pre>
+        
+        <div class="endpoint">
+          <span class="method method-ws">WS</span>
+          <span class="path">session:resume</span>
+          <span class="description">Client → Server: Resume session with replay</span>
+        </div>
+        <pre class="code-block">
+// Client sends to resume a session
+{
+  "type": "session:resume",
+  "idempotencyKey": "resume-001",
+  "payload": {
+    "sessionId": "550e8400-e29b-41d4-a716-446655440000",
+    "lastSeq": 45,          // Last received sequence number
+    "bufferSize": 2000      // Max events to replay
+  }
+}
+
+// Server responds with session:resumed and replays events 46+
+{
+  "type": "session:resumed",
+  "seq": 1,
+  "timestamp": "2024-03-26T10:30:00.100Z",
+  "payload": {
+    "sessionId": "550e8400-e29b-41d4-a716-446655440000",
+    "resumedAtSeq": 45,
+    "replaying": 3,         // Number of events being replayed
+    "sessionState": { ... }  // Current session snapshot
+  }
+}
+        </pre>
+      </section>
+      
+      <section id="messaging" class="section">
+        <h2>Messaging Events</h2>
+        
+        <div class="endpoint">
+          <span class="method method-ws">WS</span>
+          <span class="path">message:send</span>
+          <span class="description">Client → Server: Send a chat message</span>
+        </div>
+        <pre class="code-block">
+// Client sends user message
+{
+  "type": "message:send",
+  "idempotencyKey": "msg-001-uuid",
+  "payload": {
+    "sessionId": "550e8400-e29b-41d4-a716-446655440000",
+    "content": "Create a rotating cube",
+    "role": "user",
+    "preferences": {
+      "skill": "threejs",
+      "quality": "standard"
+    }
+  }
+}
+
+// Server acknowledges
+{
+  "type": "message:ack",
+  "seq": 10,
+  "timestamp": "2024-03-26T10:30:01.000Z",
+  "payload": {
+    "messageId": "msg-001",
+    "idempotencyKey": "msg-001-uuid",
+    "status": "received"
+  }
+}
+
+// Server accepts for processing
+{
+  "type": "message:accepted",
+  "seq": 11,
+  "timestamp": "2024-03-26T10:30:01.500Z",
+  "payload": {
+    "messageId": "msg-001",
+    "turnId": "turn-abc123",
+    "estimatedSteps": 7
+  }
+}
+        </pre>
+        
+        <div class="endpoint">
+          <span class="method method-ws">WS</span>
+          <span class="path">message.append</span>
+          <span class="description">Server → Client: New message to display</span>
+        </div>
+        <pre class="code-block">
+// Server appends assistant message
+{
+  "type": "message.append",
+  "seq": 20,
+  "timestamp": "2024-03-26T10:30:05.000Z",
+  "payload": {
+    "sessionId": "550e8400-e29b-41d4-a716-446655440000",
+    "message": {
+      "id": "msg-002",
+      "role": "assistant",
+      "content": "I'll create a rotating 3D cube for you...",
+      "kind": "generation",
+      "sceneId": "scene-abc123",
+      "createdAt": "2024-03-26T10:30:05.000Z"
+    }
+  }
+}
+        </pre>
+        
+        <div class="endpoint">
+          <span class="method method-ws">WS</span>
+          <span class="path">message:update</span>
+          <span class="description">Server → Client: Update existing message (streaming)</span>
+        </div>
+        <pre class="code-block">
+// Server updates message content (for streaming)
+{
+  "type": "message:update",
+  "seq": 21,
+  "timestamp": "2024-03-26T10:30:05.500Z",
+  "payload": {
+    "sessionId": "550e8400-e29b-41d4-a716-446655440000",
+    "messageId": "msg-002",
+    "content": "I'll create a rotating 3D cube for you. This will use Three.js...",
+    "append": true  // Append to existing content
+  }
+}
+        </pre>
+        
+        <div class="endpoint">
+          <span class="method method-ws">WS</span>
+          <span class="path">message:error</span>
+          <span class="description">Server → Client: Message processing error</span>
+        </div>
+        <pre class="code-block">
+// Server reports error
+{
+  "type": "message:error",
+  "seq": 22,
+  "timestamp": "2024-03-26T10:30:06.000Z",
+  "payload": {
+    "messageId": "msg-001",
+    "error": {
+      "code": "GENERATION_FAILED",
+      "message": "Failed to generate scene",
+      "recoverable": true,
+      "suggestions": ["Try again", "Simplify your request"]
+    }
+  }
+}
+        </pre>
+      </section>
+      
+      <section id="orchestration" class="section">
+        <h2>Orchestration Events</h2>
+        <p>
+          Real-time updates from the LangGraph orchestration pipeline, 
+          providing visibility into the generation process.
+        </p>
+        
+        <div class="endpoint">
+          <span class="method method-ws">WS</span>
+          <span class="path">orchestration:plan</span>
+          <span class="description">Server → Client: Task plan created</span>
+        </div>
+        <pre class="code-block">
+// Server sends task plan
+{
+  "type": "orchestration:plan",
+  "seq": 30,
+  "timestamp": "2024-03-26T10:30:02.000Z",
+  "payload": {
+    "turnId": "turn-abc123",
+    "plan": {
+      "tasks": [
+        {
+          "id": "task-001",
+          "action": "parse_intent",
+          "status": "pending",
+          "dependencies": []
+        },
+        {
+          "id": "task-002",
+          "action": "select_skill",
+          "status": "pending",
+          "dependencies": ["task-001"]
+        },
+        {
+          "id": "task-003",
+          "action": "build_prompt",
+          "status": "pending",
+          "dependencies": ["task-002"]
+        },
+        {
+          "id": "task-004",
+          "action": "generate_code",
+          "status": "pending",
+          "dependencies": ["task-003"]
+        },
+        {
+          "id": "task-005",
+          "action": "validate_code",
+          "status": "pending",
+          "dependencies": ["task-004"]
+        },
+        {
+          "id": "task-006",
+          "action": "execute_code",
+          "status": "pending",
+          "dependencies": ["task-005"]
+        },
+        {
+          "id": "task-007",
+          "action": "sync_state",
+          "status": "pending",
+          "dependencies": ["task-006"]
+        }
+      ]
+    }
+  }
+}
+        </pre>
+        
+        <div class="endpoint">
+          <span class="method method-ws">WS</span>
+          <span class="path">orchestration:step</span>
+          <span class="description">Server → Client: Pipeline step update</span>
+        </div>
+        <pre class="code-block">
+// Server updates step status
+{
+  "type": "orchestration:step",
+  "seq": 31,
+  "timestamp": "2024-03-26T10:30:02.500Z",
+  "payload": {
+    "turnId": "turn-abc123",
+    "step": {
+      "action": "parse_intent",
+      "status": "running",  // pending | running | completed | failed
+      "progress": 0.5,
+      "startedAt": "2024-03-26T10:30:02.500Z"
+    }
+  }
+}
+
+// Step completed
+{
+  "type": "orchestration:step",
+  "seq": 32,
+  "timestamp": "2024-03-26T10:30:03.000Z",
+  "payload": {
+    "turnId": "turn-abc123",
+    "step": {
+      "action": "parse_intent",
+      "status": "completed",
+      "progress": 1.0,
+      "startedAt": "2024-03-26T10:30:02.500Z",
+      "completedAt": "2024-03-26T10:30:03.000Z",
+      "result": {
+        "intentType": "create",
+        "targetDomain": "3d",
+        "confidence": 0.95
+      }
+    }
+  }
+}
+        </pre>
+        
+        <div class="endpoint">
+          <span class="method method-ws">WS</span>
+          <span class="path">agent:activity</span>
+          <span class="description">Server → Client: Agent activity notification</span>
+        </div>
+        <pre class="code-block">
+// Agent activity update
+{
+  "type": "agent:activity",
+  "seq": 33,
+  "timestamp": "2024-03-26T10:30:04.000Z",
+  "payload": {
+    "turnId": "turn-abc123",
+    "activity": {
+      "step": "generate_code",
+      "status": "running",
+      "tone": "thinking",  // thinking | working | confirming | celebrating
+      "message": "Generating Three.js code for a rotating cube..."
+    }
+  }
+}
+        </pre>
+      </section>
+      
+      <section id="streaming" class="section">
+        <h2>Streaming Events</h2>
+        <p>
+          Real-time streaming of code generation and agent thought processes 
+          for a responsive user experience.
+        </p>
+        
+        <div class="endpoint">
+          <span class="method method-ws">WS</span>
+          <span class="path">code:stream</span>
+          <span class="description">Server → Client: Streaming code generation</span>
+        </div>
+        <pre class="code-block">
+// Server streams code chunks
+{
+  "type": "code:stream",
+  "seq": 40,
+  "timestamp": "2024-03-26T10:30:04.500Z",
+  "payload": {
+    "turnId": "turn-abc123",
+    "chunk": "const geometry = new THREE.BoxGeometry(1, 1, 1);",
+    "index": 0,
+    "totalChunks": 5,
+    "skill": "threejs"
+  }
+}
+
+// Final chunk
+{
+  "type": "code:stream",
+  "seq": 44,
+  "timestamp": "2024-03-26T10:30:05.000Z",
+  "payload": {
+    "turnId": "turn-abc123",
+    "chunk": "animate();",
+    "index": 4,
+    "totalChunks": 5,
+    "skill": "threejs",
+    "complete": true,
+    "fullCode": "const geometry = new THREE.BoxGeometry(1, 1, 1);..."
+  }
+}
+        </pre>
+        
+        <div class="endpoint">
+          <span class="method method-ws">WS</span>
+          <span class="path">thought:stream</span>
+          <span class="description">Server → Client: Streaming agent thoughts</span>
+        </div>
+        <pre class="code-block">
+// Server streams agent reasoning
+{
+  "type": "thought:stream",
+  "seq": 35,
+  "timestamp": "2024-03-26T10:30:03.500Z",
+  "payload": {
+    "turnId": "turn-abc123",
+    "thought": "The user wants a rotating cube. This is a 3D scene,",
+    "step": "parse_intent",
+    "index": 0,
+    "streaming": true
+  }
+}
+
+{
+  "type": "thought:stream",
+  "seq": 36,
+  "timestamp": "2024-03-26T10:30:03.600Z",
+  "payload": {
+    "turnId": "turn-abc123",
+    "thought": " so Three.js is the best skill for this.",
+    "step": "parse_intent",
+    "index": 1,
+    "streaming": false  // Stream complete
+  }
+}
+        </pre>
+      </section>
+      
+      <section id="scene" class="section">
+        <h2>Scene Control Events</h2>
+        
+        <div class="endpoint">
+          <span class="method method-ws">WS</span>
+          <span class="path">scene:command</span>
+          <span class="description">Client → Server: Execute scene command</span>
+        </div>
+        <pre class="code-block">
+// Client sends scene command
+{
+  "type": "scene:command",
+  "idempotencyKey": "cmd-001",
+  "payload": {
+    "sessionId": "550e8400-e29b-41d4-a716-446655440000",
+    "command": "undo"  // undo | redo | previous | next | artifact_previous | artifact_next
+  }
+}
+
+// Command accepted
+{
+  "type": "scene:command:ack",
+  "seq": 50,
+  "timestamp": "2024-03-26T10:35:00.000Z",
+  "payload": {
+    "commandId": "cmd-001",
+    "status": "accepted"
+  }
+}
+        </pre>
+        
+        <div class="endpoint">
+          <span class="method method-ws">WS</span>
+          <span class="path">scene:update</span>
+          <span class="description">Server → Client: Scene state update</span>
+        </div>
+        <pre class="code-block">
+// Server broadcasts scene update
+{
+  "type": "scene:update",
+  "seq": 51,
+  "timestamp": "2024-03-26T10:35:01.000Z",
+  "payload": {
+    "sessionId": "550e8400-e29b-41d4-a716-446655440000",
+    "scene": {
+      "id": "scene-abc123",
+      "code": "const geometry = new THREE.BoxGeometry(1, 1, 1);...",
+      "previewUrl": "/preview/sandbox-001/scene.html",
+      "skill": "threejs",
+      "version": {
+        "id": "ver-001",
+        "artifactIndex": 0,
+        "revisionIndex": 0
+      }
+    },
+    "canUndo": false,
+    "canRedo": false,
+    "canNavigatePrevious": false,
+    "canNavigateNext": false
+  }
+}
+        </pre>
+        
+        <div class="endpoint">
+          <span class="method method-ws">WS</span>
+          <span class="path">code:started / code:update</span>
+          <span class="description">Server → Client: Code modification lifecycle</span>
+        </div>
+        <pre class="code-block">
+// Code modification started
+{
+  "type": "code:started",
+  "seq": 60,
+  "timestamp": "2024-03-26T10:40:00.000Z",
+  "payload": {
+    "sessionId": "550e8400-e29b-41d4-a716-446655440000",
+    "sceneId": "scene-abc123",
+    "operation": "modify",
+    "edit": "Make the cube red"
+  }
+}
+
+// Code update (new version)
+{
+  "type": "code:update",
+  "seq": 61,
+  "timestamp": "2024-03-26T10:40:05.000Z",
+  "payload": {
+    "sessionId": "550e8400-e29b-41d4-a716-446655440000",
+    "sceneId": "scene-abc124",
+    "code": "// Modified code...",
+    "diff": {
+      "added": [],
+      "modified": ["material.color"],
+      "removed": []
+    },
+    "version": {
+      "id": "ver-002",
+      "artifactIndex": 0,
+      "revisionIndex": 1
+    }
+  }
+}
+        </pre>
+        
+        <div class="endpoint">
+          <span class="method method-ws">WS</span>
+          <span class="path">version:undo / version:redo / version:navigate</span>
+          <span class="description">Server → Client: Version navigation events</span>
+        </div>
+        <pre class="code-block">
+// Version undo
+{
+  "type": "version:undo",
+  "seq": 70,
+  "timestamp": "2024-03-26T10:45:00.000Z",
+  "payload": {
+    "sessionId": "550e8400-e29b-41d4-a716-446655440000",
+    "fromVersion": "ver-002",
+    "toVersion": "ver-001",
+    "artifactIndex": 0,
+    "revisionIndex": 0
+  }
+}
+
+// Artifact navigation
+{
+  "type": "version:navigate",
+  "seq": 71,
+  "timestamp": "2024-03-26T10:45:01.000Z",
+  "payload": {
+    "sessionId": "550e8400-e29b-41d4-a716-446655440000",
+    "direction": "next",
+    "currentArtifact": {
+      "id": "art-002",
+      "index": 1,
+      "revisionIndex": 0
+    }
+  }
+}
+        </pre>
+      </section>
+      
+      <section id="lifecycle" class="section">
+        <h2>Turn Lifecycle Events</h2>
+        
+        <div class="endpoint">
+          <span class="method method-ws">WS</span>
+          <span class="path">turn:started</span>
+          <span class="description">Server → Client: Turn processing started</span>
+        </div>
+        <pre class="code-block">
+{
+  "type": "turn:started",
+  "seq": 80,
+  "timestamp": "2024-03-26T10:30:01.000Z",
+  "payload": {
+    "turnId": "turn-abc123",
+    "sessionId": "550e8400-e29b-41d4-a716-446655440000",
+    "messageId": "msg-001",
+    "intent": {
+      "type": "create",
+      "domain": "3d",
+      "confidence": 0.95
+    },
+    "estimatedDuration": 5000
+  }
+}
+        </pre>
+        
+        <div class="endpoint">
+          <span class="method method-ws">WS</span>
+          <span class="path">turn:complete</span>
+          <span class="description">Server → Client: Turn processing complete</span>
+        </div>
+        <pre class="code-block">
+{
+  "type": "turn:complete",
+  "seq": 90,
+  "timestamp": "2024-03-26T10:30:06.000Z",
+  "payload": {
+    "turnId": "turn-abc123",
+    "sessionId": "550e8400-e29b-41d4-a716-446655440000",
+    "status": "success",  // success | failed | degraded
+    "result": {
+      "sceneId": "scene-abc123",
+      "skill": "threejs",
+      "code": "...",
+      "previewUrl": "/preview/sandbox-001/scene.html"
+    },
+    "metrics": {
+      "duration": 5000,
+      "steps": 7,
+      "llmCalls": 2,
+      "sandboxTime": 1200
+    }
+  }
+}
+        </pre>
+        
+        <div class="endpoint">
+          <span class="method method-ws">WS</span>
+          <span class="path">turn:abort</span>
+          <span class="description">Client → Server: Abort in-progress turn</span>
+        </div>
+        <pre class="code-block">
+// Client requests abort
+{
+  "type": "turn:abort",
+  "idempotencyKey": "abort-001",
+  "payload": {
+    "sessionId": "550e8400-e29b-41d4-a716-446655440000",
+    "turnId": "turn-abc123",
+    "reason": "user_request"
+  }
+}
+
+// Server confirms abort
+{
+  "type": "turn:aborted",
+  "seq": 85,
+  "timestamp": "2024-03-26T10:30:04.000Z",
+  "payload": {
+    "turnId": "turn-abc123",
+    "sessionId": "550e8400-e29b-41d4-a716-446655440000",
+    "abortedAt": "2024-03-26T10:30:04.000Z",
+    "completedSteps": ["parse_intent", "select_skill"],
+    "incompleteSteps": ["build_prompt", "generate_code", "validate_code", "execute_code", "sync_state"]
+  }
+}
+        </pre>
+      </section>
+      
+      <section class="section">
+        <h2>Event Sequence Example</h2>
+        <p>Complete message flow for a "create rotating cube" request:</p>
+        <pre class="code-block">
+Client                                          Server
+  │                                               │
+  │ ─────── session:resume ─────────────────────> │
+  │ <────── connection:ready ─────────────────── │
+  │ <────── session:resumed ─────────────────── │
+  │                                               │
+  │ ─────── message:send (create cube) ─────────> │
+  │ <────── message:ack ───────────────────────── │
+  │ <────── message:accepted ────────────────── │
+  │ <────── turn:started ──────────────────────── │
+  │                                               │
+  │ <────── orchestration:plan ────────────────── │
+  │ <────── orchestration:step (parse_intent) ─ │
+  │ <────── thought:stream (intents) ──────────── │
+  │ <────── orchestration:step (select_skill) ─── │
+  │ <────── thought:stream (skill choice) ────── │
+  │ <────── orchestration:step (build_prompt) ─── │
+  │ <────── orchestration:step (generate_code) ─ │
+  │ <────── agent:activity ────────────────────── │
+  │ <────── code:stream (chunk 1) ─────────────── │
+  │ <────── code:stream (chunk 2) ─────────────── │
+  │ <────── code:stream (chunk N, complete) ─── │
+  │ <────── orchestration:step (validate_code) ── │
+  │ <────── orchestration:step (execute_code) ── │
+  │ <────── orchestration:step (sync_state) ───── │
+  │ <────── scene:update ──────────────────────── │
+  │ <────── message.append (assistant msg) ────── │
+  │ <────── turn:complete ─────────────────────── │
+        </pre>
+      </section>
+      
+      <footer class="footer">
+        <p>Generative Visual Engine Knowledgebase • Generated from source analysis</p>
+      </footer>
+    </main>
+  </div>
+  
+  <script src="assets/navigation.js"></script>
+</body>
+</html>

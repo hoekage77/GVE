@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Quick Start - GVE Knowledgebase</title>
+  <link rel="stylesheet" href="assets/styles.css">
+</head>
+<body>
+  <div class="layout">
+    <aside class="sidebar">
+      <div class="logo">
+        <h1>📐 GVE Knowledgebase</h1>
+        <span class="version">v1.0.0</span>
+      </div>
+      
+      <nav class="nav">
+        <div class="nav-section">
+          <h3>Overview</h3>
+          <ul>
+            <li><a href="index.html">Introduction</a></li>
+            <li><a href="architecture.html">Architecture</a></li>
+            <li><a href="quickstart.html" class="active">Quick Start</a></li>
+          </ul>
+        </div>
+        
+        <div class="nav-section">
+          <h3>API Reference</h3>
+          <ul>
+            <li><a href="api-rest.html">REST API</a></li>
+            <li><a href="api-websocket.html">WebSocket Events</a></li>
+            <li><a href="api-types.html">Type Definitions</a></li>
+          </ul>
+        </div>
+        
+        <div class="nav-section">
+          <h3>Components</h3>
+          <ul>
+            <li><a href="components-web.html">Web Components</a></li>
+            <li><a href="components-server.html">Server Modules</a></li>
+            <li><a href="components-ui.html">UI Primitives</a></li>
+          </ul>
+        </div>
+        
+        <div class="nav-section">
+          <h3>Data & Skills</h3>
+          <ul>
+            <li><a href="data-models.html">Data Models</a></li>
+            <li><a href="skills.html">Skill System</a></li>
+            <li><a href="skills.html#registry">Skill Registry</a></li>
+          </ul>
+        </div>
+        
+        <div class="nav-section">
+          <h3>Operations</h3>
+          <ul>
+            <li><a href="configuration.html">Configuration</a></li>
+            <li><a href="deployment.html">Deployment</a></li>
+            <li><a href="troubleshooting.html">Troubleshooting</a></li>
+          </ul>
+        </div>
+      </nav>
+    </aside>
+    
+    <main class="content">
+      <header class="page-header">
+        <h1>Quick Start Guide</h1>
+        <p class="subtitle">Get up and running in 5 minutes</p>
+      </header>
+      
+      <section class="section">
+        <h2>Prerequisites</h2>
+        <ul>
+          <li>Node.js 20+ and npm 10+</li>
+          <li>Daytona account with API key</li>
+          <li>At least one LLM provider API key (Moonshot, DeepSeek, Groq, Gemini, or Together)</li>
+          <li>Git (for cloning)</li>
+        </ul>
+      </section>
+      
+      <section class="section">
+        <h2>1. Clone and Install</h2>
+        <pre class="code-block">
+# Clone the repository
+git clone <repository-url>
+cd dosco-visual-engine
+
+# Install dependencies
+npm install
+        </pre>
+      </section>
+      
+      <section class="section">
+        <h2>2. Configure Environment</h2>
+        <pre class="code-block">
+# Create environment file
+cp apps/server/server/.env.example apps/server/server/.env
+
+# Edit the .env file with your API keys:
+# - DAYTONA_API_KEY (required)
+# - MOONSHOT_API_KEY or other LLM provider keys (at least one required)
+
+# Example .env:
+DAYTONA_API_KEY=your_daytona_key_here
+MOONSHOT_API_KEY=your_moonshot_key_here
+GROQ_API_KEY=your_groq_key_here
+        </pre>
+      </section>
+      
+      <section class="section">
+        <h2>3. Start Development Servers</h2>
+        <p>Run these commands in separate terminal windows:</p>
+        <pre class="code-block">
+# Terminal 1 - Start backend server
+npm run dev:server
+
+# Expected output:
+# [Server] Daytona preflight check passed
+# [Server] WebSocket server running on port 8000
+# [Server] Server ready on port 8000
+
+# Terminal 2 - Start frontend dev server
+npm run dev:web
+
+# Expected output:
+# [Vite] Server running on http://localhost:5173
+        </pre>
+        <p>Open <a href="http://localhost:5173">http://localhost:5173</a> in your browser.</p>
+      </section>
+      
+      <section class="section">
+        <h2>4. Generate Your First Visual</h2>
+        <ol>
+          <li>Open the web interface at <code>http://localhost:5173</code></li>
+          <li>Type a prompt in the chat box, e.g.: <em>"Create a rotating blue cube"</em></li>
+          <li>Press Enter or click Send</li>
+          <li>Watch the real-time progress:</li>
+        </ol>
+        <ul>
+          <li>Intent parsing</li>
+          <li>Skill selection (Three.js)</li>
+          <li>Code generation (streaming)</li>
+          <li>Validation</li>
+          <li>Execution in sandbox</li>
+          <li>Scene preview appears!</li>
+        </ul>
+      </section>
+      
+      <section class="section">
+        <h2>5. Try Different Skills</h2>
+        <table>
+          <tr>
+            <th>Skill</th>
+            <th>Example Prompt</th>
+          </tr>
+          <tr>
+            <td>Three.js</td>
+            <td>"Create a solar system with orbiting planets"</td>
+          </tr>
+          <tr>
+            <td>p5.js</td>
+            <td>"Draw a colorful particle explosion"</td>
+          </tr>
+          <tr>
+            <td>D3.js</td>
+            <td>"Create a bar chart with 5 random values"</td>
+          </tr>
+          <tr>
+            <td>Anime.js</td>
+            <td>"Animate a bouncing ball with squash and stretch"</td>
+          </tr>
+        </table>
+        <p>
+          The system automatically selects the best skill, or you can specify: 
+          <em>"Create a 3D scene of a forest using Three.js"</em>
+        </p>
+      </section>
+      
+      <section class="section">
+        <h2>6. Explore Features</h2>
+        
+        <h3>Edit Generated Code</h3>
+        <ol>
+          <li>Click the "Code" tab to view generated JavaScript</li>
+          <li>Click "Edit" to modify the code</li>
+          <li>Click "Run" to execute your changes</li>
+        </ol>
+        
+        <h3>Version Control</h3>
+        <ol>
+          <li>Ask for modifications: <em>"Make the cube red"</em></li>
+          <li>Click the undo button to revert</li>
+          <li>Click redo to re-apply</li>
+          <li>Navigate between different versions</li>
+        </ol>
+        
+        <h3>View Task Progress</h3>
+        <ol>
+          <li>Click the "Tasks" tab to see the orchestration pipeline</li>
+          <li>Watch real-time progress of each step</li>
+          <li>View agent thoughts and reasoning</li>
+        </ol>
+      </section>
+      
+      <section class="section">
+        <h2>7. Run Tests</h2>
+        <pre class="code-block">
+# Test sandbox pool
+npm run test:sandbox:direct
+npm run test:sandbox:runtime
+
+# Test WebSocket
+npm run test:ws:direct
+npm run test:ws:runtime
+
+# Run routing regression tests
+npm run test:routing:regression
+
+# Deep dive test (8 complex prompts)
+npm run test:threejs:deepdive
+        </pre>
+      </section>
+      
+      <section class="section">
+        <h2>8. Build for Production</h2>
+        <pre class="code-block">
+# Build all packages
+npm run build
+
+# Output:
+# - apps/web/dist/        # Static frontend files
+# - Ready for deployment
+
+# Preview production build locally
+npm run start:web
+        </pre>
+      </section>
+      
+      <section class="section">
+        <h2>Next Steps</h2>
+        <div class="nav-cards">
+          <a href="architecture.html" class="nav-card">
+            <h3>🏗️ Architecture</h3>
+            <p>Understand the system design and data flows</p>
+          </a>
+          <a href="api-websocket.html" class="nav-card">
+            <h3>📡 WebSocket API</h3>
+            <p>Integrate with the real-time API</p>
+          </a>
+          <a href="configuration.html" class="nav-card">
+            <h3>⚙️ Configuration</h3>
+            <p>Learn about environment variables and deployment</p>
+          </a>
+          <a href="troubleshooting.html" class="nav-card">
+            <h3>🔧 Troubleshooting</h3>
+            <p>Common issues and solutions</p>
+          </a>
+        </div>
+      </section>
+      
+      <section class="section">
+        <h2>API Quick Reference</h2>
+        
+        <h3>Create Session</h3>
+        <pre class="code-block">
+curl -X POST http://localhost:8000/api/v1/sessions
+
+Response:
+{
+  "sessionId": "550e8400-e29b-41d4-a716-446655440000",
+  "websocketUrl": "ws://localhost:8000/ws"
+}
+        </pre>
+        
+        <h3>Send Message (REST)</h3>
+        <pre class="code-block">
+curl -X POST http://localhost:8000/api/v1/sessions/{id}/messages \
+  -H "Content-Type: application/json" \
+  -d '{
+    "content": "Create a rotating cube",
+    "role": "user"
+  }'
+        </pre>
+        
+        <h3>WebSocket Connection</h3>
+        <pre class="code-block">
+const ws = new WebSocket('ws://localhost:8000/ws');
+
+ws.onopen = () => {
+  // Resume session
+  ws.send(JSON.stringify({
+    type: 'session:resume',
+    payload: {
+      sessionId: '550e8400-e29b-41d4-a716-446655440000',
+      lastSeq: 0
+    }
+  }));
+};
+
+ws.onmessage = (event) => {
+  const data = JSON.parse(event.data);
+  console.log(data.type, data.payload);
+};
+        </pre>
+      </section>
+      
+      <footer class="footer">
+        <p>Generative Visual Engine Knowledgebase • Generated from source analysis</p>
+      </footer>
+    </main>
+  </div>
+  
+  <script src="assets/navigation.js"></script>
+</body>
+</html>

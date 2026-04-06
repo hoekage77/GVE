@@ -1,0 +1,503 @@
+{
+  "sessionId": "80f268ab-5424-4ef2-945f-e8384011674e",
+  "createdAt": "2026-04-05T02:03:03.670Z",
+  "updatedAt": "2026-04-05T02:03:56.627Z",
+  "status": "idle",
+  "currentScene": null,
+  "artifacts": [],
+  "artifactPointer": -1,
+  "versions": [],
+  "sceneVersions": [],
+  "versionPointer": -1,
+  "revisionPointer": -1,
+  "messages": [
+    {
+      "id": "ws-soak-1775354583678-0",
+      "role": "user",
+      "content": "Hello from websocket soak turn 1.",
+      "kind": "input",
+      "meta": [],
+      "error": null,
+      "createdAt": "2026-04-05T02:03:03.691Z",
+      "updatedAt": "2026-04-05T02:03:03.691Z"
+    },
+    {
+      "id": "message-2",
+      "role": "assistant",
+      "content": "Hi. I can generate a new visual, modify the current one, or explain no scene yet. Try asking me to make something, change a detail, or explain what you already have for “Hello from websocket soak turn 1.”. If you do not have a scene yet, I can start one from scratch.",
+      "kind": "chat",
+      "meta": [],
+      "error": null,
+      "createdAt": "2026-04-05T02:03:03.691Z",
+      "updatedAt": "2026-04-05T02:03:12.040Z"
+    },
+    {
+      "id": "thought-turn_started-1775354583693",
+      "role": "thought",
+      "content": "Alright, I'm reading through your request now. Let me break this down.",
+      "kind": "thought",
+      "meta": [
+        "turn_started"
+      ],
+      "error": null,
+      "createdAt": "2026-04-05T02:03:03.693Z",
+      "updatedAt": "2026-04-05T02:03:03.693Z"
+    },
+    {
+      "id": "thought-intent_parsed-1775354583721",
+      "role": "thought",
+      "content": "Got it. You're looking for a visual scene. I'm selecting the right rendering engine now.",
+      "kind": "thought",
+      "meta": [
+        "intent_parsed"
+      ],
+      "error": null,
+      "createdAt": "2026-04-05T02:03:03.721Z",
+      "updatedAt": "2026-04-05T02:03:03.721Z"
+    },
+    {
+      "id": "thought-plan_created-1775354583721",
+      "role": "thought",
+      "content": "Alright, 7 tasks queued. I'm moving through the pipeline now.",
+      "kind": "thought",
+      "meta": [
+        "plan_created"
+      ],
+      "error": null,
+      "createdAt": "2026-04-05T02:03:03.721Z",
+      "updatedAt": "2026-04-05T02:03:03.721Z"
+    },
+    {
+      "id": "thought-turn_complete-1775354592041",
+      "role": "thought",
+      "content": "All done! Your visual is ready.",
+      "kind": "thought",
+      "meta": [
+        "turn_complete"
+      ],
+      "error": null,
+      "createdAt": "2026-04-05T02:03:12.042Z",
+      "updatedAt": "2026-04-05T02:03:12.042Z"
+    },
+    {
+      "id": "ws-soak-1775354592050-1",
+      "role": "user",
+      "content": "Hello from websocket soak turn 2.",
+      "kind": "input",
+      "meta": [],
+      "error": null,
+      "createdAt": "2026-04-05T02:03:12.068Z",
+      "updatedAt": "2026-04-05T02:03:12.068Z"
+    },
+    {
+      "id": "message-8",
+      "role": "assistant",
+      "content": "Hey there! Good to see you on turn 2. I'm here and ready to chat or help you create visual scenes whenever you're ready. How's the connection holding up?",
+      "kind": "chat",
+      "meta": [],
+      "error": null,
+      "createdAt": "2026-04-05T02:03:12.068Z",
+      "updatedAt": "2026-04-05T02:03:28.766Z"
+    },
+    {
+      "id": "thought-turn_started-1775354592070",
+      "role": "thought",
+      "content": "Okay, let me dive into this. I'll start by understanding what kind of visual you want.",
+      "kind": "thought",
+      "meta": [
+        "turn_started"
+      ],
+      "error": null,
+      "createdAt": "2026-04-05T02:03:12.070Z",
+      "updatedAt": "2026-04-05T02:03:12.070Z"
+    },
+    {
+      "id": "thought-intent_parsed-1775354592089",
+      "role": "thought",
+      "content": "I see — you want me to create a visual visualization. Let me figure out the best tool for this.",
+      "kind": "thought",
+      "meta": [
+        "intent_parsed"
+      ],
+      "error": null,
+      "createdAt": "2026-04-05T02:03:12.089Z",
+      "updatedAt": "2026-04-05T02:03:12.089Z"
+    },
+    {
+      "id": "thought-plan_created-1775354592089",
+      "role": "thought",
+      "content": "My plan has 7 stages. Let me run through them systematically.",
+      "kind": "thought",
+      "meta": [
+        "plan_created"
+      ],
+      "error": null,
+      "createdAt": "2026-04-05T02:03:12.089Z",
+      "updatedAt": "2026-04-05T02:03:12.089Z"
+    },
+    {
+      "id": "thought-turn_complete-1775354608767",
+      "role": "thought",
+      "content": "All done! Your visual is ready.",
+      "kind": "thought",
+      "meta": [
+        "turn_complete"
+      ],
+      "error": null,
+      "createdAt": "2026-04-05T02:03:28.767Z",
+      "updatedAt": "2026-04-05T02:03:28.767Z"
+    },
+    {
+      "id": "ws-soak-1775354608769-2",
+      "role": "user",
+      "content": "Hello from websocket soak turn 3.",
+      "kind": "input",
+      "meta": [],
+      "error": null,
+      "createdAt": "2026-04-05T02:03:28.775Z",
+      "updatedAt": "2026-04-05T02:03:28.775Z"
+    },
+    {
+      "id": "message-14",
+      "role": "assistant",
+      "content": "Hey there! Welcome to turn 3—connection looks solid from my end.\n\nI can chat with you normally like this, or if you want to create visuals, 3D scenes, or images, just tell me what you'd like to see. How's the soak test going?",
+      "kind": "chat",
+      "meta": [],
+      "error": null,
+      "createdAt": "2026-04-05T02:03:28.775Z",
+      "updatedAt": "2026-04-05T02:03:51.766Z"
+    },
+    {
+      "id": "thought-turn_started-1775354608776",
+      "role": "thought",
+      "content": "I'm on it. First, I need to parse your intent and figure out the best approach.",
+      "kind": "thought",
+      "meta": [
+        "turn_started"
+      ],
+      "error": null,
+      "createdAt": "2026-04-05T02:03:28.776Z",
+      "updatedAt": "2026-04-05T02:03:28.776Z"
+    },
+    {
+      "id": "thought-intent_parsed-1775354608786",
+      "role": "thought",
+      "content": "I see — you want me to create a visual visualization. Let me figure out the best tool for this.",
+      "kind": "thought",
+      "meta": [
+        "intent_parsed"
+      ],
+      "error": null,
+      "createdAt": "2026-04-05T02:03:28.786Z",
+      "updatedAt": "2026-04-05T02:03:28.786Z"
+    },
+    {
+      "id": "thought-plan_created-1775354608787",
+      "role": "thought",
+      "content": "I've mapped out 7 steps to build this. Starting the generation pipeline now.",
+      "kind": "thought",
+      "meta": [
+        "plan_created"
+      ],
+      "error": null,
+      "createdAt": "2026-04-05T02:03:28.787Z",
+      "updatedAt": "2026-04-05T02:03:28.787Z"
+    },
+    {
+      "id": "thought-turn_complete-1775354631766",
+      "role": "thought",
+      "content": "All done! Your visual is ready.",
+      "kind": "thought",
+      "meta": [
+        "turn_complete"
+      ],
+      "error": null,
+      "createdAt": "2026-04-05T02:03:51.766Z",
+      "updatedAt": "2026-04-05T02:03:51.766Z"
+    },
+    {
+      "id": "ws-soak-1775354631767-3",
+      "role": "user",
+      "content": "Hello from websocket soak turn 4.",
+      "kind": "input",
+      "meta": [],
+      "error": null,
+      "createdAt": "2026-04-05T02:03:51.781Z",
+      "updatedAt": "2026-04-05T02:03:51.781Z"
+    },
+    {
+      "id": "message-20",
+      "role": "assistant",
+      "content": "Hi. I can generate a new visual, modify the current one, or explain no scene yet. Try asking me to make something, change a detail, or explain what you already have for “Hello from websocket soak turn 4.”. If you do not have a scene yet, I can start one from scratch.",
+      "kind": "chat",
+      "meta": [],
+      "error": null,
+      "createdAt": "2026-04-05T02:03:51.781Z",
+      "updatedAt": "2026-04-05T02:03:53.943Z"
+    },
+    {
+      "id": "thought-turn_started-1775354631786",
+      "role": "thought",
+      "content": "Alright, I'm reading through your request now. Let me break this down.",
+      "kind": "thought",
+      "meta": [
+        "turn_started"
+      ],
+      "error": null,
+      "createdAt": "2026-04-05T02:03:51.786Z",
+      "updatedAt": "2026-04-05T02:03:51.786Z"
+    },
+    {
+      "id": "thought-intent_parsed-1775354631810",
+      "role": "thought",
+      "content": "I understand — this is a visual creation task. Let me pick the most suitable skill.",
+      "kind": "thought",
+      "meta": [
+        "intent_parsed"
+      ],
+      "error": null,
+      "createdAt": "2026-04-05T02:03:51.810Z",
+      "updatedAt": "2026-04-05T02:03:51.810Z"
+    },
+    {
+      "id": "thought-plan_created-1775354631811",
+      "role": "thought",
+      "content": "Alright, 7 tasks queued. I'm moving through the pipeline now.",
+      "kind": "thought",
+      "meta": [
+        "plan_created"
+      ],
+      "error": null,
+      "createdAt": "2026-04-05T02:03:51.811Z",
+      "updatedAt": "2026-04-05T02:03:51.811Z"
+    },
+    {
+      "id": "thought-turn_complete-1775354633943",
+      "role": "thought",
+      "content": "Complete. The scene has been generated and synced.",
+      "kind": "thought",
+      "meta": [
+        "turn_complete"
+      ],
+      "error": null,
+      "createdAt": "2026-04-05T02:03:53.943Z",
+      "updatedAt": "2026-04-05T02:03:53.943Z"
+    },
+    {
+      "id": "ws-soak-1775354633945-4",
+      "role": "user",
+      "content": "Hello from websocket soak turn 5.",
+      "kind": "input",
+      "meta": [],
+      "error": null,
+      "createdAt": "2026-04-05T02:03:53.949Z",
+      "updatedAt": "2026-04-05T02:03:53.949Z"
+    },
+    {
+      "id": "message-26",
+      "role": "assistant",
+      "content": "Hi. I can generate a new visual, modify the current one, or explain no scene yet. Try asking me to make something, change a detail, or explain what you already have for “Hello from websocket soak turn 5.”. If you do not have a scene yet, I can start one from scratch.",
+      "kind": "chat",
+      "meta": [],
+      "error": null,
+      "createdAt": "2026-04-05T02:03:53.950Z",
+      "updatedAt": "2026-04-05T02:03:56.626Z"
+    },
+    {
+      "id": "thought-turn_started-1775354633951",
+      "role": "thought",
+      "content": "Okay, let me dive into this. I'll start by understanding what kind of visual you want.",
+      "kind": "thought",
+      "meta": [
+        "turn_started"
+      ],
+      "error": null,
+      "createdAt": "2026-04-05T02:03:53.951Z",
+      "updatedAt": "2026-04-05T02:03:53.951Z"
+    },
+    {
+      "id": "thought-intent_parsed-1775354633963",
+      "role": "thought",
+      "content": "I see — you want me to create a visual visualization. Let me figure out the best tool for this.",
+      "kind": "thought",
+      "meta": [
+        "intent_parsed"
+      ],
+      "error": null,
+      "createdAt": "2026-04-05T02:03:53.963Z",
+      "updatedAt": "2026-04-05T02:03:53.963Z"
+    },
+    {
+      "id": "thought-plan_created-1775354633964",
+      "role": "thought",
+      "content": "Alright, 7 tasks queued. I'm moving through the pipeline now.",
+      "kind": "thought",
+      "meta": [
+        "plan_created"
+      ],
+      "error": null,
+      "createdAt": "2026-04-05T02:03:53.964Z",
+      "updatedAt": "2026-04-05T02:03:53.964Z"
+    },
+    {
+      "id": "thought-turn_complete-1775354636626",
+      "role": "thought",
+      "content": "That's a wrap — your visualization should be live now.",
+      "kind": "thought",
+      "meta": [
+        "turn_complete"
+      ],
+      "error": null,
+      "createdAt": "2026-04-05T02:03:56.626Z",
+      "updatedAt": "2026-04-05T02:03:56.626Z"
+    }
+  ],
+  "orchestrationTrace": [
+    {
+      "id": "trace-1",
+      "step": "intent_parsed",
+      "payload": {
+        "sessionId": "80f268ab-5424-4ef2-945f-e8384011674e",
+        "content": "Hello from websocket soak turn 1."
+      },
+      "createdAt": "2026-04-05T02:03:03.704Z"
+    },
+    {
+      "id": "trace-2",
+      "step": "turn_complete",
+      "payload": {
+        "sessionId": "80f268ab-5424-4ef2-945f-e8384011674e",
+        "mode": "chat",
+        "messageCount": 6,
+        "error": null
+      },
+      "createdAt": "2026-04-05T02:03:12.043Z"
+    },
+    {
+      "id": "trace-3",
+      "step": "intent_parsed",
+      "payload": {
+        "sessionId": "80f268ab-5424-4ef2-945f-e8384011674e",
+        "content": "Hello from websocket soak turn 2."
+      },
+      "createdAt": "2026-04-05T02:03:12.070Z"
+    },
+    {
+      "id": "trace-4",
+      "step": "thinking_analysis_failed",
+      "payload": {
+        "sessionId": "80f268ab-5424-4ef2-945f-e8384011674e",
+        "requestId": "ws-soak-1775354583678-0",
+        "diagnostics": {
+          "stage": "thinking_analysis",
+          "context": {
+            "stage": "thinking_analysis",
+            "queryPreview": "Hello from websocket soak turn 1.",
+            "hasScene": false
+          },
+          "message": "Moonshot request failed (429): {\"error\":{\"message\":\"The engine is currently overloaded, please try again later\",\"type\":\"engine_overloaded_error\"}}",
+          "code": null,
+          "status": null,
+          "cause": null,
+          "stack": "Error: Moonshot request failed (429): {\"error\":{\"message\":\"The engine is currently overloaded, please try again later\",\"type\":\"engine_overloaded_error\"}} |     at fetchMoonshotChatCompletion (file:///home/kage/visualruntime/apps/server/server/orchestrator.js:929:21) |     at process.processTicksAndRejections (node:internal/process/task_queues:95:5)",
+          "timestamp": "2026-04-05T02:03:12.409Z"
+        }
+      },
+      "createdAt": "2026-04-05T02:03:12.411Z"
+    },
+    {
+      "id": "trace-5",
+      "step": "turn_complete",
+      "payload": {
+        "sessionId": "80f268ab-5424-4ef2-945f-e8384011674e",
+        "mode": "chat",
+        "messageCount": 12,
+        "error": null
+      },
+      "createdAt": "2026-04-05T02:03:28.768Z"
+    },
+    {
+      "id": "trace-6",
+      "step": "intent_parsed",
+      "payload": {
+        "sessionId": "80f268ab-5424-4ef2-945f-e8384011674e",
+        "content": "Hello from websocket soak turn 3."
+      },
+      "createdAt": "2026-04-05T02:03:28.776Z"
+    },
+    {
+      "id": "trace-7",
+      "step": "turn_complete",
+      "payload": {
+        "sessionId": "80f268ab-5424-4ef2-945f-e8384011674e",
+        "mode": "chat",
+        "messageCount": 18,
+        "error": null
+      },
+      "createdAt": "2026-04-05T02:03:51.767Z"
+    },
+    {
+      "id": "trace-8",
+      "step": "intent_parsed",
+      "payload": {
+        "sessionId": "80f268ab-5424-4ef2-945f-e8384011674e",
+        "content": "Hello from websocket soak turn 4."
+      },
+      "createdAt": "2026-04-05T02:03:51.787Z"
+    },
+    {
+      "id": "trace-9",
+      "step": "turn_complete",
+      "payload": {
+        "sessionId": "80f268ab-5424-4ef2-945f-e8384011674e",
+        "mode": "chat",
+        "messageCount": 24,
+        "error": null
+      },
+      "createdAt": "2026-04-05T02:03:53.944Z"
+    },
+    {
+      "id": "trace-10",
+      "step": "intent_parsed",
+      "payload": {
+        "sessionId": "80f268ab-5424-4ef2-945f-e8384011674e",
+        "content": "Hello from websocket soak turn 5."
+      },
+      "createdAt": "2026-04-05T02:03:53.952Z"
+    },
+    {
+      "id": "trace-11",
+      "step": "thinking_analysis_failed",
+      "payload": {
+        "sessionId": "80f268ab-5424-4ef2-945f-e8384011674e",
+        "requestId": "ws-soak-1775354633945-4",
+        "diagnostics": {
+          "stage": "thinking_analysis",
+          "context": {
+            "stage": "thinking_analysis",
+            "queryPreview": "Hello from websocket soak turn 5.",
+            "hasScene": false
+          },
+          "message": "Moonshot request failed (429): {\"error\":{\"message\":\"Organization Rate limit exceeded, please try again after 1 seconds\",\"type\":\"rate_limit_reached_error\"}}",
+          "code": null,
+          "status": null,
+          "cause": null,
+          "stack": "Error: Moonshot request failed (429): {\"error\":{\"message\":\"Organization Rate limit exceeded, please try again after 1 seconds\",\"type\":\"rate_limit_reached_error\"}} |     at fetchMoonshotChatCompletion (file:///home/kage/visualruntime/apps/server/server/orchestrator.js:929:21) |     at process.processTicksAndRejections (node:internal/process/task_queues:95:5)",
+          "timestamp": "2026-04-05T02:03:55.578Z"
+        }
+      },
+      "createdAt": "2026-04-05T02:03:55.580Z"
+    },
+    {
+      "id": "trace-12",
+      "step": "turn_complete",
+      "payload": {
+        "sessionId": "80f268ab-5424-4ef2-945f-e8384011674e",
+        "mode": "chat",
+        "messageCount": 30,
+        "error": null
+      },
+      "createdAt": "2026-04-05T02:03:56.627Z"
+    }
+  ]
+}

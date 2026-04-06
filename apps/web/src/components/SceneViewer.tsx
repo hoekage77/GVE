@@ -1,839 +1,913 @@
-import { useEffect, useRef, useState, useCallback } from "react";
-import {
-  Maximize2,
-  Minimize2,
-  RefreshCw,
-  AlertTriangle,
-  Monitor,
-  ChevronRight,
-  Plug2,
-  Minus,
-  Plus,
-  Compass,
-  RotateCcw,
-  Wand2
-} from "lucide-react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { Plus, Minus, RotateCcw, Compass, CheckCircle2, AlertCircle, Sparkles, Pause, Play, Gamepad2, Lock, Unlock, Keyboard, Grid3X3 } from "lucide-react";
+import { cn } from "../lib/utils";
 
 interface SceneViewerProps {
   code: string | null;
   skill: string | null;
   onError?: (error: string) => void;
-  allowDarkBackground?: boolean;
-  onNaturalLanguageEdit?: (instruction: string) => Promise<{ ok: boolean; message: string }>;
-  isApplyingEdit?: boolean;
 }
 
-const CDN_URLS: Record<string, string[]> = {
+// CDN imports for different skills
+const SKILL_CDNS: Record<string, string[]> = {
   threejs: [
-    "https://cdnjs.cloudflare.com/ajax/libs/three.js/0.160.0/three.min.js",
-    "https://cdnjs.cloudflare.com/ajax/libs/three.js/0.160.0/examples/js/controls/OrbitControls.min.js"
+    'https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js',
+    'https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js'
   ],
   p5js: [
-    "https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.0/p5.min.js"
+    'https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.0/p5.min.js'
   ],
   d3js: [
-    "https://cdnjs.cloudflare.com/ajax/libs/d3/7.9.0/d3.min.js"
+    'https://cdnjs.cloudflare.com/ajax/libs/d3/7.9.0/d3.min.js'
   ],
   animejs: [
-    "https://cdnjs.cloudflare.com/ajax/libs/animejs/3.2.2/anime.min.js"
+    'https://cdnjs.cloudflare.com/ajax/libs/animejs/3.2.2/anime.min.js'
   ]
 };
 
-function buildThreeJsBootstrap(): string {
-  return `
-    const scene = new THREE.Scene();
-    // Use a light neutral backdrop by default for readability and product consistency.
-    scene.background = new THREE.Color(0xf4f7fb);
-    const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
-    camera.position.set(2.5, 2, 3.5);
-    camera.lookAt(0, 0, 0);
-    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-    renderer.setPixelRatio(window.devicePixelRatio);
-    renderer.setSize(window.innerWidth, window.innerHeight);
-    renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    renderer.toneMappingExposure = 1.2;
-    renderer.setClearColor(0xf4f7fb, 1);
-    document.body.appendChild(renderer.domElement);
-    document.body.style.margin = '0';
-    document.body.style.overflow = 'hidden';
-    document.body.style.background = '#f4f7fb';
+const SCENE_GRID_STORAGE_KEY = "terranet.scene.grid.enabled";
 
-    scene.add(new THREE.AmbientLight(0x404060, 0.6));
-    
-    // Using an IIFE to avoid polluting the top-level script scope with light variables
-    (() => {
-      const dirLight = new THREE.DirectionalLight(0xffffff, 1.2);
-      dirLight.position.set(5, 8, 5);
-      scene.add(dirLight);
-    })();
+function getInitialGridEnabled(): boolean {
+  if (typeof window === "undefined") {
+    return true;
+  }
 
-    window.addEventListener('resize', () => {
-      camera.aspect = window.innerWidth / window.innerHeight;
-      camera.updateProjectionMatrix();
-      renderer.setSize(window.innerWidth, window.innerHeight);
-    });
+  const stored = window.localStorage.getItem(SCENE_GRID_STORAGE_KEY);
+  if (stored === null) {
+    return true;
+  }
 
-    let __gveOrbitControls = null;
-    let __gveOrbitFrame = null;
-    let __gveOrbitEnabled = true;
-    let __gveInitialCameraState = null;
-
-    const __gveCaptureCameraState = () => {
-      if (__gveInitialCameraState) {
-        return;
-      }
-      __gveInitialCameraState = {
-        position: camera.position.clone(),
-        quaternion: camera.quaternion.clone(),
-        zoom: camera.zoom
-      };
-    };
-
-    const __gveTickOrbit = () => {
-      if (__gveOrbitControls && __gveOrbitEnabled) {
-        __gveOrbitControls.update();
-      }
-      __gveOrbitFrame = requestAnimationFrame(__gveTickOrbit);
-    };
-
-    const __gveEnsureOrbitControls = () => {
-      if (__gveOrbitControls || !THREE.OrbitControls) {
-        return __gveOrbitControls;
-      }
-
-      __gveOrbitControls = new THREE.OrbitControls(camera, renderer.domElement);
-      __gveOrbitControls.enableDamping = true;
-      __gveOrbitControls.dampingFactor = 0.08;
-      __gveOrbitControls.enablePan = true;
-      __gveOrbitControls.minDistance = 0.75;
-      __gveOrbitControls.maxDistance = 48;
-      __gveOrbitControls.target.set(0, 0, 0);
-      __gveOrbitControls.update();
-
-      if (!__gveOrbitFrame) {
-        __gveOrbitFrame = requestAnimationFrame(__gveTickOrbit);
-      }
-
-      return __gveOrbitControls;
-    };
-
-    window.__gveSceneControls = {
-      captureCameraState: __gveCaptureCameraState,
-      ensureOrbitControls: __gveEnsureOrbitControls,
-      setOrbitEnabled: (enabled) => {
-        __gveOrbitEnabled = Boolean(enabled);
-        if (__gveOrbitControls) {
-          __gveOrbitControls.enabled = __gveOrbitEnabled;
-        }
-        return __gveOrbitEnabled;
-      },
-      getOrbitEnabled: () => __gveOrbitEnabled,
-      zoom: (factor) => {
-        const safeFactor = Number.isFinite(factor) ? factor : 1;
-        camera.position.multiplyScalar(safeFactor);
-        if (__gveOrbitControls) {
-          __gveOrbitControls.update();
-        }
-      },
-      resetCamera: () => {
-        if (!__gveInitialCameraState) {
-          return;
-        }
-
-        camera.position.copy(__gveInitialCameraState.position);
-        camera.quaternion.copy(__gveInitialCameraState.quaternion);
-        camera.zoom = __gveInitialCameraState.zoom;
-        camera.updateProjectionMatrix();
-
-        if (__gveOrbitControls) {
-          __gveOrbitControls.target.set(0, 0, 0);
-          __gveOrbitControls.update();
-        }
-      },
-      dispose: () => {
-        if (__gveOrbitFrame) {
-          cancelAnimationFrame(__gveOrbitFrame);
-          __gveOrbitFrame = null;
-        }
-        if (__gveOrbitControls && typeof __gveOrbitControls.dispose === 'function') {
-          __gveOrbitControls.dispose();
-        }
-      }
-    };
-
-    __gveCaptureCameraState();
-  `;
+  return stored === "1";
 }
 
-function buildP5JsBootstrap(): string {
-  return `
-    document.body.style.margin = '0';
-    document.body.style.overflow = 'hidden';
-    document.body.style.background = '#f4f7fb';
-    document.body.style.display = 'flex';
-    document.body.style.alignItems = 'center';
-    document.body.style.justifyContent = 'center';
-    document.body.style.minHeight = '100vh';
-  `;
-}
+function buildSceneHTML(code: string, skill: string): string {
+  const cdns = SKILL_CDNS[skill] || [];
+  const cdnScripts = cdns.map(url => `<script src="${url}"></script>`).join('\n');
+  const userCodeSource = JSON.stringify(code ?? "");
 
-function buildD3JsBootstrap(): string {
-  return `
-    document.body.style.margin = '0';
-    document.body.style.overflow = 'hidden';
-    document.body.style.background = '#f4f7fb';
-    document.body.style.color = '#1f2937';
-    document.body.style.fontFamily = "'Inter', system-ui, sans-serif";
-    document.body.style.display = 'flex';
-    document.body.style.alignItems = 'center';
-    document.body.style.justifyContent = 'center';
-    document.body.style.minHeight = '100vh';
-  `;
-}
+  // Skill-specific initialization
+  const skillInit: Record<string, string> = {
+    threejs: `
+      // Three.js Scene Setup
+      const __container = document.getElementById('scene-container');
+      const __scene = new THREE.Scene();
+      const __camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+      const __renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+      __renderer.setSize(window.innerWidth, window.innerHeight);
+      __renderer.setPixelRatio(window.devicePixelRatio);
+      __renderer.setClearColor(0xf6f9fd, 0);
+      __container.appendChild(__renderer.domElement);
 
-function buildAnimeJsBootstrap(): string {
-  return `
-    document.body.style.margin = '0';
-    document.body.style.overflow = 'hidden';
-    document.body.style.background = '#f4f7fb';
-    document.body.style.color = '#1f2937';
-    document.body.style.fontFamily = "'Inter', system-ui, sans-serif";
-
-    const existingStage = document.getElementById('stage');
-    const stage = existingStage || document.createElement('div');
-    stage.id = 'stage';
-    stage.style.width = '100vw';
-    stage.style.height = '100vh';
-    stage.style.position = 'relative';
-    stage.style.display = 'flex';
-    stage.style.alignItems = 'center';
-    stage.style.justifyContent = 'center';
-
-    if (!existingStage) {
-      document.body.appendChild(stage);
-    }
-  `;
-}
-
-function buildThreeJsBackgroundGuard(allowDarkBackground: boolean): string {
-  return `
-    const __gveAllowDarkBackground = ${allowDarkBackground ? "true" : "false"};
-    const __gveLightBackgroundHex = 0xf4f7fb;
-
-    const __gveHexToRgb = (hex) => ({
-      r: (hex >> 16) & 255,
-      g: (hex >> 8) & 255,
-      b: hex & 255
-    });
-
-    const __gveParseColor = (value) => {
-      if (value == null) return null;
-
-      if (typeof value === "number" && Number.isFinite(value)) {
-        return __gveHexToRgb(value >>> 0);
+      const __controlsCtor = window.OrbitControls || (window.THREE && window.THREE.OrbitControls) || null;
+      if (!window.OrbitControls && __controlsCtor) {
+        window.OrbitControls = __controlsCtor;
       }
 
-      if (typeof value === "string") {
-        const normalized = value.trim();
-        if (/^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(normalized)) {
-          const hex = normalized.slice(1);
-          const expanded = hex.length === 3
-            ? hex.split("").map((char) => char + char).join("")
-            : hex;
-          return __gveHexToRgb(Number.parseInt(expanded, 16));
-        }
-
-        const rgbMatch = normalized.match(/rgba?\(([^)]+)\)/i);
-        if (rgbMatch) {
-          const [r = 0, g = 0, b = 0] = rgbMatch[1]
-            .split(",")
-            .map((part) => Number.parseFloat(part.trim()));
-          return { r, g, b };
-        }
-
-        return null;
+      // Compatibility shims for generated code across Three.js versions.
+      if (window.THREE && typeof window.THREE.CapsuleGeometry !== 'function') {
+        window.THREE.CapsuleGeometry = function(radius = 0.5, length = 1, capSegments = 8, radialSegments = 16) {
+          const __capsuleGroup = new THREE.Group();
+          const __cylinder = new THREE.Mesh(new THREE.CylinderGeometry(radius, radius, length, radialSegments, 1, true));
+          const __capTop = new THREE.Mesh(new THREE.SphereGeometry(radius, radialSegments, capSegments, 0, Math.PI * 2, 0, Math.PI / 2));
+          const __capBottom = new THREE.Mesh(new THREE.SphereGeometry(radius, radialSegments, capSegments, 0, Math.PI * 2, Math.PI / 2, Math.PI / 2));
+          __capTop.position.y = length / 2;
+          __capBottom.position.y = -length / 2;
+          __capsuleGroup.add(__cylinder, __capTop, __capBottom);
+          __capsuleGroup.updateMatrixWorld(true);
+          const __fallbackGeometry = new THREE.CylinderGeometry(radius, radius, length + radius * 2, radialSegments, 1, false);
+          return __fallbackGeometry;
+        };
       }
 
-      if (typeof value === "object") {
-        if (typeof value.r === "number" && typeof value.g === "number" && typeof value.b === "number") {
-          const scale = value.r <= 1 && value.g <= 1 && value.b <= 1 ? 255 : 1;
-          return {
-            r: value.r * scale,
-            g: value.g * scale,
-            b: value.b * scale
-          };
-        }
+      if (window.THREE && window.THREE.MeshPhysicalMaterial) {
+        const __OriginalPhysicalMaterial = window.THREE.MeshPhysicalMaterial;
+        if (!__OriginalPhysicalMaterial.__terranetPatched) {
+          const __physicalProbe = new __OriginalPhysicalMaterial();
 
-        if (typeof value.getHex === "function") {
-          try {
-            return __gveHexToRgb(value.getHex() >>> 0);
-          } catch {
-            return null;
-          }
-        }
-      }
+          const __sanitizePhysicalParameters = function(parameters = {}) {
+            const __safeParameters = {};
 
-      return null;
-    };
-
-    const __gveIsNearBlack = (r, g, b) => {
-      const luminance = (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255;
-      return luminance <= 0.12;
-    };
-
-    const __gveApplyBackgroundGuard = () => {
-      if (__gveAllowDarkBackground || typeof THREE === "undefined") {
-        return;
-      }
-
-      try {
-        if (typeof renderer !== "undefined" && renderer && typeof renderer.setClearColor === "function") {
-          if (!renderer.__gvePatchedSetClearColor) {
-            const __gveOriginalSetClearColor = renderer.setClearColor.bind(renderer);
-            renderer.setClearColor = (inputColor, alpha = 1) => {
-              const parsed = __gveParseColor(inputColor);
-              if (parsed && __gveIsNearBlack(parsed.r, parsed.g, parsed.b)) {
-                return __gveOriginalSetClearColor(__gveLightBackgroundHex, alpha);
+            for (const [__key, __value] of Object.entries(parameters || {})) {
+              if (__key in __physicalProbe || __key in __OriginalPhysicalMaterial.prototype) {
+                __safeParameters[__key] = __value;
               }
-              return __gveOriginalSetClearColor(inputColor, alpha);
-            };
-            renderer.__gvePatchedSetClearColor = true;
-          }
+            }
 
-          renderer.setClearColor(__gveLightBackgroundHex, 1);
+            return __safeParameters;
+          };
+
+          const __PatchedPhysicalMaterial = function(parameters = {}) {
+            return new __OriginalPhysicalMaterial(__sanitizePhysicalParameters(parameters));
+          };
+
+          __PatchedPhysicalMaterial.prototype = __OriginalPhysicalMaterial.prototype;
+          __PatchedPhysicalMaterial.prototype.constructor = __PatchedPhysicalMaterial;
+          __PatchedPhysicalMaterial.__terranetPatched = true;
+          __PatchedPhysicalMaterial.__original = __OriginalPhysicalMaterial;
+
+          window.THREE.MeshPhysicalMaterial = __PatchedPhysicalMaterial;
         }
-      } catch {
-        // no-op; guard should never crash scene execution
+      }
+      
+      // Add basic lighting
+      const __ambientLight = new THREE.AmbientLight(0x404040, 0.6);
+      __scene.add(__ambientLight);
+      const __directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+      __directionalLight.position.set(5, 10, 7);
+      __scene.add(__directionalLight);
+      
+      // Camera position
+      __camera.position.z = 5;
+
+      const __defaultCameraPosition = __camera.position.clone();
+      const __controls = __controlsCtor ? new __controlsCtor(__camera, __renderer.domElement) : null;
+      if (__controls) {
+        __controls.enableDamping = true;
       }
 
-      try {
-        if (typeof scene !== "undefined" && scene) {
-          const parsed = __gveParseColor(scene.background);
-          if (!scene.background || (parsed && __gveIsNearBlack(parsed.r, parsed.g, parsed.b))) {
-            scene.background = new THREE.Color(__gveLightBackgroundHex);
+      const __gridHelper = new THREE.GridHelper(24, 24, 0xcbd5e1, 0xe2e8f0);
+      __gridHelper.visible = false;
+      __scene.add(__gridHelper);
+
+      window.scene = __scene;
+      window.camera = __camera;
+      window.renderer = __renderer;
+      window.controls = __controls;
+      window.container = __container;
+      window.__terranetGridHelper = __gridHelper;
+      
+      // Handle resize
+      window.addEventListener('resize', () => {
+        __camera.aspect = window.innerWidth / window.innerHeight;
+        __camera.updateProjectionMatrix();
+        __renderer.setSize(window.innerWidth, window.innerHeight);
+      });
+
+      window.__terranetSceneControl = {
+        zoomIn() {
+          __camera.position.multiplyScalar(0.9);
+          __camera.updateProjectionMatrix();
+        },
+        zoomOut() {
+          __camera.position.multiplyScalar(1.1);
+          __camera.updateProjectionMatrix();
+        },
+        resetCamera() {
+          __camera.position.copy(__defaultCameraPosition);
+          if (__controls && typeof __controls.reset === 'function') {
+            __controls.reset();
           }
+          __camera.updateProjectionMatrix();
+        },
+        toggleOrbit() {
+          if (__controls) {
+            __controls.enabled = !__controls.enabled;
+            return __controls.enabled;
+          }
+          return false;
+        },
+        setGridVisible(visible) {
+          if (__gridHelper) {
+            __gridHelper.visible = Boolean(visible);
+            return __gridHelper.visible;
+          }
+          return false;
         }
-      } catch {
-        // no-op; guard should never crash scene execution
-      }
-
-      try {
-        document.body.style.background = "#f4f7fb";
-      } catch {
-        // no-op
-      }
-    };
-
-    __gveApplyBackgroundGuard();
-  `;
-}
-
-function buildIframeContent(code: string, skill: string, allowDarkBackground: boolean): string {
-  const scripts = CDN_URLS[skill] ?? CDN_URLS.threejs;
-  const scriptTags = scripts.map(url => `<script src="${url}"><\/script>`).join("\n    ");
-
-  let bootstrap = "";
-  if (skill === "threejs") bootstrap = buildThreeJsBootstrap();
-  else if (skill === "p5js") bootstrap = buildP5JsBootstrap();
-  else if (skill === "d3js") bootstrap = buildD3JsBootstrap();
-  else if (skill === "animejs") bootstrap = buildAnimeJsBootstrap();
-
-  const runtimeGuard = skill === "threejs" ? buildThreeJsBackgroundGuard(allowDarkBackground) : "";
-  const postRunGuardCall = skill === "threejs" ? "__gveApplyBackgroundGuard();" : "";
+      };
+    `,
+    p5js: `
+      // p5.js will auto-initialize with setup() and draw()
+    `,
+    d3js: `
+      // D3.js container ready
+      const container = d3.select('#scene-container');
+    `,
+    animejs: `
+      // Anime.js ready
+    `
+  };
 
   return `<!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <style>
-      * { margin: 0; padding: 0; box-sizing: border-box; }
-      body { background: #f4f7fb; overflow: hidden; color: #1f2937; }
-      canvas { display: block; }
-    </style>
-    <script>
-      // Suppress noisy Three.js warning about deprecated CDN files to keep user logs clean
-      const __origWarn = console.warn;
-      console.warn = function(...args) {
-        if (typeof args[0] === 'string' && args[0].includes('deprecated with r150+')) return;
-        __origWarn.apply(console, args);
-      };
-    <\/script>
-    ${scriptTags}
-  </head>
-  <body>
-    <script>
-      window.onerror = function(msg, url, line, col, error) {
-        window.parent.postMessage({
-          type: 'scene:error',
-          message: String(msg),
-          line: line,
-          column: col
-        }, '*');
-        return true;
-      };
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Terranet Scene</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { 
+      overflow: hidden; 
+      background-color: #f6f9fd;
+      background-image:
+        linear-gradient(rgba(148, 163, 184, 0.18) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(148, 163, 184, 0.18) 1px, transparent 1px);
+      background-size: 42px 42px;
+      font-family: system-ui, -apple-system, sans-serif;
+    }
+    #scene-container { 
+      width: 100vw; 
+      height: 100vh; 
+      background: radial-gradient(circle at 25% 20%, rgba(255, 255, 255, 0.45), rgba(241, 245, 249, 0.3));
+    }
+    #error-display {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: rgba(239, 68, 68, 0.1);
+      border: 1px solid rgba(239, 68, 68, 0.3);
+      color: #fca5a5;
+      padding: 1rem;
+      border-radius: 0.5rem;
+      font-family: monospace;
+      font-size: 0.875rem;
+      max-width: 80%;
+      display: none;
+    }
+  </style>
+  ${cdnScripts}
+</head>
+<body>
+  <div id="scene-container"></div>
+  <div id="error-display"></div>
+  <script>
+    window.addEventListener('error', function(e) {
+      const errorDisplay = document.getElementById('error-display');
+      errorDisplay.textContent = 'Error: ' + e.message;
+      errorDisplay.style.display = 'block';
+      parent.postMessage({ type: 'scene:error', error: e.message }, '*');
+    });
 
-      const __gveReadContext = () => {
-        return {
-          scene: typeof scene !== 'undefined' ? scene : null,
-          camera: typeof camera !== 'undefined' ? camera : null,
-          renderer: typeof renderer !== 'undefined' ? renderer : null,
-          THREE: typeof THREE !== 'undefined' ? THREE : null,
-          anime: typeof anime !== 'undefined' ? anime : null,
-          d3: typeof d3 !== 'undefined' ? d3 : null,
-          p5: typeof p5 !== 'undefined' ? p5 : null,
-          stage: document.getElementById('stage')
-        };
-      };
+    window.addEventListener('unhandledrejection', function(e) {
+      const reason = e.reason && e.reason.message ? e.reason.message : String(e.reason || 'Unhandled promise rejection');
+      const errorDisplay = document.getElementById('error-display');
+      errorDisplay.textContent = 'Error: ' + reason;
+      errorDisplay.style.display = 'block';
+      parent.postMessage({ type: 'scene:error', error: reason }, '*');
+    });
 
-      const __gveAck = (command, ok, message, extras = {}) => {
-        window.parent.postMessage({
-          type: 'scene:control:ack',
-          command,
-          ok,
-          message,
-          ...extras
-        }, '*');
-      };
+    function __postToParent(type, payload) {
+      try {
+        parent.postMessage({ type, ...(payload || {}) }, '*');
+      } catch (_error) {
+        // Ignore cross-origin serialization errors.
+      }
+    }
 
-      const __gveApplyControl = (payload = {}) => {
-        const command = payload.command;
-        const ctx = __gveReadContext();
-        const controls = window.__gveSceneControls || null;
+    function __normalizeUniformVector(value, size) {
+      if (value === null || value === undefined) {
+        return value;
+      }
 
-        switch (command) {
-          case 'zoom_in': {
-            if (!ctx.camera || typeof ctx.camera.position?.multiplyScalar !== 'function') {
-              __gveAck(command, false, 'Camera controls are unavailable for this scene.');
-              return;
+      if (ArrayBuffer.isView(value)) {
+        return value;
+      }
+
+      if (Array.isArray(value)) {
+        return new Float32Array(value);
+      }
+
+      if (typeof value === 'object') {
+        if (typeof value.toArray === 'function') {
+          try {
+            const arrayValue = value.toArray();
+            if (ArrayBuffer.isView(arrayValue)) {
+              return arrayValue;
             }
-            controls?.zoom?.(0.88);
-            __gveAck(command, true, 'Zoomed in.');
-            return;
-          }
-          case 'zoom_out': {
-            if (!ctx.camera || typeof ctx.camera.position?.multiplyScalar !== 'function') {
-              __gveAck(command, false, 'Camera controls are unavailable for this scene.');
-              return;
+            if (Array.isArray(arrayValue)) {
+              return new Float32Array(arrayValue);
             }
-            controls?.zoom?.(1.14);
-            __gveAck(command, true, 'Zoomed out.');
-            return;
+          } catch (_error) {
+            // Fall through to component extraction.
           }
-          case 'reset_camera': {
-            if (controls?.resetCamera) {
-              controls.resetCamera();
-              __gveAck(command, true, 'Camera reset.');
-              return;
-            }
-            __gveAck(command, false, 'Camera reset is unavailable for this scene.');
-            return;
-          }
-          case 'toggle_orbit': {
-            if (!controls?.ensureOrbitControls || !controls?.setOrbitEnabled) {
-              __gveAck(command, false, 'Orbit controls are unavailable for this scene.');
-              return;
-            }
-
-            controls.ensureOrbitControls();
-            const next = controls.setOrbitEnabled(
-              typeof payload.enabled === 'boolean' ? payload.enabled : !controls.getOrbitEnabled()
-            );
-            __gveAck(command, true, next ? 'Orbit controls enabled.' : 'Orbit controls disabled.', {
-              enabled: next
-            });
-            return;
-          }
-          case 'run_command': {
-            const script = String(payload.script || '').trim();
-            if (!script) {
-              __gveAck(command, false, 'No command provided.');
-              return;
-            }
-
-            const executor = new Function(
-              'scene',
-              'camera',
-              'renderer',
-              'THREE',
-              'anime',
-              'd3',
-              'p5',
-              'stage',
-              script
-            );
-
-            executor(ctx.scene, ctx.camera, ctx.renderer, ctx.THREE, ctx.anime, ctx.d3, ctx.p5, ctx.stage);
-            __gveAck(command, true, 'Command applied.');
-            return;
-          }
-          default:
-            __gveAck(command || 'unknown', false, 'Unsupported control command.');
         }
+
+        if (size === 2 && typeof value.x === 'number' && typeof value.y === 'number') {
+          return new Float32Array([value.x, value.y]);
+        }
+
+        if (size === 3) {
+          if (typeof value.x === 'number' && typeof value.y === 'number' && typeof value.z === 'number') {
+            return new Float32Array([value.x, value.y, value.z]);
+          }
+          if (typeof value.r === 'number' && typeof value.g === 'number' && typeof value.b === 'number') {
+            return new Float32Array([value.r, value.g, value.b]);
+          }
+        }
+
+        if (size === 4) {
+          if (typeof value.x === 'number' && typeof value.y === 'number' && typeof value.z === 'number' && typeof value.w === 'number') {
+            return new Float32Array([value.x, value.y, value.z, value.w]);
+          }
+          if (typeof value.r === 'number' && typeof value.g === 'number' && typeof value.b === 'number' && typeof value.a === 'number') {
+            return new Float32Array([value.r, value.g, value.b, value.a]);
+          }
+        }
+      }
+
+      return value;
+    }
+
+    function __patchUniformVectorMethod(targetPrototype, methodName, size) {
+      if (!targetPrototype || typeof targetPrototype[methodName] !== 'function') {
+        return;
+      }
+
+      const originalMethod = targetPrototype[methodName];
+      if (originalMethod.__terranetPatched) {
+        return;
+      }
+
+      const wrappedMethod = function(location, value) {
+        const normalizedValue = __normalizeUniformVector(value, size);
+        return originalMethod.call(this, location, normalizedValue);
       };
 
-      window.addEventListener('message', (event) => {
-        if (!event?.data || event.data.type !== 'scene:control') {
+      wrappedMethod.__terranetPatched = true;
+      targetPrototype[methodName] = wrappedMethod;
+    }
+
+    function __patchWebGLUniformVectors() {
+      if (window.__terranetUniformPatchApplied) {
+        return;
+      }
+
+      window.__terranetUniformPatchApplied = true;
+
+      const gl1Proto = window.WebGLRenderingContext && window.WebGLRenderingContext.prototype;
+      const gl2Proto = window.WebGL2RenderingContext && window.WebGL2RenderingContext.prototype;
+      const targets = [gl1Proto, gl2Proto];
+
+      for (const target of targets) {
+        __patchUniformVectorMethod(target, 'uniform2fv', 2);
+        __patchUniformVectorMethod(target, 'uniform3fv', 3);
+        __patchUniformVectorMethod(target, 'uniform4fv', 4);
+      }
+    }
+
+    __patchWebGLUniformVectors();
+
+    const __nativeRequestAnimationFrame = window.requestAnimationFrame.bind(window);
+    let __scenePaused = false;
+    let __gameModeEnabled = false;
+    let __awaitingPointerLock = false;
+
+    window.requestAnimationFrame = function(callback) {
+      return __nativeRequestAnimationFrame(function frameProxy(time) {
+        if (!__scenePaused) {
+          callback(time);
           return;
         }
 
-        try {
-          __gveApplyControl(event.data.payload || {});
-        } catch (error) {
-          window.parent.postMessage({
-            type: 'scene:error',
-            message: error?.message || String(error)
-          }, '*');
-        }
+        const waitUntilPlay = function(nextTime) {
+          if (__scenePaused) {
+            __nativeRequestAnimationFrame(waitUntilPlay);
+            return;
+          }
+          callback(nextTime);
+        };
+
+        __nativeRequestAnimationFrame(waitUntilPlay);
       });
+    };
+
+    function __getInteractiveTarget() {
+      if (window.renderer && window.renderer.domElement) {
+        return window.renderer.domElement;
+      }
+
+      return document.getElementById('scene-container') || document.body;
+    }
+
+    function __focusInteractiveTarget() {
+      const target = __getInteractiveTarget();
+      if (!target) {
+        return;
+      }
+
+      if (typeof target.tabIndex === 'number' && target.tabIndex < 0) {
+        target.tabIndex = 0;
+      }
+
+      if (typeof target.focus === 'function') {
+        target.focus({ preventScroll: true });
+      }
+    }
+
+    function __requestPointerLock() {
+      const target = __getInteractiveTarget();
+      if (!target || typeof target.requestPointerLock !== 'function') {
+        return false;
+      }
 
       try {
-        ${bootstrap}
-        ${runtimeGuard}
-        ${code}
-        ${postRunGuardCall}
-
-        if (window.__gveSceneControls?.captureCameraState) {
-          window.__gveSceneControls.captureCameraState();
-        }
-        if (window.__gveSceneControls?.ensureOrbitControls) {
-          window.__gveSceneControls.ensureOrbitControls();
-        }
-
-        window.parent.postMessage({ type: 'scene:ready' }, '*');
-      } catch (err) {
-        window.parent.postMessage({
-          type: 'scene:error',
-          message: err.message || String(err)
-        }, '*');
+        target.requestPointerLock();
+        return true;
+      } catch (_error) {
+        return false;
       }
-    <\/script>
-  </body>
+    }
+
+    function __exitPointerLock() {
+      if (typeof document.exitPointerLock === 'function') {
+        document.exitPointerLock();
+      }
+    }
+
+    function __setGameMode(enabled) {
+      __gameModeEnabled = Boolean(enabled);
+      __focusInteractiveTarget();
+      __postToParent('scene:game_mode', { enabled: __gameModeEnabled });
+      __postToParent('scene:gamepad', {
+        connected: typeof navigator.getGamepads === 'function'
+          ? Array.from(navigator.getGamepads() || []).some(Boolean)
+          : false
+      });
+    }
+
+    const __blockedKeys = new Set([' ', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'PageUp', 'PageDown', 'Home', 'End']);
+    window.addEventListener('keydown', function(event) {
+      if (!__gameModeEnabled) {
+        return;
+      }
+
+      if (__blockedKeys.has(event.key)) {
+        event.preventDefault();
+      }
+
+      __postToParent('scene:key', {
+        state: 'down',
+        key: event.key,
+        code: event.code
+      });
+    }, { capture: true });
+
+    window.addEventListener('keyup', function(event) {
+      if (!__gameModeEnabled) {
+        return;
+      }
+
+      __postToParent('scene:key', {
+        state: 'up',
+        key: event.key,
+        code: event.code
+      });
+    }, { capture: true });
+
+    document.addEventListener('pointerlockchange', function() {
+      if (document.pointerLockElement) {
+        __awaitingPointerLock = false;
+        __postToParent('scene:pointer_lock_hint', { message: null });
+      }
+
+      __postToParent('scene:pointer_lock', {
+        locked: Boolean(document.pointerLockElement)
+      });
+    });
+
+    document.addEventListener('pointerlockerror', function() {
+      __postToParent('scene:pointer_lock_hint', {
+        message: 'Click inside the scene canvas and try lock again.'
+      });
+    });
+
+    document.addEventListener('click', function(event) {
+      if (!__awaitingPointerLock) {
+        return;
+      }
+
+      const target = __getInteractiveTarget();
+      if (!target) {
+        return;
+      }
+
+      const clickedNode = event.target;
+      if (!(clickedNode instanceof Node)) {
+        return;
+      }
+
+      if (!target.contains(clickedNode) && clickedNode !== target) {
+        return;
+      }
+
+      const locked = __requestPointerLock();
+      if (locked) {
+        __awaitingPointerLock = false;
+        __postToParent('scene:pointer_lock_hint', { message: null });
+      }
+    }, { capture: true });
+
+    window.addEventListener('gamepadconnected', function() {
+      __postToParent('scene:gamepad', { connected: true });
+    });
+
+    window.addEventListener('gamepaddisconnected', function() {
+      const connected = typeof navigator.getGamepads === 'function'
+        ? Array.from(navigator.getGamepads() || []).some(Boolean)
+        : false;
+      __postToParent('scene:gamepad', { connected });
+    });
+
+    window.addEventListener('message', function(event) {
+      if (!event.data || event.data.type !== 'scene:control') {
+        return;
+      }
+
+      const payload = event.data.payload || {};
+      const command = payload.command;
+      const sceneControl = window.__terranetSceneControl;
+
+      if (command === 'zoom_in' && sceneControl && typeof sceneControl.zoomIn === 'function') {
+        sceneControl.zoomIn();
+      }
+
+      if (command === 'zoom_out' && sceneControl && typeof sceneControl.zoomOut === 'function') {
+        sceneControl.zoomOut();
+      }
+
+      if (command === 'reset_camera' && sceneControl && typeof sceneControl.resetCamera === 'function') {
+        sceneControl.resetCamera();
+      }
+
+      if (command === 'toggle_orbit' && sceneControl && typeof sceneControl.toggleOrbit === 'function') {
+        const enabled = sceneControl.toggleOrbit();
+        parent.postMessage({ type: 'scene:orbit', enabled }, '*');
+      }
+
+      if (command === 'set_grid' && sceneControl && typeof sceneControl.setGridVisible === 'function') {
+        const enabled = sceneControl.setGridVisible(Boolean(payload.enabled));
+        parent.postMessage({ type: 'scene:grid', enabled }, '*');
+      }
+
+      if (command === 'pause') {
+        __scenePaused = true;
+        parent.postMessage({ type: 'scene:playback', paused: true }, '*');
+      }
+
+      if (command === 'play') {
+        __scenePaused = false;
+        parent.postMessage({ type: 'scene:playback', paused: false }, '*');
+      }
+
+      if (command === 'enable_game_mode') {
+        __setGameMode(true);
+      }
+
+      if (command === 'disable_game_mode') {
+        __setGameMode(false);
+        __exitPointerLock();
+        __awaitingPointerLock = false;
+      }
+
+      if (command === 'request_pointer_lock') {
+        __focusInteractiveTarget();
+        __awaitingPointerLock = true;
+        __postToParent('scene:pointer_lock_hint', {
+          message: 'Click inside the scene to confirm mouse lock.'
+        });
+      }
+
+      if (command === 'exit_pointer_lock') {
+        __exitPointerLock();
+      }
+
+      if (command === 'focus_input') {
+        __focusInteractiveTarget();
+      }
+    });
+    
+    try {
+      ${skillInit[skill] || ''}
+      const __userCodeSource = ${userCodeSource};
+      const __executeGeneratedCode = new Function(__userCodeSource);
+      __executeGeneratedCode.call(window);
+    } catch (err) {
+      const errorDisplay = document.getElementById('error-display');
+      errorDisplay.textContent = 'Error: ' + err.message;
+      errorDisplay.style.display = 'block';
+      parent.postMessage({ type: 'scene:error', error: err.message }, '*');
+    }
+  </script>
+</body>
 </html>`;
 }
 
-export default function SceneViewer({
-  code,
-  skill,
-  onError,
-  allowDarkBackground = false,
-  onNaturalLanguageEdit,
-  isApplyingEdit = false
-}: SceneViewerProps) {
+export default function SceneViewer({ code, skill, onError }: SceneViewerProps) {
   const iframeRef = useRef<HTMLIFrameElement>(null);
-  const loadingTimeoutRef = useRef<number | null>(null);
-  const [isFullscreen, setIsFullscreen] = useState(false);
   const [runtimeError, setRuntimeError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
-  const [commandText, setCommandText] = useState("");
-  const [controlFeedback, setControlFeedback] = useState<string | null>(null);
+  const [isRendered, setIsRendered] = useState(false);
   const [orbitEnabled, setOrbitEnabled] = useState(true);
-  const [isSubmittingEdit, setIsSubmittingEdit] = useState(false);
+  const [isPlaying, setIsPlaying] = useState(true);
+  const [isGameModeEnabled, setIsGameModeEnabled] = useState(false);
+  const [isPointerLocked, setIsPointerLocked] = useState(false);
+  const [isGamepadConnected, setIsGamepadConnected] = useState(false);
+  const [isGridEnabled, setIsGridEnabled] = useState(getInitialGridEnabled);
+  const [pointerLockHint, setPointerLockHint] = useState<string | null>(null);
 
-  const [refreshKey, setRefreshKey] = useState(0);
+  const skillLabel = skill?.toUpperCase() ?? "SCENE";
 
-  const postControl = useCallback((command: string, payload: Record<string, unknown> = {}) => {
-    const frameWindow = iframeRef.current?.contentWindow;
-    if (!frameWindow) {
-      return;
-    }
+  // Listen for errors from iframe
+  useEffect(() => {
+    const handleMessage = (event: MessageEvent) => {
+      if (event.data?.type === 'scene:error') {
+        const error = event.data.error;
+        setRuntimeError(error);
+        onError?.(error);
+      }
 
-    frameWindow.postMessage(
-      {
-        type: "scene:control",
-        payload: {
-          command,
-          ...payload
-        }
-      },
-      "*"
-    );
-  }, []);
+      if (event.data?.type === 'scene:orbit') {
+        setOrbitEnabled(Boolean(event.data.enabled));
+      }
 
-  const clearLoadingWatchdog = useCallback(() => {
-    if (loadingTimeoutRef.current != null) {
-      window.clearTimeout(loadingTimeoutRef.current);
-      loadingTimeoutRef.current = null;
-    }
-  }, []);
+      if (event.data?.type === 'scene:playback') {
+        setIsPlaying(!Boolean(event.data.paused));
+      }
 
-  const armLoadingWatchdog = useCallback(() => {
-    clearLoadingWatchdog();
-    loadingTimeoutRef.current = window.setTimeout(() => {
-      setIsLoading(false);
-      loadingTimeoutRef.current = null;
-    }, 7000);
-  }, [clearLoadingWatchdog]);
+      if (event.data?.type === 'scene:game_mode') {
+        setIsGameModeEnabled(Boolean(event.data.enabled));
+      }
 
-  const renderScene = useCallback(() => {
-    if (!code || !skill) {
-      clearLoadingWatchdog();
-      setIsLoading(false);
+      if (event.data?.type === 'scene:pointer_lock') {
+        setIsPointerLocked(Boolean(event.data.locked));
+      }
+
+      if (event.data?.type === 'scene:pointer_lock_hint') {
+        const message = typeof event.data.message === 'string' ? event.data.message : null;
+        setPointerLockHint(message);
+      }
+
+      if (event.data?.type === 'scene:gamepad') {
+        setIsGamepadConnected(Boolean(event.data.connected));
+      }
+
+      if (event.data?.type === 'scene:grid') {
+        setIsGridEnabled(Boolean(event.data.enabled));
+      }
+    };
+
+    window.addEventListener('message', handleMessage);
+    return () => window.removeEventListener('message', handleMessage);
+  }, [onError]);
+
+  // Render scene when code/skill changes
+  useEffect(() => {
+    if (!code || !skill || !iframeRef.current) {
+      setIsRendered(false);
+      setRuntimeError(null);
       return;
     }
 
     setIsLoading(true);
     setRuntimeError(null);
-    setControlFeedback(null);
-    setOrbitEnabled(true);
-    setRefreshKey(k => k + 1);
+    setIsRendered(false);
+    setIsPlaying(true);
+    setIsGameModeEnabled(false);
+    setIsPointerLocked(false);
+    setIsGamepadConnected(false);
+    setPointerLockHint(null);
 
-    armLoadingWatchdog();
-  }, [armLoadingWatchdog, clearLoadingWatchdog, code, skill]);
+    const html = buildSceneHTML(code, skill);
+    const iframe = iframeRef.current;
+    iframe.srcdoc = html;
 
-  useEffect(() => {
-    renderScene();
-  }, [renderScene]);
+    // Simulate loading time
+    const timer = setTimeout(() => {
+      setIsLoading(false);
+      setIsRendered(true);
+    }, 1000);
 
-  useEffect(() => {
-    function handleMessage(event: MessageEvent) {
-      if (event.data?.type === "scene:error") {
-        const errorMsg = event.data.message ?? "Unknown scene error";
-        setRuntimeError(errorMsg);
-        clearLoadingWatchdog();
-        setIsLoading(false);
-        onError?.(errorMsg);
-        return;
-      }
-
-      if (event.data?.type === "scene:ready") {
-        clearLoadingWatchdog();
-        setIsLoading(false);
-        setControlFeedback("Preview ready.");
-        return;
-      }
-
-      if (event.data?.type === "scene:control:ack") {
-        const ok = Boolean(event.data.ok);
-        const message = typeof event.data.message === "string" ? event.data.message : ok ? "Control applied." : "Control failed.";
-        setControlFeedback(message);
-        if (event.data.command === "toggle_orbit" && typeof event.data.enabled === "boolean") {
-          setOrbitEnabled(event.data.enabled);
-        }
-      }
-    }
-
-    window.addEventListener("message", handleMessage);
-    return () => window.removeEventListener("message", handleMessage);
-  }, [clearLoadingWatchdog, onError]);
+    return () => clearTimeout(timer);
+  }, [code, skill]);
 
   useEffect(() => {
-    if (!controlFeedback) {
+    if (typeof window === "undefined") {
       return;
     }
 
-    const timeout = window.setTimeout(() => {
-      setControlFeedback(null);
-    }, 2600);
+    window.localStorage.setItem(SCENE_GRID_STORAGE_KEY, isGridEnabled ? "1" : "0");
+  }, [isGridEnabled]);
 
-    return () => {
-      window.clearTimeout(timeout);
-    };
-  }, [controlFeedback]);
+  const postControl = useCallback((command: string, payload: Record<string, unknown> = {}) => {
+    const frameWindow = iframeRef.current?.contentWindow;
+    if (!frameWindow) return;
 
-  useEffect(() => {
-    return () => {
-      clearLoadingWatchdog();
-    };
-  }, [clearLoadingWatchdog]);
+    frameWindow.postMessage(
+      { type: "scene:control", payload: { command, ...payload } },
+      "*"
+    );
+  }, []);
 
-  const toggleFullscreen = () => {
-    if (!iframeRef.current) return;
-
-    if (!isFullscreen) {
-      iframeRef.current.parentElement?.requestFullscreen?.();
-    } else {
-      document.exitFullscreen?.();
-    }
-    setIsFullscreen(!isFullscreen);
-  };
-
-  const skillLabel = skill ? skill.toUpperCase() : "PREVIEW";
-  const headerStatus = runtimeError
-    ? "Preview encountered a runtime issue"
-    : isLoading
-      ? "Rendering updated scene"
-      : code
-        ? "Scene rendered"
-        : "Waiting for generation";
-  const focusLabel = code ? `${skillLabel} preview` : "No scene yet";
-  const canRender = Boolean(code && skill);
-
-  const handleApplyNaturalLanguageEdit = async () => {
-    const instruction = commandText.trim();
-    if (!instruction || !canRender || !onNaturalLanguageEdit || isSubmittingEdit || isApplyingEdit) {
-      return;
-    }
-
-    setIsSubmittingEdit(true);
-    setControlFeedback("Applying edit...");
-
-    try {
-      const result = await onNaturalLanguageEdit(instruction);
-      setControlFeedback(result.message);
-      if (result.ok) {
-        setCommandText("");
-      }
-    } catch {
-      setControlFeedback("Unable to apply that edit right now.");
-    } finally {
-      setIsSubmittingEdit(false);
-    }
-  };
-
-  const handleZoomIn = () => {
-    postControl("zoom_in");
-  };
-
-  const handleZoomOut = () => {
-    postControl("zoom_out");
-  };
-
-  const handleResetCamera = () => {
-    postControl("reset_camera");
-  };
-
+  const handleZoomIn = () => postControl("zoom_in");
+  const handleZoomOut = () => postControl("zoom_out");
+  const handleResetCamera = () => postControl("reset_camera");
   const handleToggleOrbit = () => {
-    postControl("toggle_orbit", { enabled: !orbitEnabled });
+    postControl("toggle_orbit");
   };
+
+  const handleTogglePlayback = () => {
+    postControl(isPlaying ? "pause" : "play");
+    setIsPlaying((previous) => !previous);
+  };
+
+  const handleToggleGrid = () => {
+    const nextEnabled = !isGridEnabled;
+    setIsGridEnabled(nextEnabled);
+    postControl("set_grid", { enabled: nextEnabled });
+  };
+
+  const handleToggleGameMode = () => {
+    const nextEnabled = !isGameModeEnabled;
+    iframeRef.current?.focus({ preventScroll: true });
+    postControl(nextEnabled ? "enable_game_mode" : "disable_game_mode");
+    if (nextEnabled) {
+      postControl("focus_input");
+      setPointerLockHint("Click inside the scene, then press mouse lock.");
+    }
+    setIsGameModeEnabled(nextEnabled);
+    if (!nextEnabled) {
+      setIsPointerLocked(false);
+      setPointerLockHint(null);
+    }
+  };
+
+  const handlePointerLockToggle = () => {
+    iframeRef.current?.focus({ preventScroll: true });
+    if (!isGameModeEnabled) {
+      postControl("enable_game_mode");
+      setIsGameModeEnabled(true);
+    }
+
+    postControl(isPointerLocked ? "exit_pointer_lock" : "request_pointer_lock");
+
+    if (!isPointerLocked) {
+      setPointerLockHint("Click inside the scene to confirm mouse lock.");
+    } else {
+      setPointerLockHint(null);
+    }
+  };
+
+  const handleFocusInput = () => {
+    iframeRef.current?.focus({ preventScroll: true });
+    postControl("focus_input");
+  };
+
+  const is3D = skill === 'threejs';
+
+  useEffect(() => {
+    if (!is3D || !isRendered) {
+      return;
+    }
+
+    postControl("set_grid", { enabled: isGridEnabled });
+  }, [is3D, isRendered, isGridEnabled, postControl]);
 
   return (
-    <div className={`scene-viewer ${isFullscreen ? "scene-viewer--fullscreen" : ""} ${!code ? "scene-viewer--empty" : ""}`}>
-      <div className="scene-kimi-header">
-        <div className="scene-kimi-header__top">
-          <div className="scene-kimi-header__identity">
-            <span className="scene-kimi-header__icon" aria-hidden="true">
-              <Monitor className="h-4 w-4" />
-            </span>
-            <div className="scene-kimi-header__identity-copy">
-              <p className="scene-kimi-header__title">dosco</p>
-              <p className="scene-kimi-header__meta">
-                <span className="scene-kimi-header__dot" aria-hidden="true" />
-                <span>Scene Viewer</span>
-                <span className="scene-kimi-header__divider" aria-hidden="true" />
-                <span className="scene-kimi-header__focus">{focusLabel}</span>
-                <ChevronRight className="h-3 w-3" aria-hidden="true" />
-              </p>
-            </div>
+    <div className="scene-viewer-card">
+      {/* Body */}
+      <div className="scene-viewer-body">
+        {runtimeError ? (
+          <div className="scene-viewer-error">
+            <AlertCircle className="h-6 w-6" />
+            <p>{runtimeError}</p>
           </div>
-          <div className="scene-kimi-header__actions">
-            <button
-              type="button"
-              className="scene-kimi-header__btn"
-              onClick={renderScene}
-              aria-label="Refresh preview"
-              disabled={!canRender}
-            >
-              <RefreshCw className="h-3.5 w-3.5" />
-            </button>
-            <button
-              type="button"
-              className="scene-kimi-header__btn"
-              onClick={toggleFullscreen}
-              aria-label={isFullscreen ? "Exit fullscreen" : "Enter fullscreen"}
-              disabled={!code}
-            >
-              {isFullscreen ? <Minimize2 className="h-3.5 w-3.5" /> : <Maximize2 className="h-3.5 w-3.5" />}
-            </button>
+        ) : !code ? (
+          <div className="scene-viewer-placeholder">
+            <Sparkles className="h-10 w-10" />
+            <p>Generate a scene to see the preview</p>
           </div>
-        </div>
-        <div className="scene-kimi-header__line" />
-        <p className="scene-kimi-header__status">
-          <Plug2 className="h-3.5 w-3.5" aria-hidden="true" />
-          {headerStatus}
-          {isLoading && <span className="scene-viewer__loading-dot" />}
-        </p>
-      </div>
-
-      {code ? (
-        <section className="scene-viewer__player" aria-label="Preview controls">
-          <div className="scene-viewer__player-row">
-            <button type="button" className="scene-viewer__control" onClick={handleZoomOut} title="Zoom out">
-              <Minus className="h-3.5 w-3.5" />
-              <span>Zoom out</span>
-            </button>
-            <button type="button" className="scene-viewer__control" onClick={handleZoomIn} title="Zoom in">
-              <Plus className="h-3.5 w-3.5" />
-              <span>Zoom in</span>
-            </button>
-            <button type="button" className="scene-viewer__control" onClick={handleResetCamera} title="Reset camera">
-              <RotateCcw className="h-3.5 w-3.5" />
-              <span>Reset camera</span>
-            </button>
-            <button
-              type="button"
-              className={`scene-viewer__control ${orbitEnabled ? "scene-viewer__control--active" : ""}`}
-              onClick={handleToggleOrbit}
-              title={orbitEnabled ? "Disable orbit" : "Enable orbit"}
-            >
-              <Compass className="h-3.5 w-3.5" />
-              <span>{orbitEnabled ? "Orbit on" : "Orbit off"}</span>
-            </button>
-          </div>
-
-          <div className="scene-viewer__player-row">
-            <label className="scene-viewer__command-input-wrap">
-              <Wand2 className="h-3.5 w-3.5" aria-hidden="true" />
-              <input
-                type="text"
-                className="scene-viewer__command-input"
-                value={commandText}
-                onChange={(event) => setCommandText(event.target.value)}
-                placeholder="Describe an edit (example: add 7 more planets)"
+        ) : (
+          <>
+            {/* Iframe Container */}
+            <div className="scene-viewer-canvas">
+              <iframe
+                ref={iframeRef}
+                className="scene-iframe"
+                sandbox="allow-scripts allow-pointer-lock"
+                tabIndex={0}
+                title="Scene preview"
               />
-            </label>
-            <button
-              type="button"
-              className="scene-viewer__control scene-viewer__control--primary"
-              onClick={() => {
-                void handleApplyNaturalLanguageEdit();
-              }}
-              disabled={commandText.trim().length === 0 || !onNaturalLanguageEdit || isSubmittingEdit || isApplyingEdit}
-              title="Apply natural-language edit"
-            >
-              {isSubmittingEdit || isApplyingEdit ? "Applying..." : "Apply edit"}
-            </button>
-          </div>
 
-          {controlFeedback ? <p className="scene-viewer__feedback">{controlFeedback}</p> : null}
-        </section>
-      ) : null}
-
-      {runtimeError && (
-        <div className="scene-viewer__error">
-          <AlertTriangle className="h-4 w-4" />
-          <span>{runtimeError}</span>
-        </div>
-      )}
-
-      {!code ? (
-        <div className="scene-viewer__placeholder">
-          <div className="scene-viewer__placeholder-icon">◇</div>
-          <p className="scene-viewer__placeholder-text">Scene preview will appear here</p>
-          <p className="scene-viewer__placeholder-hint">Generate a visual to see it rendered in real-time</p>
-        </div>
-      ) : (
-        <>
-          <iframe
-            key={refreshKey}
-            ref={iframeRef}
-            className="scene-viewer__iframe"
-            sandbox="allow-scripts"
-            srcDoc={buildIframeContent(code, skill ?? "threejs", allowDarkBackground)}
-            title="Scene Preview"
-            onLoad={() => {
-              // Keep loader active until the embedded runtime reports ready/error.
-            }}
-          />
-
-          {isLoading ? (
-            <div className="scene-viewer__loading-overlay" role="status" aria-live="polite">
-              <span className="scene-viewer__spinner" aria-hidden="true" />
-              <p className="scene-viewer__loading-text">Loading preview...</p>
+              {isLoading && (
+                <div className="scene-loading-overlay">
+                  <div className="scene-loading-spinner" />
+                  <p>Rendering scene...</p>
+                </div>
+              )}
             </div>
-          ) : null}
-        </>
-      )}
+
+            {/* Control Bar */}
+            <div className="scene-controls">
+              <div className="scene-controls-group">
+                {is3D && (
+                  <>
+                    <button
+                      type="button"
+                      className="scene-control-btn"
+                      onClick={handleZoomOut}
+                      title="Zoom out"
+                    >
+                      <Minus className="h-4 w-4" />
+                    </button>
+                    <button
+                      type="button"
+                      className="scene-control-btn"
+                      onClick={handleZoomIn}
+                      title="Zoom in"
+                    >
+                      <Plus className="h-4 w-4" />
+                    </button>
+                    <button
+                      type="button"
+                      className="scene-control-btn"
+                      onClick={handleResetCamera}
+                      title="Reset camera"
+                    >
+                      <RotateCcw className="h-4 w-4" />
+                    </button>
+                    <button
+                      type="button"
+                      className={cn("scene-control-btn", !isPlaying && "active")}
+                      onClick={handleTogglePlayback}
+                      title={isPlaying ? "Pause animation" : "Play animation"}
+                    >
+                      {isPlaying ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
+                    </button>
+                    <button
+                      type="button"
+                      className={cn("scene-control-btn", orbitEnabled && "active")}
+                      onClick={handleToggleOrbit}
+                      title={orbitEnabled ? "Disable orbit" : "Enable orbit"}
+                    >
+                      <Compass className="h-4 w-4" />
+                    </button>
+                    <button
+                      type="button"
+                      className={cn("scene-control-btn", isGridEnabled && "active")}
+                      onClick={handleToggleGrid}
+                      title={isGridEnabled ? "Hide 3D grid" : "Show 3D grid"}
+                    >
+                      <Grid3X3 className="h-4 w-4" />
+                    </button>
+                    <button
+                      type="button"
+                      className={cn("scene-control-btn", isGameModeEnabled && "active")}
+                      onClick={handleToggleGameMode}
+                      title={isGameModeEnabled ? "Disable game mode" : "Enable game mode"}
+                    >
+                      <Gamepad2 className="h-4 w-4" />
+                    </button>
+                    <button
+                      type="button"
+                      className={cn("scene-control-btn", isPointerLocked && "active")}
+                      onClick={handlePointerLockToggle}
+                      title={isPointerLocked ? "Unlock mouse" : "Lock mouse to scene"}
+                    >
+                      {isPointerLocked ? <Unlock className="h-4 w-4" /> : <Lock className="h-4 w-4" />}
+                    </button>
+                    <button
+                      type="button"
+                      className="scene-control-btn"
+                      onClick={handleFocusInput}
+                      title="Focus scene input"
+                    >
+                      <Keyboard className="h-4 w-4" />
+                    </button>
+                  </>
+                )}
+              </div>
+
+              <div className="scene-render-status">
+                {isRendered ? (
+                  <>
+                    <CheckCircle2 className="h-4 w-4" />
+                    <span>Scene rendered</span>
+                  </>
+                ) : isLoading ? (
+                  <>
+                    <div className="scene-status-pulse" />
+                    <span>Rendering...</span>
+                  </>
+                ) : null}
+              </div>
+            </div>
+
+            {is3D && isGameModeEnabled && (
+              <div className="scene-game-hints" role="status" aria-live="polite">
+                <span>
+                  Input: WASD or Arrow keys, mouse look, Space jump, Shift sprint, Esc unlock.
+                </span>
+                <span>
+                  Mouse lock: {isPointerLocked ? "Captured" : pointerLockHint ?? "Press lock, then click inside scene"}
+                </span>
+                <span>
+                  Gamepad: {isGamepadConnected ? "Connected" : "Not connected"}
+                </span>
+              </div>
+            )}
+          </>
+        )}
+      </div>
     </div>
   );
 }

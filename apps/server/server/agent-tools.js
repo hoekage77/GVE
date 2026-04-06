@@ -311,7 +311,8 @@ async function handleExecuteCode({ code, skill }) {
       skillId: skill ?? "threejs",
       code,
       timeoutMs,
-      maxFrames: runtimeExecutionMaxFrames
+      maxFrames: runtimeExecutionMaxFrames,
+      turnDeadlineAtMs: _currentErrorContext?.runtimeDebugDeadlineAtMs
     });
 
     return {

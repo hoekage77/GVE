@@ -24,6 +24,32 @@ function parseBoundedFloatEnv(rawValue, fallbackValue, minimum = 0, maximum = 1)
   return Math.min(maximum, Math.max(minimum, parsed));
 }
 
+function parseBooleanEnv(rawValue, fallbackValue) {
+  if (rawValue === undefined || rawValue === null || rawValue === "") {
+    return fallbackValue;
+  }
+
+  const normalized = String(rawValue).trim().toLowerCase();
+  if (["1", "true", "yes", "on"].includes(normalized)) {
+    return true;
+  }
+
+  if (["0", "false", "no", "off"].includes(normalized)) {
+    return false;
+  }
+
+  return fallbackValue;
+}
+
+function parseOptionalStringEnv(rawValue, fallbackValue = null) {
+  if (rawValue === undefined || rawValue === null) {
+    return fallbackValue;
+  }
+
+  const normalized = String(rawValue).trim();
+  return normalized.length > 0 ? normalized : fallbackValue;
+}
+
 function isRetryableProvisionError(error) {
   const message = String(error instanceof Error ? error.message : error ?? "").toLowerCase();
   const retryablePatterns = [
@@ -36,12 +62,53 @@ function isRetryableProvisionError(error) {
     "connection reset",
     "connection refused",
     "connection error",
+    "eai_again",
+    "enotfound",
+    "getaddrinfo",
+    "dns",
+    "enetunreach",
     "timeout",
     "not ready",
     "temporarily unavailable"
   ];
 
   return retryablePatterns.some((pattern) => message.includes(pattern));
+}
+
+const MIN_ACQUIRE_ATTEMPT_WINDOW_MS = 1200;
+
+function getRemainingBudgetMs(turnDeadlineAtMs) {
+  if (!Number.isFinite(turnDeadlineAtMs)) {
+    return Number.POSITIVE_INFINITY;
+  }
+
+  return turnDeadlineAtMs - Date.now();
+}
+
+function createAcquireBudgetError(remainingMs, context = "provisioning") {
+  const error = new Error(
+    `Daytona acquire budget exhausted before ${context}. remaining=${Math.max(0, Math.floor(remainingMs))}ms.`
+  );
+  error.code = "ACQUIRE_BUDGET_EXHAUSTED";
+  return error;
+}
+
+function isAcquireBudgetExhaustedError(error) {
+  return String(error?.code ?? "").toUpperCase() === "ACQUIRE_BUDGET_EXHAUSTED";
+}
+
+function capCreateTimeoutSeconds(defaultTimeoutSeconds, remainingBudgetMs) {
+  if (!Number.isFinite(remainingBudgetMs)) {
+    return defaultTimeoutSeconds;
+  }
+
+  const safetyAdjustedMs = Math.max(0, Math.floor(remainingBudgetMs) - 250);
+  if (safetyAdjustedMs < MIN_ACQUIRE_ATTEMPT_WINDOW_MS) {
+    return 0;
+  }
+
+  const cappedSeconds = Math.floor(safetyAdjustedMs / 1000);
+  return Math.max(1, Math.min(defaultTimeoutSeconds, cappedSeconds));
 }
 
 function delayMs(ms) {
@@ -88,10 +155,27 @@ export class SandboxPoolManager {
       25,
       5
     );
+    this.directCreateImage = parseOptionalStringEnv(
+      process.env.DAYTONA_DIRECT_CREATE_IMAGE,
+      null
+    );
     this.prewarmSize = parsePositiveIntEnv(
       process.env.DAYTONA_PREWARM_SIZE,
-      0,
+      1,
       0
+    );
+    // Idle sandbox TTL: evict pool entries older than this (ms). 0 = disabled.
+    this.idleSandboxTtlMs = parsePositiveIntEnv(
+      process.env.DAYTONA_IDLE_SANDBOX_TTL_SECONDS,
+      300,
+      30
+    ) * 1000;
+    // Liveness ping timeout before sending the full execution payload.
+    // Increased from 800ms to 2000ms to be more forgiving for slower networks
+    this.livenessPingTimeoutMs = parsePositiveIntEnv(
+      process.env.DAYTONA_LIVENESS_PING_TIMEOUT_MS,
+      2000,
+      500
     );
     this.prewarmReplenishThreshold = parseBoundedFloatEnv(
       process.env.DAYTONA_PREWARM_REPLENISH_THRESHOLD,
@@ -106,13 +190,18 @@ export class SandboxPoolManager {
     );
     this.acquireRetryAttempts = parsePositiveIntEnv(
       process.env.DAYTONA_ACQUIRE_RETRY_ATTEMPTS,
-      1,
+      2,
       1
     );
     this.acquireRetryBaseDelayMs = parsePositiveIntEnv(
       process.env.DAYTONA_ACQUIRE_RETRY_BASE_DELAY_MS,
       250,
       50
+    );
+    this.directCreateSkipBudgetMs = parsePositiveIntEnv(
+      process.env.DAYTONA_DIRECT_SKIP_BUDGET_MS,
+      4000,
+      1200
     );
     this.metricsWindowSize = parsePositiveIntEnv(
       process.env.DAYTONA_METRICS_WINDOW_SIZE,
@@ -124,12 +213,44 @@ export class SandboxPoolManager {
       20,
       1
     );
+    this.directCircuitFailureThreshold = parsePositiveIntEnv(
+      process.env.DAYTONA_DIRECT_CIRCUIT_BREAKER_THRESHOLD,
+      3,
+      1
+    );
+    this.directCircuitWindowMs = parsePositiveIntEnv(
+      process.env.DAYTONA_DIRECT_CIRCUIT_BREAKER_WINDOW_MS,
+      120_000,
+      1_000
+    );
+    this.directCircuitCooldownMs = parsePositiveIntEnv(
+      process.env.DAYTONA_DIRECT_CIRCUIT_BREAKER_COOLDOWN_MS,
+      90_000,
+      1_000
+    );
+    this.deleteIdleOnShutdown = parseBooleanEnv(
+      process.env.DAYTONA_DELETE_IDLE_ON_SHUTDOWN,
+      false
+    );
     this.idleSandboxes = [];
     this.pendingWarmups = 0;
+    this.closed = false;
+    this.lastAcquireDiagnostics = null;
+    this._directFailureTimestamps = [];
+    this._directCircuitOpenUntilMs = 0;
     this.metrics = {
       acquireAttemptsTotal: 0,
       acquireSuccessTotal: 0,
       acquireFailuresTotal: 0,
+      externalFirstTrySuccessTotal: 0,
+      externalFirstTryFailureTotal: 0,
+      onDemandAcquireAttemptsTotal: 0,
+      onDemandAcquireSuccessTotal: 0,
+      onDemandAcquireFailureTotal: 0,
+      onDemandFirstAttemptSuccessTotal: 0,
+      directAttemptedTotal: 0,
+      directFirstAttemptSuccessTotal: 0,
+      retryRecoveredSuccessTotal: 0,
       directAcquires: 0,
       fallbackAcquires: 0,
       prewarmAcquires: 0,
@@ -145,13 +266,23 @@ export class SandboxPoolManager {
       lastAcquireAt: null,
       lastFailureAt: null,
       lastFailureReason: null,
-      lastMaintenanceAt: null
+      lastMaintenanceAt: null,
+      directBudgetSkipTotal: 0,
+      directCircuitOpenEventsTotal: 0,
+      directCircuitSkipTotal: 0,
+      livenessPingAttemptsTotal: 0,
+      livenessPingFailureTotal: 0,
+      idleTtlEvictionTotal: 0
     };
 
     this._startMaintenanceLoop();
   }
 
   _startMaintenanceLoop() {
+    if (this.closed) {
+      return;
+    }
+
     if (this.prewarmSize <= 0 || this.prewarmCheckIntervalSec <= 0) {
       return;
     }
@@ -160,6 +291,7 @@ export class SandboxPoolManager {
     this._maintenanceTimer = setInterval(() => {
       this.metrics.maintenanceRunsTotal += 1;
       this.metrics.lastMaintenanceAt = new Date().toISOString();
+      this._evictStaleSandboxes("maintenance");
       this._ensurePrewarmCapacity("maintenance", { force: false });
     }, intervalMs);
 
@@ -215,11 +347,36 @@ export class SandboxPoolManager {
     const acquireSuccessTotal = this.metrics.acquireSuccessTotal;
     const prewarmHitRatePct = round(percent(this.metrics.prewarmAcquires, acquireSuccessTotal));
     const fallbackRatePct = round(percent(this.metrics.fallbackAcquires, acquireSuccessTotal));
+    const externalFirstTryTotal = this.metrics.externalFirstTrySuccessTotal + this.metrics.externalFirstTryFailureTotal;
+    const externalFirstTrySuccessRatePct = round(percent(this.metrics.externalFirstTrySuccessTotal, externalFirstTryTotal));
+    const onDemandFirstAttemptSuccessRatePct = round(
+      percent(this.metrics.onDemandFirstAttemptSuccessTotal, this.metrics.onDemandAcquireAttemptsTotal)
+    );
+    const directFirstAttemptSuccessRatePct = round(
+      percent(this.metrics.directFirstAttemptSuccessTotal, this.metrics.directAttemptedTotal)
+    );
+    const retryRecoveredSuccessRatePct = round(
+      percent(this.metrics.retryRecoveredSuccessTotal, this.metrics.onDemandAcquireSuccessTotal)
+    );
 
     return {
       acquireAttemptsTotal: this.metrics.acquireAttemptsTotal,
       acquireSuccessTotal,
       acquireFailuresTotal: this.metrics.acquireFailuresTotal,
+      externalFirstTrySuccessTotal: this.metrics.externalFirstTrySuccessTotal,
+      externalFirstTryFailureTotal: this.metrics.externalFirstTryFailureTotal,
+      externalFirstTryTotal,
+      externalFirstTrySuccessRatePct,
+      onDemandAcquireAttemptsTotal: this.metrics.onDemandAcquireAttemptsTotal,
+      onDemandAcquireSuccessTotal: this.metrics.onDemandAcquireSuccessTotal,
+      onDemandAcquireFailureTotal: this.metrics.onDemandAcquireFailureTotal,
+      onDemandFirstAttemptSuccessTotal: this.metrics.onDemandFirstAttemptSuccessTotal,
+      onDemandFirstAttemptSuccessRatePct,
+      retryRecoveredSuccessTotal: this.metrics.retryRecoveredSuccessTotal,
+      retryRecoveredSuccessRatePct,
+      directAttemptedTotal: this.metrics.directAttemptedTotal,
+      directFirstAttemptSuccessTotal: this.metrics.directFirstAttemptSuccessTotal,
+      directFirstAttemptSuccessRatePct,
       directAcquires: this.metrics.directAcquires,
       fallbackAcquires: this.metrics.fallbackAcquires,
       prewarmAcquires: this.metrics.prewarmAcquires,
@@ -242,10 +399,25 @@ export class SandboxPoolManager {
       prewarmCheckIntervalSec: this.prewarmCheckIntervalSec,
       acquireRetryAttempts: this.acquireRetryAttempts,
       acquireRetryBaseDelayMs: this.acquireRetryBaseDelayMs,
+      directCircuitFailureThreshold: this.directCircuitFailureThreshold,
+      directCircuitWindowMs: this.directCircuitWindowMs,
+      directCircuitCooldownMs: this.directCircuitCooldownMs,
+      directCircuitOpen: this._isDirectCircuitOpen(),
+      directCircuitOpenUntil: this._directCircuitOpenUntilMs > Date.now()
+        ? new Date(this._directCircuitOpenUntilMs).toISOString()
+        : null,
+      directBudgetSkipTotal: this.metrics.directBudgetSkipTotal,
+      directCircuitSkipTotal: this.metrics.directCircuitSkipTotal,
+      directCircuitOpenEventsTotal: this.metrics.directCircuitOpenEventsTotal,
       lastAcquireAt: this.metrics.lastAcquireAt,
       lastFailureAt: this.metrics.lastFailureAt,
       lastFailureReason: this.metrics.lastFailureReason,
-      lastMaintenanceAt: this.metrics.lastMaintenanceAt
+      lastMaintenanceAt: this.metrics.lastMaintenanceAt,
+      livenessPingAttemptsTotal: this.metrics.livenessPingAttemptsTotal,
+      livenessPingFailureTotal: this.metrics.livenessPingFailureTotal,
+      idleTtlEvictionTotal: this.metrics.idleTtlEvictionTotal,
+      idleSandboxTtlMs: this.idleSandboxTtlMs,
+      livenessPingTimeoutMs: this.livenessPingTimeoutMs
     };
   }
 
@@ -264,6 +436,100 @@ export class SandboxPoolManager {
     return this._buildMetricsSnapshot();
   }
 
+  getLastAcquireDiagnostics() {
+    return this.lastAcquireDiagnostics;
+  }
+
+  _isDirectCircuitOpen(nowMs = Date.now()) {
+    return this._directCircuitOpenUntilMs > nowMs;
+  }
+
+  _pruneDirectFailures(nowMs = Date.now()) {
+    const oldestAllowed = nowMs - this.directCircuitWindowMs;
+    this._directFailureTimestamps = this._directFailureTimestamps.filter((ts) => ts >= oldestAllowed);
+  }
+
+  _recordDirectCreateFailure(nowMs = Date.now(), diagnostics = null) {
+    this._pruneDirectFailures(nowMs);
+    this._directFailureTimestamps.push(nowMs);
+
+    if (!this._isDirectCircuitOpen(nowMs) && this._directFailureTimestamps.length >= this.directCircuitFailureThreshold) {
+      this._directCircuitOpenUntilMs = nowMs + this.directCircuitCooldownMs;
+      this.metrics.directCircuitOpenEventsTotal += 1;
+      const openUntilIso = new Date(this._directCircuitOpenUntilMs).toISOString();
+      console.warn(
+        `[Daytona][CircuitBreaker] Opened direct create circuit for ${this.directCircuitCooldownMs}ms after ${this._directFailureTimestamps.length} failures. Open until ${openUntilIso}.`
+      );
+      if (diagnostics?.direct) {
+        diagnostics.direct.circuitOpened = true;
+        diagnostics.direct.circuitOpenUntil = openUntilIso;
+      }
+    }
+  }
+
+  _recordDirectCreateSuccess(nowMs = Date.now()) {
+    this._pruneDirectFailures(nowMs);
+    this._directFailureTimestamps = [];
+  }
+
+  _prepareAcquireDiagnostics({ skillId, reason, turnDeadlineAtMs, acquireStartedAt }) {
+    const initialRemainingBudgetMs = getRemainingBudgetMs(turnDeadlineAtMs);
+    return {
+      skillId,
+      reason,
+      startedAt: new Date(acquireStartedAt).toISOString(),
+      startedAtMs: acquireStartedAt,
+      initialRemainingBudgetMs: Number.isFinite(initialRemainingBudgetMs)
+        ? Math.max(0, Math.floor(initialRemainingBudgetMs))
+        : null,
+      turnDeadlineAtMs: Number.isFinite(turnDeadlineAtMs) ? Number(turnDeadlineAtMs) : null,
+      retryAttempts: 0,
+      retryDelaysMs: [],
+      directAttemptedAny: false,
+      prewarmHit: false,
+      success: null,
+      acquireDurationMs: null,
+      completedAt: null,
+      creationMode: null,
+      source: "ondemand",
+      direct: {
+        attempted: false,
+        skipped: false,
+        skipReason: null,
+        timeoutSec: null,
+        durationMs: null,
+        error: null,
+        circuitOpenAtStart: this._isDirectCircuitOpen(),
+        circuitOpened: false,
+        circuitOpenUntil: this._isDirectCircuitOpen() ? new Date(this._directCircuitOpenUntilMs).toISOString() : null
+      },
+      fallback: {
+        attempted: false,
+        skipped: false,
+        skipReason: null,
+        timeoutSec: null,
+        durationMs: null,
+        error: null
+      }
+    };
+  }
+
+  _finalizeAcquireDiagnostics(diagnostics, { success, creationMode = null, acquireDurationMs = null }) {
+    if (!diagnostics) {
+      return;
+    }
+
+    diagnostics.success = Boolean(success);
+    diagnostics.creationMode = creationMode;
+    diagnostics.source = creationMode ?? diagnostics.source;
+    diagnostics.internalFirstAttempt = Number(diagnostics.retryAttempts ?? 0) <= 1;
+    diagnostics.acquireDurationMs = Number.isFinite(acquireDurationMs)
+      ? Math.max(0, Math.floor(acquireDurationMs))
+      : diagnostics.acquireDurationMs;
+    diagnostics.completedAt = new Date().toISOString();
+    this.lastAcquireDiagnostics = diagnostics;
+  }
+
   async _getDaytonaClient() {
     if (!this.daytona) {
       try {
@@ -276,80 +542,198 @@ export class SandboxPoolManager {
     return this.daytona;
   }
 
-  async _provisionWorkspace({ skillId = "unknown", reason = "acquire" } = {}) {
+  async _provisionWorkspace({ skillId = "unknown", reason = "acquire", turnDeadlineAtMs = null, diagnostics = null } = {}) {
     const daytona = await this._getDaytonaClient();
     const acquireStartedAt = Date.now();
     let workspace;
     let workspaceId = `gve-${crypto.randomUUID().slice(0, 8)}`;
     let directCreateDurationMs = 0;
+    let directError = null;
 
+    const directRemainingBudgetMs = getRemainingBudgetMs(turnDeadlineAtMs);
+    const circuitOpen = this._isDirectCircuitOpen();
+    const shouldSkipDirectForBudget = Number.isFinite(directRemainingBudgetMs)
+      && directRemainingBudgetMs < this.directCreateSkipBudgetMs;
+    const shouldSkipDirect = shouldSkipDirectForBudget || circuitOpen;
+
+    if (diagnostics?.direct) {
+      diagnostics.direct.circuitOpenAtStart = circuitOpen;
+      diagnostics.direct.circuitOpenUntil = circuitOpen ? new Date(this._directCircuitOpenUntilMs).toISOString() : null;
+    }
+
+    if (shouldSkipDirect) {
+      const skipReason = shouldSkipDirectForBudget
+        ? `low remaining budget (${Math.max(0, Math.floor(directRemainingBudgetMs))}ms < ${this.directCreateSkipBudgetMs}ms)`
+        : `direct create circuit open until ${new Date(this._directCircuitOpenUntilMs).toISOString()}`;
+      directError = new Error(`Skipped direct create due to ${skipReason}.`);
+      directCreateDurationMs = Math.max(0, Date.now() - acquireStartedAt);
+      console.warn(`[Daytona] ${directError.message} Trying fallback...`);
+      if (shouldSkipDirectForBudget) {
+        this.metrics.directBudgetSkipTotal += 1;
+      } else {
+        this.metrics.directCircuitSkipTotal += 1;
+      }
+
+      if (diagnostics?.direct) {
+        diagnostics.direct.attempted = false;
+        diagnostics.direct.skipped = true;
+        diagnostics.direct.skipReason = skipReason;
+        diagnostics.direct.durationMs = directCreateDurationMs;
+        diagnostics.direct.error = directError.message;
+      }
+    } else {
+      if (diagnostics?.direct) {
+        diagnostics.direct.attempted = true;
+        diagnostics.directAttemptedAny = true;
+      }
+      try {
+        const directTimeoutSec = capCreateTimeoutSeconds(this.directCreateTimeoutSec, directRemainingBudgetMs);
+        if (diagnostics?.direct) {
+          diagnostics.direct.timeoutSec = directTimeoutSec;
+        }
+        if (directTimeoutSec <= 0) {
+          throw createAcquireBudgetError(directRemainingBudgetMs, "direct create");
+        }
+
+        const directCreateStartedAt = Date.now();
+        const directCreateOptions = this.directCreateImage
+          ? { id: workspaceId, image: this.directCreateImage }
+          : { id: workspaceId };
+        workspace = await daytona.create(directCreateOptions, { timeout: directTimeoutSec });
+        directCreateDurationMs = Date.now() - directCreateStartedAt;
+        this._recordDirectCreateSuccess();
+        console.log(
+          `[Daytona] Workspace ${workspaceId} created in ${directCreateDurationMs}ms (${reason}, skill=${skillId}).`
+        );
+        if (diagnostics?.direct) {
+          diagnostics.direct.durationMs = directCreateDurationMs;
+          diagnostics.direct.error = null;
+        }
+        if (diagnostics) {
+          diagnostics.creationMode = "direct";
+          diagnostics.source = "direct";
+          diagnostics.acquireDurationMs = Date.now() - acquireStartedAt;
+        }
+        return {
+          workspace,
+          workspaceId,
+          creationMode: "direct",
+          acquireDurationMs: Date.now() - acquireStartedAt
+        };
+      } catch (err) {
+        directError = err;
+        directCreateDurationMs = Math.max(0, Date.now() - acquireStartedAt);
+        this._recordDirectCreateFailure(Date.now(), diagnostics);
+        if (diagnostics?.direct) {
+          diagnostics.direct.durationMs = directCreateDurationMs;
+          diagnostics.direct.error = err instanceof Error ? err.message : String(err);
+        }
+        console.warn(
+          `[Daytona] Failed to create workspace with direct options after ${directCreateDurationMs}ms, trying default... (${err.message})`
+        );
+      }
+    }
+
+    const fallbackRemainingBudgetMs = getRemainingBudgetMs(turnDeadlineAtMs);
+    const fallbackTimeoutSec = capCreateTimeoutSeconds(this.fallbackCreateTimeoutSec, fallbackRemainingBudgetMs);
+    if (diagnostics?.fallback) {
+      diagnostics.fallback.timeoutSec = fallbackTimeoutSec;
+    }
+    if (fallbackTimeoutSec <= 0) {
+      const totalDurationMs = Date.now() - acquireStartedAt;
+      const directMessage = directError instanceof Error ? directError.message : String(directError);
+      const budgetError = createAcquireBudgetError(fallbackRemainingBudgetMs, "fallback create");
+      if (diagnostics?.fallback) {
+        diagnostics.fallback.skipped = true;
+        diagnostics.fallback.skipReason = budgetError.message;
+        diagnostics.fallback.error = budgetError.message;
+        diagnostics.fallback.durationMs = 0;
+      }
+      const combinedError = new Error(
+        `Daytona acquire failed after ${totalDurationMs}ms. direct=${truncateForLog(directMessage)} | fallback=skipped: ${truncateForLog(
+          budgetError.message
+        )}`
+      );
+      combinedError.code = budgetError.code;
+      throw combinedError;
+    }
+
+    const fallbackCreateStartedAt = Date.now();
+    if (diagnostics?.fallback) {
+      diagnostics.fallback.attempted = true;
+    }
     try {
-      const directCreateStartedAt = Date.now();
-      workspace = await daytona.create({
-        id: workspaceId,
-        image: "node:20-alpine" // Lightweight node container
-      }, { timeout: this.directCreateTimeoutSec });
-      directCreateDurationMs = Date.now() - directCreateStartedAt;
+      workspace = await daytona.create(undefined, { timeout: fallbackTimeoutSec });
+      workspaceId = workspace.id;
+      const fallbackDurationMs = Date.now() - fallbackCreateStartedAt;
+      const totalAcquireMs = Date.now() - acquireStartedAt;
+      if (diagnostics?.fallback) {
+        diagnostics.fallback.durationMs = fallbackDurationMs;
+        diagnostics.fallback.error = null;
+      }
+      if (diagnostics) {
+        diagnostics.creationMode = "fallback";
+        diagnostics.source = "fallback";
+        diagnostics.acquireDurationMs = totalAcquireMs;
+      }
       console.log(
-        `[Daytona] Workspace ${workspaceId} created in ${directCreateDurationMs}ms (${reason}, skill=${skillId}).`
+        `[Daytona] Fallback workspace ${workspaceId} created in ${fallbackDurationMs}ms (total acquire ${totalAcquireMs}ms, ${reason}, skill=${skillId}).`
       );
       return {
         workspace,
         workspaceId,
-        creationMode: "direct",
-        acquireDurationMs: Date.now() - acquireStartedAt
+        creationMode: "fallback",
+        acquireDurationMs: totalAcquireMs
       };
-    } catch (err) {
-      directCreateDurationMs = Math.max(0, Date.now() - acquireStartedAt);
-      console.warn(
-        `[Daytona] Failed to create workspace with direct options after ${directCreateDurationMs}ms, trying default... (${err.message})`
-      );
-
-      const fallbackCreateStartedAt = Date.now();
-      try {
-        workspace = await daytona.create(undefined, { timeout: this.fallbackCreateTimeoutSec });
-        workspaceId = workspace.id;
-        const fallbackDurationMs = Date.now() - fallbackCreateStartedAt;
-        const totalAcquireMs = Date.now() - acquireStartedAt;
-        console.log(
-          `[Daytona] Fallback workspace ${workspaceId} created in ${fallbackDurationMs}ms (total acquire ${totalAcquireMs}ms, ${reason}, skill=${skillId}).`
-        );
-        return {
-          workspace,
-          workspaceId,
-          creationMode: "fallback",
-          acquireDurationMs: totalAcquireMs
-        };
-      } catch (fallbackErr) {
-        const totalDurationMs = Date.now() - acquireStartedAt;
-        const fallbackMessage = fallbackErr instanceof Error ? fallbackErr.message : String(fallbackErr);
-        const directMessage = err instanceof Error ? err.message : String(err);
-        throw new Error(
-          `Daytona acquire failed after ${totalDurationMs}ms. direct=${truncateForLog(directMessage)} | fallback=${truncateForLog(fallbackMessage)}`
-        );
+    } catch (fallbackErr) {
+      const totalDurationMs = Date.now() - acquireStartedAt;
+      const fallbackMessage = fallbackErr instanceof Error ? fallbackErr.message : String(fallbackErr);
+      const directMessage = directError instanceof Error ? directError.message : String(directError);
+      if (diagnostics?.fallback) {
+        diagnostics.fallback.durationMs = Date.now() - fallbackCreateStartedAt;
+        diagnostics.fallback.error = fallbackMessage;
       }
+      throw new Error(
+        `Daytona acquire failed after ${totalDurationMs}ms. direct=${truncateForLog(directMessage)} | fallback=${truncateForLog(fallbackMessage)}`
+      );
     }
   }
 
-  async _provisionWorkspaceWithRetry({ skillId = "unknown", reason = "acquire" } = {}) {
+  async _provisionWorkspaceWithRetry({ skillId = "unknown", reason = "acquire", turnDeadlineAtMs = null, diagnostics = null } = {}) {
     let lastError = null;
 
     for (let attempt = 1; attempt <= this.acquireRetryAttempts; attempt += 1) {
       try {
-        return await this._provisionWorkspace({ skillId, reason });
+        if (diagnostics) {
+          diagnostics.retryAttempts = attempt;
+        }
+        return await this._provisionWorkspace({ skillId, reason, turnDeadlineAtMs, diagnostics });
       } catch (error) {
         lastError = error;
-        const canRetry = attempt < this.acquireRetryAttempts && isRetryableProvisionError(error);
+        const remainingBudgetMs = getRemainingBudgetMs(turnDeadlineAtMs);
+        const hasAttemptBudget = !Number.isFinite(remainingBudgetMs) || remainingBudgetMs >= MIN_ACQUIRE_ATTEMPT_WINDOW_MS;
+        const canRetry =
+          attempt < this.acquireRetryAttempts &&
+          hasAttemptBudget &&
+          !isAcquireBudgetExhaustedError(error) &&
+          isRetryableProvisionError(error);
         if (!canRetry) {
           throw error;
         }
 
-        const backoffMs = this.acquireRetryBaseDelayMs * (2 ** (attempt - 1));
+        const baseBackoffMs = this.acquireRetryBaseDelayMs * (2 ** (attempt - 1));
+        const jitterMs = Math.floor(baseBackoffMs * Math.random() * 0.1);
+        const backoffMs = baseBackoffMs + jitterMs;
         console.warn(
-          `[Daytona] Acquire retry ${attempt}/${this.acquireRetryAttempts} in ${backoffMs}ms for skill ${skillId}: ${
+          `[Daytona] Acquire retry ${attempt}/${this.acquireRetryAttempts} in ${backoffMs}ms for skill ${skillId} (remaining budget: ${Number.isFinite(
+            remainingBudgetMs
+          ) ? `${Math.max(0, Math.floor(remainingBudgetMs))}ms` : "unbounded"}): ${
             error instanceof Error ? error.message : String(error)
           }`
         );
+        if (diagnostics) {
+          diagnostics.retryDelaysMs.push(backoffMs);
+        }
         await delayMs(backoffMs);
       }
     }
@@ -357,7 +741,43 @@ export class SandboxPoolManager {
     throw lastError ?? new Error("Daytona acquire failed after retries.");
   }
 
+  /**
+   * Evict idle sandboxes whose container has exceeded the idle TTL.
+   * Stale sandboxes are deleted best-effort and removed from the pool.
+   */
+  _evictStaleSandboxes(reason = "maintenance") {
+    if (this.idleSandboxTtlMs <= 0 || this.idleSandboxes.length === 0) {
+      return 0;
+    }
+
+    const nowMs = Date.now();
+    const before = this.idleSandboxes.length;
+    const stale = this.idleSandboxes.filter(
+      (s) => s.idledAt && (nowMs - s.idledAt) > this.idleSandboxTtlMs
+    );
+    this.idleSandboxes = this.idleSandboxes.filter(
+      (s) => !s.idledAt || (nowMs - s.idledAt) <= this.idleSandboxTtlMs
+    );
+
+    const evicted = before - this.idleSandboxes.length;
+    if (evicted > 0) {
+      this.metrics.idleTtlEvictionTotal += evicted;
+      console.log(
+        `[Daytona][Pool] Evicted ${evicted} stale idle sandbox(es) (TTL=${this.idleSandboxTtlMs}ms, reason=${reason}). idle=${this.idleSandboxes.length}/${this.prewarmSize}`
+      );
+      for (const s of stale) {
+        void this._deleteWorkspace(s.workspace, s.workspaceId, `idle_ttl_expired_${reason}`);
+      }
+    }
+
+    return evicted;
+  }
+
   _ensurePrewarmCapacity(skillId = "unknown", { force = false } = {}) {
+    if (this.closed) {
+      return;
+    }
+
     if (this.prewarmSize <= 0) {
       return;
     }
@@ -379,12 +799,16 @@ export class SandboxPoolManager {
       void this._provisionWorkspaceWithRetry({ skillId, reason: "prewarm" })
         .then(({ workspace, workspaceId, creationMode, acquireDurationMs }) => {
           this.metrics.prewarmProvisionSuccessTotal += 1;
+          if (this.closed) {
+            void this._deleteWorkspace(workspace, workspaceId, "pool_closed");
+            return;
+          }
           if (this.idleSandboxes.length >= this.prewarmSize) {
             void this._deleteWorkspace(workspace, workspaceId, "prewarm_overflow");
             return;
           }
 
-          this.idleSandboxes.push({ workspace, workspaceId });
+          this.idleSandboxes.push({ workspace, workspaceId, idledAt: Date.now() });
           console.log(
             `[Daytona] Prewarmed sandbox ${workspaceId} ready via ${creationMode} in ${acquireDurationMs}ms. idle=${this.idleSandboxes.length}/${this.prewarmSize}`
           );
@@ -397,6 +821,10 @@ export class SandboxPoolManager {
           this.pendingWarmups = Math.max(0, this.pendingWarmups - 1);
         });
     }
+  }
+
+  requestWarmup(skillId = "unknown") {
+    this._ensurePrewarmCapacity(skillId, { force: true });
   }
 
   _createSandboxHandle({ workspaceId, workspace, source = "ondemand" }) {
@@ -425,6 +853,38 @@ export class SandboxPoolManager {
         `;
 
         console.log(`[Daytona] Executing payload on ${workspaceId}...`);
+
+        // ── Liveness ping ────────────────────────────────────────────────────
+        // Verify the container is actually network-reachable before sending the
+        // full Node.js payload. A prewarmed sandbox can sit in the pool for
+        // minutes; its container IP can expire while it looks idle-healthy.
+        this.metrics.livenessPingAttemptsTotal += 1;
+        const pingStartedAt = Date.now();
+        const pingTimeoutMs = this.livenessPingTimeoutMs;
+        try {
+          await Promise.race([
+            workspace.process.executeCommand("echo ok"),
+            new Promise((_, reject) =>
+              setTimeout(
+                () => reject(new Error(`Liveness ping timed out after ${pingTimeoutMs}ms`)),
+                pingTimeoutMs
+              )
+            )
+          ]);
+        } catch (pingErr) {
+          this.metrics.livenessPingFailureTotal += 1;
+          handle._reusable = false;
+          console.warn(
+            `[Daytona] [WARN] Liveness ping FAILED for ${workspaceId} in ${Date.now() - pingStartedAt}ms: ${pingErr.message}`
+          );
+          const staleError = new Error(
+            `Sandbox ${workspaceId} failed liveness ping (stale container): ${pingErr.message}`
+          );
+          staleError.code = "SANDBOX_STALE_IP";
+          throw staleError;
+        }
+        console.log(`[Daytona] Liveness ping OK for ${workspaceId} in ${Date.now() - pingStartedAt}ms.`);
+        // ─────────────────────────────────────────────────────────────────────
 
         let execResult;
         const bashCmd = `node --input-type=module -e "$(echo '${Buffer.from(execCode).toString("base64")}' | base64 -d)" "${payloadB64}"`;
@@ -459,49 +919,147 @@ export class SandboxPoolManager {
   }
 
   async acquire(requirements) {
+    if (this.closed) {
+      const closedError = new Error("Sandbox pool is shut down and cannot acquire new sandboxes.");
+      closedError.code = "POOL_SHUTDOWN";
+      throw closedError;
+    }
+
     const normalizedSkillId = requirements?.skillId ?? "unknown";
+    const turnDeadlineAtMs = Number.isFinite(requirements?.turnDeadlineAtMs)
+      ? Number(requirements.turnDeadlineAtMs)
+      : null;
     this.metrics.acquireAttemptsTotal += 1;
     const acquireStartedAt = Date.now();
+    const acquireDiagnostics = this._prepareAcquireDiagnostics({
+      skillId: normalizedSkillId,
+      reason: "acquire",
+      turnDeadlineAtMs,
+      acquireStartedAt
+    });
+    this._evictStaleSandboxes("acquire");
     this._ensurePrewarmCapacity(normalizedSkillId, { force: false });
 
-    if (this.idleSandboxes.length > 0) {
+    // Try to acquire a healthy idle sandbox with liveness check
+    while (this.idleSandboxes.length > 0) {
       const reused = this.idleSandboxes.pop();
-      console.log(
-        `[Daytona] Reusing prewarmed sandbox ${reused.workspaceId} for skill ${normalizedSkillId}. idle=${this.idleSandboxes.length}/${this.prewarmSize}`
-      );
-      this._ensurePrewarmCapacity(normalizedSkillId, { force: true });
-      this._recordAcquireSuccess("prewarm", Date.now() - acquireStartedAt);
-      return this._createSandboxHandle({
-        workspaceId: reused.workspaceId,
-        workspace: reused.workspace,
-        source: "prewarm"
-      });
+      
+      // ── Liveness ping before reuse ─────────────────────────────────────────
+      // Verify the idle sandbox is still responsive before handing it to executor
+      const pingStartedAt = Date.now();
+      let pingSuccess = false;
+      try {
+        await Promise.race([
+          reused.workspace.process.executeCommand("echo ok"),
+          new Promise((_, reject) =>
+            setTimeout(
+              () => reject(new Error(`Liveness ping timed out after ${this.livenessPingTimeoutMs}ms`)),
+              this.livenessPingTimeoutMs
+            )
+          )
+        ]);
+        pingSuccess = true;
+        console.log(
+          `[Daytona] Liveness ping OK for idle sandbox ${reused.workspaceId} in ${Date.now() - pingStartedAt}ms.`
+        );
+      } catch (pingErr) {
+        this.metrics.livenessPingFailureTotal += 1;
+        console.warn(
+          `[Daytona] [WARN] Idle sandbox ${reused.workspaceId} failed liveness ping (${Date.now() - pingStartedAt}ms): ${pingErr.message}. Evicting and trying next...`
+        );
+        // Evict the stale sandbox
+        void this._deleteWorkspace(reused.workspace, reused.workspaceId, "liveness_ping_failed");
+        continue; // Try next idle sandbox
+      }
+      // ─────────────────────────────────────────────────────────────────────
+      
+      if (pingSuccess) {
+        console.log(
+          `[Daytona] Reusing prewarmed sandbox ${reused.workspaceId} for skill ${normalizedSkillId}. idle=${this.idleSandboxes.length}/${this.prewarmSize}`
+        );
+        this._ensurePrewarmCapacity(normalizedSkillId, { force: true });
+        this._recordAcquireSuccess("prewarm", Date.now() - acquireStartedAt);
+        this.metrics.externalFirstTrySuccessTotal += 1;
+        acquireDiagnostics.prewarmHit = true;
+        acquireDiagnostics.creationMode = "prewarm";
+        acquireDiagnostics.source = "prewarm";
+        acquireDiagnostics.livenessPingMs = Date.now() - pingStartedAt;
+        this._finalizeAcquireDiagnostics(acquireDiagnostics, {
+          success: true,
+          creationMode: "prewarm",
+          acquireDurationMs: Date.now() - acquireStartedAt
+        });
+        const handle = this._createSandboxHandle({
+          workspaceId: reused.workspaceId,
+          workspace: reused.workspace,
+          source: "prewarm"
+        });
+        handle._acquireDiagnostics = acquireDiagnostics;
+        return handle;
+      }
     }
 
     console.log(
       `[Daytona] Acquiring on-demand sandbox for skill ${normalizedSkillId} (direct timeout=${this.directCreateTimeoutSec}s, fallback timeout=${this.fallbackCreateTimeoutSec}s)...`
     );
+    this.metrics.onDemandAcquireAttemptsTotal += 1;
 
     let provisioned;
     try {
       provisioned = await this._provisionWorkspaceWithRetry({
         skillId: normalizedSkillId,
-        reason: "acquire"
+        reason: "acquire",
+        turnDeadlineAtMs,
+        diagnostics: acquireDiagnostics
       });
     } catch (error) {
       this._recordAcquireFailure(error, Date.now() - acquireStartedAt);
+      this.metrics.externalFirstTryFailureTotal += 1;
+      this.metrics.onDemandAcquireFailureTotal += 1;
+      if (acquireDiagnostics?.directAttemptedAny) {
+        this.metrics.directAttemptedTotal += 1;
+      }
+      this._finalizeAcquireDiagnostics(acquireDiagnostics, {
+        success: false,
+        creationMode: null,
+        acquireDurationMs: Date.now() - acquireStartedAt
+      });
+      if (error && typeof error === "object") {
+        error.acquireDiagnostics = acquireDiagnostics;
+      }
       throw error;
     }
 
     this._recordAcquireSuccess(provisioned.creationMode, Date.now() - acquireStartedAt);
+    this.metrics.externalFirstTrySuccessTotal += 1;
+    this.metrics.onDemandAcquireSuccessTotal += 1;
+    if (acquireDiagnostics?.directAttemptedAny) {
+      this.metrics.directAttemptedTotal += 1;
+    }
+    const internalFirstAttempt = Number(acquireDiagnostics?.retryAttempts ?? 0) <= 1;
+    if (internalFirstAttempt) {
+      this.metrics.onDemandFirstAttemptSuccessTotal += 1;
+      if (provisioned.creationMode === "direct") {
+        this.metrics.directFirstAttemptSuccessTotal += 1;
+      }
+    } else {
+      this.metrics.retryRecoveredSuccessTotal += 1;
+    }
+    this._finalizeAcquireDiagnostics(acquireDiagnostics, {
+      success: true,
+      creationMode: provisioned.creationMode,
+      acquireDurationMs: Date.now() - acquireStartedAt
+    });
 
     this._ensurePrewarmCapacity(normalizedSkillId, { force: false });
 
-    return this._createSandboxHandle({
+    const handle = this._createSandboxHandle({
       workspaceId: provisioned.workspaceId,
       workspace: provisioned.workspace,
       source: provisioned.creationMode
     });
+    handle._acquireDiagnostics = acquireDiagnostics;
+    return handle;
   }
 
   async _deleteWorkspace(workspace, workspaceId, reason = "release") {
@@ -517,11 +1075,18 @@ export class SandboxPoolManager {
   async release(sandboxEnv) {
     if (!sandboxEnv || !sandboxEnv._workspace) return;
 
+    if (this.closed) {
+      this.metrics.releaseDeletedTotal += 1;
+      await this._deleteWorkspace(sandboxEnv._workspace, sandboxEnv.workspaceId, "pool_closed_release");
+      return;
+    }
+
     const reusable = sandboxEnv._reusable !== false;
     if (this.prewarmSize > 0 && reusable && this.idleSandboxes.length < this.prewarmSize) {
       this.idleSandboxes.push({
         workspaceId: sandboxEnv.workspaceId,
-        workspace: sandboxEnv._workspace
+        workspace: sandboxEnv._workspace,
+        idledAt: Date.now()
       });
       this.metrics.releaseReturnedToPoolTotal += 1;
       console.log(
@@ -535,6 +1100,33 @@ export class SandboxPoolManager {
     this.metrics.releaseDeletedTotal += 1;
     await this._deleteWorkspace(sandboxEnv._workspace, sandboxEnv.workspaceId, reusable ? "release" : "unhealthy");
     this._ensurePrewarmCapacity("release", { force: false });
+  }
+
+  async shutdown(options = {}) {
+    if (this.closed) {
+      return;
+    }
+
+    this.closed = true;
+
+    if (this._maintenanceTimer) {
+      clearInterval(this._maintenanceTimer);
+      this._maintenanceTimer = null;
+    }
+
+    const shouldDeleteIdle = options.deleteIdleSandboxes ?? this.deleteIdleOnShutdown;
+    const idleToDelete = [...this.idleSandboxes];
+    this.idleSandboxes = [];
+
+    if (!shouldDeleteIdle || idleToDelete.length === 0) {
+      return;
+    }
+
+    for (const sandbox of idleToDelete) {
+      // Best-effort cleanup at shutdown time.
+      // eslint-disable-next-line no-await-in-loop
+      await this._deleteWorkspace(sandbox.workspace, sandbox.workspaceId, "shutdown_cleanup");
+    }
   }
 }
 

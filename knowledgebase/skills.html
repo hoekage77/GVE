@@ -1,0 +1,680 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Skill System - GVE Knowledgebase</title>
+  <link rel="stylesheet" href="assets/styles.css">
+</head>
+<body>
+  <div class="layout">
+    <aside class="sidebar">
+      <div class="logo">
+        <h1>📐 GVE Knowledgebase</h1>
+        <span class="version">v1.0.0</span>
+      </div>
+      
+      <nav class="nav">
+        <div class="nav-section">
+          <h3>Overview</h3>
+          <ul>
+            <li><a href="index.html">Introduction</a></li>
+            <li><a href="architecture.html">Architecture</a></li>
+            <li><a href="quickstart.html">Quick Start</a></li>
+          </ul>
+        </div>
+        
+        <div class="nav-section">
+          <h3>API Reference</h3>
+          <ul>
+            <li><a href="api-rest.html">REST API</a></li>
+            <li><a href="api-websocket.html">WebSocket Events</a></li>
+            <li><a href="api-types.html">Type Definitions</a></li>
+          </ul>
+        </div>
+        
+        <div class="nav-section">
+          <h3>Components</h3>
+          <ul>
+            <li><a href="components-web.html">Web Components</a></li>
+            <li><a href="components-server.html">Server Modules</a></li>
+            <li><a href="components-ui.html">UI Primitives</a></li>
+          </ul>
+        </div>
+        
+        <div class="nav-section">
+          <h3>Data & Skills</h3>
+          <ul>
+            <li><a href="data-models.html">Data Models</a></li>
+            <li><a href="skills.html" class="active">Skill System</a></li>
+            <li><a href="#registry">Skill Registry</a></li>
+          </ul>
+        </div>
+        
+        <div class="nav-section">
+          <h3>Operations</h3>
+          <ul>
+            <li><a href="configuration.html">Configuration</a></li>
+            <li><a href="deployment.html">Deployment</a></li>
+            <li><a href="troubleshooting.html">Troubleshooting</a></li>
+          </ul>
+        </div>
+      </nav>
+    </aside>
+    
+    <main class="content">
+      <header class="page-header">
+        <h1>Skill System</h1>
+        <p class="subtitle">Rendering capabilities and skill management</p>
+      </header>
+      
+      <section class="section">
+        <h2>Overview</h2>
+        <p class="lead">
+          The Skill System is the pluggable rendering layer of the Generative Visual Engine. 
+          Each skill represents a complete rendering environment (Three.js, p5.js, D3.js, Anime.js) 
+          with defined capabilities, templates, and execution parameters.
+        </p>
+        
+        <h3>Supported Skills</h3>
+        <table>
+          <tr>
+            <th>Skill</th>
+            <th>Domain</th>
+            <th>Version</th>
+            <th>Best For</th>
+          </tr>
+          <tr>
+            <td><strong>Three.js</strong></td>
+            <td>3D</td>
+            <td>0.160.0</td>
+            <td>3D scenes, WebGL, animations, interactive 3D</td>
+          </tr>
+          <tr>
+            <td><strong>p5.js</strong></td>
+            <td>2D</td>
+            <td>1.9.0</td>
+            <td>Creative coding, generative art, 2D sketches</td>
+          </tr>
+          <tr>
+            <td><strong>D3.js</strong></td>
+            <td>Data Viz</td>
+            <td>7.9.0</td>
+            <td>Charts, graphs, data visualizations, SVG</td>
+          </tr>
+          <tr>
+            <td><strong>Anime.js</strong></td>
+            <td>Animation</td>
+            <td>3.2.2</td>
+            <td>DOM animations, SVG animations, timelines</td>
+          </tr>
+        </table>
+      </section>
+      
+      <section class="section">
+        <h2>Skill Architecture</h2>
+        
+        <div class="diagram-container">
+          <pre class="diagram">
+┌─────────────────────────────────────────────────────────────────┐
+│                         SKILL REGISTRY                           │
+│                                                                  │
+│   ┌─────────────┐   ┌─────────────┐   ┌─────────────┐             │
+│   │  Skill Def  │   │  Skill Def  │   │  Skill Def  │             │
+│   │ (threejs)   │   │   (p5js)    │   │   (d3js)    │             │
+│   │             │   │             │   │             │             │
+│   │ • Capabilities│  │ • Capabilities│  │ • Capabilities│            │
+│   │ • Templates  │   │ • Templates  │   │ • Templates  │             │
+│   │ • Examples   │   │ • Examples   │   │ • Examples   │             │
+│   │ • Runtime    │   │ • Runtime    │   │ • Runtime    │             │
+│   └──────┬──────┘   └──────┬──────┘   └──────┬──────┘             │
+└──────────┼──────────────────┼──────────────────┼──────────────────┘
+           │                  │                  │
+           ▼                  ▼                  ▼
+    ┌─────────────┐    ┌─────────────┐    ┌─────────────┐
+    │   Sandbox   │    │   Sandbox   │    │   Sandbox   │
+    │   (Node.js) │    │   (Node.js) │    │   (Node.js) │
+    │             │    │             │    │             │
+    │ ┌─────────┐│    │ ┌─────────┐│    │ ┌─────────┐│
+    │ │ Skill   ││    │ │ Skill   ││    │ │ Skill   ││
+    │ │ Runtime ││    │ │ Runtime ││    │ │ Runtime ││
+    │ │ (vm)    ││    │ │ (vm)    ││    │ │ (vm)    ││
+    │ └─────────┘│    │ └─────────┘│    │ └─────────┘│
+    └─────────────┘    └─────────────┘    └─────────────┘
+          </pre>
+        </div>
+        
+        <h3>Skill Loading Flow</h3>
+        <div class="flow-step">
+          <div class="flow-step-number">1</div>
+          <div class="flow-step-content">
+            <div class="flow-step-title">Check Skill Registry</div>
+            <div class="flow-step-desc">Look up skill by ID and retrieve definition, capabilities, and requirements.</div>
+          </div>
+        </div>
+        
+        <div class="flow-step">
+          <div class="flow-step-number">2</div>
+          <div class="flow-step-content">
+            <div class="flow-step-title">Acquire Sandbox</div>
+            <div class="flow-step-desc">Get compatible sandbox from warm pool or provision new one with matching base image.</div>
+          </div>
+        </div>
+        
+        <div class="flow-step">
+          <div class="flow-step-number">3</div>
+          <div class="flow-step-content">
+            <div class="flow-step-title">Install Dependencies</div>
+            <div class="flow-step-desc">Install skill-specific NPM packages (three@0.160.0, p5@1.9.0, etc.).</div>
+          </div>
+        </div>
+        
+        <div class="flow-step">
+          <div class="flow-step-number">4</div>
+          <div class="flow-step-content">
+            <div class="flow-step-title">Mount Templates</div>
+            <div class="flow-step-desc">Copy skill template files to sandbox for code scaffolding and helper functions.</div>
+          </div>
+        </div>
+        
+        <div class="flow-step">
+          <div class="flow-step-number">5</div>
+          <div class="flow-step-content">
+            <div class="flow-step-title">Initialize Runtime</div>
+            <div class="flow-step-desc">Start skill runtime server and verify health. Ready for code execution.</div>
+          </div>
+        </div>
+      </section>
+      
+      <section class="section">
+        <h2>Three.js Skill</h2>
+        <p>3D scene generation using Three.js with WebGL rendering.</p>
+        
+        <h3>Capabilities</h3>
+        <table>
+          <tr>
+            <th>Capability</th>
+            <th>Description</th>
+            <th>Parameters</th>
+          </tr>
+          <tr>
+            <td>primitive</td>
+            <td>Create 3D primitives (cube, sphere, cylinder, etc.)</td>
+            <td>shape, size, position, color</td>
+          </tr>
+          <tr>
+            <td>material</td>
+            <td>Apply PBR materials (metallic, roughness)</td>
+            <td>type, color, metalness, roughness</td>
+          </tr>
+          <tr>
+            <td>lighting</td>
+            <td>Add lighting (ambient, directional, point, spot)</td>
+            <td>type, color, intensity, position</td>
+          </tr>
+          <tr>
+            <td>animation</td>
+            <td>Add animations (rotation, translation, scaling)</td>
+            <td>type, target, duration, loop</td>
+          </tr>
+          <tr>
+            <td>camera</td>
+            <td>Camera controls and positioning</td>
+            <td>type, position, lookAt, controls</td>
+          </tr>
+          <tr>
+            <td>geometry</td>
+            <td>Complex geometries and custom shapes</td>
+            <td>vertices, faces, uvs</td>
+          </tr>
+          <tr>
+            <td>particle</td>
+            <td>Particle systems and effects</td>
+            <td>count, size, color, behavior</td>
+          </tr>
+        </table>
+        
+        <h3>Runtime Configuration</h3>
+        <pre class="code-block">
+{
+  "baseImage": "node:20-alpine",
+  "dependencies": ["three@0.160.0", "@types/three@0.160.0"],
+  "envVars": { "NODE_ENV": "production" },
+  "resources": {
+    "memory": "512MB",
+    "cpu": "1",
+    "timeout": 30000
+  },
+  "ports": [3000],
+  "filesystem": {
+    "readOnly": ["/skills/threejs"],
+    "readWrite": ["/tmp", "/output"]
+  },
+  "maxFrames": 48,
+  "frameBudget": 2200
+}
+        </pre>
+        
+        <h3>Bootstrap Code</h3>
+        <pre class="code-block">
+// Scene setup (injected automatically)
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setSize(window.innerWidth, window.innerHeight);
+document.body.appendChild(renderer.domElement);
+
+// OrbitControls for interaction
+const controls = new THREE.OrbitControls(camera, renderer.domElement);
+
+// Animation loop
+function animate() {
+  requestAnimationFrame(animate);
+  controls.update();
+  renderer.render(scene, camera);
+}
+animate();
+
+// User code executes here
+${userCode}
+        </pre>
+        
+        <h3>Example Generation</h3>
+        <pre class="code-block">
+User: "Create a rotating blue metallic cube"
+
+Generated Code:
+const geometry = new THREE.BoxGeometry(1, 1, 1);
+const material = new THREE.MeshStandardMaterial({
+  color: 0x0000ff,
+  metalness: 0.7,
+  roughness: 0.2
+});
+const cube = new THREE.Mesh(geometry, material);
+scene.add(cube);
+
+// Position camera
+camera.position.z = 3;
+
+// Add rotation animation
+function animate() {
+  requestAnimationFrame(animate);
+  cube.rotation.x += 0.01;
+  cube.rotation.y += 0.01;
+  controls.update();
+  renderer.render(scene, camera);
+}
+animate();
+        </pre>
+      </section>
+      
+      <section class="section">
+        <h2>p5.js Skill</h2>
+        <p>2D creative coding with p5.js for generative art and sketches.</p>
+        
+        <h3>Capabilities</h3>
+        <table>
+          <tr>
+            <th>Capability</th>
+            <th>Description</th>
+          </tr>
+          <tr>
+            <td>shape</td>
+            <td>Draw 2D shapes (ellipse, rect, line, polygon)</td>
+          </tr>
+          <tr>
+            <td>color</td>
+            <td>Apply colors and gradients</td>
+          </tr>
+          <tr>
+            <td>animation</td>
+            <td>Frame-based animations</td>
+          </tr>
+          <tr>
+            <td>interaction</td>
+            <td>Mouse and keyboard interaction</td>
+          </tr>
+          <tr>
+            <td>noise</td>
+            <td>Perlin noise for generative patterns</td>
+          </tr>
+        </table>
+        
+        <h3>Runtime Configuration</h3>
+        <pre class="code-block">
+{
+  "baseImage": "node:20-alpine",
+  "dependencies": ["p5@1.9.0"],
+  "resources": {
+    "memory": "256MB",
+    "cpu": "1",
+    "timeout": 25000
+  },
+  "maxFrames": 60,
+  "frameBudget": 1800
+}
+        </pre>
+        
+        <h3>Bootstrap Code</h3>
+        <pre class="code-block">
+// p5.js instance mode
+new p5((p) => {
+  p.setup = () => {
+    p.createCanvas(800, 600);
+    // User setup code
+    ${userSetupCode}
+  };
+  
+  p.draw = () => {
+    // User draw code
+    ${userDrawCode}
+  };
+});
+        </pre>
+      </section>
+      
+      <section class="section">
+        <h2>D3.js Skill</h2>
+        <p>Data visualization with D3.js for charts and interactive graphics.</p>
+        
+        <h3>Capabilities</h3>
+        <table>
+          <tr>
+            <th>Capability</th>
+            <th>Description</th>
+          </tr>
+          <tr>
+            <td>chart</td>
+            <td>Bar, line, area, scatter charts</td>
+          </tr>
+          <tr>
+            <td>hierarchy</td>
+            <td>Trees, treemaps, pack layouts</td>
+          </tr>
+          <tr>
+            <td>network</td>
+            <td>Force-directed graphs, links</td>
+          </tr>
+          <tr>
+            <td>scale</td>
+            <td>Linear, ordinal, time scales</td>
+          </tr>
+          <tr>
+            <td>axis</td>
+            <td>Chart axes and labels</td>
+          </tr>
+          <tr>
+            <td>transition</td>
+            <td>Animated transitions</td>
+          </tr>
+        </table>
+        
+        <h3>Runtime Configuration</h3>
+        <pre class="code-block">
+{
+  "baseImage": "node:20-alpine",
+  "dependencies": ["d3@7.9.0"],
+  "resources": {
+    "memory": "256MB",
+    "cpu": "1",
+    "timeout": 25000
+  },
+  "maxFrames": 40,
+  "frameBudget": 1800
+}
+        </pre>
+      </section>
+      
+      <section class="section">
+        <h2>Anime.js Skill</h2>
+        <p>DOM and SVG animation with Anime.js for lightweight animations.</p>
+        
+        <h3>Capabilities</h3>
+        <table>
+          <tr>
+            <th>Capability</th>
+            <th>Description</th>
+          </tr>
+          <tr>
+            <td>tween</td>
+            <td>Property interpolation</td>
+          </tr>
+          <tr>
+            <td>timeline</td>
+            <td>Sequential animations</td>
+          </tr>
+          <tr>
+            <td>stagger</td>
+            <td>Staggered animations on multiple elements</td>
+          </tr>
+          <tr>
+            <td>morph</td>
+            <td>SVG path morphing</td>
+          </tr>
+        </table>
+        
+        <h3>Runtime Configuration</h3>
+        <pre class="code-block">
+{
+  "baseImage": "node:20-alpine",
+  "dependencies": ["animejs@3.2.2"],
+  "resources": {
+    "memory": "256MB",
+    "cpu": "1",
+    "timeout": 25000
+  },
+  "maxFrames": 60,
+  "frameBudget": 1800
+}
+        </pre>
+      </section>
+      
+      <section id="registry" class="section">
+        <h2>Skill Registry</h2>
+        <p>
+          The Skill Registry maintains all available skills with their capabilities 
+          and provides scoring for skill selection.
+        </p>
+        
+        <h3>Capability Indexing</h3>
+        <pre class="code-block">
+// Capability index structure
+{
+  "primitive": ["threejs", "p5js"],
+  "material": ["threejs"],
+  "lighting": ["threejs"],
+  "animation": ["threejs", "p5js", "animejs"],
+  "camera": ["threejs"],
+  "chart": ["d3js"],
+  "scale": ["d3js"],
+  "tween": ["animejs"],
+  "timeline": ["animejs"]
+}
+        </pre>
+        
+        <h3>Skill Scoring</h3>
+        <pre class="code-block">
+// Scoring algorithm
+function scoreSkill(skill, intent) {
+  let score = 0;
+  
+  // Domain match (45%)
+  if (skill.domain === intent.targetDomain) {
+    score += 0.45;
+  }
+  
+  // Capability coverage (25%)
+  const requiredCaps = intent.requiredCapabilities;
+  const providedCaps = skill.capabilities;
+  const coverage = requiredCaps.filter(c => 
+    providedCaps.includes(c)
+  ).length / requiredCaps.length;
+  score += coverage * 0.25;
+  
+  // Constraint fit (15%)
+  score += checkConstraints(skill, intent.constraints) * 0.15;
+  
+  // Reliability (10%)
+  score += skill.reliability.successRate * 0.10;
+  
+  // Warm pool (5%)
+  if (skill.warmPoolAvailable) {
+    score += 0.05;
+  }
+  
+  return score;
+}
+        </pre>
+      </section>
+      
+      <section class="section">
+        <h2>Skill Manifest Format</h2>
+        <p>Skills are defined in <code>skill.json</code> files:</p>
+        
+        <pre class="code-block">
+{
+  "id": "threejs",
+  "name": "Three.js Renderer",
+  "version": "0.160.0",
+  "description": "3D scene generation using Three.js",
+  "author": "GVE Team",
+  "license": "MIT",
+  
+  "domain": "3d",
+  "capabilities": [
+    {
+      "name": "primitive",
+      "description": "Create basic 3D primitives",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "shape": { 
+            "enum": ["cube", "sphere", "cylinder", "cone", "torus"]
+          },
+          "size": { "type": "number" },
+          "position": { 
+            "type": "array", 
+            "items": { "type": "number" },
+            "minItems": 3,
+            "maxItems": 3
+          },
+          "color": { "type": "string" }
+        }
+      }
+    }
+  ],
+  
+  "runtime": {
+    "baseImage": "node:20-alpine",
+    "dependencies": ["three@0.160.0"],
+    "envVars": { "NODE_ENV": "production" },
+    "resources": {
+      "memory": "512MB",
+      "cpu": "1",
+      "timeout": 30000
+    },
+    "ports": [3000],
+    "filesystem": {
+      "readOnly": ["/skills/threejs"],
+      "readWrite": ["/tmp", "/output"]
+    }
+  },
+  
+  "templates": {
+    "entryPoint": "index.js",
+    "files": [
+      "templates/scene.js",
+      "templates/primitives.js",
+      "templates/materials.js"
+    ]
+  },
+  
+  "examples": [
+    {
+      "prompt": "Create a red spinning cube",
+      "code": "const geometry = new THREE.BoxGeometry(1, 1, 1);..."
+    }
+  ]
+}
+        </pre>
+      </section>
+      
+      <section class="section">
+        <h2>Code Execution in Sandboxes</h2>
+        <p>
+          User code is executed in a Node.js vm context with skill-specific 
+          shims and mock environments.
+        </p>
+        
+        <h3>Execution Context</h3>
+        <pre class="code-block">
+// VM context setup (runner-script.js)
+const context = {
+  // Console
+  console: { log, error, warn },
+  
+  // Timers
+  setTimeout, clearTimeout,
+  setInterval, clearInterval,
+  
+  // Animation frame mock
+  requestAnimationFrame: (cb) => setTimeout(cb, 16),
+  
+  // Skill globals
+  THREE: createThreeJSShim(),
+  p5: createP5Shim(),
+  d3: createD3Shim(),
+  anime: createAnimeShim(),
+  
+  // Scene tracking
+  __sceneObjects: [],
+  __animations: [],
+  __renderCount: 0,
+  __frameCount: 0
+};
+
+// Execute with timeout
+vm.createContext(context);
+const script = new vm.Script(code, { timeout: maxMs });
+script.runInContext(context);
+        </pre>
+        
+        <h3>Execution Limits</h3>
+        <table>
+          <tr>
+            <th>Limit</th>
+            <th>Value</th>
+            <th>Description</th>
+          </tr>
+          <tr>
+            <td>Max Frames</td>
+            <td>40-60</td>
+            <td>Maximum animation frames to render</td>
+          </tr>
+          <tr>
+            <td>Frame Budget</td>
+            <td>1500-2200ms</td>
+            <td>Time allowed for animation</td>
+          </tr>
+          <tr>
+            <td>Memory</td>
+            <td>256-512MB</td>
+            <td>Sandbox memory limit</td>
+          </tr>
+          <tr>
+            <td>Timeout</td>
+            <td>25-30s</td>
+            <td>Total execution timeout</td>
+          </tr>
+        </table>
+      </section>
+      
+      <footer class="footer">
+        <p>Generative Visual Engine Knowledgebase • Generated from source analysis</p>
+      </footer>
+    </main>
+  </div>
+  
+  <script src="assets/navigation.js"></script>
+</body>
+</html>

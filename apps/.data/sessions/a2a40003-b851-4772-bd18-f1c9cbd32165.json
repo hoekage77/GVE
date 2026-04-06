@@ -1,0 +1,15 @@
+{
+  "sessionId": "a2a40003-b851-4772-bd18-f1c9cbd32165",
+  "createdAt": "2026-04-06T03:05:50.990Z",
+  "updatedAt": "2026-04-06T03:05:50.990Z",
+  "status": "idle",
+  "currentScene": null,
+  "artifacts": [],
+  "artifactPointer": -1,
+  "versions": [],
+  "sceneVersions": [],
+  "versionPointer": -1,
+  "revisionPointer": -1,
+  "messages": [],
+  "orchestrationTrace": []
+}

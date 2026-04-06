@@ -1,0 +1,627 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Configuration & Deployment - GVE Knowledgebase</title>
+  <link rel="stylesheet" href="assets/styles.css">
+</head>
+<body>
+  <div class="layout">
+    <aside class="sidebar">
+      <div class="logo">
+        <h1>📐 GVE Knowledgebase</h1>
+        <span class="version">v1.0.0</span>
+      </div>
+      
+      <nav class="nav">
+        <div class="nav-section">
+          <h3>Overview</h3>
+          <ul>
+            <li><a href="index.html">Introduction</a></li>
+            <li><a href="architecture.html">Architecture</a></li>
+            <li><a href="quickstart.html">Quick Start</a></li>
+          </ul>
+        </div>
+        
+        <div class="nav-section">
+          <h3>API Reference</h3>
+          <ul>
+            <li><a href="api-rest.html">REST API</a></li>
+            <li><a href="api-websocket.html">WebSocket Events</a></li>
+            <li><a href="api-types.html">Type Definitions</a></li>
+          </ul>
+        </div>
+        
+        <div class="nav-section">
+          <h3>Components</h3>
+          <ul>
+            <li><a href="components-web.html">Web Components</a></li>
+            <li><a href="components-server.html">Server Modules</a></li>
+            <li><a href="components-ui.html">UI Primitives</a></li>
+          </ul>
+        </div>
+        
+        <div class="nav-section">
+          <h3>Data & Skills</h3>
+          <ul>
+            <li><a href="data-models.html">Data Models</a></li>
+            <li><a href="skills.html">Skill System</a></li>
+            <li><a href="skills.html#registry">Skill Registry</a></li>
+          </ul>
+        </div>
+        
+        <div class="nav-section">
+          <h3>Operations</h3>
+          <ul>
+            <li><a href="configuration.html" class="active">Configuration</a></li>
+            <li><a href="deployment.html">Deployment</a></li>
+            <li><a href="troubleshooting.html">Troubleshooting</a></li>
+          </ul>
+        </div>
+      </nav>
+    </aside>
+    
+    <main class="content">
+      <header class="page-header">
+        <h1>Configuration & Deployment</h1>
+        <p class="subtitle">Environment setup, deployment, and operations</p>
+      </header>
+      
+      <section class="section">
+        <h2>Environment Variables</h2>
+        
+        <h3>Daytona Sandbox Configuration</h3>
+        <table>
+          <tr>
+            <th>Variable</th>
+            <th>Required</th>
+            <th>Default</th>
+            <th>Description</th>
+          </tr>
+          <tr>
+            <td>DAYTONA_API_KEY</td>
+            <td>Yes*</td>
+            <td>-</td>
+            <td>API key for Daytona SDK authentication</td>
+          </tr>
+          <tr>
+            <td>DAYTONA_JWT_TOKEN</td>
+            <td>Alternative*</td>
+            <td>-</td>
+            <td>JWT token for authentication (with DAYTONA_ORG_ID)</td>
+          </tr>
+          <tr>
+            <td>DAYTONA_ORG_ID</td>
+            <td>With JWT</td>
+            <td>-</td>
+            <td>Organization ID for JWT authentication</td>
+          </tr>
+          <tr>
+            <td>DAYTONA_PREWARM_SIZE</td>
+            <td>No</td>
+            <td>1</td>
+            <td>Number of sandboxes to keep warm</td>
+          </tr>
+          <tr>
+            <td>DAYTONA_PREWARM_REPLENISH_THRESHOLD</td>
+            <td>No</td>
+            <td>1.0</td>
+            <td>Threshold to trigger pool replenishment (0-1)</td>
+          </tr>
+          <tr>
+            <td>DAYTONA_PREWARM_CHECK_INTERVAL_SECONDS</td>
+            <td>No</td>
+            <td>15</td>
+            <td>Seconds between pool maintenance checks</td>
+          </tr>
+          <tr>
+            <td>DAYTONA_DIRECT_CREATE_TIMEOUT_SECONDS</td>
+            <td>No</td>
+            <td>10</td>
+            <td>Timeout for fast-path sandbox creation</td>
+          </tr>
+          <tr>
+            <td>DAYTONA_FALLBACK_CREATE_TIMEOUT_SECONDS</td>
+            <td>No</td>
+            <td>25</td>
+            <td>Timeout for fallback sandbox creation</td>
+          </tr>
+          <tr>
+            <td>DAYTONA_DIRECT_SKIP_BUDGET_MS</td>
+            <td>No</td>
+            <td>4000</td>
+            <td>Skip direct create if budget below this (ms)</td>
+          </tr>
+          <tr>
+            <td>DAYTONA_ACQUIRE_RETRY_ATTEMPTS</td>
+            <td>No</td>
+            <td>2</td>
+            <td>Number of retry attempts for provisioning</td>
+          </tr>
+          <tr>
+            <td>DAYTONA_DIRECT_CIRCUIT_BREAKER_THRESHOLD</td>
+            <td>No</td>
+            <td>3</td>
+            <td>Failures before opening circuit breaker</td>
+          </tr>
+          <tr>
+            <td>DAYTONA_DIRECT_CIRCUIT_BREAKER_WINDOW_MS</td>
+            <td>No</td>
+            <td>120000</td>
+            <td>Rolling window for circuit breaker (ms)</td>
+          </tr>
+          <tr>
+            <td>DAYTONA_DIRECT_CIRCUIT_BREAKER_COOLDOWN_MS</td>
+            <td>No</td>
+            <td>90000</td>
+            <td>Cooldown before closing circuit (ms)</td>
+          </tr>
+          <tr>
+            <td>DAYTONA_DIRECT_CREATE_IMAGE</td>
+            <td>No</td>
+            <td>-</td>
+            <td>Custom Docker image for direct create</td>
+          </tr>
+        </table>
+        <p><em>* Either DAYTONA_API_KEY or (DAYTONA_JWT_TOKEN + DAYTONA_ORG_ID) is required</em></p>
+        
+        <h3>LLM Provider Configuration</h3>
+        <table>
+          <tr>
+            <th>Variable</th>
+            <th>Required</th>
+            <th>Description</th>
+          </tr>
+          <tr>
+            <td>MOONSHOT_API_KEY</td>
+            <td>Recommended</td>
+            <td>Moonshot (Kimi K2.5) API key</td>
+          </tr>
+          <tr>
+            <td>DEEPSEEK_API_KEY</td>
+            <td>Optional</td>
+            <td>DeepSeek API key</td>
+          </tr>
+          <tr>
+            <td>GROQ_API_KEY</td>
+            <td>Optional</td>
+            <td>Groq API key</td>
+          </tr>
+          <tr>
+            <td>GEMINI_API_KEY</td>
+            <td>Optional</td>
+            <td>Google Gemini API key</td>
+          </tr>
+          <tr>
+            <td>TOGETHER_API_KEY</td>
+            <td>Optional</td>
+            <td>Together AI API key</td>
+          </tr>
+        </table>
+        
+        <h3>Server Configuration</h3>
+        <table>
+          <tr>
+            <th>Variable</th>
+            <th>Default</th>
+            <th>Description</th>
+          </tr>
+          <tr>
+            <td>PORT</td>
+            <td>8000</td>
+            <td>HTTP server port</td>
+          </tr>
+          <tr>
+            <td>FAST_MODE</td>
+            <td>true</td>
+            <td>Enable fast mode optimizations</td>
+          </tr>
+          <tr>
+            <td>ENABLE_ASYNC_THINKING</td>
+            <td>true</td>
+            <td>Enable async thought generation</td>
+          </tr>
+          <tr>
+            <td>ENABLE_POST_TURN_NARRATION</td>
+            <td>true</td>
+            <td>Enable post-turn narration</td>
+          </tr>
+          <tr>
+            <td>CODE_STREAM_CHUNK_SIZE</td>
+            <td>50</td>
+            <td>Characters per code stream chunk</td>
+          </tr>
+          <tr>
+            <td>CODE_STREAM_DELAY_MS</td>
+            <td>80</td>
+            <td>Delay between code stream chunks (ms)</td>
+          </tr>
+        </table>
+        
+        <h3>Web Configuration</h3>
+        <table>
+          <tr>
+            <th>Variable</th>
+            <th>Default</th>
+            <th>Description</th>
+          </tr>
+          <tr>
+            <td>VITE_API_BASE_URL</td>
+            <td>http://localhost:8000</td>
+            <td>REST API base URL</td>
+          </tr>
+          <tr>
+            <td>VITE_WS_BASE_URL</td>
+            <td>ws://localhost:8000</td>
+            <td>WebSocket base URL</td>
+          </tr>
+          <tr>
+            <td>VITE_USE_API_MOCK</td>
+            <td>0</td>
+            <td>Use mock API responses (dev only)</td>
+          </tr>
+        </table>
+      </section>
+      
+      <section class="section">
+        <h2>Sample Environment File</h2>
+        <pre class="code-block">
+# .env file for apps/server
+
+# Daytona Configuration (Required)
+DAYTONA_API_KEY=your_daytona_api_key_here
+# Or use JWT:
+# DAYTONA_JWT_TOKEN=your_jwt_token
+# DAYTONA_ORG_ID=your_org_id
+
+# Pool Configuration
+DAYTONA_PREWARM_SIZE=2
+DAYTONA_PREWARM_CHECK_INTERVAL_SECONDS=15
+DAYTONA_DIRECT_CREATE_TIMEOUT_SECONDS=10
+DAYTONA_FALLBACK_CREATE_TIMEOUT_SECONDS=25
+
+# Circuit Breaker
+DAYTONA_DIRECT_CIRCUIT_BREAKER_THRESHOLD=3
+DAYTONA_DIRECT_CIRCUIT_BREAKER_COOLDOWN_MS=90000
+
+# LLM Providers (At least one required)
+MOONSHOT_API_KEY=your_moonshot_key
+DEEPSEEK_API_KEY=your_deepseek_key
+GROQ_API_KEY=your_groq_key
+GEMINI_API_KEY=your_gemini_key
+
+# Server Settings
+PORT=8000
+FAST_MODE=true
+ENABLE_ASYNC_THINKING=true
+ENABLE_POST_TURN_NARRATION=true
+        </pre>
+      </section>
+      
+      <section class="section">
+        <h2>Development Setup</h2>
+        
+        <h3>Prerequisites</h3>
+        <ul>
+          <li>Node.js 20+</li>
+          <li>npm 10+</li>
+          <li>Daytona account with API key</li>
+          <li>At least one LLM provider API key</li>
+        </ul>
+        
+        <h3>Installation</h3>
+        <pre class="code-block">
+# Clone repository
+git clone <repository-url>
+cd dosco-visual-engine
+
+# Install dependencies
+npm install
+
+# Set up environment
+cp apps/server/server/.env.example apps/server/server/.env
+# Edit .env with your API keys
+
+# Run development servers
+npm run dev:server  # Terminal 1 - Backend on port 8000
+npm run dev:web     # Terminal 2 - Frontend on port 5173
+        </pre>
+        
+        <h3>Development Server Proxy</h3>
+        <p>The Vite dev server is configured to proxy API calls:</p>
+        <pre class="code-block">
+// vite.config.ts
+export default defineConfig({
+  server: {
+    port: 5173,
+    proxy: {
+      "/api": { target: "http://localhost:8000" },
+      "/ws": { target: "ws://localhost:8000", ws: true }
+    }
+  }
+});
+        </pre>
+      </section>
+      
+      <section class="section">
+        <h2>Production Deployment</h2>
+        
+        <h3>Build</h3>
+        <pre class="code-block">
+# Build all packages
+npm run build
+
+# Output:
+# - apps/web/dist/        # Static frontend files
+# - apps/server/dist/     # Compiled server (if using TypeScript)
+# - packages/*/dist/      # Compiled packages
+        </pre>
+        
+        <h3>Docker Deployment</h3>
+        <pre class="code-block">
+# Dockerfile
+FROM node:20-alpine
+
+WORKDIR /app
+
+# Copy package files
+COPY package*.json ./
+COPY apps/server/package*.json ./apps/server/
+COPY packages/*/package*.json ./packages/*/
+
+# Install dependencies
+RUN npm ci --only=production
+
+# Copy built files
+COPY apps/web/dist ./apps/web/dist
+COPY apps/server ./apps/server
+COPY packages ./packages
+
+# Expose ports
+EXPOSE 8000
+
+# Start server
+CMD ["node", "apps/server/server/index.js"]
+        </pre>
+        
+        <h3>Docker Compose</h3>
+        <pre class="code-block">
+# docker-compose.yml
+version: '3.8'
+
+services:
+  gve-server:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      - DAYTONA_API_KEY=${DAYTONA_API_KEY}
+      - MOONSHOT_API_KEY=${MOONSHOT_API_KEY}
+      - PORT=8000
+    volumes:
+      - ./.data:/app/apps/.data
+    restart: unless-stopped
+    
+  # Optional: Add Redis for caching
+  redis:
+    image: redis:7-alpine
+    volumes:
+      - redis-data:/data
+    restart: unless-stopped
+
+volumes:
+  redis-data:
+        </pre>
+        
+        <h3>Static Frontend Hosting</h3>
+        <p>
+          The built frontend (<code>apps/web/dist</code>) can be served from any static host 
+          (CDN, S3, Netlify, Vercel, etc.). Configure these environment variables:
+        </p>
+        <pre class="code-block">
+VITE_API_BASE_URL=https://api.yourdomain.com
+VITE_WS_BASE_URL=wss://api.yourdomain.com
+        </pre>
+      </section>
+      
+      <section class="section">
+        <h2>Health Checks</h2>
+        
+        <h3>Server Health Endpoint</h3>
+        <pre class="code-block">
+GET /health
+
+Response:
+{
+  "status": "healthy",
+  "version": "1.0.0",
+  "uptime": 86400,
+  "services": {
+    "websocket": "connected",
+    "sandboxPool": "healthy",
+    "llmPool": "healthy"
+  },
+  "metrics": {
+    "activeSessions": 12,
+    "availableSandboxes": 3,
+    "totalRequests": 1543
+  }
+}
+        </pre>
+        
+        <h3>Sandbox Pool Metrics</h3>
+        <p>Metrics are logged periodically for monitoring:</p>
+        <pre class="code-block">
+{
+  "event": "pool_metrics",
+  "timestamp": "2024-03-26T10:30:00Z",
+  "metrics": {
+    "acquireAttempts": 100,
+    "acquireSuccesses": 95,
+    "acquireFailures": 5,
+    "directCreates": 60,
+    "fallbackCreates": 35,
+    "circuitBreakerOpens": 2,
+    "warmPoolHits": 40,
+    "avgAcquireDuration": 2500
+  }
+}
+        </pre>
+      </section>
+      
+      <section class="section">
+        <h2>Monitoring</h2>
+        
+        <h3>Key Metrics to Monitor</h3>
+        <table>
+          <tr>
+            <th>Metric</th>
+            <th>Target</th>
+            <th>Alert Threshold</th>
+          </tr>
+          <tr>
+            <td>Sandbox acquire duration</td>
+            <td>&lt; 3s</td>
+            <td>&gt; 10s</td>
+          </tr>
+          <tr>
+            <td>Sandbox acquire success rate</td>
+            <td>&gt; 95%</td>
+            <td>&lt; 90%</td>
+          </tr>
+          <tr>
+            <td>Circuit breaker open rate</td>
+            <td>&lt; 1%</td>
+            <td>&gt; 5%</td>
+          </tr>
+          <tr>
+            <td>Generation success rate</td>
+            <td>&gt; 90%</td>
+            <td>&lt; 80%</td>
+          </tr>
+          <tr>
+            <td>LLM provider error rate</td>
+            <td>&lt; 5%</td>
+            <td>&gt; 20%</td>
+          </tr>
+          <tr>
+            <td>Average turn duration</td>
+            <td>&lt; 10s</td>
+            <td>&gt; 30s</td>
+          </tr>
+        </table>
+        
+        <h3>Log Format</h3>
+        <pre class="code-block">
+# Server logs are structured JSON
+{
+  "timestamp": "2024-03-26T10:30:00.000Z",
+  "level": "info",
+  "component": "orchestrator",
+  "event": "turn_complete",
+  "sessionId": "550e8400-e29b-41d4-a716-446655440000",
+  "turnId": "turn-abc123",
+  "duration": 5200,
+  "skill": "threejs",
+  "success": true
+}
+        </pre>
+      </section>
+      
+      <section class="section">
+        <h2>Backup & Recovery</h2>
+        
+        <h3>Session Persistence</h3>
+        <p>
+          Sessions are automatically persisted to <code>apps/.data/sessions/</code> 
+          with atomic file writes. To back up sessions:
+        </p>
+        <pre class="code-block">
+# Backup sessions
+tar -czf sessions-backup-$(date +%Y%m%d).tar.gz apps/.data/sessions/
+
+# Restore sessions
+tar -xzf sessions-backup-20240326.tar.gz -C /
+        </pre>
+        
+        <h3>Disaster Recovery</h3>
+        <ol>
+          <li>Backup <code>.data/</code> directory regularly</li>
+          <li>Store API keys securely (use secrets manager)</li>
+          <li>Use warm pool to reduce cold start impact</li>
+          <li>Configure multiple LLM providers for failover</li>
+        </ol>
+      </section>
+      
+      <section class="section">
+        <h2>Scaling Considerations</h2>
+        
+        <h3>Horizontal Scaling</h3>
+        <ul>
+          <li>
+            <strong>Stateless Server:</strong> Server instances are stateless; 
+            session state is stored on disk and can be shared via NFS or similar.
+          </li>
+          <li>
+            <strong>Load Balancing:</strong> Use sticky sessions for WebSocket connections 
+            or implement shared session store.
+          </li>
+          <li>
+            <strong>Sandbox Pool:</strong> Each server instance manages its own sandbox pool; 
+            consider pooling at the cluster level for better utilization.
+          </li>
+        </ul>
+        
+        <h3>Resource Planning</h3>
+        <table>
+          <tr>
+            <th>Component</th>
+            <th>CPU</th>
+            <th>Memory</th>
+            <th>Per</th>
+          </tr>
+          <tr>
+            <td>Server (idle)</td>
+            <td>0.1 cores</td>
+            <td>256 MB</td>
+            <td>instance</td>
+          </tr>
+          <tr>
+            <td>Server (active)</td>
+            <td>0.5 cores</td>
+            <td>512 MB</td>
+            <td>10 concurrent users</td>
+          </tr>
+          <tr>
+            <td>Sandbox (threejs)</td>
+            <td>1 core</td>
+            <td>512 MB</td>
+            <td>sandbox</td>
+          </tr>
+          <tr>
+            <td>Sandbox (p5js/d3js)</td>
+            <td>1 core</td>
+            <td>256 MB</td>
+            <td>sandbox</td>
+          </tr>
+        </table>
+        
+        <h3>Performance Tuning</h3>
+        <ul>
+          <li>Increase <code>DAYTONA_PREWARM_SIZE</code> for high-traffic scenarios</li>
+          <li>Adjust <code>DAYTONA_DIRECT_SKIP_BUDGET_MS</code> based on latency requirements</li>
+          <li>Enable <code>FAST_MODE</code> for lower latency (may reduce some features)</li>
+          <li>Configure caching layers for LLM responses</li>
+        </ul>
+      </section>
+      
+      <footer class="footer">
+        <p>Generative Visual Engine Knowledgebase • Generated from source analysis</p>
+      </footer>
+    </main>
+  </div>
+  
+  <script src="assets/navigation.js"></script>
+</body>
+</html>

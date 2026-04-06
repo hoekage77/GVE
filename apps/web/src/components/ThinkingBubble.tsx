@@ -78,8 +78,17 @@ export default function ThinkingBubble({ thought = "", step = "turn_started", is
           return;
         }
 
+        // OPTIMIZED: Throttle to 30fps instead of 60fps for better performance
+        const now = performance.now();
+        const elapsed = now - lastFrameTime;
+        if (elapsed < 33) { // ~30fps
+          frame = requestAnimationFrame(render);
+          return;
+        }
+        lastFrameTime = now;
+
         const speed = activityRef.current;
-        const t = performance.now() * 0.001 * (0.8 + speed * 0.65);
+        const t = now * 0.001 * (0.8 + speed * 0.65);
         const cx = canvas.width * 0.5;
         const cy = canvas.height * 0.5;
         const radius = canvas.width * 0.34;
@@ -95,7 +104,9 @@ export default function ThinkingBubble({ thought = "", step = "turn_started", is
         const wobbleX = Math.sin(t * 1.1) * radius * 0.08;
         const wobbleY = Math.cos(t * 1.3) * radius * 0.08;
 
-        for (let i = 0; i < 5; i += 1) {
+        // OPTIMIZED: Reduce layers from 5 to 3 when not active
+        const layerCount = speed > 0.5 ? 5 : 3;
+        for (let i = 0; i < layerCount; i += 1) {
           const layer = i / 4;
           const r = radius * (0.92 - layer * 0.12) + Math.sin(t * (1.4 + i * 0.23)) * (2.2 + i);
           const gradient = context.createRadialGradient(
@@ -126,6 +137,8 @@ export default function ThinkingBubble({ thought = "", step = "turn_started", is
 
         frame = requestAnimationFrame(render);
       };
+
+      let lastFrameTime = 0;
 
       resize();
       resizeObserver = new ResizeObserver(resize);
@@ -496,12 +509,23 @@ export default function ThinkingBubble({ thought = "", step = "turn_started", is
         createFallbackAnimation();
       }
 
+      // OPTIMIZED: Throttle to 30fps for better performance
+      let lastRenderTime = 0;
+      const targetFrameTime = 33; // ~30fps
+
       const renderFrame = () => {
         if (disposed) {
           return;
         }
 
-        renderer?.render();
+        const now = performance.now();
+        const elapsed = now - lastRenderTime;
+        
+        if (elapsed >= targetFrameTime) {
+          renderer?.render();
+          lastRenderTime = now;
+        }
+        
         frame = requestAnimationFrame(renderFrame);
       };
 

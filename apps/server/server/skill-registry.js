@@ -76,6 +76,62 @@ function safeDefaultForDomain(targetDomain) {
   return safeDefaultByDomain[targetDomain] ?? "threejs";
 }
 
+function hasStrong3dSignals(rawQuery) {
+  const normalized = String(rawQuery ?? "").toLowerCase();
+  if (!normalized) {
+    return false;
+  }
+
+  return /\b(threejs|three\.js|3d|orbit(?:al)?\s+controls?|mesh|geometry|material|shader|volumetric|fog|lighting|emissive|camera|instanc(?:e|ed|ing)|terrain|pbr|catmullrom|vertex)\b/.test(
+    normalized
+  );
+}
+
+function hasStrong2dSignals(rawQuery) {
+  const normalized = String(rawQuery ?? "").toLowerCase();
+  if (!normalized) {
+    return false;
+  }
+
+  return /\b(2d|canvas|p5(?:js)?|sprite|pixel(?:\s+art)?|sketch)\b/.test(normalized);
+}
+
+function hasStrongDataVizSignals(rawQuery) {
+  const normalized = String(rawQuery ?? "").toLowerCase();
+  if (!normalized) {
+    return false;
+  }
+
+  return /\b(data(?:set)?|chart|graph|scatter|histogram|plot|axis|axes|bar\s+chart|line\s+chart)\b/.test(normalized);
+}
+
+function resolveAnchoredTargetDomain(intent) {
+  const targetDomain = intent?.targetDomain ?? "3d";
+  const rawQuery = intent?.rawQuery ?? "";
+
+  const strong3d = hasStrong3dSignals(rawQuery);
+  if (!strong3d) {
+    return targetDomain;
+  }
+
+  if (targetDomain === "3d") {
+    return targetDomain;
+  }
+
+  const strong2d = hasStrong2dSignals(rawQuery);
+  const strongDataViz = hasStrongDataVizSignals(rawQuery);
+
+  if (targetDomain === "2d" && !strong2d) {
+    return "3d";
+  }
+
+  if ((targetDomain === "data-viz" || targetDomain === "diagram") && !strongDataViz) {
+    return "3d";
+  }
+
+  return targetDomain;
+}
+
 function domainMatch(skill, intent) {
   if (skill.domainFocus.includes(intent.targetDomain)) {
     return 1;
@@ -182,10 +238,18 @@ function tieBreak(left, right) {
 
 export function rankSkillsForIntent(parsedIntent) {
   const normalizedIntent = normalizeIntent(parsedIntent);
+  const anchoredTargetDomain = resolveAnchoredTargetDomain(normalizedIntent);
+  const intentForRanking = anchoredTargetDomain === normalizedIntent.targetDomain
+    ? normalizedIntent
+    : {
+        ...normalizedIntent,
+        targetDomain: anchoredTargetDomain
+      };
+
   const ranked = skills
     .map((skill) => ({
       skill: skill.id,
-      score: Number(scoreSkill(skill, normalizedIntent).toFixed(4)),
+      score: Number(scoreSkill(skill, intentForRanking).toFixed(4)),
       skillMeta: skill
     }))
     .sort((left, right) => {
@@ -200,12 +264,16 @@ export function rankSkillsForIntent(parsedIntent) {
   const top = ranked[0] ?? null;
   const fallbackRequired = !top || top.score < 0.6;
   const selectedSkill = fallbackRequired
-    ? safeDefaultForDomain(normalizedIntent.targetDomain)
+    ? safeDefaultForDomain(intentForRanking.targetDomain)
     : top.skill;
 
+  const anchoringNote = anchoredTargetDomain !== normalizedIntent.targetDomain
+    ? ` Domain anchored from ${normalizedIntent.targetDomain} to ${anchoredTargetDomain} due to strong 3D cues.`
+    : "";
+
   const reason = fallbackRequired
-    ? `Top score below threshold; using safe default ${selectedSkill}.`
-    : `Selected ${selectedSkill} from deterministic weighted ranking.`;
+    ? `Top score below threshold; using safe default ${selectedSkill}.${anchoringNote}`
+    : `Selected ${selectedSkill} from deterministic weighted ranking.${anchoringNote}`;
 
   return {
     selectedSkill,

@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Generative Visual Engine - Knowledgebase</title>
+  <link rel="stylesheet" href="assets/styles.css">
+</head>
+<body>
+  <div class="layout">
+    <aside class="sidebar">
+      <div class="logo">
+        <h1>📐 GVE Knowledgebase</h1>
+        <span class="version">v1.0.0</span>
+      </div>
+      
+      <nav class="nav">
+        <div class="nav-section">
+          <h3>Overview</h3>
+          <ul>
+            <li><a href="#introduction" class="active">Introduction</a></li>
+            <li><a href="architecture.html">Architecture</a></li>
+            <li><a href="quickstart.html">Quick Start</a></li>
+          </ul>
+        </div>
+        
+        <div class="nav-section">
+          <h3>System Architecture</h3>
+          <ul>
+            <li><a href="architecture.html#high-level">High-Level Flow</a></li>
+            <li><a href="architecture.html#request-router">Request Router</a></li>
+            <li><a href="architecture.html#agent-orchestrator">Agent Orchestrator</a></li>
+            <li><a href="architecture.html#sandbox-pool">Sandbox Pool</a></li>
+            <li><a href="architecture.html#state-management">State Management</a></li>
+            <li><a href="architecture.html#error-handling">Error Handling</a></li>
+          </ul>
+        </div>
+        
+        <div class="nav-section">
+          <h3>API Reference</h3>
+          <ul>
+            <li><a href="api-rest.html">REST API</a></li>
+            <li><a href="api-websocket.html">WebSocket Events</a></li>
+            <li><a href="api-types.html">Type Definitions</a></li>
+          </ul>
+        </div>
+        
+        <div class="nav-section">
+          <h3>Components</h3>
+          <ul>
+            <li><a href="components-web.html">Web Components</a></li>
+            <li><a href="components-server.html">Server Modules</a></li>
+            <li><a href="components-ui.html">UI Primitives</a></li>
+          </ul>
+        </div>
+        
+        <div class="nav-section">
+          <h3>Data & Skills</h3>
+          <ul>
+            <li><a href="data-models.html">Data Models</a></li>
+            <li><a href="skills.html">Skill System</a></li>
+            <li><a href="skills.html#registry">Skill Registry</a></li>
+          </ul>
+        </div>
+        
+        <div class="nav-section">
+          <h3>Operations</h3>
+          <ul>
+            <li><a href="configuration.html">Configuration</a></li>
+            <li><a href="deployment.html">Deployment</a></li>
+            <li><a href="troubleshooting.html">Troubleshooting</a></li>
+          </ul>
+        </div>
+      </nav>
+    </aside>
+    
+    <main class="content">
+      <header class="page-header">
+        <h1>Generative Visual Engine</h1>
+        <p class="subtitle">Complete Technical Knowledgebase</p>
+      </header>
+      
+      <section id="introduction" class="section">
+        <h2>Introduction</h2>
+        <p class="lead">
+          The <strong>Generative Visual Engine (GVE)</strong> is a skill-based visual generation platform 
+          that transforms natural language into interactive 3D/2D visualizations. It uses a sophisticated 
+          <strong>Router → Agent → Skill</strong> hierarchy with dynamic skill loading in secure sandboxes.
+        </p>
+        
+        <div class="feature-grid">
+          <div class="feature-card">
+            <div class="feature-icon">🎨</div>
+            <h3>Multi-Skill Support</h3>
+            <p>Generate visuals using Three.js (3D), p5.js (2D), D3.js (data viz), or Anime.js (animation)</p>
+          </div>
+          <div class="feature-card">
+            <div class="feature-icon">🤖</div>
+            <h3>AI-Powered Generation</h3>
+            <p>LangGraph-based orchestration with intent parsing, skill selection, and code generation</p>
+          </div>
+          <div class="feature-card">
+            <div class="feature-icon">🔒</div>
+            <h3>Secure Execution</h3>
+            <p>Daytona sandbox pools with circuit breaker, warm pools, and resource budgets</p>
+          </div>
+          <div class="feature-card">
+            <div class="feature-icon">⚡</div>
+            <h3>Real-Time Collaboration</h3>
+            <p>WebSocket-first with streaming code, thoughts, and live progress updates</p>
+          </div>
+          <div class="feature-card">
+            <div class="feature-icon">🔄</div>
+            <h3>Version Control</h3>
+            <p>Artifact-based versioning with undo/redo and navigation between versions</p>
+          </div>
+          <div class="feature-card">
+            <div class="feature-icon">🛠️</div>
+            <h3>Self-Healing Agents</h3>
+            <p>Automatic validation, runtime recovery, and deterministic code patching</p>
+          </div>
+        </div>
+      </section>
+      
+      <section class="section">
+        <h2>System Architecture Overview</h2>
+        <div class="diagram-container">
+          <pre class="diagram">
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                           CLIENT LAYER                                       │
+│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐    │
+│  │   React UI   │  │  Code Editor │  │ Scene Viewer │  │  Chat Panel  │    │
+│  └──────┬───────┘  └──────┬───────┘  └──────┬───────┘  └──────┬───────┘    │
+└─────────┼─────────────────┼─────────────────┼─────────────────┼────────────┘
+          │                 │                 │                 │
+          └─────────────────┴────────┬────────┴─────────────────┘
+                                     │
+                              ┌──────▼──────┐
+                              │  WebSocket  │
+                              │   Gateway   │
+                              └──────┬──────┘
+                                     │
+┌────────────────────────────────────┼────────────────────────────────────────┐
+│                         ORCHESTRATION LAYER                                │
+│  ┌───────────────────────────▼──────────────────────────────────────────┐  │
+│  │                         REQUEST ROUTER                               │  │
+│  │  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐  │  │
+│  │  │   Intent    │  │   Context   │  │   Skill     │  │   Session   │  │  │
+│  │  │   Parser    │→ │   Manager   │→ │  Selector   │→ │   Manager   │  │  │
+│  │  └─────────────┘  └─────────────┘  └─────────────┘  └─────────────┘  │  │
+│  └──────────────────────────────────┬───────────────────────────────────┘  │
+│                                     │                                       │
+│  ┌──────────────────────────────────▼───────────────────────────────────┐  │
+│  │                      AGENT ORCHESTRATOR                              │  │
+│  │  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐  │  │
+│  │  │   Agent     │  │   Skill     │  │   Code      │  │   State     │  │  │
+│  │  │   Factory   │  │   Loader    │  │  Generator  │  │   Sync      │  │  │
+│  │  └─────────────┘  └─────────────┘  └─────────────┘  └─────────────┘  │  │
+│  └──────────────────────────────────┬───────────────────────────────────┘  │
+└─────────────────────────────────────┼──────────────────────────────────────┘
+                                      │
+┌─────────────────────────────────────┼──────────────────────────────────────┐
+│                         SKILL EXECUTION LAYER                              │
+│  ┌───────────────────────────▼──────────────────────────────────────────┐  │
+│  │                    DAYTONA SANDBOX POOL                              │  │
+│  │   ┌─────────────┐    ┌─────────────┐    ┌─────────────┐              │  │
+│  │   │  Sandbox 1  │    │  Sandbox 2  │    │  Sandbox N  │              │  │
+│  │   │  (threejs)  │    │   (p5js)    │    │   (d3js)    │              │  │
+│  │   │ ┌─────────┐ │    │ ┌─────────┐ │    │ ┌─────────┐ │              │  │
+│  │   │ │  Skill  │ │    │ │  Skill  │ │    │ │  Skill  │ │              │  │
+│  │   │ │ Runtime │ │    │ │ Runtime │ │    │ │ Runtime │ │              │  │
+│  │   │ │ + Agent │ │    │ │ + Agent │ │    │ │ + Agent │ │              │  │
+│  │   │ └─────────┘ │    │ └─────────┘ │    │ └─────────┘ │              │  │
+│  │   └─────────────┘    └─────────────┘    └─────────────┘              │  │
+│  └────────────────────────────────────────────────────────────────────────┘  │
+└──────────────────────────────────────────────────────────────────────────────┘
+          </pre>
+        </div>
+      </section>
+      
+      <section class="section">
+        <h2>Quick Navigation</h2>
+        <div class="nav-cards">
+          <a href="architecture.html" class="nav-card">
+            <h3>🏗️ Architecture</h3>
+            <p>Deep dive into system design, data flows, and component interactions</p>
+          </a>
+          <a href="api-rest.html" class="nav-card">
+            <h3>📡 API Reference</h3>
+            <p>Complete REST and WebSocket API documentation</p>
+          </a>
+          <a href="components-web.html" class="nav-card">
+            <h3>⚛️ Components</h3>
+            <p>React components, server modules, and UI primitives</p>
+          </a>
+          <a href="data-models.html" class="nav-card">
+            <h3>🗄️ Data Models</h3>
+            <p>Session, scene, message, and skill data structures</p>
+          </a>
+          <a href="skills.html" class="nav-card">
+            <h3>🎯 Skills</h3>
+            <p>Skill system, registry, and capability definitions</p>
+          </a>
+          <a href="configuration.html" class="nav-card">
+            <h3>⚙️ Configuration</h3>
+            <p>Environment variables, deployment, and troubleshooting</p>
+          </a>
+        </div>
+      </section>
+      
+      <section class="section">
+        <h2>Project Structure</h2>
+        <pre class="code-block">
+dosco-visual-engine/
+├── apps/
+│   ├── web/                    # React frontend (Vite + TypeScript)
+│   │   ├── src/
+│   │   │   ├── App.tsx         # Main application component
+│   │   │   ├── components/
+│   │   │   │   ├── SceneViewer.tsx
+│   │   │   │   ├── CodeEditor.tsx
+│   │   │   │   ├── TaskPlanViewer.tsx
+│   │   │   │   ├── ThinkingBubble.tsx
+│   │   │   │   └── ui/         # Radix UI primitives
+│   │   │   └── main.tsx
+│   │   └── package.json
+│   └── server/                 # Express + WebSocket backend
+│       ├── server/
+│       │   ├── index.js        # Server entry point
+│       │   ├── orchestrator.js   # LangGraph orchestration
+│       │   ├── session-state.js  # Session management
+│       │   ├── skill-runtime.js  # Sandbox execution
+│       │   ├── skill-registry.js # Skill catalog
+│       │   ├── code-validator.js # Code validation
+│       │   └── skills/         # Skill definitions
+│       │       ├── threejs/
+│       │       ├── p5js/
+│       │       ├── d3js/
+│       │       └── animejs/
+│       └── package.json
+├── packages/
+│   ├── sandbox-pool/           # Daytona SDK integration
+│   │   └── src/
+│   │       ├── index.js        # SandboxPoolManager
+│   │       └── runner-script.js # Code execution runtime
+│   └── shared/                 # Shared types & utilities
+│       └── src/
+│           └── index.ts        # TypeScript definitions
+└── docs/                       # Documentation
+    ├── GenerativeVisualEngine_Architecture.md
+    └── implementation/         # Sprint docs
+        </pre>
+      </section>
+      
+      <section class="section">
+        <h2>Technology Stack</h2>
+        <table class="tech-table">
+          <tr>
+            <th>Layer</th>
+            <th>Technology</th>
+            <th>Version</th>
+          </tr>
+          <tr>
+            <td>Frontend</td>
+            <td>React + TypeScript</td>
+            <td>^19.2.4 / ^6.0.2</td>
+          </tr>
+          <tr>
+            <td>Build Tool</td>
+            <td>Vite</td>
+            <td>^8.0.2</td>
+          </tr>
+          <tr>
+            <td>Styling</td>
+            <td>Tailwind CSS</td>
+            <td>^4.2.2</td>
+          </tr>
+          <tr>
+            <td>Backend</td>
+            <td>Express + WebSocket (ws)</td>
+            <td>^5.2.1 / ^8.20.0</td>
+          </tr>
+          <tr>
+            <td>Orchestration</td>
+            <td>LangChain + LangGraph</td>
+            <td>^1.1.36 / ^1.2.5</td>
+          </tr>
+          <tr>
+            <td>LLM Providers</td>
+            <td>Moonshot, DeepSeek, Groq, Gemini, Together</td>
+            <td>Multiple</td>
+          </tr>
+          <tr>
+            <td>Sandboxes</td>
+            <td>Daytona SDK</td>
+            <td>^0.157.0</td>
+          </tr>
+          <tr>
+            <td>3D Rendering</td>
+            <td>Three.js</td>
+            <td>^0.180.0</td>
+          </tr>
+          <tr>
+            <td>Validation</td>
+            <td>Acorn Parser</td>
+            <td>^8.16.0</td>
+          </tr>
+        </table>
+      </section>
+      
+      <footer class="footer">
+        <p>Generative Visual Engine Knowledgebase • Generated from source analysis</p>
+      </footer>
+    </main>
+  </div>
+  
+  <script src="assets/navigation.js"></script>
+</body>
+</html>

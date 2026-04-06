@@ -1,0 +1,329 @@
+{
+  "sessionId": "e9a24215-72fa-4a60-88c4-aafc9edf9a97",
+  "createdAt": "2026-04-03T16:53:13.286Z",
+  "updatedAt": "2026-04-03T16:58:11.436Z",
+  "status": "idle",
+  "currentScene": {
+    "sessionId": "e9a24215-72fa-4a60-88c4-aafc9edf9a97",
+    "sceneId": "scene-1775235475779",
+    "code": "const clock = new THREE.Clock();\n\nscene.background = new THREE.Color(0xd6e4f0);\nscene.fog = new THREE.FogExp2(0xd6e4f0, 0.012);\n\nrenderer.toneMapping = THREE.ACESFilmicToneMapping;\nrenderer.toneMappingExposure = 1.12;\nrenderer.shadowMap.enabled = true;\nrenderer.shadowMap.type = THREE.PCFSoftShadowMap;\n\nconst keyLight = new THREE.DirectionalLight(0xfff5e6, 1.45);\nkeyLight.position.set(35, 60, 25);\nkeyLight.castShadow = true;\nkeyLight.shadow.mapSize.set(2048, 2048);\nkeyLight.shadow.camera.near = 0.5;\nkeyLight.shadow.camera.far = 300;\nkeyLight.shadow.camera.left = -120;\nkeyLight.shadow.camera.right = 120;\nkeyLight.shadow.camera.top = 120;\nkeyLight.shadow.camera.bottom = -120;\nkeyLight.shadow.bias = -0.0005;\n\nconst fillLight = new THREE.DirectionalLight(0xc9e6ff, 0.6);\nfillLight.position.set(-40, 25, 40);\n\nconst rimLight = new THREE.PointLight(0x00d4ff, 0.85, 140);\nrimLight.position.set(0, 70, -50);\n\nconst ambientLight = new THREE.AmbientLight(0x8fa3bf, 0.38);\n\nscene.add(keyLight, fillLight, rimLight, ambientLight);\n\nconst cityGroup = new THREE.Group();\nscene.add(cityGroup);\n\nconst concreteMat = new THREE.MeshStandardMaterial({\n  color: 0xe8eef5,\n  roughness: 0.75,\n  metalness: 0.08\n});\n\nconst glassMat = new THREE.MeshStandardMaterial({\n  color: 0x2c3e50,\n  roughness: 0.15,\n  metalness: 0.95,\n  transparent: true,\n  opacity: 0.85\n});\n\nconst glowMat = new THREE.MeshBasicMaterial({\n  color: 0xffdd88,\n  side: THREE.DoubleSide\n});\n\nconst foundationGeo = new THREE.BoxGeometry(1, 1, 1);\nconst foundationMesh = new THREE.InstancedMesh(foundationGeo, concreteMat, 1000);\nfoundationMesh.castShadow = true;\nfoundationMesh.receiveShadow = true;\n\nconst towerGeo = new THREE.BoxGeometry(1, 1, 1);\nconst towerMesh = new THREE.InstancedMesh(towerGeo, glassMat, 1500);\ntowerMesh.castShadow = true;\ntowerMesh.receiveShadow = true;\n\nconst spireGeo = new THREE.CylinderGeometry(0.08, 0.25, 1, 8);\nconst spireMat = new THREE.MeshStandardMaterial({ color: 0xf5f7fa, roughness: 0.35, metalness: 0.75 });\nconst spireMesh = new THREE.InstancedMesh(spireGeo, spireMat, 800);\n\nconst dummy = new THREE.Object3D();\nconst _color = new THREE.Color();\n\nlet idx = 0;\nfor (let x = -60; x < 60; x += 5) {\n  for (let z = -60; z < 60; z += 5) {\n    if (Math.random() > 0.65) continue;\n    const h = Math.random() * 20 + 8;\n    dummy.position.set(x * 2.2 + (Math.random() - 0.5), h / 2, z * 2.2 + (Math.random() - 0.5));\n    dummy.scale.set(Math.random() * 4 + 4, h, Math.random() * 4 + 4);\n    dummy.updateMatrix();\n    foundationMesh.setMatrixAt(idx, dummy.matrix);\n    _color.setHSL(0.6, 0.06, 0.72 + Math.random() * 0.18);\n    foundationMesh.setColorAt(idx, _color);\n    idx++;\n  }\n}\nfoundationMesh.count = idx;\ncityGroup.add(foundationMesh);\n\nidx = 0;\nfor (let i = 0; i < 1500; i++) {\n  const x = (Math.random() - 0.5) * 200;\n  const z = (Math.random() - 0.5) * 200;\n  const h = Math.pow(Math.random(), 2) * 90 + 15;\n  dummy.position.set(x, h / 2 + 12, z);\n  dummy.scale.set(Math.random() * 5 + 3, h, Math.random() * 5 + 3);\n  dummy.updateMatrix();\n  towerMesh.setMatrixAt(idx, dummy.matrix);\n  _color.setHSL(0.58, 0.25, 0.18 + Math.random() * 0.25);\n  towerMesh.setColorAt(idx, _color);\n  idx++;\n}\ntowerMesh.count = idx;\ncityGroup.add(towerMesh);\n\nidx = 0;\nfor (let i = 0; i < 800; i++) {\n  const x = (Math.random() - 0.5) * 180;\n  const z = (Math.random() - 0.5) * 180;\n  const h = Math.random() * 30 + 8;\n  dummy.position.set(x, 70 + Math.random() * 25, z);\n  dummy.scale.set(1, h, 1);\n  dummy.updateMatrix();\n  spireMesh.setMatrixAt(idx, dummy.matrix);\n  idx++;\n}\nspireMesh.count = idx;\ncityGroup.add(spireMesh);\n\nconst windowGeo = new THREE.PlaneGeometry(0.8, 0.8);\nconst windowMesh = new THREE.InstancedMesh(windowGeo, glowMat, 4000);\nlet wIdx = 0;\nfor (let i = 0; i < 4000; i++) {\n  const x = (Math.random() - 0.5) * 220;\n  const z = (Math.random() - 0.5) * 220;\n  const y = Math.random() * 80 + 10;\n  dummy.position.set(x, y, z);\n  dummy.rotation.y = Math.random() * Math.PI * 2;\n  dummy.updateMatrix();\n  windowMesh.setMatrixAt(wIdx++, dummy.matrix);\n}\nwindowMesh.count = wIdx;\ncityGroup.add(windowMesh);\n\nconst trafficGeo = new THREE.ConeGeometry(0.25, 0.9, 6);\nconst trafficMat = new THREE.MeshStandardMaterial({\n  color: 0xff2200,\n  emissive: 0xff4400,\n  emissiveIntensity: 2.5,\n  roughness: 0.3\n});\nconst trafficCount = 100;\nconst trafficMesh = new THREE.InstancedMesh(trafficGeo, trafficMat, trafficCount);\nconst trafficData = [];\n\nfor (let i = 0; i < trafficCount; i++) {\n  trafficData.push({\n    x: (Math.random() - 0.5) * 240,\n    y: Math.random() * 30 + 20,\n    z: (Math.random() - 0.5) * 240,\n    speed: (Math.random() * 0.4 + 0.25) * (Math.random() > 0.5 ? 1 : -1),\n    bobOffset: Math.random() * 100\n  });\n}\nscene.add(trafficMesh);\n\nconst holoGeo = new THREE.PlaneGeometry(5, 8);\nconst holoMat = new THREE.MeshBasicMaterial({\n  color: 0x00ffff,\n  side: THREE.DoubleSide,\n  transparent: true,\n  opacity: 0.5,\n  blending: THREE.AdditiveBlending\n});\nconst holoMesh = new THREE.InstancedMesh(holoGeo, holoMat, 24);\nfor (let i = 0; i < 24; i++) {\n  dummy.position.set(\n    (Math.random() - 0.5) * 120,\n    Math.random() * 50 + 25,\n    (Math.random() - 0.5) * 120\n  );\n  dummy.rotation.y = Math.random() * Math.PI;\n  dummy.updateMatrix();\n  holoMesh.setMatrixAt(i, dummy.matrix);\n}\ncityGroup.add(holoMesh);\n\ncamera.position.set(80, 50, 80);\ncamera.lookAt(0, 25, 0);\n\nconst controls = new OrbitControls(camera, renderer.domElement);\ncontrols.enableDamping = true;\ncontrols.dampingFactor = 0.05;\ncontrols.autoRotate = true;\ncontrols.autoRotateSpeed = 0.25;\ncontrols.maxPolarAngle = Math.PI / 2 - 0.02;\ncontrols.minDistance = 15;\ncontrols.maxDistance = 200;\ncontrols.target.set(0, 25, 0);\n\nfunction animate() {\n  requestAnimationFrame(animate);\n  const t = clock.getElapsedTime();\n\n  const td = new THREE.Object3D();\n  for (let i = 0; i < trafficCount; i++) {\n    const data = trafficData[i];\n    data.x += data.speed;\n    if (data.x > 120) data.x = -120;\n    if (data.x < -120) data.x = 120;\n\n    td.position.set(data.x, data.y + Math.sin(t * 2 + data.bobOffset) * 1.5, data.z);\n    td.rotation.z = data.speed > 0 ? -Math.PI / 2 : Math.PI / 2;\n    td.rotation.x = Math.sin(t * 3 + data.bobOffset) * 0.08;\n    td.updateMatrix();\n    trafficMesh.setMatrixAt(i, td.matrix);\n  }\n  trafficMesh.instanceMatrix.needsUpdate = true;\n\n  holoMat.opacity = 0.35 + Math.sin(t * 1.8) * 0.15;\n  glowMat.color.setHSL(0.12, 0.9, 0.55 + Math.sin(t * 0.4) * 0.15);\n\n  rimLight.position.x = Math.sin(t * 0.15) * 30;\n  rimLight.intensity = 0.85 + Math.sin(t * 1.2) * 0.15;\n\n  controls.update();\n  renderer.render(scene, camera);\n}\nanimate();",
+    "previewUrl": "about:blank",
+    "skill": "threejs",
+    "explanation": "Generated through LangGraph orchestration pipeline. Generated via Moonshot Kimi (kimi-k2.5). Warning: Regenerated once to satisfy OrbitControls interaction invariant. Runtime recovery skipped because immutable-generate mode is enabled. Runtime: degraded with 0 renders and 0 frames. Runtime degraded due to sandbox provisioning constraints: Turn budget exhausted before runtime execution.",
+    "messageId": "message-2",
+    "source": "generate",
+    "createdAt": "2026-04-03T16:57:55.790Z",
+    "updatedAt": "2026-04-03T16:57:55.790Z",
+    "versionId": "version-1",
+    "version": 1,
+    "artifactId": "artifact-1775235475790-e38637",
+    "artifactVersion": 1
+  },
+  "artifacts": [
+    {
+      "artifactId": "artifact-1775235475790-e38637",
+      "title": "scene-1775235475779",
+      "createdAt": "2026-04-03T16:57:55.790Z",
+      "updatedAt": "2026-04-03T16:57:55.790Z",
+      "revisions": [
+        {
+          "sessionId": "e9a24215-72fa-4a60-88c4-aafc9edf9a97",
+          "sceneId": "scene-1775235475779",
+          "code": "const clock = new THREE.Clock();\n\nscene.background = new THREE.Color(0xd6e4f0);\nscene.fog = new THREE.FogExp2(0xd6e4f0, 0.012);\n\nrenderer.toneMapping = THREE.ACESFilmicToneMapping;\nrenderer.toneMappingExposure = 1.12;\nrenderer.shadowMap.enabled = true;\nrenderer.shadowMap.type = THREE.PCFSoftShadowMap;\n\nconst keyLight = new THREE.DirectionalLight(0xfff5e6, 1.45);\nkeyLight.position.set(35, 60, 25);\nkeyLight.castShadow = true;\nkeyLight.shadow.mapSize.set(2048, 2048);\nkeyLight.shadow.camera.near = 0.5;\nkeyLight.shadow.camera.far = 300;\nkeyLight.shadow.camera.left = -120;\nkeyLight.shadow.camera.right = 120;\nkeyLight.shadow.camera.top = 120;\nkeyLight.shadow.camera.bottom = -120;\nkeyLight.shadow.bias = -0.0005;\n\nconst fillLight = new THREE.DirectionalLight(0xc9e6ff, 0.6);\nfillLight.position.set(-40, 25, 40);\n\nconst rimLight = new THREE.PointLight(0x00d4ff, 0.85, 140);\nrimLight.position.set(0, 70, -50);\n\nconst ambientLight = new THREE.AmbientLight(0x8fa3bf, 0.38);\n\nscene.add(keyLight, fillLight, rimLight, ambientLight);\n\nconst cityGroup = new THREE.Group();\nscene.add(cityGroup);\n\nconst concreteMat = new THREE.MeshStandardMaterial({\n  color: 0xe8eef5,\n  roughness: 0.75,\n  metalness: 0.08\n});\n\nconst glassMat = new THREE.MeshStandardMaterial({\n  color: 0x2c3e50,\n  roughness: 0.15,\n  metalness: 0.95,\n  transparent: true,\n  opacity: 0.85\n});\n\nconst glowMat = new THREE.MeshBasicMaterial({\n  color: 0xffdd88,\n  side: THREE.DoubleSide\n});\n\nconst foundationGeo = new THREE.BoxGeometry(1, 1, 1);\nconst foundationMesh = new THREE.InstancedMesh(foundationGeo, concreteMat, 1000);\nfoundationMesh.castShadow = true;\nfoundationMesh.receiveShadow = true;\n\nconst towerGeo = new THREE.BoxGeometry(1, 1, 1);\nconst towerMesh = new THREE.InstancedMesh(towerGeo, glassMat, 1500);\ntowerMesh.castShadow = true;\ntowerMesh.receiveShadow = true;\n\nconst spireGeo = new THREE.CylinderGeometry(0.08, 0.25, 1, 8);\nconst spireMat = new THREE.MeshStandardMaterial({ color: 0xf5f7fa, roughness: 0.35, metalness: 0.75 });\nconst spireMesh = new THREE.InstancedMesh(spireGeo, spireMat, 800);\n\nconst dummy = new THREE.Object3D();\nconst _color = new THREE.Color();\n\nlet idx = 0;\nfor (let x = -60; x < 60; x += 5) {\n  for (let z = -60; z < 60; z += 5) {\n    if (Math.random() > 0.65) continue;\n    const h = Math.random() * 20 + 8;\n    dummy.position.set(x * 2.2 + (Math.random() - 0.5), h / 2, z * 2.2 + (Math.random() - 0.5));\n    dummy.scale.set(Math.random() * 4 + 4, h, Math.random() * 4 + 4);\n    dummy.updateMatrix();\n    foundationMesh.setMatrixAt(idx, dummy.matrix);\n    _color.setHSL(0.6, 0.06, 0.72 + Math.random() * 0.18);\n    foundationMesh.setColorAt(idx, _color);\n    idx++;\n  }\n}\nfoundationMesh.count = idx;\ncityGroup.add(foundationMesh);\n\nidx = 0;\nfor (let i = 0; i < 1500; i++) {\n  const x = (Math.random() - 0.5) * 200;\n  const z = (Math.random() - 0.5) * 200;\n  const h = Math.pow(Math.random(), 2) * 90 + 15;\n  dummy.position.set(x, h / 2 + 12, z);\n  dummy.scale.set(Math.random() * 5 + 3, h, Math.random() * 5 + 3);\n  dummy.updateMatrix();\n  towerMesh.setMatrixAt(idx, dummy.matrix);\n  _color.setHSL(0.58, 0.25, 0.18 + Math.random() * 0.25);\n  towerMesh.setColorAt(idx, _color);\n  idx++;\n}\ntowerMesh.count = idx;\ncityGroup.add(towerMesh);\n\nidx = 0;\nfor (let i = 0; i < 800; i++) {\n  const x = (Math.random() - 0.5) * 180;\n  const z = (Math.random() - 0.5) * 180;\n  const h = Math.random() * 30 + 8;\n  dummy.position.set(x, 70 + Math.random() * 25, z);\n  dummy.scale.set(1, h, 1);\n  dummy.updateMatrix();\n  spireMesh.setMatrixAt(idx, dummy.matrix);\n  idx++;\n}\nspireMesh.count = idx;\ncityGroup.add(spireMesh);\n\nconst windowGeo = new THREE.PlaneGeometry(0.8, 0.8);\nconst windowMesh = new THREE.InstancedMesh(windowGeo, glowMat, 4000);\nlet wIdx = 0;\nfor (let i = 0; i < 4000; i++) {\n  const x = (Math.random() - 0.5) * 220;\n  const z = (Math.random() - 0.5) * 220;\n  const y = Math.random() * 80 + 10;\n  dummy.position.set(x, y, z);\n  dummy.rotation.y = Math.random() * Math.PI * 2;\n  dummy.updateMatrix();\n  windowMesh.setMatrixAt(wIdx++, dummy.matrix);\n}\nwindowMesh.count = wIdx;\ncityGroup.add(windowMesh);\n\nconst trafficGeo = new THREE.ConeGeometry(0.25, 0.9, 6);\nconst trafficMat = new THREE.MeshStandardMaterial({\n  color: 0xff2200,\n  emissive: 0xff4400,\n  emissiveIntensity: 2.5,\n  roughness: 0.3\n});\nconst trafficCount = 100;\nconst trafficMesh = new THREE.InstancedMesh(trafficGeo, trafficMat, trafficCount);\nconst trafficData = [];\n\nfor (let i = 0; i < trafficCount; i++) {\n  trafficData.push({\n    x: (Math.random() - 0.5) * 240,\n    y: Math.random() * 30 + 20,\n    z: (Math.random() - 0.5) * 240,\n    speed: (Math.random() * 0.4 + 0.25) * (Math.random() > 0.5 ? 1 : -1),\n    bobOffset: Math.random() * 100\n  });\n}\nscene.add(trafficMesh);\n\nconst holoGeo = new THREE.PlaneGeometry(5, 8);\nconst holoMat = new THREE.MeshBasicMaterial({\n  color: 0x00ffff,\n  side: THREE.DoubleSide,\n  transparent: true,\n  opacity: 0.5,\n  blending: THREE.AdditiveBlending\n});\nconst holoMesh = new THREE.InstancedMesh(holoGeo, holoMat, 24);\nfor (let i = 0; i < 24; i++) {\n  dummy.position.set(\n    (Math.random() - 0.5) * 120,\n    Math.random() * 50 + 25,\n    (Math.random() - 0.5) * 120\n  );\n  dummy.rotation.y = Math.random() * Math.PI;\n  dummy.updateMatrix();\n  holoMesh.setMatrixAt(i, dummy.matrix);\n}\ncityGroup.add(holoMesh);\n\ncamera.position.set(80, 50, 80);\ncamera.lookAt(0, 25, 0);\n\nconst controls = new OrbitControls(camera, renderer.domElement);\ncontrols.enableDamping = true;\ncontrols.dampingFactor = 0.05;\ncontrols.autoRotate = true;\ncontrols.autoRotateSpeed = 0.25;\ncontrols.maxPolarAngle = Math.PI / 2 - 0.02;\ncontrols.minDistance = 15;\ncontrols.maxDistance = 200;\ncontrols.target.set(0, 25, 0);\n\nfunction animate() {\n  requestAnimationFrame(animate);\n  const t = clock.getElapsedTime();\n\n  const td = new THREE.Object3D();\n  for (let i = 0; i < trafficCount; i++) {\n    const data = trafficData[i];\n    data.x += data.speed;\n    if (data.x > 120) data.x = -120;\n    if (data.x < -120) data.x = 120;\n\n    td.position.set(data.x, data.y + Math.sin(t * 2 + data.bobOffset) * 1.5, data.z);\n    td.rotation.z = data.speed > 0 ? -Math.PI / 2 : Math.PI / 2;\n    td.rotation.x = Math.sin(t * 3 + data.bobOffset) * 0.08;\n    td.updateMatrix();\n    trafficMesh.setMatrixAt(i, td.matrix);\n  }\n  trafficMesh.instanceMatrix.needsUpdate = true;\n\n  holoMat.opacity = 0.35 + Math.sin(t * 1.8) * 0.15;\n  glowMat.color.setHSL(0.12, 0.9, 0.55 + Math.sin(t * 0.4) * 0.15);\n\n  rimLight.position.x = Math.sin(t * 0.15) * 30;\n  rimLight.intensity = 0.85 + Math.sin(t * 1.2) * 0.15;\n\n  controls.update();\n  renderer.render(scene, camera);\n}\nanimate();",
+          "previewUrl": "about:blank",
+          "skill": "threejs",
+          "explanation": "Generated through LangGraph orchestration pipeline. Generated via Moonshot Kimi (kimi-k2.5). Warning: Regenerated once to satisfy OrbitControls interaction invariant. Runtime recovery skipped because immutable-generate mode is enabled. Runtime: degraded with 0 renders and 0 frames. Runtime degraded due to sandbox provisioning constraints: Turn budget exhausted before runtime execution.",
+          "messageId": "message-2",
+          "source": "generate",
+          "createdAt": "2026-04-03T16:57:55.790Z",
+          "updatedAt": "2026-04-03T16:57:55.790Z",
+          "versionId": "version-1",
+          "version": 1,
+          "artifactId": "artifact-1775235475790-e38637",
+          "artifactVersion": 1
+        }
+      ],
+      "revisionPointer": 0
+    }
+  ],
+  "artifactPointer": 0,
+  "versions": [
+    {
+      "sessionId": "e9a24215-72fa-4a60-88c4-aafc9edf9a97",
+      "sceneId": "scene-1775235475779",
+      "code": "const clock = new THREE.Clock();\n\nscene.background = new THREE.Color(0xd6e4f0);\nscene.fog = new THREE.FogExp2(0xd6e4f0, 0.012);\n\nrenderer.toneMapping = THREE.ACESFilmicToneMapping;\nrenderer.toneMappingExposure = 1.12;\nrenderer.shadowMap.enabled = true;\nrenderer.shadowMap.type = THREE.PCFSoftShadowMap;\n\nconst keyLight = new THREE.DirectionalLight(0xfff5e6, 1.45);\nkeyLight.position.set(35, 60, 25);\nkeyLight.castShadow = true;\nkeyLight.shadow.mapSize.set(2048, 2048);\nkeyLight.shadow.camera.near = 0.5;\nkeyLight.shadow.camera.far = 300;\nkeyLight.shadow.camera.left = -120;\nkeyLight.shadow.camera.right = 120;\nkeyLight.shadow.camera.top = 120;\nkeyLight.shadow.camera.bottom = -120;\nkeyLight.shadow.bias = -0.0005;\n\nconst fillLight = new THREE.DirectionalLight(0xc9e6ff, 0.6);\nfillLight.position.set(-40, 25, 40);\n\nconst rimLight = new THREE.PointLight(0x00d4ff, 0.85, 140);\nrimLight.position.set(0, 70, -50);\n\nconst ambientLight = new THREE.AmbientLight(0x8fa3bf, 0.38);\n\nscene.add(keyLight, fillLight, rimLight, ambientLight);\n\nconst cityGroup = new THREE.Group();\nscene.add(cityGroup);\n\nconst concreteMat = new THREE.MeshStandardMaterial({\n  color: 0xe8eef5,\n  roughness: 0.75,\n  metalness: 0.08\n});\n\nconst glassMat = new THREE.MeshStandardMaterial({\n  color: 0x2c3e50,\n  roughness: 0.15,\n  metalness: 0.95,\n  transparent: true,\n  opacity: 0.85\n});\n\nconst glowMat = new THREE.MeshBasicMaterial({\n  color: 0xffdd88,\n  side: THREE.DoubleSide\n});\n\nconst foundationGeo = new THREE.BoxGeometry(1, 1, 1);\nconst foundationMesh = new THREE.InstancedMesh(foundationGeo, concreteMat, 1000);\nfoundationMesh.castShadow = true;\nfoundationMesh.receiveShadow = true;\n\nconst towerGeo = new THREE.BoxGeometry(1, 1, 1);\nconst towerMesh = new THREE.InstancedMesh(towerGeo, glassMat, 1500);\ntowerMesh.castShadow = true;\ntowerMesh.receiveShadow = true;\n\nconst spireGeo = new THREE.CylinderGeometry(0.08, 0.25, 1, 8);\nconst spireMat = new THREE.MeshStandardMaterial({ color: 0xf5f7fa, roughness: 0.35, metalness: 0.75 });\nconst spireMesh = new THREE.InstancedMesh(spireGeo, spireMat, 800);\n\nconst dummy = new THREE.Object3D();\nconst _color = new THREE.Color();\n\nlet idx = 0;\nfor (let x = -60; x < 60; x += 5) {\n  for (let z = -60; z < 60; z += 5) {\n    if (Math.random() > 0.65) continue;\n    const h = Math.random() * 20 + 8;\n    dummy.position.set(x * 2.2 + (Math.random() - 0.5), h / 2, z * 2.2 + (Math.random() - 0.5));\n    dummy.scale.set(Math.random() * 4 + 4, h, Math.random() * 4 + 4);\n    dummy.updateMatrix();\n    foundationMesh.setMatrixAt(idx, dummy.matrix);\n    _color.setHSL(0.6, 0.06, 0.72 + Math.random() * 0.18);\n    foundationMesh.setColorAt(idx, _color);\n    idx++;\n  }\n}\nfoundationMesh.count = idx;\ncityGroup.add(foundationMesh);\n\nidx = 0;\nfor (let i = 0; i < 1500; i++) {\n  const x = (Math.random() - 0.5) * 200;\n  const z = (Math.random() - 0.5) * 200;\n  const h = Math.pow(Math.random(), 2) * 90 + 15;\n  dummy.position.set(x, h / 2 + 12, z);\n  dummy.scale.set(Math.random() * 5 + 3, h, Math.random() * 5 + 3);\n  dummy.updateMatrix();\n  towerMesh.setMatrixAt(idx, dummy.matrix);\n  _color.setHSL(0.58, 0.25, 0.18 + Math.random() * 0.25);\n  towerMesh.setColorAt(idx, _color);\n  idx++;\n}\ntowerMesh.count = idx;\ncityGroup.add(towerMesh);\n\nidx = 0;\nfor (let i = 0; i < 800; i++) {\n  const x = (Math.random() - 0.5) * 180;\n  const z = (Math.random() - 0.5) * 180;\n  const h = Math.random() * 30 + 8;\n  dummy.position.set(x, 70 + Math.random() * 25, z);\n  dummy.scale.set(1, h, 1);\n  dummy.updateMatrix();\n  spireMesh.setMatrixAt(idx, dummy.matrix);\n  idx++;\n}\nspireMesh.count = idx;\ncityGroup.add(spireMesh);\n\nconst windowGeo = new THREE.PlaneGeometry(0.8, 0.8);\nconst windowMesh = new THREE.InstancedMesh(windowGeo, glowMat, 4000);\nlet wIdx = 0;\nfor (let i = 0; i < 4000; i++) {\n  const x = (Math.random() - 0.5) * 220;\n  const z = (Math.random() - 0.5) * 220;\n  const y = Math.random() * 80 + 10;\n  dummy.position.set(x, y, z);\n  dummy.rotation.y = Math.random() * Math.PI * 2;\n  dummy.updateMatrix();\n  windowMesh.setMatrixAt(wIdx++, dummy.matrix);\n}\nwindowMesh.count = wIdx;\ncityGroup.add(windowMesh);\n\nconst trafficGeo = new THREE.ConeGeometry(0.25, 0.9, 6);\nconst trafficMat = new THREE.MeshStandardMaterial({\n  color: 0xff2200,\n  emissive: 0xff4400,\n  emissiveIntensity: 2.5,\n  roughness: 0.3\n});\nconst trafficCount = 100;\nconst trafficMesh = new THREE.InstancedMesh(trafficGeo, trafficMat, trafficCount);\nconst trafficData = [];\n\nfor (let i = 0; i < trafficCount; i++) {\n  trafficData.push({\n    x: (Math.random() - 0.5) * 240,\n    y: Math.random() * 30 + 20,\n    z: (Math.random() - 0.5) * 240,\n    speed: (Math.random() * 0.4 + 0.25) * (Math.random() > 0.5 ? 1 : -1),\n    bobOffset: Math.random() * 100\n  });\n}\nscene.add(trafficMesh);\n\nconst holoGeo = new THREE.PlaneGeometry(5, 8);\nconst holoMat = new THREE.MeshBasicMaterial({\n  color: 0x00ffff,\n  side: THREE.DoubleSide,\n  transparent: true,\n  opacity: 0.5,\n  blending: THREE.AdditiveBlending\n});\nconst holoMesh = new THREE.InstancedMesh(holoGeo, holoMat, 24);\nfor (let i = 0; i < 24; i++) {\n  dummy.position.set(\n    (Math.random() - 0.5) * 120,\n    Math.random() * 50 + 25,\n    (Math.random() - 0.5) * 120\n  );\n  dummy.rotation.y = Math.random() * Math.PI;\n  dummy.updateMatrix();\n  holoMesh.setMatrixAt(i, dummy.matrix);\n}\ncityGroup.add(holoMesh);\n\ncamera.position.set(80, 50, 80);\ncamera.lookAt(0, 25, 0);\n\nconst controls = new OrbitControls(camera, renderer.domElement);\ncontrols.enableDamping = true;\ncontrols.dampingFactor = 0.05;\ncontrols.autoRotate = true;\ncontrols.autoRotateSpeed = 0.25;\ncontrols.maxPolarAngle = Math.PI / 2 - 0.02;\ncontrols.minDistance = 15;\ncontrols.maxDistance = 200;\ncontrols.target.set(0, 25, 0);\n\nfunction animate() {\n  requestAnimationFrame(animate);\n  const t = clock.getElapsedTime();\n\n  const td = new THREE.Object3D();\n  for (let i = 0; i < trafficCount; i++) {\n    const data = trafficData[i];\n    data.x += data.speed;\n    if (data.x > 120) data.x = -120;\n    if (data.x < -120) data.x = 120;\n\n    td.position.set(data.x, data.y + Math.sin(t * 2 + data.bobOffset) * 1.5, data.z);\n    td.rotation.z = data.speed > 0 ? -Math.PI / 2 : Math.PI / 2;\n    td.rotation.x = Math.sin(t * 3 + data.bobOffset) * 0.08;\n    td.updateMatrix();\n    trafficMesh.setMatrixAt(i, td.matrix);\n  }\n  trafficMesh.instanceMatrix.needsUpdate = true;\n\n  holoMat.opacity = 0.35 + Math.sin(t * 1.8) * 0.15;\n  glowMat.color.setHSL(0.12, 0.9, 0.55 + Math.sin(t * 0.4) * 0.15);\n\n  rimLight.position.x = Math.sin(t * 0.15) * 30;\n  rimLight.intensity = 0.85 + Math.sin(t * 1.2) * 0.15;\n\n  controls.update();\n  renderer.render(scene, camera);\n}\nanimate();",
+      "previewUrl": "about:blank",
+      "skill": "threejs",
+      "explanation": "Generated through LangGraph orchestration pipeline. Generated via Moonshot Kimi (kimi-k2.5). Warning: Regenerated once to satisfy OrbitControls interaction invariant. Runtime recovery skipped because immutable-generate mode is enabled. Runtime: degraded with 0 renders and 0 frames. Runtime degraded due to sandbox provisioning constraints: Turn budget exhausted before runtime execution.",
+      "messageId": "message-2",
+      "source": "generate",
+      "createdAt": "2026-04-03T16:57:55.790Z",
+      "updatedAt": "2026-04-03T16:57:55.790Z",
+      "versionId": "version-1",
+      "version": 1,
+      "artifactId": "artifact-1775235475790-e38637",
+      "artifactVersion": 1
+    }
+  ],
+  "sceneVersions": [
+    {
+      "sessionId": "e9a24215-72fa-4a60-88c4-aafc9edf9a97",
+      "sceneId": "scene-1775235475779",
+      "code": "const clock = new THREE.Clock();\n\nscene.background = new THREE.Color(0xd6e4f0);\nscene.fog = new THREE.FogExp2(0xd6e4f0, 0.012);\n\nrenderer.toneMapping = THREE.ACESFilmicToneMapping;\nrenderer.toneMappingExposure = 1.12;\nrenderer.shadowMap.enabled = true;\nrenderer.shadowMap.type = THREE.PCFSoftShadowMap;\n\nconst keyLight = new THREE.DirectionalLight(0xfff5e6, 1.45);\nkeyLight.position.set(35, 60, 25);\nkeyLight.castShadow = true;\nkeyLight.shadow.mapSize.set(2048, 2048);\nkeyLight.shadow.camera.near = 0.5;\nkeyLight.shadow.camera.far = 300;\nkeyLight.shadow.camera.left = -120;\nkeyLight.shadow.camera.right = 120;\nkeyLight.shadow.camera.top = 120;\nkeyLight.shadow.camera.bottom = -120;\nkeyLight.shadow.bias = -0.0005;\n\nconst fillLight = new THREE.DirectionalLight(0xc9e6ff, 0.6);\nfillLight.position.set(-40, 25, 40);\n\nconst rimLight = new THREE.PointLight(0x00d4ff, 0.85, 140);\nrimLight.position.set(0, 70, -50);\n\nconst ambientLight = new THREE.AmbientLight(0x8fa3bf, 0.38);\n\nscene.add(keyLight, fillLight, rimLight, ambientLight);\n\nconst cityGroup = new THREE.Group();\nscene.add(cityGroup);\n\nconst concreteMat = new THREE.MeshStandardMaterial({\n  color: 0xe8eef5,\n  roughness: 0.75,\n  metalness: 0.08\n});\n\nconst glassMat = new THREE.MeshStandardMaterial({\n  color: 0x2c3e50,\n  roughness: 0.15,\n  metalness: 0.95,\n  transparent: true,\n  opacity: 0.85\n});\n\nconst glowMat = new THREE.MeshBasicMaterial({\n  color: 0xffdd88,\n  side: THREE.DoubleSide\n});\n\nconst foundationGeo = new THREE.BoxGeometry(1, 1, 1);\nconst foundationMesh = new THREE.InstancedMesh(foundationGeo, concreteMat, 1000);\nfoundationMesh.castShadow = true;\nfoundationMesh.receiveShadow = true;\n\nconst towerGeo = new THREE.BoxGeometry(1, 1, 1);\nconst towerMesh = new THREE.InstancedMesh(towerGeo, glassMat, 1500);\ntowerMesh.castShadow = true;\ntowerMesh.receiveShadow = true;\n\nconst spireGeo = new THREE.CylinderGeometry(0.08, 0.25, 1, 8);\nconst spireMat = new THREE.MeshStandardMaterial({ color: 0xf5f7fa, roughness: 0.35, metalness: 0.75 });\nconst spireMesh = new THREE.InstancedMesh(spireGeo, spireMat, 800);\n\nconst dummy = new THREE.Object3D();\nconst _color = new THREE.Color();\n\nlet idx = 0;\nfor (let x = -60; x < 60; x += 5) {\n  for (let z = -60; z < 60; z += 5) {\n    if (Math.random() > 0.65) continue;\n    const h = Math.random() * 20 + 8;\n    dummy.position.set(x * 2.2 + (Math.random() - 0.5), h / 2, z * 2.2 + (Math.random() - 0.5));\n    dummy.scale.set(Math.random() * 4 + 4, h, Math.random() * 4 + 4);\n    dummy.updateMatrix();\n    foundationMesh.setMatrixAt(idx, dummy.matrix);\n    _color.setHSL(0.6, 0.06, 0.72 + Math.random() * 0.18);\n    foundationMesh.setColorAt(idx, _color);\n    idx++;\n  }\n}\nfoundationMesh.count = idx;\ncityGroup.add(foundationMesh);\n\nidx = 0;\nfor (let i = 0; i < 1500; i++) {\n  const x = (Math.random() - 0.5) * 200;\n  const z = (Math.random() - 0.5) * 200;\n  const h = Math.pow(Math.random(), 2) * 90 + 15;\n  dummy.position.set(x, h / 2 + 12, z);\n  dummy.scale.set(Math.random() * 5 + 3, h, Math.random() * 5 + 3);\n  dummy.updateMatrix();\n  towerMesh.setMatrixAt(idx, dummy.matrix);\n  _color.setHSL(0.58, 0.25, 0.18 + Math.random() * 0.25);\n  towerMesh.setColorAt(idx, _color);\n  idx++;\n}\ntowerMesh.count = idx;\ncityGroup.add(towerMesh);\n\nidx = 0;\nfor (let i = 0; i < 800; i++) {\n  const x = (Math.random() - 0.5) * 180;\n  const z = (Math.random() - 0.5) * 180;\n  const h = Math.random() * 30 + 8;\n  dummy.position.set(x, 70 + Math.random() * 25, z);\n  dummy.scale.set(1, h, 1);\n  dummy.updateMatrix();\n  spireMesh.setMatrixAt(idx, dummy.matrix);\n  idx++;\n}\nspireMesh.count = idx;\ncityGroup.add(spireMesh);\n\nconst windowGeo = new THREE.PlaneGeometry(0.8, 0.8);\nconst windowMesh = new THREE.InstancedMesh(windowGeo, glowMat, 4000);\nlet wIdx = 0;\nfor (let i = 0; i < 4000; i++) {\n  const x = (Math.random() - 0.5) * 220;\n  const z = (Math.random() - 0.5) * 220;\n  const y = Math.random() * 80 + 10;\n  dummy.position.set(x, y, z);\n  dummy.rotation.y = Math.random() * Math.PI * 2;\n  dummy.updateMatrix();\n  windowMesh.setMatrixAt(wIdx++, dummy.matrix);\n}\nwindowMesh.count = wIdx;\ncityGroup.add(windowMesh);\n\nconst trafficGeo = new THREE.ConeGeometry(0.25, 0.9, 6);\nconst trafficMat = new THREE.MeshStandardMaterial({\n  color: 0xff2200,\n  emissive: 0xff4400,\n  emissiveIntensity: 2.5,\n  roughness: 0.3\n});\nconst trafficCount = 100;\nconst trafficMesh = new THREE.InstancedMesh(trafficGeo, trafficMat, trafficCount);\nconst trafficData = [];\n\nfor (let i = 0; i < trafficCount; i++) {\n  trafficData.push({\n    x: (Math.random() - 0.5) * 240,\n    y: Math.random() * 30 + 20,\n    z: (Math.random() - 0.5) * 240,\n    speed: (Math.random() * 0.4 + 0.25) * (Math.random() > 0.5 ? 1 : -1),\n    bobOffset: Math.random() * 100\n  });\n}\nscene.add(trafficMesh);\n\nconst holoGeo = new THREE.PlaneGeometry(5, 8);\nconst holoMat = new THREE.MeshBasicMaterial({\n  color: 0x00ffff,\n  side: THREE.DoubleSide,\n  transparent: true,\n  opacity: 0.5,\n  blending: THREE.AdditiveBlending\n});\nconst holoMesh = new THREE.InstancedMesh(holoGeo, holoMat, 24);\nfor (let i = 0; i < 24; i++) {\n  dummy.position.set(\n    (Math.random() - 0.5) * 120,\n    Math.random() * 50 + 25,\n    (Math.random() - 0.5) * 120\n  );\n  dummy.rotation.y = Math.random() * Math.PI;\n  dummy.updateMatrix();\n  holoMesh.setMatrixAt(i, dummy.matrix);\n}\ncityGroup.add(holoMesh);\n\ncamera.position.set(80, 50, 80);\ncamera.lookAt(0, 25, 0);\n\nconst controls = new OrbitControls(camera, renderer.domElement);\ncontrols.enableDamping = true;\ncontrols.dampingFactor = 0.05;\ncontrols.autoRotate = true;\ncontrols.autoRotateSpeed = 0.25;\ncontrols.maxPolarAngle = Math.PI / 2 - 0.02;\ncontrols.minDistance = 15;\ncontrols.maxDistance = 200;\ncontrols.target.set(0, 25, 0);\n\nfunction animate() {\n  requestAnimationFrame(animate);\n  const t = clock.getElapsedTime();\n\n  const td = new THREE.Object3D();\n  for (let i = 0; i < trafficCount; i++) {\n    const data = trafficData[i];\n    data.x += data.speed;\n    if (data.x > 120) data.x = -120;\n    if (data.x < -120) data.x = 120;\n\n    td.position.set(data.x, data.y + Math.sin(t * 2 + data.bobOffset) * 1.5, data.z);\n    td.rotation.z = data.speed > 0 ? -Math.PI / 2 : Math.PI / 2;\n    td.rotation.x = Math.sin(t * 3 + data.bobOffset) * 0.08;\n    td.updateMatrix();\n    trafficMesh.setMatrixAt(i, td.matrix);\n  }\n  trafficMesh.instanceMatrix.needsUpdate = true;\n\n  holoMat.opacity = 0.35 + Math.sin(t * 1.8) * 0.15;\n  glowMat.color.setHSL(0.12, 0.9, 0.55 + Math.sin(t * 0.4) * 0.15);\n\n  rimLight.position.x = Math.sin(t * 0.15) * 30;\n  rimLight.intensity = 0.85 + Math.sin(t * 1.2) * 0.15;\n\n  controls.update();\n  renderer.render(scene, camera);\n}\nanimate();",
+      "previewUrl": "about:blank",
+      "skill": "threejs",
+      "explanation": "Generated through LangGraph orchestration pipeline. Generated via Moonshot Kimi (kimi-k2.5). Warning: Regenerated once to satisfy OrbitControls interaction invariant. Runtime recovery skipped because immutable-generate mode is enabled. Runtime: degraded with 0 renders and 0 frames. Runtime degraded due to sandbox provisioning constraints: Turn budget exhausted before runtime execution.",
+      "messageId": "message-2",
+      "source": "generate",
+      "createdAt": "2026-04-03T16:57:55.790Z",
+      "updatedAt": "2026-04-03T16:57:55.790Z",
+      "versionId": "version-1",
+      "version": 1,
+      "artifactId": "artifact-1775235475790-e38637",
+      "artifactVersion": 1
+    }
+  ],
+  "versionPointer": 0,
+  "revisionPointer": 0,
+  "messages": [
+    {
+      "id": "coruscant-immutable-1775235193305",
+      "role": "user",
+      "content": "show me coruscant city scape",
+      "kind": "input",
+      "meta": [],
+      "error": null,
+      "createdAt": "2026-04-03T16:53:13.329Z",
+      "updatedAt": "2026-04-03T16:53:13.329Z"
+    },
+    {
+      "id": "message-2",
+      "role": "assistant",
+      "content": "Generated through LangGraph orchestration pipeline. Generated via Moonshot Kimi (kimi-k2.5). Warning: Regenerated once to satisfy OrbitControls interaction invariant. Runtime recovery skipped because immutable-generate mode is enabled. Runtime: degraded with 0 renders and 0 frames. Runtime degraded due to sandbox provisioning constraints: Turn budget exhausted before runtime execution.",
+      "kind": "generate",
+      "meta": [
+        "scene:scene-1775235475779",
+        "skill:threejs"
+      ],
+      "error": null,
+      "createdAt": "2026-04-03T16:53:13.331Z",
+      "updatedAt": "2026-04-03T16:57:55.795Z"
+    },
+    {
+      "id": "thought-turn_started-1775235193342",
+      "role": "thought",
+      "content": "Alright, I'm reading through your request now. Let me break this down.",
+      "kind": "thought",
+      "meta": [
+        "turn_started"
+      ],
+      "error": null,
+      "createdAt": "2026-04-03T16:53:13.342Z",
+      "updatedAt": "2026-04-03T16:53:13.342Z"
+    },
+    {
+      "id": "thought-intent_parsed-1775235193465",
+      "role": "thought",
+      "content": "Clear — I need to build a visual visual from scratch. Checking available engines...",
+      "kind": "thought",
+      "meta": [
+        "intent_parsed"
+      ],
+      "error": null,
+      "createdAt": "2026-04-03T16:53:13.465Z",
+      "updatedAt": "2026-04-03T16:53:13.465Z"
+    },
+    {
+      "id": "thought-plan_created-1775235193466",
+      "role": "thought",
+      "content": "Alright, 7 tasks queued. I'm moving through the pipeline now.",
+      "kind": "thought",
+      "meta": [
+        "plan_created"
+      ],
+      "error": null,
+      "createdAt": "2026-04-03T16:53:13.466Z",
+      "updatedAt": "2026-04-03T16:53:13.466Z"
+    },
+    {
+      "id": "thought-code_generated-1775235475789",
+      "role": "thought",
+      "content": "Instanced BoxGeometry for the building layers with randomized heights and emissive materials for windows, small ConeGeometry instances for air traffic animated along paths, DirectionalLight for sunset tones, and UnrealBloomPass for that signature Coruscant glow.",
+      "kind": "thought",
+      "meta": [
+        "code_generated"
+      ],
+      "error": null,
+      "createdAt": "2026-04-03T16:57:55.789Z",
+      "updatedAt": "2026-04-03T16:57:55.789Z"
+    },
+    {
+      "id": "thought-executing-1775235475792",
+      "role": "thought",
+      "content": "Spinning up the Three.js sandbox with post-processing pipeline enabled.",
+      "kind": "thought",
+      "meta": [
+        "executing"
+      ],
+      "error": null,
+      "createdAt": "2026-04-03T16:57:55.792Z",
+      "updatedAt": "2026-04-03T16:57:55.792Z"
+    },
+    {
+      "id": "thought-sync_state-1775235475793",
+      "role": "thought",
+      "content": "Here's your Coruscant cityscape—an endless vertical sprawl of towering skyscrapers with glowing windows, buzzing air traffic weaving between buildings, and atmospheric haze capturing that epic Star Wars metropolis feel.",
+      "kind": "thought",
+      "meta": [
+        "sync_state"
+      ],
+      "error": null,
+      "createdAt": "2026-04-03T16:57:55.793Z",
+      "updatedAt": "2026-04-03T16:57:55.793Z"
+    },
+    {
+      "id": "thought-turn_complete-1775235475796",
+      "role": "thought",
+      "content": "Here's your Coruscant cityscape—an endless vertical sprawl of towering skyscrapers with glowing windows, buzzing air traffic weaving between buildings, and atmospheric haze capturing that epic Star Wars metropolis feel.",
+      "kind": "thought",
+      "meta": [
+        "turn_complete"
+      ],
+      "error": null,
+      "createdAt": "2026-04-03T16:57:55.796Z",
+      "updatedAt": "2026-04-03T16:57:55.796Z"
+    },
+    {
+      "id": "thought-post_narration-1775235491436",
+      "role": "thought",
+      "content": "Processing step: post narration...",
+      "kind": "thought",
+      "meta": [
+        "post_narration"
+      ],
+      "error": null,
+      "createdAt": "2026-04-03T16:58:11.436Z",
+      "updatedAt": "2026-04-03T16:58:11.436Z"
+    }
+  ],
+  "orchestrationTrace": [
+    {
+      "id": "trace-1",
+      "step": "intent_parsed",
+      "payload": {
+        "sessionId": "e9a24215-72fa-4a60-88c4-aafc9edf9a97",
+        "content": "show me coruscant city scape"
+      },
+      "createdAt": "2026-04-03T16:53:13.393Z"
+    },
+    {
+      "id": "trace-2",
+      "step": "parse_intent",
+      "payload": {
+        "sessionId": "e9a24215-72fa-4a60-88c4-aafc9edf9a97",
+        "status": "running"
+      },
+      "createdAt": "2026-04-03T16:53:13.477Z"
+    },
+    {
+      "id": "trace-3",
+      "step": "select_skill",
+      "payload": {
+        "sessionId": "e9a24215-72fa-4a60-88c4-aafc9edf9a97",
+        "status": "running"
+      },
+      "createdAt": "2026-04-03T16:53:13.486Z"
+    },
+    {
+      "id": "trace-4",
+      "step": "build_prompt",
+      "payload": {
+        "sessionId": "e9a24215-72fa-4a60-88c4-aafc9edf9a97",
+        "status": "running"
+      },
+      "createdAt": "2026-04-03T16:53:13.490Z"
+    },
+    {
+      "id": "trace-5",
+      "step": "generate_code",
+      "payload": {
+        "sessionId": "e9a24215-72fa-4a60-88c4-aafc9edf9a97",
+        "status": "running"
+      },
+      "createdAt": "2026-04-03T16:53:13.496Z"
+    },
+    {
+      "id": "trace-6",
+      "step": "generate_code",
+      "payload": {
+        "sessionId": "e9a24215-72fa-4a60-88c4-aafc9edf9a97",
+        "status": "completed",
+        "selectedSkill": "threejs",
+        "source": "moonshot-kimi",
+        "code": "const clock = new THREE.Clock();\n\nscene.background = new THREE.Color(0xd6e4f0);\nscene.fog = new THREE.FogExp2(0xd6e4f0, 0.012);\n\nrenderer.toneMapping = THREE.ACESFilmicToneMapping;\nrenderer.toneMappingExposure = 1.12;\nrenderer.shadowMap.enabled = true;\nrenderer.shadowMap.type = THREE.PCFSoftShadowMap;\n\nconst keyLight = new THREE.DirectionalLight(0xfff5e6, 1.45);\nkeyLight.position.set(35, 60, 25);\nkeyLight.castShadow = true;\nkeyLight.shadow.mapSize.set(2048, 2048);\nkeyLight.shadow.camera.near = 0.5;\nkeyLight.shadow.camera.far = 300;\nkeyLight.shadow.camera.left = -120;\nkeyLight.shadow.camera.right = 120;\nkeyLight.shadow.camera.top = 120;\nkeyLight.shadow.camera.bottom = -120;\nkeyLight.shadow.bias = -0.0005;\n\nconst fillLight = new THREE.DirectionalLight(0xc9e6ff, 0.6);\nfillLight.position.set(-40, 25, 40);\n\nconst rimLight = new THREE.PointLight(0x00d4ff, 0.85, 140);\nrimLight.position.set(0, 70, -50);\n\nconst ambientLight = new THREE.AmbientLight(0x8fa3bf, 0.38);\n\nscene.add(keyLight, fillLight, rimLight, ambientLight);\n\nconst cityGroup = new THREE.Group();\nscene.add(cityGroup);\n\nconst concreteMat = new THREE.MeshStandardMaterial({\n  color: 0xe8eef5,\n  roughness: 0.75,\n  metalness: 0.08\n});\n\nconst glassMat = new THREE.MeshStandardMaterial({\n  color: 0x2c3e50,\n  roughness: 0.15,\n  metalness: 0.95,\n  transparent: true,\n  opacity: 0.85\n});\n\nconst glowMat = new THREE.MeshBasicMaterial({\n  color: 0xffdd88,\n  side: THREE.DoubleSide\n});\n\nconst foundationGeo = new THREE.BoxGeometry(1, 1, 1);\nconst foundationMesh = new THREE.InstancedMesh(foundationGeo, concreteMat, 1000);\nfoundationMesh.castShadow = true;\nfoundationMesh.receiveShadow = true;\n\nconst towerGeo = new THREE.BoxGeometry(1, 1, 1);\nconst towerMesh = new THREE.InstancedMesh(towerGeo, glassMat, 1500);\ntowerMesh.castShadow = true;\ntowerMesh.receiveShadow = true;\n\nconst spireGeo = new THREE.CylinderGeometry(0.08, 0.25, 1, 8);\nconst spireMat = new THREE.MeshStandardMaterial({ color: 0xf5f7fa, roughness: 0.35, metalness: 0.75 });\nconst spireMesh = new THREE.InstancedMesh(spireGeo, spireMat, 800);\n\nconst dummy = new THREE.Object3D();\nconst _color = new THREE.Color();\n\nlet idx = 0;\nfor (let x = -60; x < 60; x += 5) {\n  for (let z = -60; z < 60; z += 5) {\n    if (Math.random() > 0.65) continue;\n    const h = Math.random() * 20 + 8;\n    dummy.position.set(x * 2.2 + (Math.random() - 0.5), h / 2, z * 2.2 + (Math.random() - 0.5));\n    dummy.scale.set(Math.random() * 4 + 4, h, Math.random() * 4 + 4);\n    dummy.updateMatrix();\n    foundationMesh.setMatrixAt(idx, dummy.matrix);\n    _color.setHSL(0.6, 0.06, 0.72 + Math.random() * 0.18);\n    foundationMesh.setColorAt(idx, _color);\n    idx++;\n  }\n}\nfoundationMesh.count = idx;\ncityGroup.add(foundationMesh);\n\nidx = 0;\nfor (let i = 0; i < 1500; i++) {\n  const x = (Math.random() - 0.5) * 200;\n  const z = (Math.random() - 0.5) * 200;\n  const h = Math.pow(Math.random(), 2) * 90 + 15;\n  dummy.position.set(x, h / 2 + 12, z);\n  dummy.scale.set(Math.random() * 5 + 3, h, Math.random() * 5 + 3);\n  dummy.updateMatrix();\n  towerMesh.setMatrixAt(idx, dummy.matrix);\n  _color.setHSL(0.58, 0.25, 0.18 + Math.random() * 0.25);\n  towerMesh.setColorAt(idx, _color);\n  idx++;\n}\ntowerMesh.count = idx;\ncityGroup.add(towerMesh);\n\nidx = 0;\nfor (let i = 0; i < 800; i++) {\n  const x = (Math.random() - 0.5) * 180;\n  const z = (Math.random() - 0.5) * 180;\n  const h = Math.random() * 30 + 8;\n  dummy.position.set(x, 70 + Math.random() * 25, z);\n  dummy.scale.set(1, h, 1);\n  dummy.updateMatrix();\n  spireMesh.setMatrixAt(idx, dummy.matrix);\n  idx++;\n}\nspireMesh.count = idx;\ncityGroup.add(spireMesh);\n\nconst windowGeo = new THREE.PlaneGeometry(0.8, 0.8);\nconst windowMesh = new THREE.InstancedMesh(windowGeo, glowMat, 4000);\nlet wIdx = 0;\nfor (let i = 0; i < 4000; i++) {\n  const x = (Math.random() - 0.5) * 220;\n  const z = (Math.random() - 0.5) * 220;\n  const y = Math.random() * 80 + 10;\n  dummy.position.set(x, y, z);\n  dummy.rotation.y = Math.random() * Math.PI * 2;\n  dummy.updateMatrix();\n  windowMesh.setMatrixAt(wIdx++, dummy.matrix);\n}\nwindowMesh.count = wIdx;\ncityGroup.add(windowMesh);\n\nconst trafficGeo = new THREE.ConeGeometry(0.25, 0.9, 6);\nconst trafficMat = new THREE.MeshStandardMaterial({\n  color: 0xff2200,\n  emissive: 0xff4400,\n  emissiveIntensity: 2.5,\n  roughness: 0.3\n});\nconst trafficCount = 100;\nconst trafficMesh = new THREE.InstancedMesh(trafficGeo, trafficMat, trafficCount);\nconst trafficData = [];\n\nfor (let i = 0; i < trafficCount; i++) {\n  trafficData.push({\n    x: (Math.random() - 0.5) * 240,\n    y: Math.random() * 30 + 20,\n    z: (Math.random() - 0.5) * 240,\n    speed: (Math.random() * 0.4 + 0.25) * (Math.random() > 0.5 ? 1 : -1),\n    bobOffset: Math.random() * 100\n  });\n}\nscene.add(trafficMesh);\n\nconst holoGeo = new THREE.PlaneGeometry(5, 8);\nconst holoMat = new THREE.MeshBasicMaterial({\n  color: 0x00ffff,\n  side: THREE.DoubleSide,\n  transparent: true,\n  opacity: 0.5,\n  blending: THREE.AdditiveBlending\n});\nconst holoMesh = new THREE.InstancedMesh(holoGeo, holoMat, 24);\nfor (let i = 0; i < 24; i++) {\n  dummy.position.set(\n    (Math.random() - 0.5) * 120,\n    Math.random() * 50 + 25,\n    (Math.random() - 0.5) * 120\n  );\n  dummy.rotation.y = Math.random() * Math.PI;\n  dummy.updateMatrix();\n  holoMesh.setMatrixAt(i, dummy.matrix);\n}\ncityGroup.add(holoMesh);\n\ncamera.position.set(80, 50, 80);\ncamera.lookAt(0, 25, 0);\n\nconst controls = new OrbitControls(camera, renderer.domElement);\ncontrols.enableDamping = true;\ncontrols.dampingFactor = 0.05;\ncontrols.autoRotate = true;\ncontrols.autoRotateSpeed = 0.25;\ncontrols.maxPolarAngle = Math.PI / 2 - 0.02;\ncontrols.minDistance = 15;\ncontrols.maxDistance = 200;\ncontrols.target.set(0, 25, 0);\n\nfunction animate() {\n  requestAnimationFrame(animate);\n  const t = clock.getElapsedTime();\n\n  const td = new THREE.Object3D();\n  for (let i = 0; i < trafficCount; i++) {\n    const data = trafficData[i];\n    data.x += data.speed;\n    if (data.x > 120) data.x = -120;\n    if (data.x < -120) data.x = 120;\n\n    td.position.set(data.x, data.y + Math.sin(t * 2 + data.bobOffset) * 1.5, data.z);\n    td.rotation.z = data.speed > 0 ? -Math.PI / 2 : Math.PI / 2;\n    td.rotation.x = Math.sin(t * 3 + data.bobOffset) * 0.08;\n    td.updateMatrix();\n    trafficMesh.setMatrixAt(i, td.matrix);\n  }\n  trafficMesh.instanceMatrix.needsUpdate = true;\n\n  holoMat.opacity = 0.35 + Math.sin(t * 1.8) * 0.15;\n  glowMat.color.setHSL(0.12, 0.9, 0.55 + Math.sin(t * 0.4) * 0.15);\n\n  rimLight.position.x = Math.sin(t * 0.15) * 30;\n  rimLight.intensity = 0.85 + Math.sin(t * 1.2) * 0.15;\n\n  controls.update();\n  renderer.render(scene, camera);\n}\nanimate();",
+        "stageDurationMs": 282210
+      },
+      "createdAt": "2026-04-03T16:57:55.713Z"
+    },
+    {
+      "id": "trace-7",
+      "step": "validate_code",
+      "payload": {
+        "sessionId": "e9a24215-72fa-4a60-88c4-aafc9edf9a97",
+        "status": "running"
+      },
+      "createdAt": "2026-04-03T16:57:55.722Z"
+    },
+    {
+      "id": "trace-8",
+      "step": "validate_code",
+      "payload": {
+        "sessionId": "e9a24215-72fa-4a60-88c4-aafc9edf9a97",
+        "status": "completed",
+        "stageDurationMs": 33
+      },
+      "createdAt": "2026-04-03T16:57:55.755Z"
+    },
+    {
+      "id": "trace-9",
+      "step": "execute_code",
+      "payload": {
+        "sessionId": "e9a24215-72fa-4a60-88c4-aafc9edf9a97",
+        "status": "running"
+      },
+      "createdAt": "2026-04-03T16:57:55.765Z"
+    },
+    {
+      "id": "trace-10",
+      "step": "execute_code",
+      "payload": {
+        "sessionId": "e9a24215-72fa-4a60-88c4-aafc9edf9a97",
+        "status": "degraded",
+        "error": null,
+        "runtimeRecoveryUsed": false,
+        "stageDurationMs": 3
+      },
+      "createdAt": "2026-04-03T16:57:55.768Z"
+    },
+    {
+      "id": "trace-11",
+      "step": "sync_state",
+      "payload": {
+        "sessionId": "e9a24215-72fa-4a60-88c4-aafc9edf9a97",
+        "status": "running"
+      },
+      "createdAt": "2026-04-03T16:57:55.778Z"
+    },
+    {
+      "id": "trace-12",
+      "step": "turn_complete",
+      "payload": {
+        "sessionId": "e9a24215-72fa-4a60-88c4-aafc9edf9a97",
+        "mode": "generate",
+        "messageCount": 9,
+        "error": null
+      },
+      "createdAt": "2026-04-03T16:57:55.799Z"
+    }
+  ]
+}

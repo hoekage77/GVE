@@ -1,8 +1,8 @@
 {
   "sessionId": "68cb3584-3570-4d94-b120-3f0f4380f20a",
   "createdAt": "2026-03-27T08:21:16.313Z",
-  "updatedAt": "2026-03-27T08:27:45.854Z",
-  "status": "parsing",
+  "updatedAt": "2026-04-05T07:05:05.064Z",
+  "status": "idle",
   "currentScene": {
     "versionId": "version-1",
     "version": 1,
@@ -15,7 +15,9 @@
     "messageId": "message-1",
     "source": "generate",
     "createdAt": "2026-03-27T08:24:10.714Z",
-    "updatedAt": "2026-03-27T08:24:10.714Z"
+    "updatedAt": "2026-03-27T08:24:10.714Z",
+    "artifactId": "artifact-1775229316996-1",
+    "artifactVersion": 1
   },
   "versions": [
     {
@@ -30,7 +32,9 @@
       "messageId": "message-1",
       "source": "generate",
       "createdAt": "2026-03-27T08:24:10.714Z",
-      "updatedAt": "2026-03-27T08:24:10.714Z"
+      "updatedAt": "2026-03-27T08:24:10.714Z",
+      "artifactId": "artifact-1775229316996-1",
+      "artifactVersion": 1
     }
   ],
   "sceneVersions": [
@@ -46,7 +50,25 @@
       "messageId": "message-1",
       "source": "generate",
       "createdAt": "2026-03-27T08:24:10.714Z",
-      "updatedAt": "2026-03-27T08:24:10.714Z"
+      "updatedAt": "2026-03-27T08:24:10.714Z",
+      "artifactId": "artifact-1775229316996-1",
+      "artifactVersion": 1
+    },
+    {
+      "sessionId": "68cb3584-3570-4d94-b120-3f0f4380f20a",
+      "sceneId": "scene-failed-1775230226651",
+      "code": "// Local fallback output\nconst geometry = new THREE.BoxGeometry(1, 1, 1);\nconst material = new THREE.MeshStandardMaterial({ color: 0x1d8cf8, metalness: 0.8, roughness: 0.2 });\nconst mesh = new THREE.Mesh(geometry, material);\nscene.add(mesh);\nfunction animate() {\n  requestAnimationFrame(animate);\n  mesh.rotation.x += 0.01;\n  mesh.rotation.y += 0.01;\n  renderer.render(scene, camera);\n}\nanimate();",
+      "previewUrl": null,
+      "skill": "threejs",
+      "explanation": "Generation failed validation and execution was aborted. Failure details: Sandbox execution error: Daytona acquire failed after 30086ms. direct=Failed to create and start sandbox within 10 seconds. Operation timed out. | fallback=getaddrinfo EAI_AGAIN app.daytona.io Runtime: error with 0 renders and 0 frames.",
+      "messageId": "message-16",
+      "source": "generate",
+      "createdAt": "2026-04-03T15:30:26.658Z",
+      "updatedAt": "2026-04-03T15:30:26.658Z",
+      "versionId": "version-2",
+      "version": 2,
+      "artifactId": "artifact-1775230226658-2a332a",
+      "artifactVersion": 1
     }
   ],
   "versionPointer": 0,
@@ -201,6 +223,135 @@
       ],
       "createdAt": "2026-03-27T08:27:45.854Z",
       "updatedAt": "2026-03-27T08:27:45.854Z"
+    },
+    {
+      "id": "client-5a898b02-1872-40c3-a10e-3bf07e52e43e",
+      "role": "user",
+      "content": "show me a 3d scape of coruscant",
+      "kind": "input",
+      "meta": [],
+      "error": null,
+      "createdAt": "2026-04-03T15:29:35.759Z",
+      "updatedAt": "2026-04-03T15:29:35.759Z"
+    },
+    {
+      "id": "message-16",
+      "role": "assistant",
+      "content": "Generation failed validation and execution was aborted. Failure details: Sandbox execution error: Daytona acquire failed after 30086ms. direct=Failed to create and start sandbox within 10 seconds. Operation timed out. | fallback=getaddrinfo EAI_AGAIN app.daytona.io Runtime: error with 0 renders and 0 frames.",
+      "kind": "generate",
+      "meta": [
+        "scene:scene-failed-1775230226651",
+        "skill:threejs",
+        "error:SANDBOX_NETWORK_UNAVAILABLE"
+      ],
+      "error": {
+        "code": "SANDBOX_NETWORK_UNAVAILABLE",
+        "title": "Sandbox network issue",
+        "userMessage": "I could not reach the execution sandbox due to a temporary network issue.",
+        "retryable": true,
+        "suggestedAction": "Retry now.",
+        "technicalDetail": "Daytona acquire failed after 30086ms. direct=Failed to create and start sandbox within 10 seconds. Operation timed out. | fallback=getaddrinfo EAI_AGAIN app.daytona.io | code:error",
+        "stage": "execution",
+        "diagnostics": {
+          "stage": "execution",
+          "requestId": "client-5a898b02-1872-40c3-a10e-3bf07e52e43e",
+          "sessionId": "68cb3584-3570-4d94-b120-3f0f4380f20a",
+          "messageId": "message-16",
+          "message": "Daytona acquire failed after 30086ms. direct=Failed to create and start sandbox within 10 seconds. Operation timed out. | fallback=getaddrinfo EAI_AGAIN app.daytona.io",
+          "name": null,
+          "code": "error",
+          "status": null,
+          "cause": null,
+          "stack": null,
+          "timestamp": "2026-04-03T15:30:26.662Z"
+        }
+      },
+      "createdAt": "2026-04-03T15:29:35.759Z",
+      "updatedAt": "2026-04-03T15:30:26.662Z"
+    },
+    {
+      "id": "thought-turn_started-1775230175785",
+      "role": "thought",
+      "content": "Interesting — let me process what you're looking for here.",
+      "kind": "thought",
+      "meta": [
+        "turn_started"
+      ],
+      "error": null,
+      "createdAt": "2026-04-03T15:29:35.785Z",
+      "updatedAt": "2026-04-03T15:29:35.785Z"
+    },
+    {
+      "id": "thought-intent_parsed-1775230176005",
+      "role": "thought",
+      "content": "I understand — this is a visual creation task. Let me pick the most suitable skill.",
+      "kind": "thought",
+      "meta": [
+        "intent_parsed"
+      ],
+      "error": null,
+      "createdAt": "2026-04-03T15:29:36.005Z",
+      "updatedAt": "2026-04-03T15:29:36.005Z"
+    },
+    {
+      "id": "thought-plan_created-1775230176008",
+      "role": "thought",
+      "content": "Alright, 7 tasks queued. I'm moving through the pipeline now.",
+      "kind": "thought",
+      "meta": [
+        "plan_created"
+      ],
+      "error": null,
+      "createdAt": "2026-04-03T15:29:36.008Z",
+      "updatedAt": "2026-04-03T15:29:36.008Z"
+    },
+    {
+      "id": "thought-code_generated-1775230226657",
+      "role": "thought",
+      "content": "Code generation complete. Now I need to check it for safety and correctness.",
+      "kind": "thought",
+      "meta": [
+        "code_generated"
+      ],
+      "error": null,
+      "createdAt": "2026-04-03T15:30:26.657Z",
+      "updatedAt": "2026-04-03T15:30:26.657Z"
+    },
+    {
+      "id": "thought-executing-1775230226659",
+      "role": "thought",
+      "content": "Everything checks out — launching the sandbox runtime.",
+      "kind": "thought",
+      "meta": [
+        "executing"
+      ],
+      "error": null,
+      "createdAt": "2026-04-03T15:30:26.659Z",
+      "updatedAt": "2026-04-03T15:30:26.659Z"
+    },
+    {
+      "id": "thought-sync_state-1775230226660",
+      "role": "thought",
+      "content": "Success! Committing the scene version and updating your workspace.",
+      "kind": "thought",
+      "meta": [
+        "sync_state"
+      ],
+      "error": null,
+      "createdAt": "2026-04-03T15:30:26.660Z",
+      "updatedAt": "2026-04-03T15:30:26.660Z"
+    },
+    {
+      "id": "thought-turn_error-1775230226664",
+      "role": "thought",
+      "content": "I hit an error in the pipeline. Here are the details...",
+      "kind": "thought",
+      "meta": [
+        "turn_error"
+      ],
+      "error": null,
+      "createdAt": "2026-04-03T15:30:26.664Z",
+      "updatedAt": "2026-04-03T15:30:26.664Z"
     }
   ],
   "orchestrationTrace": [
@@ -261,6 +412,213 @@
         "content": "show me how fusion works"
       },
       "createdAt": "2026-03-27T08:27:43.501Z"
+    },
+    {
+      "id": "trace-7",
+      "step": "intent_parsed",
+      "payload": {
+        "sessionId": "68cb3584-3570-4d94-b120-3f0f4380f20a",
+        "content": "show me a 3d scape of coruscant"
+      },
+      "createdAt": "2026-04-03T15:29:35.944Z"
+    },
+    {
+      "id": "trace-8",
+      "step": "parse_intent",
+      "payload": {
+        "sessionId": "68cb3584-3570-4d94-b120-3f0f4380f20a",
+        "status": "running"
+      },
+      "createdAt": "2026-04-03T15:29:36.020Z"
+    },
+    {
+      "id": "trace-9",
+      "step": "select_skill",
+      "payload": {
+        "sessionId": "68cb3584-3570-4d94-b120-3f0f4380f20a",
+        "status": "running"
+      },
+      "createdAt": "2026-04-03T15:29:36.034Z"
+    },
+    {
+      "id": "trace-10",
+      "step": "build_prompt",
+      "payload": {
+        "sessionId": "68cb3584-3570-4d94-b120-3f0f4380f20a",
+        "status": "running"
+      },
+      "createdAt": "2026-04-03T15:29:36.045Z"
+    },
+    {
+      "id": "trace-11",
+      "step": "generate_code",
+      "payload": {
+        "sessionId": "68cb3584-3570-4d94-b120-3f0f4380f20a",
+        "status": "running"
+      },
+      "createdAt": "2026-04-03T15:29:36.057Z"
+    },
+    {
+      "id": "trace-12",
+      "step": "thinking_analysis_failed",
+      "payload": {
+        "sessionId": "68cb3584-3570-4d94-b120-3f0f4380f20a",
+        "requestId": "client-5a898b02-1872-40c3-a10e-3bf07e52e43e",
+        "diagnostics": {
+          "stage": "thinking_analysis",
+          "context": {
+            "stage": "thinking_analysis",
+            "queryPreview": "show me a 3d scape of coruscant",
+            "hasScene": true
+          },
+          "message": "fetch failed",
+          "code": null,
+          "status": null,
+          "cause": "Connect Timeout Error (attempted address: api.moonshot.ai:443, timeout: 10000ms)",
+          "stack": "TypeError: fetch failed |     at node:internal/deps/undici/undici:14902:13 |     at processTicksAndRejections (node:internal/process/task_queues:95:5)",
+          "timestamp": "2026-04-03T15:29:46.456Z"
+        }
+      },
+      "createdAt": "2026-04-03T15:29:46.457Z"
+    },
+    {
+      "id": "trace-13",
+      "step": "generate_code",
+      "payload": {
+        "sessionId": "68cb3584-3570-4d94-b120-3f0f4380f20a",
+        "status": "completed",
+        "selectedSkill": "threejs",
+        "source": "fallback",
+        "code": "// Local fallback output\nconst geometry = new THREE.BoxGeometry(1, 1, 1);\nconst material = new THREE.MeshStandardMaterial({ color: 0x1d8cf8, metalness: 0.8, roughness: 0.2 });\nconst mesh = new THREE.Mesh(geometry, material);\nscene.add(mesh);\nfunction animate() {\n  requestAnimationFrame(animate);\n  mesh.rotation.x += 0.01;\n  mesh.rotation.y += 0.01;\n  renderer.render(scene, camera);\n}\nanimate();",
+        "stageDurationMs": 10402
+      },
+      "createdAt": "2026-04-03T15:29:46.462Z"
+    },
+    {
+      "id": "trace-14",
+      "step": "validate_code",
+      "payload": {
+        "sessionId": "68cb3584-3570-4d94-b120-3f0f4380f20a",
+        "status": "running"
+      },
+      "createdAt": "2026-04-03T15:29:46.472Z"
+    },
+    {
+      "id": "trace-15",
+      "step": "validate_code",
+      "payload": {
+        "sessionId": "68cb3584-3570-4d94-b120-3f0f4380f20a",
+        "status": "completed",
+        "stageDurationMs": 28
+      },
+      "createdAt": "2026-04-03T15:29:46.500Z"
+    },
+    {
+      "id": "trace-16",
+      "step": "execute_code",
+      "payload": {
+        "sessionId": "68cb3584-3570-4d94-b120-3f0f4380f20a",
+        "status": "running"
+      },
+      "createdAt": "2026-04-03T15:29:46.524Z"
+    },
+    {
+      "id": "trace-17",
+      "step": "execute_code",
+      "payload": {
+        "sessionId": "68cb3584-3570-4d94-b120-3f0f4380f20a",
+        "status": "error",
+        "error": "Daytona acquire failed after 30086ms. direct=Failed to create and start sandbox within 10 seconds. Operation timed out. | fallback=getaddrinfo EAI_AGAIN app.daytona.io",
+        "runtimeRecoveryUsed": false,
+        "stageDurationMs": 40113
+      },
+      "createdAt": "2026-04-03T15:30:26.637Z"
+    },
+    {
+      "id": "trace-18",
+      "step": "turn_error",
+      "payload": {
+        "sessionId": "68cb3584-3570-4d94-b120-3f0f4380f20a",
+        "mode": "generate",
+        "messageCount": 23,
+        "error": {
+          "code": "SANDBOX_NETWORK_UNAVAILABLE",
+          "title": "Sandbox network issue",
+          "userMessage": "I could not reach the execution sandbox due to a temporary network issue.",
+          "retryable": true,
+          "suggestedAction": "Retry now.",
+          "technicalDetail": "Daytona acquire failed after 30086ms. direct=Failed to create and start sandbox within 10 seconds. Operation timed out. | fallback=getaddrinfo EAI_AGAIN app.daytona.io | code:error",
+          "stage": "execution",
+          "diagnostics": {
+            "stage": "execution",
+            "requestId": "client-5a898b02-1872-40c3-a10e-3bf07e52e43e",
+            "sessionId": "68cb3584-3570-4d94-b120-3f0f4380f20a",
+            "messageId": "message-16",
+            "message": "Daytona acquire failed after 30086ms. direct=Failed to create and start sandbox within 10 seconds. Operation timed out. | fallback=getaddrinfo EAI_AGAIN app.daytona.io",
+            "name": null,
+            "code": "error",
+            "status": null,
+            "cause": null,
+            "stack": null,
+            "timestamp": "2026-04-03T15:30:26.662Z"
+          }
+        }
+      },
+      "createdAt": "2026-04-03T15:30:26.665Z"
     }
-  ]
+  ],
+  "artifacts": [
+    {
+      "artifactId": "artifact-1775229316996-1",
+      "title": "scene-1774599849060",
+      "createdAt": "2026-03-27T08:24:10.714Z",
+      "updatedAt": "2026-03-27T08:24:10.714Z",
+      "revisions": [
+        {
+          "versionId": "version-1",
+          "version": 1,
+          "sessionId": "68cb3584-3570-4d94-b120-3f0f4380f20a",
+          "sceneId": "scene-1774599849060",
+          "code": "// Local fallback output\nconst geometry = new THREE.BoxGeometry(1, 1, 1);\nconst material = new THREE.MeshStandardMaterial({ color: 0x1d8cf8, metalness: 0.8, roughness: 0.2 });\nconst mesh = new THREE.Mesh(geometry, material);\nscene.add(mesh);\nfunction animate() {\n  requestAnimationFrame(animate);\n  mesh.rotation.x += 0.01;\n  mesh.rotation.y += 0.01;\n  renderer.render(scene, camera);\n}\nanimate();",
+          "previewUrl": "about:blank",
+          "skill": "threejs",
+          "explanation": "Generated through LangGraph orchestration pipeline. Generated via local fallback pipeline. Warning: Moonshot temporarily overloaded; used local fallback. Runtime: completed with 49 renders and 48 frames.",
+          "messageId": "message-1",
+          "source": "generate",
+          "createdAt": "2026-03-27T08:24:10.714Z",
+          "updatedAt": "2026-03-27T08:24:10.714Z",
+          "artifactId": "artifact-1775229316996-1",
+          "artifactVersion": 1
+        }
+      ],
+      "revisionPointer": 0
+    },
+    {
+      "artifactId": "artifact-1775230226658-2a332a",
+      "title": "scene-failed-1775230226651",
+      "createdAt": "2026-04-03T15:30:26.658Z",
+      "updatedAt": "2026-04-03T15:30:26.658Z",
+      "revisions": [
+        {
+          "sessionId": "68cb3584-3570-4d94-b120-3f0f4380f20a",
+          "sceneId": "scene-failed-1775230226651",
+          "code": "// Local fallback output\nconst geometry = new THREE.BoxGeometry(1, 1, 1);\nconst material = new THREE.MeshStandardMaterial({ color: 0x1d8cf8, metalness: 0.8, roughness: 0.2 });\nconst mesh = new THREE.Mesh(geometry, material);\nscene.add(mesh);\nfunction animate() {\n  requestAnimationFrame(animate);\n  mesh.rotation.x += 0.01;\n  mesh.rotation.y += 0.01;\n  renderer.render(scene, camera);\n}\nanimate();",
+          "previewUrl": null,
+          "skill": "threejs",
+          "explanation": "Generation failed validation and execution was aborted. Failure details: Sandbox execution error: Daytona acquire failed after 30086ms. direct=Failed to create and start sandbox within 10 seconds. Operation timed out. | fallback=getaddrinfo EAI_AGAIN app.daytona.io Runtime: error with 0 renders and 0 frames.",
+          "messageId": "message-16",
+          "source": "generate",
+          "createdAt": "2026-04-03T15:30:26.658Z",
+          "updatedAt": "2026-04-03T15:30:26.658Z",
+          "versionId": "version-2",
+          "version": 2,
+          "artifactId": "artifact-1775230226658-2a332a",
+          "artifactVersion": 1
+        }
+      ],
+      "revisionPointer": 0
+    }
+  ],
+  "artifactPointer": 0,
+  "revisionPointer": 0
 }

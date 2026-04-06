@@ -70,6 +70,14 @@ function createThreeNamespace(runtimeState) {
 
   // ── Geometries ──
   const geomClass = (name) => class { constructor(...args) { return createGeometry(name, args); } };
+  
+  // Custom CapsuleGeometry implementation for compatibility
+  class CapsuleGeometry {
+    constructor(radius = 1, length = 1, capSegments = 4, radialSegments = 8) {
+      return createGeometry('CapsuleGeometry', [radius, length, capSegments, radialSegments]);
+    }
+  }
+  
   const BoxGeometry = geomClass("BoxGeometry");
   const SphereGeometry = geomClass("SphereGeometry");
   const PlaneGeometry = geomClass("PlaneGeometry");
@@ -83,7 +91,7 @@ function createThreeNamespace(runtimeState) {
   const OctahedronGeometry = geomClass("OctahedronGeometry");
   const DodecahedronGeometry = geomClass("DodecahedronGeometry");
   const TetrahedronGeometry = geomClass("TetrahedronGeometry");
-  const CapsuleGeometry = geomClass("CapsuleGeometry");
+  // CapsuleGeometry is defined above as a custom class
   const LatheGeometry = geomClass("LatheGeometry");
   const ExtrudeGeometry = geomClass("ExtrudeGeometry");
   const ShapeGeometry = geomClass("ShapeGeometry");

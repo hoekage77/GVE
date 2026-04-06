@@ -1,0 +1,570 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>REST API Reference - GVE Knowledgebase</title>
+  <link rel="stylesheet" href="assets/styles.css">
+</head>
+<body>
+  <div class="layout">
+    <aside class="sidebar">
+      <div class="logo">
+        <h1>📐 GVE Knowledgebase</h1>
+        <span class="version">v1.0.0</span>
+      </div>
+      
+      <nav class="nav">
+        <div class="nav-section">
+          <h3>Overview</h3>
+          <ul>
+            <li><a href="index.html">Introduction</a></li>
+            <li><a href="architecture.html">Architecture</a></li>
+            <li><a href="quickstart.html">Quick Start</a></li>
+          </ul>
+        </div>
+        
+        <div class="nav-section">
+          <h3>API Reference</h3>
+          <ul>
+            <li><a href="api-rest.html" class="active">REST API</a></li>
+            <li><a href="api-websocket.html">WebSocket Events</a></li>
+            <li><a href="api-types.html">Type Definitions</a></li>
+          </ul>
+        </div>
+        
+        <div class="nav-section">
+          <h3>Endpoints</h3>
+          <ul>
+            <li><a href="#sessions">Sessions</a></li>
+            <li><a href="#messages">Messages</a></li>
+            <li><a href="#generation">Generation</a></li>
+            <li><a href="#modification">Modification</a></li>
+            <li><a href="#versions">Versions</a></li>
+            <li><a href="#skills">Skills</a></li>
+          </ul>
+        </div>
+        
+        <div class="nav-section">
+          <h3>Components</h3>
+          <ul>
+            <li><a href="components-web.html">Web Components</a></li>
+            <li><a href="components-server.html">Server Modules</a></li>
+            <li><a href="components-ui.html">UI Primitives</a></li>
+          </ul>
+        </div>
+        
+        <div class="nav-section">
+          <h3>Data & Skills</h3>
+          <ul>
+            <li><a href="data-models.html">Data Models</a></li>
+            <li><a href="skills.html">Skill System</a></li>
+            <li><a href="skills.html#registry">Skill Registry</a></li>
+          </ul>
+        </div>
+        
+        <div class="nav-section">
+          <h3>Operations</h3>
+          <ul>
+            <li><a href="configuration.html">Configuration</a></li>
+            <li><a href="deployment.html">Deployment</a></li>
+            <li><a href="troubleshooting.html">Troubleshooting</a></li>
+          </ul>
+        </div>
+      </nav>
+    </aside>
+    
+    <main class="content">
+      <header class="page-header">
+        <h1>REST API Reference</h1>
+        <p class="subtitle">HTTP endpoints for session management and visual generation</p>
+      </header>
+      
+      <section class="section">
+        <h2>Base URL</h2>
+        <pre class="code-block">http://localhost:8000/api/v1</pre>
+        <p>
+          All API requests should include <code>Content-Type: application/json</code> header.
+          The API is primarily designed as a fallback for the WebSocket interface.
+        </p>
+      </section>
+      
+      <section id="sessions" class="section">
+        <h2>Sessions</h2>
+        <p>
+          Sessions are the primary context container for visual generation. 
+          Each session maintains conversation history, scene versions, and undo/redo state.
+        </p>
+        
+        <div class="endpoint">
+          <span class="method method-post">POST</span>
+          <span class="path">/sessions</span>
+          <span class="description">Create a new session</span>
+        </div>
+        <pre class="code-block">
+// Request
+{
+  "metadata": {
+    "userAgent": "Mozilla/5.0...",
+    "referrer": "https://..."
+  }
+}
+
+// Response 201 Created
+{
+  "sessionId": "550e8400-e29b-41d4-a716-446655440000",
+  "createdAt": "2024-03-26T10:30:00Z",
+  "websocketUrl": "ws://localhost:8000/ws"
+}
+        </pre>
+        
+        <div class="endpoint">
+          <span class="method method-get">GET</span>
+          <span class="path">/sessions</span>
+          <span class="description">List all active sessions</span>
+        </div>
+        <pre class="code-block">
+// Response 200 OK
+{
+  "sessions": [
+    {
+      "sessionId": "550e8400-e29b-41d4-a716-446655440000",
+      "createdAt": "2024-03-26T10:30:00Z",
+      "updatedAt": "2024-03-26T10:35:00Z",
+      "messageCount": 5,
+      "currentSkill": "threejs",
+      "status": "idle"
+    }
+  ]
+}
+        </pre>
+        
+        <div class="endpoint">
+          <span class="method method-get">GET</span>
+          <span class="path">/sessions/:sessionId</span>
+          <span class="description">Get session state</span>
+        </div>
+        <pre class="code-block">
+// Response 200 OK
+{
+  "sessionId": "550e8400-e29b-41d4-a716-446655440000",
+  "createdAt": "2024-03-26T10:30:00Z",
+  "updatedAt": "2024-03-26T10:35:00Z",
+  "status": "idle",
+  "currentScene": {
+    "id": "scene-abc123",
+    "artifactIndex": 0,
+    "revisionIndex": 2,
+    "code": "// ...",
+    "skill": "threejs"
+  },
+  "artifacts": [...],
+  "artifactPointer": 0,
+  "messages": [...],
+  "orchestrationTrace": [...]
+}
+        </pre>
+      </section>
+      
+      <section id="messages" class="section">
+        <h2>Messages</h2>
+        
+        <div class="endpoint">
+          <span class="method method-get">GET</span>
+          <span class="path">/sessions/:sessionId/messages</span>
+          <span class="description">List session messages</span>
+        </div>
+        <pre class="code-block">
+// Query Parameters
+?limit=50          // Max messages to return (default: 50)
+?before=isoString    // Messages before timestamp
+?after=isoString     // Messages after timestamp
+
+// Response 200 OK
+{
+  "messages": [
+    {
+      "id": "msg-001",
+      "role": "user",
+      "content": "Create a rotating cube",
+      "createdAt": "2024-03-26T10:30:00Z"
+    },
+    {
+      "id": "msg-002",
+      "role": "assistant",
+      "content": "I'll create a rotating 3D cube for you...",
+      "kind": "generation",
+      "sceneId": "scene-abc123",
+      "createdAt": "2024-03-26T10:30:05Z"
+    }
+  ],
+  "total": 2,
+  "hasMore": false
+}
+        </pre>
+        
+        <div class="endpoint">
+          <span class="method method-post">POST</span>
+          <span class="path">/sessions/:sessionId/messages</span>
+          <span class="description">Send a message to the session</span>
+        </div>
+        <pre class="code-block">
+// Request
+{
+  "content": "Create a rotating cube",
+  "role": "user",
+  "idempotencyKey": "unique-request-id",  // Optional, prevents duplicates
+  "preferences": {
+    "skill": "threejs",      // "threejs" | "p5js" | "d3js" | "animejs" | "auto"
+    "quality": "standard"    // "draft" | "standard" | "high"
+  }
+}
+
+// Response 202 Accepted (async processing)
+{
+  "messageId": "msg-003",
+  "status": "accepted",
+  "estimatedDuration": 5000
+}
+        </pre>
+      </section>
+      
+      <section id="generation" class="section">
+        <h2>Generation</h2>
+        <p>
+          The generation endpoint creates visual scenes from natural language descriptions.
+          This is a synchronous alternative to WebSocket generation.
+        </p>
+        
+        <div class="endpoint">
+          <span class="method method-post">POST</span>
+          <span class="path">/generate</span>
+          <span class="description">Generate a visual scene</span>
+        </div>
+        <pre class="code-block">
+// Request
+{
+  "query": "Create a rotating 3D cube with blue metallic material",
+  "sessionId": "550e8400-e29b-41d4-a716-446655440000",  // Optional
+  "preferences": {
+    "skill": "threejs",      // Force specific skill
+    "quality": "standard"
+  }
+}
+
+// Response 200 OK (success)
+{
+  "success": true,
+  "sceneId": "scene-abc123",
+  "previewUrl": "/preview/sandbox-001/scene.html",
+  "code": "const geometry = new THREE.BoxGeometry(1, 1, 1);...",
+  "skill": "threejs",
+  "explanation": "Created a blue metallic cube with continuous rotation animation.",
+  "version": {
+    "id": "ver-001",
+    "artifactIndex": 0,
+    "revisionIndex": 0
+  },
+  "execution": {
+    "status": "completed",
+    "duration": 2500,
+    "renderCount": 1,
+    "sandboxId": "sandbox-001"
+  }
+}
+
+// Response 200 OK (degraded)
+{
+  "success": false,
+  "degraded": true,
+  "code": "// Generated code (not executed)\n...",
+  "skill": "threejs",
+  "error": "Sandbox unavailable - code generation only",
+  "suggestions": [
+    "Try again in a few moments",
+    "Code has been generated but not validated"
+  ]
+}
+        </pre>
+      </section>
+      
+      <section id="modification" class="section">
+        <h2>Modification</h2>
+        <p>
+          Modify an existing scene with natural language edits. 
+          Creates a new revision in the current artifact.
+        </p>
+        
+        <div class="endpoint">
+          <span class="method method-post">POST</span>
+          <span class="path">/sessions/:sessionId/modify</span>
+          <span class="description">Modify current scene</span>
+        </div>
+        <pre class="code-block">
+// Request
+{
+  "edit": "Make the cube red and add a sphere next to it",
+  "sceneId": "scene-abc123",  // Optional, defaults to current
+  "preferences": {
+    "preserveCamera": true,    // Keep camera position
+    "preserveAnimation": true  // Keep animation state
+  }
+}
+
+// Response 200 OK
+{
+  "success": true,
+  "sceneId": "scene-abc124",
+  "diff": {
+    "added": ["sphere"],
+    "modified": ["cube.material.color"],
+    "removed": []
+  },
+  "code": "// Modified code...",
+  "previewUrl": "/preview/sandbox-001/scene.html",
+  "version": {
+    "id": "ver-002",
+    "artifactIndex": 0,
+    "revisionIndex": 1
+  }
+}
+        </pre>
+      </section>
+      
+      <section id="versions" class="section">
+        <h2>Version Control</h2>
+        
+        <div class="endpoint">
+          <span class="method method-get">GET</span>
+          <span class="path">/sessions/:sessionId/versions</span>
+          <span class="description">List all versions</span>
+        </div>
+        <pre class="code-block">
+// Response 200 OK
+{
+  "versions": [
+    {
+      "id": "ver-001",
+      "artifactIndex": 0,
+      "revisionIndex": 0,
+      "skill": "threejs",
+      "source": "generation",
+      "createdAt": "2024-03-26T10:30:00Z"
+    },
+    {
+      "id": "ver-002",
+      "artifactIndex": 0,
+      "revisionIndex": 1,
+      "skill": "threejs",
+      "source": "edit",
+      "createdAt": "2024-03-26T10:35:00Z"
+    }
+  ]
+}
+        </pre>
+        
+        <div class="endpoint">
+          <span class="method method-post">POST</span>
+          <span class="path">/sessions/:sessionId/undo</span>
+          <span class="description">Undo last change</span>
+        </div>
+        <pre class="code-block">
+// Response 200 OK
+{
+  "success": true,
+  "currentVersion": {
+    "id": "ver-001",
+    "revisionIndex": 0
+  },
+  "canUndo": false,
+  "canRedo": true
+}
+        </pre>
+        
+        <div class="endpoint">
+          <span class="method method-post">POST</span>
+          <span class="path">/sessions/:sessionId/redo</span>
+          <span class="description">Redo last undone change</span>
+        </div>
+        
+        <div class="endpoint">
+          <span class="method method-post">POST</span>
+          <span class="path">/sessions/:sessionId/artifacts/previous</span>
+          <span class="description">Navigate to previous artifact</span>
+        </div>
+        
+        <div class="endpoint">
+          <span class="method method-post">POST</span>
+          <span class="path">/sessions/:sessionId/artifacts/next</span>
+          <span class="description">Navigate to next artifact</span>
+        </div>
+      </section>
+      
+      <section id="skills" class="section">
+        <h2>Skills</h2>
+        
+        <div class="endpoint">
+          <span class="method method-get">GET</span>
+          <span class="path">/skills</span>
+          <span class="description">List available skills</span>
+        </div>
+        <pre class="code-block">
+// Response 200 OK
+{
+  "skills": [
+    {
+      "id": "threejs",
+      "name": "Three.js",
+      "version": "0.160.0",
+      "description": "3D scene generation using Three.js",
+      "domain": "3d",
+      "capabilities": [
+        "primitive",
+        "material",
+        "lighting",
+        "animation",
+        "camera"
+      ],
+      "reliability": {
+        "successRate": 0.94,
+        "avgLatency": 2500
+      },
+      "warmPoolAvailable": true
+    },
+    {
+      "id": "p5js",
+      "name": "p5.js",
+      "version": "1.9.0",
+      "description": "2D creative coding with p5.js",
+      "domain": "2d",
+      "capabilities": [
+        "shape",
+        "color",
+        "animation",
+        "interaction"
+      ],
+      "reliability": {
+        "successRate": 0.96,
+        "avgLatency": 1800
+      },
+      "warmPoolAvailable": true
+    },
+    {
+      "id": "d3js",
+      "name": "D3.js",
+      "version": "7.9.0",
+      "description": "Data visualization with D3.js",
+      "domain": "data-viz",
+      "capabilities": [
+        "chart",
+        "scale",
+        "axis",
+        "transition"
+      ],
+      "reliability": {
+        "successRate": 0.91,
+        "avgLatency": 2200
+      },
+      "warmPoolAvailable": false
+    },
+    {
+      "id": "animejs",
+      "name": "Anime.js",
+      "version": "3.2.2",
+      "description": "DOM and SVG animation",
+      "domain": "animation",
+      "capabilities": [
+        "tween",
+        "timeline",
+        "stagger"
+      ],
+      "reliability": {
+        "successRate": 0.89,
+        "avgLatency": 1500
+      },
+      "warmPoolAvailable": true
+    }
+  ]
+}
+        </pre>
+      </section>
+      
+      <section class="section">
+        <h2>Error Responses</h2>
+        <p>All errors follow a consistent format:</p>
+        <pre class="code-block">
+// 400 Bad Request
+{
+  "error": {
+    "code": "INVALID_QUERY",
+    "message": "Query cannot be empty",
+    "field": "query"
+  }
+}
+
+// 404 Not Found
+{
+  "error": {
+    "code": "SESSION_NOT_FOUND",
+    "message": "Session not found: abc-123",
+    "sessionId": "abc-123"
+  }
+}
+
+// 429 Too Many Requests
+{
+  "error": {
+    "code": "RATE_LIMITED",
+    "message": "Too many requests",
+    "retryAfter": 30
+  }
+}
+
+// 500 Internal Server Error
+{
+  "error": {
+    "code": "GENERATION_FAILED",
+    "message": "Failed to generate scene",
+    "recoverable": true,
+    "suggestions": ["Try a simpler query", "Try again later"]
+  }
+}
+        </pre>
+      </section>
+      
+      <section class="section">
+        <h2>Health Check</h2>
+        <div class="endpoint">
+          <span class="method method-get">GET</span>
+          <span class="path">/health</span>
+          <span class="description">Server health status</span>
+        </div>
+        <pre class="code-block">
+// Response 200 OK
+{
+  "status": "healthy",
+  "version": "1.0.0",
+  "uptime": 86400,
+  "services": {
+    "websocket": "connected",
+    "sandboxPool": "healthy",
+    "llmPool": "healthy"
+  },
+  "metrics": {
+    "activeSessions": 12,
+    "availableSandboxes": 3,
+    "totalRequests": 1543
+  }
+}
+        </pre>
+      </section>
+      
+      <footer class="footer">
+        <p>Generative Visual Engine Knowledgebase • Generated from source analysis</p>
+      </footer>
+    </main>
+  </div>
+  
+  <script src="assets/navigation.js"></script>
+</body>
+</html>

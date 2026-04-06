@@ -186,6 +186,8 @@ export interface ThoughtStreamEvent {
   thought: string;
   token: string;
   isFinal: boolean;
+  requestId?: string | null;
+  messageId?: string | null;
 }
 
 export interface AgentActivityEvent {

@@ -10,7 +10,10 @@ import {
   Plug2,
   History,
   Brain,
-  ListTree
+  ListTree,
+  Clock,
+  ChevronDown,
+  ChevronUp
 } from "lucide-react";
 import type { AgentActivityEvent, GveTask, GveTaskStatus, SessionMessage } from "@visual-runtime/shared";
 
@@ -29,30 +32,30 @@ interface TaskPlanViewerProps {
 }
 
 const STEP_LABELS: Record<string, string> = {
-  parse_intent: "Intent Parsing",
-  select_skill: "Skill Selection",
-  build_prompt: "Prompt Building",
-  generate_code: "Code Generation",
-  validate_code: "Validation",
-  execute_code: "Execution",
-  sync_state: "State Sync"
+  parse_intent: "Parse Intent",
+  select_skill: "Select Skill",
+  build_prompt: "Build Prompt",
+  generate_code: "Generate Code",
+  validate_code: "Validate",
+  execute_code: "Execute",
+  sync_state: "Sync State"
 };
 
 const STEP_DESCRIPTIONS: Record<string, string> = {
-  parse_intent: "Extracting action, entities, and constraints from your request",
-  select_skill: "Scoring and ranking available rendering skills",
-  build_prompt: "Assembling context, templates, and constraints for the model",
-  generate_code: "Generating executable scene code via the LLM",
-  validate_code: "Running syntax, security, and API whitelist checks",
-  execute_code: "Executing validated code in the sandbox runtime",
-  sync_state: "Committing scene version and broadcasting updates"
+  parse_intent: "Extract action, entities, constraints",
+  select_skill: "Score and rank rendering skills",
+  build_prompt: "Assemble context for the model",
+  generate_code: "Generate executable scene code",
+  validate_code: "Syntax, security, API checks",
+  execute_code: "Run in sandbox runtime",
+  sync_state: "Commit scene version"
 };
 
 const ACTIVITY_LABELS: Record<string, string> = {
   ...STEP_LABELS,
   intent_parsed: "Intent Parsed",
-  turn_complete: "Turn Complete",
-  turn_error: "Turn Error"
+  turn_complete: "Complete",
+  turn_error: "Error"
 };
 
 type TurnStatus = "running" | "completed" | "failed";
@@ -66,16 +69,17 @@ interface TurnTrace {
   thoughts: SessionMessage[];
 }
 
-function statusIcon(status: GveTaskStatus) {
+function statusIcon(status: GveTaskStatus, size: "sm" | "md" = "sm") {
+  const sizeClass = size === "sm" ? "h-3 w-3" : "h-4 w-4";
   switch (status) {
     case "completed":
-      return <CheckCircle2 className="h-4 w-4 task-icon task-icon--completed" />;
+      return <CheckCircle2 className={`${sizeClass} task-icon task-icon--completed`} />;
     case "running":
-      return <Loader2 className="h-4 w-4 task-icon task-icon--running" />;
+      return <Loader2 className={`${sizeClass} task-icon task-icon--running animate-spin`} />;
     case "failed":
-      return <XCircle className="h-4 w-4 task-icon task-icon--failed" />;
+      return <XCircle className={`${sizeClass} task-icon task-icon--failed`} />;
     default:
-      return <Circle className="h-4 w-4 task-icon task-icon--pending" />;
+      return <Circle className={`${sizeClass} task-icon task-icon--pending`} />;
   }
 }
 
@@ -102,23 +106,13 @@ function mapOrcheStepToAction(step: string): string | null {
 }
 
 function formatThoughtStep(step: string | null | undefined): string {
-  if (!step) {
-    return "thought";
-  }
-
+  if (!step) return "thought";
   const mapped = ACTIVITY_LABELS[step] ?? STEP_LABELS[mapOrcheStepToAction(step) ?? ""];
-  if (mapped) {
-    return mapped;
-  }
-
-  return step.replace(/_/g, " ");
+  return mapped ?? step.replace(/_/g, " ");
 }
 
 function toTimestamp(value: string | null | undefined): number {
-  if (!value) {
-    return 0;
-  }
-
+  if (!value) return 0;
   const parsed = Date.parse(value);
   return Number.isNaN(parsed) ? 0 : parsed;
 }
@@ -154,9 +148,7 @@ function buildTurnHistory(activities: AgentActivityEvent[], thoughts: SessionMes
     })
   ].sort((a, b) => a.at - b.at);
 
-  if (entries.length === 0) {
-    return [];
-  }
+  if (entries.length === 0) return [];
 
   const turns: TurnTrace[] = [];
   let current: TurnTrace | null = null;
@@ -200,21 +192,20 @@ function buildTurnHistory(activities: AgentActivityEvent[], thoughts: SessionMes
 }
 
 function formatTurnStatus(status: TurnStatus): string {
-  if (status === "failed") {
-    return "Error";
-  }
-  if (status === "completed") {
-    return "Complete";
-  }
-  return "In Progress";
+  if (status === "failed") return "Error";
+  if (status === "completed") return "Done";
+  return "Running";
 }
 
 function formatTime(ts: number | null): string {
-  if (!ts) {
-    return "--";
-  }
-
+  if (!ts) return "--";
   return new Date(ts).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+}
+
+function formatDuration(start: number, end: number | null): string {
+  const duration = (end ?? Date.now()) - start;
+  if (duration < 1000) return `${duration}ms`;
+  return `${(duration / 1000).toFixed(1)}s`;
 }
 
 export default function TaskPlanViewer({
@@ -230,7 +221,11 @@ export default function TaskPlanViewer({
   const [liveTasks, setLiveTasks] = useState<GveTask[]>(tasks);
   const [selectedTurnIndex, setSelectedTurnIndex] = useState(0);
   const [followLatestTurn, setFollowLatestTurn] = useState(true);
-  const [showPipelineSteps, setShowPipelineSteps] = useState(false);
+  const [expandedSections, setExpandedSections] = useState({
+    pipeline: false,
+    activity: true,
+    thoughts: true
+  });
 
   useEffect(() => {
     setLiveTasks(tasks);
@@ -238,15 +233,12 @@ export default function TaskPlanViewer({
 
   useEffect(() => {
     if (!currentStep) return;
-
     const matchedAction = mapOrcheStepToAction(currentStep);
     if (!matchedAction) return;
 
     setLiveTasks(prev => {
       const taskIndex = prev.findIndex(t => t.action === matchedAction);
-      if (taskIndex === -1) {
-        return prev;
-      }
+      if (taskIndex === -1) return prev;
 
       let resolvedStatus = currentStepStatus ?? null;
       if (!resolvedStatus) {
@@ -255,60 +247,35 @@ export default function TaskPlanViewer({
         resolvedStatus = (isFailed ? "failed" : isTerminal ? "completed" : "running") as GveTaskStatus;
       }
 
-      const next = prev.map(task => {
+      return prev.map((task, idx) => {
         if (task.action === matchedAction) {
-          return {
-            ...task,
-            status: resolvedStatus as GveTaskStatus
-          };
+          return { ...task, status: resolvedStatus as GveTaskStatus };
         }
-
-        // Mark earlier tasks as completed if a later step is active
-        const currentIndex = prev.findIndex(t => t.id === task.id);
-        if (taskIndex > currentIndex && task.status === "pending") {
+        if (taskIndex > idx && task.status === "pending") {
           return { ...task, status: "completed" as GveTaskStatus };
         }
-
         return task;
       });
-      return next;
     });
   }, [currentStep, currentStepStatus, tasks]);
 
   useEffect(() => {
-    if (activities.length === 0) {
-      return;
-    }
-
+    if (activities.length === 0) return;
     const latestStatusByAction = new Map<string, GveTaskStatus>();
     for (const activity of activities) {
       const action = mapOrcheStepToAction(activity.step);
-      if (!action) {
-        continue;
-      }
-
-      latestStatusByAction.set(action, activity.status);
+      if (action) latestStatusByAction.set(action, activity.status);
     }
-
-    if (latestStatusByAction.size === 0) {
-      return;
-    }
+    if (latestStatusByAction.size === 0) return;
 
     setLiveTasks((prev) => {
       let changed = false;
       const next = prev.map((task) => {
         const status = latestStatusByAction.get(task.action);
-        if (!status || status === task.status) {
-          return task;
-        }
-
+        if (!status || status === task.status) return task;
         changed = true;
-        return {
-          ...task,
-          status
-        };
+        return { ...task, status };
       });
-
       return changed ? next : prev;
     });
   }, [activities]);
@@ -319,308 +286,218 @@ export default function TaskPlanViewer({
   const failedTask = liveTasks.find(task => task.status === "failed");
   const runningTask = liveTasks.find(task => task.status === "running");
   const focusTask = failedTask ?? runningTask ?? liveTasks[completedCount] ?? liveTasks[liveTasks.length - 1];
-  const focusLabel = focusTask ? (STEP_LABELS[focusTask.action] ?? focusTask.title) : "Pipeline Overview";
-  const latestActivity = activities.length > 0 ? activities[activities.length - 1] : null;
-
+  const focusLabel = focusTask ? (STEP_LABELS[focusTask.action] ?? focusTask.title) : "Ready";
+  
   const turnHistory = useMemo(() => buildTurnHistory(activities, thoughts), [activities, thoughts]);
   const latestTurnIndex = Math.max(turnHistory.length - 1, 0);
 
   useEffect(() => {
-    setSelectedTurnIndex((prev) => {
-      if (followLatestTurn) {
-        return latestTurnIndex;
-      }
-      return Math.min(prev, latestTurnIndex);
-    });
+    setSelectedTurnIndex((prev) => followLatestTurn ? latestTurnIndex : Math.min(prev, latestTurnIndex));
   }, [followLatestTurn, latestTurnIndex]);
 
   const selectedTurn = turnHistory[selectedTurnIndex] ?? null;
   const selectedActivities = selectedTurn?.activities ?? [];
   const selectedThoughts = selectedTurn?.thoughts ?? [];
 
-  const activityByStep = useMemo(() => {
-    const map = new Map<string, AgentActivityEvent>();
-    for (const activity of selectedActivities) {
-      map.set(activity.step, activity);
-    }
-    return map;
-  }, [selectedActivities]);
-
   const visibleThoughts = selectedThoughts.slice().reverse();
-  const hasTimelineContent = Boolean(
-    liveThought || selectedActivities.length > 0 || visibleThoughts.length > 0 || turnHistory.length > 0
+  
+  const latestActivity = activities.length > 0 ? activities[activities.length - 1] : null;
+  let deploymentLabel = "Waiting...";
+  if (failedTask) deploymentLabel = "Issue encountered";
+  else if (totalCount > 0 && completedCount === totalCount) deploymentLabel = "Complete";
+  else if (latestActivity?.text) deploymentLabel = latestActivity.text;
+
+  // Compact task list for sidebar
+  const renderCompactTaskList = () => (
+    <div className="task-sidebar__list">
+      {liveTasks.map((task, index) => (
+        <div
+          key={task.id}
+          className={`task-sidebar__item task-sidebar__item--${task.status}`}
+          title={STEP_DESCRIPTIONS[task.action]}
+        >
+          <div className="task-sidebar__icon">
+            {statusIcon(task.status, "sm")}
+          </div>
+          <span className="task-sidebar__label">{STEP_LABELS[task.action] ?? task.title}</span>
+          {task.status === "running" && (
+            <div className="task-sidebar__pulse" />
+          )}
+        </div>
+      ))}
+    </div>
   );
 
-  const selectedStatusByAction = useMemo(() => {
-    const statusMap = new Map<string, GveTaskStatus>();
-    for (const activity of selectedActivities) {
-      const action = mapOrcheStepToAction(activity.step);
-      if (!action) {
-        continue;
-      }
-      statusMap.set(action, activity.status);
-    }
-    return statusMap;
-  }, [selectedActivities]);
-
-  const displayTasks = useMemo(() => {
-    if (!selectedTurn || selectedTurnIndex === latestTurnIndex || selectedStatusByAction.size === 0) {
-      return liveTasks;
-    }
-
-    return liveTasks.map((task) => {
-      const mapped = selectedStatusByAction.get(task.action);
-      return {
-        ...task,
-        status: mapped ?? "pending"
-      };
-    });
-  }, [latestTurnIndex, liveTasks, selectedStatusByAction, selectedTurn, selectedTurnIndex]);
-
-  let deploymentLabel = "Pipeline running";
-  if (failedTask) {
-    deploymentLabel = "Generation encountered an issue";
-  } else if (totalCount > 0 && completedCount === totalCount) {
-    deploymentLabel = "Scene generated and synced";
-  }
-
-  if (latestActivity?.text) {
-    deploymentLabel = latestActivity.text;
-  }
-
-  if (liveTasks.length === 0 && !hasTimelineContent) {
+  if (liveTasks.length === 0 && activities.length === 0) {
     return (
-      <div className="task-viewer task-viewer--empty">
-        <div className="scene-kimi-header">
-          <div className="scene-kimi-header__top">
-            <div className="scene-kimi-header__identity">
-              <span className="scene-kimi-header__icon" aria-hidden="true">
-                <Monitor className="h-4 w-4" />
-              </span>
-              <div className="scene-kimi-header__identity-copy">
-                <p className="scene-kimi-header__title">dosco</p>
-                <p className="scene-kimi-header__meta">
-                  <span className="scene-kimi-header__dot" aria-hidden="true" />
-                  <span>Task Progress 0/0</span>
-                  <span className="scene-kimi-header__divider" aria-hidden="true" />
-                  <span className="scene-kimi-header__focus">Pipeline overview</span>
-                  <ChevronRight className="h-3 w-3" aria-hidden="true" />
-                </p>
-              </div>
-            </div>
-          </div>
-          <div className="scene-kimi-header__line" />
-          <p className="scene-kimi-header__status">
-            <Plug2 className="h-3.5 w-3.5" aria-hidden="true" />
-            Waiting for orchestration plan
-          </p>
+      <div className="task-sidebar task-sidebar--empty">
+        <div className="task-sidebar__header">
+          <Monitor className="h-4 w-4" />
+          <span>Task History</span>
         </div>
-
-        <div className="workspace-empty-state">
-          <div className="workspace-empty-state__icon">◇</div>
-          <p className="workspace-empty-state__title">Orchestration pipeline will appear here</p>
-          <p className="workspace-empty-state__hint">Submit a generation request to stream task progress in real time</p>
-        </div>
+        <p className="task-sidebar__empty-text">Submit a request to see task progress</p>
       </div>
     );
   }
 
   return (
-    <div className="task-viewer">
-      <div className="scene-kimi-header">
-        <div className="scene-kimi-header__top">
-          <div className="scene-kimi-header__identity">
-            <span className="scene-kimi-header__icon" aria-hidden="true">
-              <Monitor className="h-4 w-4" />
-            </span>
-            <div className="scene-kimi-header__identity-copy">
-              <p className="scene-kimi-header__title">dosco</p>
-              <p className="scene-kimi-header__meta">
-                <span className="scene-kimi-header__dot" aria-hidden="true" />
-                <span>Task Progress {completedCount}/{totalCount}</span>
-                <span className="scene-kimi-header__divider" aria-hidden="true" />
-                <span className="scene-kimi-header__focus">{focusLabel}</span>
-                <ChevronRight className="h-3 w-3" aria-hidden="true" />
-              </p>
-            </div>
-          </div>
+    <div className="task-sidebar">
+      {/* Header */}
+      <div className="task-sidebar__header">
+        <div className="task-sidebar__title">
+          <Monitor className="h-4 w-4" />
+          <span>Tasks</span>
         </div>
-        <div className="scene-kimi-header__line" />
-        <p className="scene-kimi-header__status">
-          <Plug2 className="h-3.5 w-3.5" aria-hidden="true" />
-          {deploymentLabel}
-        </p>
+        <div className="task-sidebar__progress">
+          <span>{completedCount}/{totalCount}</span>
+        </div>
       </div>
 
-      <div className="task-viewer__progress-bar">
-        <div className="task-viewer__progress-fill" style={{ width: `${progressPct}%` }} />
+      {/* Mini Progress Bar */}
+      <div className="task-sidebar__progress-bar">
+        <div 
+          className="task-sidebar__progress-fill" 
+          style={{ width: `${progressPct}%` }}
+        />
       </div>
 
-      {turnHistory.length > 0 && (
-        <section className="task-viewer__history" aria-label="Task history">
-          <p className="task-viewer__section-label">
-            <History className="h-3.5 w-3.5" aria-hidden="true" />
-            Task history
-          </p>
-          <div className="task-viewer__history-controls">
-            <button
-              type="button"
-              className="task-viewer__history-btn"
-              onClick={() => {
-                setSelectedTurnIndex((prev) => Math.max(0, prev - 1));
-                setFollowLatestTurn(false);
-              }}
-              disabled={selectedTurnIndex <= 0}
-              aria-label="Previous turn"
-            >
-              <ChevronLeft className="h-3.5 w-3.5" />
-            </button>
+      {/* Current Status */}
+      <div className="task-sidebar__status">
+        <Plug2 className="h-3 w-3" />
+        <span className="task-sidebar__status-text">{deploymentLabel}</span>
+      </div>
 
-            <div className="task-viewer__history-summary-wrap">
-              <p className="task-viewer__history-summary">
-                Turn {selectedTurnIndex + 1} / {turnHistory.length}
-              </p>
-              <p className={`task-viewer__history-status task-viewer__history-status--${selectedTurn?.status ?? "running"}`}>
-                {formatTurnStatus(selectedTurn?.status ?? "running")}
-              </p>
-            </div>
+      {/* Compact Task List */}
+      {renderCompactTaskList()}
 
-            <button
-              type="button"
-              className="task-viewer__history-btn"
-              onClick={() => {
-                setSelectedTurnIndex((prev) => Math.min(latestTurnIndex, prev + 1));
-                setFollowLatestTurn(selectedTurnIndex + 1 >= latestTurnIndex);
-              }}
-              disabled={selectedTurnIndex >= latestTurnIndex}
-              aria-label="Next turn"
-            >
-              <ChevronRight className="h-3.5 w-3.5" />
-            </button>
-          </div>
-          <p className="task-viewer__history-range">
-            {selectedTurn ? `${formatTime(selectedTurn.startedAt)} - ${formatTime(selectedTurn.endedAt ?? selectedTurn.startedAt)}` : "--"}
-          </p>
-        </section>
+      {/* Turn Navigator */}
+      {turnHistory.length > 1 && (
+        <div className="task-sidebar__turns">
+          <button
+            type="button"
+            className="task-sidebar__turn-btn"
+            onClick={() => {
+              setSelectedTurnIndex(Math.max(0, selectedTurnIndex - 1));
+              setFollowLatestTurn(false);
+            }}
+            disabled={selectedTurnIndex <= 0}
+          >
+            <ChevronLeft className="h-3 w-3" />
+          </button>
+          <span className="task-sidebar__turn-label">
+            Turn {selectedTurnIndex + 1}/{turnHistory.length}
+          </span>
+          <button
+            type="button"
+            className="task-sidebar__turn-btn"
+            onClick={() => {
+              setSelectedTurnIndex(Math.min(latestTurnIndex, selectedTurnIndex + 1));
+              setFollowLatestTurn(selectedTurnIndex + 1 >= latestTurnIndex);
+            }}
+            disabled={selectedTurnIndex >= latestTurnIndex}
+          >
+            <ChevronRight className="h-3 w-3" />
+          </button>
+        </div>
       )}
 
+      {/* Expandable Activity Section */}
       {selectedActivities.length > 0 && (
-        <section className="task-viewer__activity" aria-label="Agent activity">
-          <p className="task-viewer__section-label">
-            <ListTree className="h-3.5 w-3.5" aria-hidden="true" />
-            Agent activity
-          </p>
-          <div className="task-viewer__activity-list">
-            {selectedActivities.slice(-6).reverse().map((activity) => (
-              <article key={activity.id} className={`task-viewer__activity-item task-viewer__activity-item--${activity.status}`}>
-                <p className="task-viewer__activity-meta">
-                  <span>{ACTIVITY_LABELS[activity.step] ?? STEP_LABELS[mapOrcheStepToAction(activity.step) ?? ""] ?? activity.step}</span>
-                  <span>{new Date(activity.createdAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit", second: "2-digit" })}</span>
-                </p>
-                <p className="task-viewer__activity-text">{activity.text}</p>
-              </article>
-            ))}
-          </div>
-        </section>
-      )}
-
-      {(liveThought || visibleThoughts.length > 0) && (
-        <section className="task-viewer__thoughts" aria-label="Agent reasoning trace">
-          <p className="task-viewer__section-label">
-            <Brain className="h-3.5 w-3.5" aria-hidden="true" />
-            Reasoning trace
-          </p>
-          <div className="task-viewer__thoughts-list">
-            {liveThought && selectedTurnIndex === latestTurnIndex ? (
-              <article className="task-viewer__thought-item task-viewer__thought-item--live">
-                <p className="task-viewer__thought-meta">
-                  <span>{formatThoughtStep(liveThought.step)}</span>
-                  <span>live</span>
-                </p>
-                <p className="task-viewer__thought-text">{liveThought.text}</p>
-              </article>
-            ) : null}
-
-            {visibleThoughts.map((thought) => {
-              const step = thought.meta?.[0] ?? thought.kind ?? "thought";
-              return (
-                <article key={thought.id} className="task-viewer__thought-item">
-                  <p className="task-viewer__thought-meta">
-                    <span>{formatThoughtStep(step)}</span>
-                    <span>{new Date(thought.createdAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}</span>
-                  </p>
-                  <p className="task-viewer__thought-text">{thought.content}</p>
-                </article>
-              );
-            })}
-          </div>
-        </section>
-      )}
-
-      <div className="task-viewer__steps-header">
-        <button
-          type="button"
-          className="task-viewer__steps-toggle"
-          onClick={() => setShowPipelineSteps((prev) => !prev)}
-        >
-          {showPipelineSteps ? "Hide pipeline steps" : "Show pipeline steps"}
-        </button>
-      </div>
-
-      {showPipelineSteps ? (
-      <div className="task-viewer__steps">
-        {displayTasks.map((task, index) => {
-          const isActive = task.status === "running";
-          const isLast = index === displayTasks.length - 1;
-          const activity = activityByStep.get(task.action);
-
-          return (
-            <div
-              key={task.id}
-              className={`task-step ${isActive ? "task-step--active" : ""} task-step--${task.status}`}
-            >
-              <div className="task-step__connector">
-                {statusIcon(task.status)}
-                {!isLast && <div className={`task-step__line task-step__line--${task.status}`} />}
-              </div>
-              <div className="task-step__content">
-                <div className="task-step__header">
-                  <span className="task-step__title">
-                    {STEP_LABELS[task.action] ?? task.title}
+        <div className="task-sidebar__section">
+          <button
+            type="button"
+            className="task-sidebar__section-header"
+            onClick={() => setExpandedSections(prev => ({ ...prev, activity: !prev.activity }))}
+          >
+            <ListTree className="h-3 w-3" />
+            <span>Activity</span>
+            {expandedSections.activity ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+          </button>
+          
+          {expandedSections.activity && (
+            <div className="task-sidebar__activity-list">
+              {selectedActivities.slice(-4).reverse().map((activity) => (
+                <div key={activity.id} className={`task-sidebar__activity task-sidebar__activity--${activity.status}`}>
+                  <span className="task-sidebar__activity-step">
+                    {ACTIVITY_LABELS[activity.step] ?? activity.step}
                   </span>
-                  {task.status === "completed" && (
-                    <span className="task-step__badge task-step__badge--done">Done</span>
-                  )}
-                  {task.status === "failed" && (
-                    <span className="task-step__badge task-step__badge--failed">Failed</span>
-                  )}
-                  {task.status === "running" && (
-                    <span className="task-step__badge task-step__badge--running">Running</span>
-                  )}
+                  <span className="task-sidebar__activity-time">
+                    {new Date(activity.createdAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}
+                  </span>
                 </div>
-                <p className="task-step__description">
-                  {activity?.text ?? STEP_DESCRIPTIONS[task.action] ?? task.description}
-                </p>
-                {task.dependsOn.length > 0 && (
-                  <div className="task-step__deps">
-                    {task.dependsOn.map(dep => (
-                      <span key={dep} className="task-step__dep-badge">
-                        <ChevronRight className="h-3 w-3" />
-                        {dep}
-                      </span>
-                    ))}
-                  </div>
-                )}
-              </div>
+              ))}
             </div>
-          );
-        })}
-      </div>
-      ) : null}
+          )}
+        </div>
+      )}
+
+      {/* Expandable Thoughts Section */}
+      {(liveThought || visibleThoughts.length > 0) && (
+        <div className="task-sidebar__section">
+          <button
+            type="button"
+            className="task-sidebar__section-header"
+            onClick={() => setExpandedSections(prev => ({ ...prev, thoughts: !prev.thoughts }))}
+          >
+            <Brain className="h-3 w-3" />
+            <span>Thoughts</span>
+            {expandedSections.thoughts ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+          </button>
+          
+          {expandedSections.thoughts && (
+            <div className="task-sidebar__thoughts-list">
+              {liveThought && selectedTurnIndex === latestTurnIndex && (
+                <div className="task-sidebar__thought task-sidebar__thought--live">
+                  <span className="task-sidebar__thought-step">{formatThoughtStep(liveThought.step)}</span>
+                  <p className="task-sidebar__thought-text">{liveThought.text}</p>
+                </div>
+              )}
+              {visibleThoughts.slice(0, 3).map((thought) => (
+                <div key={thought.id} className="task-sidebar__thought">
+                  <span className="task-sidebar__thought-step">
+                    {formatThoughtStep(thought.meta?.[0] ?? thought.kind)}
+                  </span>
+                  <p className="task-sidebar__thought-text">{thought.content}</p>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Pipeline Toggle */}
+      <button
+        type="button"
+        className="task-sidebar__pipeline-toggle"
+        onClick={() => setExpandedSections(prev => ({ ...prev, pipeline: !prev.pipeline }))}
+      >
+        {expandedSections.pipeline ? "Hide Pipeline" : "Show Pipeline"}
+      </button>
+
+      {/* Expanded Pipeline */}
+      {expandedSections.pipeline && (
+        <div className="task-sidebar__pipeline">
+          {liveTasks.map((task, index) => {
+            const isLast = index === liveTasks.length - 1;
+            return (
+              <div key={task.id} className={`task-pipeline__step task-pipeline__step--${task.status}`}>
+                <div className="task-pipeline__connector">
+                  {statusIcon(task.status, "sm")}
+                  {!isLast && <div className={`task-pipeline__line task-pipeline__line--${task.status}`} />}
+                </div>
+                <div className="task-pipeline__content">
+                  <span className="task-pipeline__title">{STEP_LABELS[task.action] ?? task.title}</span>
+                  <span className="task-pipeline__desc">{STEP_DESCRIPTIONS[task.action]}</span>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
 
       {planId && (
-        <div className="task-viewer__footer">
-          <span className="task-viewer__plan-id">Plan: {planId}</span>
+        <div className="task-sidebar__footer">
+          <span className="task-sidebar__plan-id">{planId.slice(0, 8)}</span>
         </div>
       )}
     </div>

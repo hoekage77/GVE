@@ -1,0 +1,722 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Data Models - GVE Knowledgebase</title>
+  <link rel="stylesheet" href="assets/styles.css">
+</head>
+<body>
+  <div class="layout">
+    <aside class="sidebar">
+      <div class="logo">
+        <h1>📐 GVE Knowledgebase</h1>
+        <span class="version">v1.0.0</span>
+      </div>
+      
+      <nav class="nav">
+        <div class="nav-section">
+          <h3>Overview</h3>
+          <ul>
+            <li><a href="index.html">Introduction</a></li>
+            <li><a href="architecture.html">Architecture</a></li>
+            <li><a href="quickstart.html">Quick Start</a></li>
+          </ul>
+        </div>
+        
+        <div class="nav-section">
+          <h3>API Reference</h3>
+          <ul>
+            <li><a href="api-rest.html">REST API</a></li>
+            <li><a href="api-websocket.html">WebSocket Events</a></li>
+            <li><a href="api-types.html">Type Definitions</a></li>
+          </ul>
+        </div>
+        
+        <div class="nav-section">
+          <h3>Components</h3>
+          <ul>
+            <li><a href="components-web.html">Web Components</a></li>
+            <li><a href="components-server.html">Server Modules</a></li>
+            <li><a href="components-ui.html">UI Primitives</a></li>
+          </ul>
+        </div>
+        
+        <div class="nav-section">
+          <h3>Data & Skills</h3>
+          <ul>
+            <li><a href="data-models.html" class="active">Data Models</a></li>
+            <li><a href="skills.html">Skill System</a></li>
+            <li><a href="skills.html#registry">Skill Registry</a></li>
+          </ul>
+        </div>
+        
+        <div class="nav-section">
+          <h3>Operations</h3>
+          <ul>
+            <li><a href="configuration.html">Configuration</a></li>
+            <li><a href="deployment.html">Deployment</a></li>
+            <li><a href="troubleshooting.html">Troubleshooting</a></li>
+          </ul>
+        </div>
+      </nav>
+    </aside>
+    
+    <main class="content">
+      <header class="page-header">
+        <h1>Data Models</h1>
+        <p class="subtitle">Complete reference for all data structures</p>
+      </header>
+      
+      <section class="section">
+        <h2>Session</h2>
+        <p>
+          A Session represents a user's conversation and generation context. 
+          It maintains message history, scene versions, and undo/redo state.
+        </p>
+        
+        <pre class="code-block">
+interface SessionState {
+  // Identifiers
+  sessionId: string;              // UUID v4
+  
+  // Timestamps
+  createdAt: ISOString;
+  updatedAt: ISOString;
+  
+  // Status
+  status: "idle" | "parsing" | "selecting" | "generating" | "executing";
+  
+  // Current Scene
+  currentScene: SceneVersion | null;
+  
+  // Versioning System
+  artifacts: Artifact[];        // Major versions collection
+  artifactPointer: number;        // Current artifact index
+  
+  // Legacy flat versions (backward compat)
+  versions: SceneVersion[];
+  versionPointer: number;
+  revisionPointer: number;
+  
+  // Chat History
+  messages: SessionMessage[];
+  
+  // Debugging
+  orchestrationTrace: TraceEntry[];
+  
+  // Metadata
+  metadata?: Record<string, any>;
+}
+        </pre>
+        
+        <h3>Session Status States</h3>
+        <table>
+          <tr>
+            <th>Status</th>
+            <th>Description</th>
+          </tr>
+          <tr>
+            <td><code>idle</code></td>
+            <td>No active generation, waiting for input</td>
+          </tr>
+          <tr>
+            <td><code>parsing</code></td>
+            <td>Intent parsing in progress</td>
+          </tr>
+          <tr>
+            <td><code>selecting</code></td>
+            <td>Skill selection in progress</td>
+          </tr>
+          <tr>
+            <td><code>generating</code></td>
+            <td>Code generation in progress</td>
+          </tr>
+          <tr>
+            <td><code>executing</code></td>
+            <td>Sandbox execution in progress</td>
+          </tr>
+        </table>
+      </section>
+      
+      <section class="section">
+        <h2>Scene Version</h2>
+        <p>
+          A SceneVersion represents a snapshot of generated code with metadata 
+          about its origin and relationships to other versions.
+        </p>
+        
+        <pre class="code-block">
+interface SceneVersion {
+  // Identifiers
+  id: string;                     // Version UUID
+  
+  // Versioning
+  artifactIndex: number;          // Which artifact this belongs to
+  revisionIndex: number;        // Position within artifact
+  
+  // Scene Content
+  code: string;                   // Generated JavaScript code
+  skill: string;                  // Skill ID (threejs, p5js, etc.)
+  preview?: string;               // Preview URL or data
+  
+  // Context
+  explanation?: string;           // Natural language explanation
+  query?: string;                 // Original user query
+  
+  // Provenance
+  source: "generation" | "edit" | "undo" | "redo" | "navigation";
+  parentVersionId?: string;       // Previous version (for edits)
+  
+  // Timestamps
+  createdAt: ISOString;
+  
+  // Execution metadata
+  execution?: {
+    sandboxId: string;
+    duration: number;
+    renderCount: number;
+    status: "completed" | "error" | "timeout";
+  };
+}
+        </pre>
+        
+        <h3>Versioning Hierarchy</h3>
+        <div class="diagram-container">
+          <pre class="diagram">
+Artifact 0: "Solar System"
+├── Revision 0: "Create solar system" (generation)
+├── Revision 1: "Make sun bigger" (edit)
+├── Revision 2: "Add Saturn rings" (edit)
+└── [Current Position: Rev 2]
+
+Artifact 1: "Animated Solar System"
+├── Revision 0: "Animate the planets" (generation)
+├── Revision 1: "Slow down orbits" (edit)
+└── [Alternate branch]
+
+Navigation:
+- Undo/Redo: Within current artifact (Rev 2 → Rev 1 → Rev 0)
+- Artifact Nav: Switch between artifacts (Art 1 ↔ Art 0)
+- Global Nav: Flat version list across all artifacts
+          </pre>
+        </div>
+      </section>
+      
+      <section class="section">
+        <h2>Artifact</h2>
+        <p>
+          An Artifact is a collection of related scene revisions, representing 
+          a major version or branch in the creative process.
+        </p>
+        
+        <pre class="code-block">
+interface Artifact {
+  id: string;                     // Artifact UUID
+  name?: string;                  // Optional name/description
+  
+  // Revisions
+  revisions: SceneVersion[];      // Ordered list of versions
+  
+  // Metadata
+  skill: string;                  // Primary skill used
+  createdAt: ISOString;
+  
+  // Statistics
+  stats?: {
+    totalRevisions: number;
+    lastModified: ISOString;
+  };
+}
+        </pre>
+      </section>
+      
+      <section class="section">
+        <h2>Session Message</h2>
+        <p>
+          Messages represent the chat history between user and assistant, 
+          including system messages, thoughts, and generation results.
+        </p>
+        
+        <pre class="code-block">
+interface SessionMessage {
+  // Identifiers
+  id: string;                     // Message UUID
+  correlationId?: string;         // Groups related messages
+  
+  // Content
+  role: "user" | "assistant" | "system" | "thought";
+  content: string;
+  
+  // Type
+  kind?: "chat" | "generation" | "modification" | "explanation" | 
+         "error" | "thought" | "system";
+  
+  // Scene reference (for generation messages)
+  sceneId?: string;
+  
+  // Metadata
+  metadata?: {
+    skill?: string;
+    versionId?: string;
+    query?: string;
+    [key: string]: any;
+  };
+  
+  // Error info
+  error?: SessionMessageError;
+  
+  // Timestamps
+  createdAt: ISOString;
+  updatedAt?: ISOString;
+}
+
+interface SessionMessageError {
+  code: string;                   // Error code
+  title: string;                    // Short title
+  message: string;                  // User-facing message
+  technical?: string;               // Technical details
+  recoverable: boolean;             // Can user retry?
+  suggestions?: string[];           // Suggested actions
+  retryable: boolean;               // Can be retried
+}
+        </pre>
+        
+        <h3>Message Roles</h3>
+        <table>
+          <tr>
+            <th>Role</th>
+            <th>Description</th>
+          </tr>
+          <tr>
+            <td><code>user</code></td>
+            <td>User input/query</td>
+          </tr>
+          <tr>
+            <td><code>assistant</code></td>
+            <td>AI assistant response</td>
+          </tr>
+          <tr>
+            <td><code>system</code></td>
+            <td>System notifications</td>
+          </tr>
+          <tr>
+            <td><code>thought</code></td>
+            <td>Agent reasoning/thinking</td>
+          </tr>
+        </table>
+        
+        <h3>Message Kinds</h3>
+        <table>
+          <tr>
+            <th>Kind</th>
+            <th>Description</th>
+          </tr>
+          <tr>
+            <td><code>chat</code></td>
+            <td>Simple text conversation</td>
+          </tr>
+          <tr>
+            <td><code>generation</code></td>
+            <td>Scene generation result</td>
+          </tr>
+          <tr>
+            <td><code>modification</code></td>
+            <td>Scene modification result</td>
+          </tr>
+          <tr>
+            <td><code>explanation</code></td>
+            <td>Code/scene explanation</td>
+          </tr>
+          <tr>
+            <td><code>error</code></td>
+            <td>Error message</td>
+          </tr>
+          <tr>
+            <td><code>thought</code></td>
+            <td>Agent thought process</td>
+          </tr>
+        </table>
+      </section>
+      
+      <section class="section">
+        <h2>Skill</h2>
+        <p>
+          Skills are rendering capabilities with defined templates, dependencies, 
+          and execution parameters.
+        </p>
+        
+        <pre class="code-block">
+interface SkillDefinition {
+  // Identity
+  id: string;                     // Skill ID (threejs, p5js, etc.)
+  name: string;                   // Display name
+  version: string;                // Skill version
+  description: string;
+  
+  // Capabilities
+  capabilities: Capability[];
+  
+  // Runtime
+  runtime: RuntimeRequirements;
+  
+  // Templates
+  templates: TemplateConfig;
+  
+  // Examples
+  examples: SkillExample[];
+  
+  // Metadata
+  author?: string;
+  license?: string;
+}
+
+interface Capability {
+  name: string;                   // Capability ID
+  description: string;
+  parameters: ParameterSchema;      // JSON Schema
+}
+
+interface RuntimeRequirements {
+  baseImage: string;              // Docker image
+  dependencies: string[];         // NPM packages
+  envVars: Record<string, string>;
+  resources: ResourceLimits;
+  ports: number[];
+  filesystem: FilesystemConfig;
+}
+
+interface ResourceLimits {
+  memory: string;                 // e.g., "512MB"
+  cpu: string;                    // e.g., "1"
+  timeout: number;                // Milliseconds
+}
+
+interface TemplateConfig {
+  entryPoint: string;             // Main file
+  files: string[];                // Template files
+  schema?: string;                // Validation schema
+}
+
+interface SkillExample {
+  prompt: string;                 // Example query
+  code: string;                   // Example output
+}
+        </pre>
+      </section>
+      
+      <section class="section">
+        <h2>Task Plan</h2>
+        <p>
+          Task plans represent the orchestration pipeline structure with 
+          dependencies and execution status.
+        </p>
+        
+        <pre class="code-block">
+interface TaskPlan {
+  id: string;                     // Plan UUID
+  turnId: string;                 // Associated turn
+  
+  // Tasks
+  tasks: Task[];
+  
+  // Status
+  status: "pending" | "running" | "completed" | "failed";
+  
+  // Progress
+  progress: number;               // 0.0 to 1.0
+  
+  // Timing
+  startedAt?: ISOString;
+  completedAt?: ISOString;
+  
+  // Results
+  results?: Record<string, TaskResult>;
+}
+
+interface Task {
+  id: string;                     // Task UUID
+  action: TaskAction;             // Action type
+  
+  // Dependencies
+  dependencies: string[];         // Task IDs to complete first
+  
+  // Status
+  status: TaskStatus;
+  
+  // Progress
+  progress: number;
+  
+  // Timing
+  startedAt?: ISOString;
+  completedAt?: ISOString;
+  
+  // Result
+  result?: TaskResult;
+  error?: TaskError;
+}
+
+type TaskAction = 
+  | "parse_intent"
+  | "select_skill"
+  | "build_prompt"
+  | "generate_code"
+  | "validate_code"
+  | "execute_code"
+  | "sync_state";
+
+type TaskStatus = "pending" | "running" | "completed" | "failed" | "skipped";
+
+interface TaskResult {
+  success: boolean;
+  data?: any;
+  metrics?: {
+    duration: number;
+    [key: string]: any;
+  };
+}
+
+interface TaskError {
+  code: string;
+  message: string;
+  recoverable: boolean;
+}
+        </pre>
+        
+        <h3>Task Dependency Graph</h3>
+        <div class="diagram-container">
+          <pre class="diagram">
+parse_intent
+    ↓
+select_skill
+    ↓
+build_prompt
+    ↓
+generate_code
+    ↓
+validate_code ───────┐ (retry loop if failed)
+    ↓                │
+    ├──────[failed]──┤
+    ↓                │
+execute_code <───────┘
+    ↓
+sync_state
+
+Note: validate_code can trigger a retry through agent_self_debug
+which loops back to validate_recovery_code before proceeding.
+          </pre>
+        </div>
+      </section>
+      
+      <section class="section">
+        <h2>Sandbox</h2>
+        <p>
+          Sandbox representation for code execution environments.
+        </p>
+        
+        <pre class="code-block">
+interface Sandbox {
+  id: string;                     // Sandbox/Workspace ID
+  skillId?: string;               // Currently loaded skill
+  
+  // Status
+  status: "creating" | "warming" | "ready" | "active" | "error";
+  
+  // Environment
+  baseImage: string;
+  nodeVersion?: string;
+  
+  // Runtime
+  runtime?: SkillRuntime;
+  
+  // Timestamps
+  createdAt: ISOString;
+  lastUsedAt?: ISOString;
+  
+  // Health
+  health?: {
+    lastCheck: ISOString;
+    status: "healthy" | "unhealthy";
+    errors?: string[];
+  };
+}
+
+interface SandboxHandle {
+  sandboxId: string;
+  workspace: Workspace;
+  
+  // Execution
+  execute(payload: ExecutePayload): Promise<ExecutionResult>;
+  
+  // Lifecycle
+  release(): Promise<void>;
+}
+        </pre>
+      </section>
+      
+      <section class="section">
+        <h2>Intent</h2>
+        <p>
+          Parsed user intent with entities, constraints, and confidence.
+        </p>
+        
+        <pre class="code-block">
+interface ParsedIntent {
+  // Original query
+  rawQuery: string;
+  normalizedQuery: string;
+  
+  // Classification
+  intentType: IntentType;
+  targetDomain: Domain;
+  
+  // Entities
+  entities: Entity[];
+  
+  // Constraints
+  constraints: Constraint[];
+  
+  // Confidence
+  confidence: number;             // 0.0 to 1.0
+  
+  // Intent classification
+  isGreeting: boolean;
+  isCapabilityQuestion: boolean;
+  isSmallTalk: boolean;
+  isConversationOnly: boolean;
+}
+
+type IntentType = 
+  | "create" 
+  | "modify" 
+  | "explain" 
+  | "animate" 
+  | "query" 
+  | "chat";
+
+type Domain = 
+  | "3d" 
+  | "2d" 
+  | "data-viz" 
+  | "diagram" 
+  | "animation" 
+  | "unknown";
+
+interface Entity {
+  type: string;                     // "object", "color", "animation", etc.
+  value: string;
+  normalized?: string;
+  confidence: number;
+  position?: { start: number; end: number };
+}
+
+interface Constraint {
+  type: string;                     // "performance", "interactivity", "style"
+  value: any;
+  priority: "required" | "preferred" | "optional";
+}
+        </pre>
+      </section>
+      
+      <section class="section">
+        <h2>Orchestration Trace</h2>
+        <p>
+          Debug/trace information for orchestration pipeline execution.
+        </p>
+        
+        <pre class="code-block">
+interface TraceEntry {
+  id: string;
+  timestamp: ISOString;
+  
+  // Context
+  turnId: string;
+  step: string;
+  
+  // Type
+  type: "start" | "end" | "error" | "decision" | "llm_call";
+  
+  // Details
+  data?: Record<string, any>;
+  
+  // Timing
+  duration?: number;
+  
+  // LLM specific
+  llmCall?: {
+    provider: string;
+    model: string;
+    tokensIn?: number;
+    tokensOut?: number;
+    duration: number;
+  };
+}
+        </pre>
+      </section>
+      
+      <section class="section">
+        <h2>Error Types</h2>
+        
+        <pre class="code-block">
+enum ErrorType {
+  // Intent parsing
+  AMBIGUOUS_INTENT = "AMBIGUOUS_INTENT",
+  UNSUPPORTED_DOMAIN = "UNSUPPORTED_DOMAIN",
+  
+  // Skill errors
+  SKILL_NOT_FOUND = "SKILL_NOT_FOUND",
+  SKILL_LOAD_FAILED = "SKILL_LOAD_FAILED",
+  SKILL_INCOMPATIBLE = "SKILL_INCOMPATIBLE",
+  
+  // Code generation
+  GENERATION_FAILED = "GENERATION_FAILED",
+  VALIDATION_FAILED = "VALIDATION_FAILED",
+  
+  // Execution
+  SYNTAX_ERROR = "SYNTAX_ERROR",
+  RUNTIME_ERROR = "RUNTIME_ERROR",
+  TIMEOUT_ERROR = "TIMEOUT_ERROR",
+  RESOURCE_EXHAUSTED = "RESOURCE_EXHAUSTED",
+  
+  // System
+  SANDBOX_UNAVAILABLE = "SANDBOX_UNAVAILABLE",
+  NETWORK_ERROR = "NETWORK_ERROR",
+  RATE_LIMITED = "RATE_LIMITED"
+}
+
+interface ErrorRecoveryStrategy {
+  type: ErrorType;
+  recoverable: boolean;
+  actions: RecoveryAction[];
+  fallback: FallbackBehavior;
+}
+
+type RecoveryAction = 
+  | { type: "CLARIFY"; message: string }
+  | { type: "SUGGEST"; options: string[] }
+  | { type: "RETRY"; maxAttempts: number }
+  | { type: "SIMPLIFY_PROMPT"; reduceComplexity: boolean }
+  | { type: "USE_EXAMPLE"; fallbackToExample: boolean }
+  | { type: "FIX_CODE"; useLLM: boolean }
+  | { type: "ISOLATE_ERROR"; runPartial: boolean }
+  | { type: "WAIT"; timeout: number }
+  | { type: "SCALE_UP"; requestMoreSandboxes: boolean };
+
+type FallbackBehavior =
+  | { type: "ASK_USER" }
+  | { type: "USE_DEFAULT"; skill: string }
+  | { type: "SHOW_ERROR"; message: string }
+  | { type: "SHOW_PARTIAL"; workingCode: boolean }
+  | { type: "QUEUE"; notifyWhenReady: boolean };
+        </pre>
+      </section>
+      
+      <footer class="footer">
+        <p>Generative Visual Engine Knowledgebase • Generated from source analysis</p>
+      </footer>
+    </main>
+  </div>
+  
+  <script src="assets/navigation.js"></script>
+</body>
+</html>

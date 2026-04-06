@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Troubleshooting - GVE Knowledgebase</title>
+  <link rel="stylesheet" href="assets/styles.css">
+</head>
+<body>
+  <div class="layout">
+    <aside class="sidebar">
+      <div class="logo">
+        <h1>📐 GVE Knowledgebase</h1>
+        <span class="version">v1.0.0</span>
+      </div>
+      
+      <nav class="nav">
+        <div class="nav-section">
+          <h3>Overview</h3>
+          <ul>
+            <li><a href="index.html">Introduction</a></li>
+            <li><a href="architecture.html">Architecture</a></li>
+            <li><a href="quickstart.html">Quick Start</a></li>
+          </ul>
+        </div>
+        
+        <div class="nav-section">
+          <h3>API Reference</h3>
+          <ul>
+            <li><a href="api-rest.html">REST API</a></li>
+            <li><a href="api-websocket.html">WebSocket Events</a></li>
+            <li><a href="api-types.html">Type Definitions</a></li>
+          </ul>
+        </div>
+        
+        <div class="nav-section">
+          <h3>Components</h3>
+          <ul>
+            <li><a href="components-web.html">Web Components</a></li>
+            <li><a href="components-server.html">Server Modules</a></li>
+            <li><a href="components-ui.html">UI Primitives</a></li>
+          </ul>
+        </div>
+        
+        <div class="nav-section">
+          <h3>Data & Skills</h3>
+          <ul>
+            <li><a href="data-models.html">Data Models</a></li>
+            <li><a href="skills.html">Skill System</a></li>
+            <li><a href="skills.html#registry">Skill Registry</a></li>
+          </ul>
+        </div>
+        
+        <div class="nav-section">
+          <h3>Operations</h3>
+          <ul>
+            <li><a href="configuration.html">Configuration</a></li>
+            <li><a href="deployment.html">Deployment</a></li>
+            <li><a href="troubleshooting.html" class="active">Troubleshooting</a></li>
+          </ul>
+        </div>
+      </nav>
+    </aside>
+    
+    <main class="content">
+      <header class="page-header">
+        <h1>Troubleshooting</h1>
+        <p class="subtitle">Common issues and solutions</p>
+      </header>
+      
+      <section class="section">
+        <h2>Sandbox Issues</h2>
+        
+        <h3>Sandbox Acquire Timeout</h3>
+        <p><strong>Symptom:</strong> Requests fail with "Sandbox acquire timeout" or take very long.</p>
+        <pre class="code-block">
+# Check Daytona credentials
+curl -H "Authorization: $DAYTONA_API_KEY" \
+  https://api.daytona.io/v1/workspaces
+
+# Verify environment variables
+node -e "console.log(process.env.DAYTONA_API_KEY)"
+        </pre>
+        <ul>
+          <li>Verify <code>DAYTONA_API_KEY</code> is set correctly</li>
+          <li>Check Daytona service status</li>
+          <li>Increase <code>DAYTONA_FALLBACK_CREATE_TIMEOUT_SECONDS</code></li>
+          <li>Check network connectivity to Daytona API</li>
+        </ul>
+        
+        <h3>Circuit Breaker Open</h3>
+        <p><strong>Symptom:</strong> Logs show "Circuit breaker is open, using fallback".</p>
+        <ul>
+          <li>This is normal behavior after multiple direct create failures</li>
+          <li>System automatically recovers after cooldown period</li>
+          <li>If frequent, check Daytona API stability</li>
+          <li>Consider increasing <code>DAYTONA_DIRECT_CIRCUIT_BREAKER_THRESHOLD</code></li>
+        </ul>
+        
+        <h3>Warm Pool Empty</h3>
+        <p><strong>Symptom:</strong> Every request provisions a new sandbox (slow).</p>
+        <pre class="code-block">
+# Check pool status in logs
+# Look for "prewarm" events
+
+# Increase pool size
+DAYTONA_PREWARM_SIZE=3
+        </pre>
+      </section>
+      
+      <section class="section">
+        <h2>LLM Provider Issues</h2>
+        
+        <h3>All LLM Providers Exhausted</h3>
+        <p><strong>Symptom:</strong> "All LLM providers exhausted" error.</p>
+        <ul>
+          <li>Verify at least one API key is set correctly</li>
+          <li>Check API key quotas and billing status</li>
+          <li>Review rate limit logs for specific providers</li>
+          <li>Configure multiple providers for failover</li>
+        </ul>
+        
+        <h3>Rate Limiting</h3>
+        <p><strong>Symptom:</strong> Frequent 429 errors or slow responses.</p>
+        <pre class="code-block">
+# Provider rate limits:
+# - Moonshot: 5 req/min
+# - DeepSeek: 10 req/min  
+# - Groq: 30 req/min
+# - Gemini: 60 req/min
+
+# Solution: Configure multiple providers
+MOONSHOT_API_KEY=...
+GROQ_API_KEY=...
+GEMINI_API_KEY=...
+        </pre>
+      </section>
+      
+      <section class="section">
+        <h2>Generation Issues</h2>
+        
+        <h3>Code Validation Failures</h3>
+        <p><strong>Symptom:</strong> Generation fails at validation step repeatedly.</p>
+        <ul>
+          <li>Check if code has syntax errors in logs</li>
+          <li>Review validation error details in orchestration trace</li>
+          <li>System auto-retries with agent self-debug (max 2 attempts)</li>
+          <li>If persistent, check skill templates are correctly mounted</li>
+        </ul>
+        
+        <h3>Runtime Execution Errors</h3>
+        <p><strong>Symptom:</strong> Code validates but fails in sandbox.</p>
+        <pre class="code-block">
+# Common errors:
+# - "THREE is not defined" -> Skill not loaded properly
+# - "Cannot read property of undefined" -> Code references missing object
+# - "setScalar is not a function" -> API mismatch (auto-fixed by system)
+
+# Check:
+1. Sandbox skill installation logs
+2. Runner script execution output
+3. Code for API compatibility with skill version
+        </pre>
+        
+        <h3>Empty Scene Output</h3>
+        <p><strong>Symptom:</strong> Execution succeeds but scene is empty/black.</p>
+        <ul>
+          <li>Check <code>renderCount</code> in execution result (should be &gt; 0)</li>
+          <li>Verify camera position in generated code</li>
+          <li>Check for background color overriding content</li>
+          <li>Ensure objects are added to scene</li>
+        </ul>
+      </section>
+      
+      <section class="section">
+        <h2>WebSocket Issues</h2>
+        
+        <h3>Connection Drops</h3>
+        <p><strong>Symptom:</strong> WebSocket connection repeatedly disconnects.</p>
+        <pre class="code-block">
+# Check server WebSocket logs
+# Look for: connection:ready, session:resumed
+
+# Common causes:
+1. Proxy timeout (nginx: proxy_read_timeout)
+2. Firewall blocking WebSocket upgrade
+3. Client not responding to ping frames
+
+# Solutions:
+- Configure proxy timeouts &gt; 60s
+- Enable WebSocket support in load balancer
+- Implement client-side heartbeat
+        </pre>
+        
+        <h3>Event Replay Failures</h3>
+        <p><strong>Symptom:</strong> Session resume shows stale or missing events.</p>
+        <ul>
+          <li>Check event sequence numbers in logs</li>
+          <li>Verify <code>lastSeq</code> sent by client on resume</li>
+          <li>Replay buffer size: 2000 events (configurable)</li>
+          <li>If buffer exceeded, client gets full session state snapshot</li>
+        </ul>
+      </section>
+      
+      <section class="section">
+        <h2>Session Issues</h2>
+        
+        <h3>Session Not Found</h3>
+        <p><strong>Symptom:</strong> "Session not found" errors.</p>
+        <pre class="code-block">
+# Check session persistence
+ls -la apps/.data/sessions/
+
+# Verify session file exists
+cat apps/.data/sessions/{sessionId}.json
+
+# Common causes:
+1. Session expired (no expiration currently)
+2. Session file corrupted
+3. Server restarted without persistence mounted
+        </pre>
+        
+        <h3>Version Navigation Broken</h3>
+        <p><strong>Symptom:</strong> Undo/redo or artifact navigation doesn't work.</p>
+        <ul>
+          <li>Check <code>artifactPointer</code> and <code>revisionPointer</code> values</li>
+          <li>Verify version chain is intact (no missing parents)</li>
+          <li>Review session state for corruption</li>
+        </ul>
+      </section>
+      
+      <section class="section">
+        <h2>Performance Issues</h2>
+        
+        <h3>Slow Generation Times</h3>
+        <p><strong>Symptom:</strong> Turn takes &gt; 30 seconds consistently.</p>
+        <pre class="code-block">
+# Diagnostic steps:
+
+1. Check sandbox acquisition time
+   - Look for "acquire" duration in logs
+   - Should be &lt; 5s with warm pool
+
+2. Check LLM response time
+   - Provider latency varies
+   - Consider switching to faster provider (Groq)
+
+3. Check validation/execution time
+   - Complex code takes longer to validate
+   - Execution timeout is 30s max
+
+# Optimizations:
+DAYTONA_PREWARM_SIZE=3          # More warm sandboxes
+FAST_MODE=true                  # Enable fast mode
+ENABLE_ASYNC_THINKING=true      # Parallel thinking
+        </pre>
+        
+        <h3>High Memory Usage</h3>
+        <p><strong>Symptom:</strong> Server memory continuously grows.</p>
+        <ul>
+          <li>Check for memory leaks in session storage</li>
+          <li>Verify old sessions are being cleaned up</li>
+          <li>Monitor sandbox pool size (shouldn't grow unbounded)</li>
+          <li>Check for stuck sandboxes in "active" state</li>
+        </ul>
+      </section>
+      
+      <section class="section">
+        <h2>Debug Commands</h2>
+        
+        <h3>Test Scripts</h3>
+        <pre class="code-block">
+# Run all tests
+npm run test:sandbox:direct    # Sandbox pool test
+npm run test:sandbox:runtime   # Sandbox execution test
+npm run test:ws:direct         # WebSocket connectivity
+npm run test:ws:runtime        # Full end-to-end test
+
+# Deep dive test (8 complex prompts)
+npm run test:threejs:deepdive
+
+# Complex profile (more challenging)
+COMPLEX_TEST_PROFILE=1 npm run test:threejs:deepdive
+        </pre>
+        
+        <h3>Log Analysis</h3>
+        <pre class="code-block">
+# Filter for specific session
+grep "sessionId.*550e8400" server.log
+
+# Find errors
+grep -i "error\|failed\|timeout" server.log
+
+# Check turn completion times
+grep "turn:complete" server.log | jq '.duration'
+
+# Monitor circuit breaker
+grep "circuit" server.log
+        </pre>
+        
+        <h3>Health Check</h3>
+        <pre class="code-block">
+# Server health
+curl http://localhost:8000/health | jq
+
+# List sessions
+curl http://localhost:8000/api/v1/sessions | jq
+
+# Get specific session
+curl http://localhost:8000/api/v1/sessions/{id} | jq
+        </pre>
+      </section>
+      
+      <section class="section">
+        <h2>Common Error Codes</h2>
+        
+        <table>
+          <tr>
+            <th>Error Code</th>
+            <th>Description</th>
+            <th>Solution</th>
+          </tr>
+          <tr>
+            <td>SESSION_NOT_FOUND</td>
+            <td>Session ID doesn't exist</td>
+            <td>Create new session, check ID spelling</td>
+          </tr>
+          <tr>
+            <td>SKILL_NOT_FOUND</td>
+            <td>Requested skill doesn't exist</td>
+            <td>Use available skill or "auto"</td>
+          </tr>
+          <tr>
+            <td>GENERATION_FAILED</td>
+            <td>LLM generation failed</td>
+            <td>Retry, check LLM provider status</td>
+          </tr>
+          <tr>
+            <td>VALIDATION_FAILED</td>
+            <td>Code validation failed</td>
+            <td>System auto-retries, may need user clarification</td>
+          </tr>
+          <tr>
+            <td>RUNTIME_ERROR</td>
+            <td>Code execution failed</td>
+            <td>Check code syntax, API compatibility</td>
+          </tr>
+          <tr>
+            <td>TIMEOUT_ERROR</td>
+            <td>Execution timed out</td>
+            <td>Simplify request, check for infinite loops</td>
+          </tr>
+          <tr>
+            <td>SANDBOX_UNAVAILABLE</td>
+            <td>No sandbox available</td>
+            <td>Wait and retry, check pool status</td>
+          </tr>
+          <tr>
+            <td>RATE_LIMITED</td>
+            <td>Too many requests</td>
+            <td>Wait before retrying</td>
+          </tr>
+        </table>
+      </section>
+      
+      <footer class="footer">
+        <p>Generative Visual Engine Knowledgebase • Generated from source analysis</p>
+      </footer>
+    </main>
+  </div>
+  
+  <script src="assets/navigation.js"></script>
+</body>
+</html>

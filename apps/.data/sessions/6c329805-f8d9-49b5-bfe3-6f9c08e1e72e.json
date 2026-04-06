@@ -1,0 +1,128 @@
+{
+  "sessionId": "6c329805-f8d9-49b5-bfe3-6f9c08e1e72e",
+  "createdAt": "2026-04-05T02:02:29.537Z",
+  "updatedAt": "2026-04-05T02:03:02.276Z",
+  "status": "idle",
+  "currentScene": null,
+  "artifacts": [],
+  "artifactPointer": -1,
+  "versions": [],
+  "sceneVersions": [],
+  "versionPointer": -1,
+  "revisionPointer": -1,
+  "messages": [
+    {
+      "id": "ws-runtime-1775354549546",
+      "role": "user",
+      "content": "Hello. Confirm websocket runtime event flow.",
+      "kind": "input",
+      "meta": [],
+      "error": null,
+      "createdAt": "2026-04-05T02:02:29.558Z",
+      "updatedAt": "2026-04-05T02:02:29.558Z"
+    },
+    {
+      "id": "message-2",
+      "role": "assistant",
+      "content": "Hello! \n\nIn a typical WebSocket runtime, the event flow works like this:\n\n**Connection Phase**\n1. Client sends HTTP upgrade request\n2. Server responds with 101 Switching Protocols\n3. Connection upgrades from HTTP to persistent TCP socket\n4. `open` event fires on both sides\n\n**Active Communication**\n- **Client to Server**: `send()` transmits data → Server receives `message` event\n- **Server to Client**: Server emits → Client receives `message` event\n- Either side can trigger `error` events for protocol violations or network issues\n\n**Termination**\n- Initiator sends close frame → Other side receives `close` event\n- Connection cleanup and resource release\n- Optional `error` event if abnormal closure\n\n**Key Runtime Behaviors**\n- Events are typically async/callback-driven (onmessage, onerror, onclose)\n- Binary and text frames handled separately\n- Ping/pong frames usually managed automatically by the runtime to keep connection alive\n- Reconnection logic (if implemented) triggers after `close` or `error`\n\nIs there a specific implementation (like Socket.io, ws library, or browser native WebSockets) or particular event sequence you'd like me to clarify?",
+      "kind": "chat",
+      "meta": [],
+      "error": null,
+      "createdAt": "2026-04-05T02:02:29.558Z",
+      "updatedAt": "2026-04-05T02:03:02.271Z"
+    },
+    {
+      "id": "thought-turn_started-1775354549561",
+      "role": "thought",
+      "content": "Interesting — let me process what you're looking for here.",
+      "kind": "thought",
+      "meta": [
+        "turn_started"
+      ],
+      "error": null,
+      "createdAt": "2026-04-05T02:02:29.561Z",
+      "updatedAt": "2026-04-05T02:02:29.561Z"
+    },
+    {
+      "id": "thought-intent_parsed-1775354549575",
+      "role": "thought",
+      "content": "I see — you want me to create a visual visualization. Let me figure out the best tool for this.",
+      "kind": "thought",
+      "meta": [
+        "intent_parsed"
+      ],
+      "error": null,
+      "createdAt": "2026-04-05T02:02:29.575Z",
+      "updatedAt": "2026-04-05T02:02:29.575Z"
+    },
+    {
+      "id": "thought-plan_created-1775354549575",
+      "role": "thought",
+      "content": "My plan has 7 stages. Let me run through them systematically.",
+      "kind": "thought",
+      "meta": [
+        "plan_created"
+      ],
+      "error": null,
+      "createdAt": "2026-04-05T02:02:29.575Z",
+      "updatedAt": "2026-04-05T02:02:29.575Z"
+    },
+    {
+      "id": "thought-turn_complete-1775354582274",
+      "role": "thought",
+      "content": "That's a wrap — your visualization should be live now.",
+      "kind": "thought",
+      "meta": [
+        "turn_complete"
+      ],
+      "error": null,
+      "createdAt": "2026-04-05T02:03:02.275Z",
+      "updatedAt": "2026-04-05T02:03:02.275Z"
+    }
+  ],
+  "orchestrationTrace": [
+    {
+      "id": "trace-1",
+      "step": "intent_parsed",
+      "payload": {
+        "sessionId": "6c329805-f8d9-49b5-bfe3-6f9c08e1e72e",
+        "content": "Hello. Confirm websocket runtime event flow."
+      },
+      "createdAt": "2026-04-05T02:02:29.564Z"
+    },
+    {
+      "id": "trace-2",
+      "step": "thinking_analysis_failed",
+      "payload": {
+        "sessionId": "6c329805-f8d9-49b5-bfe3-6f9c08e1e72e",
+        "requestId": "ws-runtime-1775354549546",
+        "diagnostics": {
+          "stage": "thinking_analysis",
+          "context": {
+            "stage": "thinking_analysis",
+            "queryPreview": "Hello. Confirm websocket runtime event flow.",
+            "hasScene": false
+          },
+          "message": "Moonshot request failed (429): {\"error\":{\"message\":\"The engine is currently overloaded, please try again later\",\"type\":\"engine_overloaded_error\"}}",
+          "code": null,
+          "status": null,
+          "cause": null,
+          "stack": "Error: Moonshot request failed (429): {\"error\":{\"message\":\"The engine is currently overloaded, please try again later\",\"type\":\"engine_overloaded_error\"}} |     at fetchMoonshotChatCompletion (file:///home/kage/visualruntime/apps/server/server/orchestrator.js:929:21) |     at process.processTicksAndRejections (node:internal/process/task_queues:95:5)",
+          "timestamp": "2026-04-05T02:02:43.005Z"
+        }
+      },
+      "createdAt": "2026-04-05T02:02:43.005Z"
+    },
+    {
+      "id": "trace-3",
+      "step": "turn_complete",
+      "payload": {
+        "sessionId": "6c329805-f8d9-49b5-bfe3-6f9c08e1e72e",
+        "mode": "chat",
+        "messageCount": 6,
+        "error": null
+      },
+      "createdAt": "2026-04-05T02:03:02.276Z"
+    }
+  ]
+}

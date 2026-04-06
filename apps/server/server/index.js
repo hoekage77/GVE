@@ -5,8 +5,10 @@ import express from "express";
 import { WebSocketServer } from "ws";
 import { ZodError } from "zod";
 
+import { getDaytonaEnvPreflight, runDaytonaEnvPreflight } from "./env.js";
 import { executeTask, generateVisual, generateFromImage, planTasks, resolveChatTurn, generateThinkingAnalysis, generatePostTurnNarration } from "./orchestrator.js";
-import { getSandboxRuntimeMetrics } from "./skill-runtime.js";
+import { getSandboxRuntimeMetrics, shutdownSandboxRuntime } from "./skill-runtime.js";
+import { getPool } from "./llm-pool.js";
 import { generateThought, tokenizeThought } from "./thought-generator.js";
 import { getSkillCatalog } from "./skill-registry.js";
 import {
@@ -56,6 +58,7 @@ const metrics = {
   errors: 0,
   latencies: []
 };
+const startupDaytonaPreflight = runDaytonaEnvPreflight(console);
 
 function parseBooleanEnv(rawValue, fallbackValue) {
   if (rawValue === undefined || rawValue === null || rawValue === "") {
@@ -147,20 +150,32 @@ function buildTurnResultSummary(mode, result, sceneState) {
     return {
       sceneId: null,
       sceneVersion: null,
+      skill: null,
       explanation: null,
       modifyOutcome: null,
       noopReason: null,
-      diff: null
+      diff: null,
+      runtimeStatus: null,
+      runtimeWarning: null,
+      runtimeWarningCode: null,
+      runtimeErrorCode: null,
+      runtimeAcquireDiagnostics: null
     };
   }
 
   return {
     sceneId: result.sceneId ?? null,
     sceneVersion: sceneState?.currentScene?.version ?? result.sceneVersion ?? null,
+    skill: result.skill ?? result.runtime?.skillId ?? null,
     explanation: result.explanation ?? null,
     modifyOutcome: result.modifyOutcome ?? null,
     noopReason: result.noopReason ?? null,
-    diff: compactModifyDiff(result.diff)
+    diff: compactModifyDiff(result.diff),
+    runtimeStatus: result.runtime?.status ?? null,
+    runtimeWarning: result.runtime?.warning ?? null,
+    runtimeWarningCode: result.runtime?.warningCode ?? null,
+    runtimeErrorCode: result.runtime?.errorCode ?? null,
+    runtimeAcquireDiagnostics: result.runtime?.acquireDiagnostics ?? null
   };
 }
 
@@ -548,10 +563,16 @@ wsServer.on("connection", (socket) => {
             requestId: requestId || null,
             sceneId: completed?.turnSummary?.sceneId ?? null,
             sceneVersion: completed?.turnSummary?.sceneVersion ?? null,
+            skill: completed?.turnSummary?.skill ?? null,
             explanation: completed?.turnSummary?.explanation ?? null,
             modifyOutcome: completed?.turnSummary?.modifyOutcome ?? null,
             noopReason: completed?.turnSummary?.noopReason ?? null,
-            diff: completed?.turnSummary?.diff ?? null
+            diff: completed?.turnSummary?.diff ?? null,
+            runtimeStatus: completed?.turnSummary?.runtimeStatus ?? null,
+            runtimeWarning: completed?.turnSummary?.runtimeWarning ?? null,
+            runtimeWarningCode: completed?.turnSummary?.runtimeWarningCode ?? null,
+            runtimeErrorCode: completed?.turnSummary?.runtimeErrorCode ?? null,
+            runtimeAcquireDiagnostics: completed?.turnSummary?.runtimeAcquireDiagnostics ?? null
           });
           return;
         }
@@ -593,10 +614,16 @@ wsServer.on("connection", (socket) => {
               requestId: requestId || null,
               sceneId: completed?.turnSummary?.sceneId ?? null,
               sceneVersion: completed?.turnSummary?.sceneVersion ?? null,
+              skill: completed?.turnSummary?.skill ?? null,
               explanation: completed?.turnSummary?.explanation ?? null,
               modifyOutcome: completed?.turnSummary?.modifyOutcome ?? null,
               noopReason: completed?.turnSummary?.noopReason ?? null,
-              diff: completed?.turnSummary?.diff ?? null
+              diff: completed?.turnSummary?.diff ?? null,
+              runtimeStatus: completed?.turnSummary?.runtimeStatus ?? null,
+              runtimeWarning: completed?.turnSummary?.runtimeWarning ?? null,
+              runtimeWarningCode: completed?.turnSummary?.runtimeWarningCode ?? null,
+              runtimeErrorCode: completed?.turnSummary?.runtimeErrorCode ?? null,
+              runtimeAcquireDiagnostics: completed?.turnSummary?.runtimeAcquireDiagnostics ?? null
             });
           }
           return;
@@ -687,13 +714,26 @@ function broadcastEvent(type, payload) {
 async function broadcastThought(sessionId, step, context = {}) {
   const thought = generateThought(step, context);
   const tokens = tokenizeThought(thought);
+  const requestId = typeof context.requestId === "string" && context.requestId.trim()
+    ? context.requestId.trim()
+    : null;
+  const messageId = typeof context.messageId === "string" && context.messageId.trim()
+    ? context.messageId.trim()
+    : null;
+
+  const thoughtPayloadBase = {
+    sessionId,
+    step,
+    requestId,
+    messageId
+  };
+
   if (thoughtStreamingMode === "token") {
     let accumulated = "";
     for (let i = 0; i < tokens.length; i++) {
       accumulated += tokens[i];
       broadcastEvent("thought:stream", {
-        sessionId,
-        step,
+        ...thoughtPayloadBase,
         thought: accumulated,
         token: tokens[i],
         isFinal: i === tokens.length - 1
@@ -709,8 +749,7 @@ async function broadcastThought(sessionId, step, context = {}) {
 
     if (previewThought && previewThought.length < thought.length) {
       broadcastEvent("thought:stream", {
-        sessionId,
-        step,
+        ...thoughtPayloadBase,
         thought: previewThought,
         token: previewThought,
         isFinal: false
@@ -718,8 +757,7 @@ async function broadcastThought(sessionId, step, context = {}) {
     }
 
     broadcastEvent("thought:stream", {
-      sessionId,
-      step,
+      ...thoughtPayloadBase,
       thought,
       token: thought,
       isFinal: true
@@ -732,7 +770,11 @@ async function broadcastThought(sessionId, step, context = {}) {
     role: "thought",
     content: thought,
     kind: "thought",
-    meta: [step]
+    meta: [
+      step,
+      requestId ? `requestId:${requestId}` : null,
+      messageId ? `messageId:${messageId}` : null
+    ].filter(Boolean)
   });
 
   return thought;
@@ -868,6 +910,7 @@ function buildStructuredTurnError({
   }
 
   const technicalDetail = diagnosticFragments.join(" | ");
+  const technicalDetailLower = technicalDetail.toLowerCase();
 
   let code = "EXECUTION_FAILED";
   let title = "Scene execution failed";
@@ -875,25 +918,43 @@ function buildStructuredTurnError({
   let retryable = false;
   let suggestedAction = "Try generating again with a slightly simpler request.";
 
-  if (/(eai_again|getaddrinfo|enotfound|econnreset|etimedout|network)/i.test(technicalDetail)) {
+  if (/(acquire budget exhausted|runtime budget exhausted|budget exhausted before)/i.test(technicalDetailLower)) {
+    code = "SANDBOX_ACQUIRE_BUDGET_EXHAUSTED";
+    title = "Turn budget exhausted during sandbox setup";
+    userMessage = "I ran out of turn budget while preparing the execution sandbox.";
+    retryable = false;
+    suggestedAction = "Retry with a simpler request or start a fresh turn.";
+  } else if (/(eai_again|getaddrinfo|enotfound|dns|resolver|enetunreach)/i.test(technicalDetailLower)) {
+    code = "SANDBOX_DNS_UNAVAILABLE";
+    title = "Sandbox DNS issue";
+    userMessage = "I could not resolve the sandbox endpoint due to a temporary DNS issue.";
+    retryable = true;
+    suggestedAction = "Retry in a few seconds.";
+  } else if (/(timed out|timeout|504|503|service unavailable|failed to create and start sandbox within)/i.test(technicalDetailLower)) {
+    code = "SANDBOX_ACQUIRE_TIMEOUT";
+    title = "Sandbox startup timed out";
+    userMessage = "The execution sandbox did not become ready before the timeout.";
+    retryable = true;
+    suggestedAction = "Retry now or simplify the request to reduce setup time.";
+  } else if (/(econnreset|econnrefused|network)/i.test(technicalDetailLower)) {
     code = "SANDBOX_NETWORK_UNAVAILABLE";
     title = "Sandbox network issue";
     userMessage = "I could not reach the execution sandbox due to a temporary network issue.";
     retryable = true;
     suggestedAction = "Retry now.";
-  } else if (/(validation failed|whitelist|syntax|parse error|unsafe)/i.test(technicalDetail)) {
+  } else if (/(validation failed|whitelist|syntax|parse error|unsafe)/i.test(technicalDetailLower)) {
     code = "CODE_VALIDATION_FAILED";
     title = "Generated code failed validation";
     userMessage = "The generated code did not pass safety or syntax checks.";
     retryable = true;
     suggestedAction = "Try regenerating with tighter constraints.";
-  } else if (/(is not a function|is not a constructor|undefined)/i.test(technicalDetail)) {
+  } else if (/(is not a function|is not a constructor|undefined)/i.test(technicalDetailLower)) {
     code = "RUNTIME_API_MISMATCH";
     title = "Runtime API mismatch";
     userMessage = "The generated scene called an API that failed at runtime.";
     retryable = true;
     suggestedAction = "Retry generation or ask for a compatibility-safe version.";
-  } else if (/(moonshot.*429|engine is currently overloaded|overloaded)/i.test(technicalDetail)) {
+  } else if (/(moonshot.*429|engine is currently overloaded|overloaded)/i.test(technicalDetailLower)) {
     code = "MODEL_OVERLOADED";
     title = "Model is overloaded";
     userMessage = "The model is temporarily overloaded and could not complete this turn.";
@@ -1129,8 +1190,13 @@ async function executeChatTurn(sessionId, content, preferences, options = {}) {
     role: "assistant",
     content: "",
     kind: "streaming",
-    meta: []
+    meta: [`requestId:${turnRequestId}`]
   });
+
+  const thoughtContextBase = {
+    requestId: turnRequestId,
+    messageId: assistantMessageId
+  };
 
   broadcastEvent("message:created", {
     sessionId,
@@ -1212,7 +1278,7 @@ async function executeChatTurn(sessionId, content, preferences, options = {}) {
   }
 
   // Stream initial thinking thought (uses LLM-generated if available)
-  await broadcastThought(sessionId, "turn_started", { query: content, llmThoughts });
+  await broadcastThought(sessionId, "turn_started", { ...thoughtContextBase, query: content, llmThoughts });
 
   appendOrchestrationTrace(sessionId, {
     step: "intent_parsed",
@@ -1249,6 +1315,7 @@ async function executeChatTurn(sessionId, content, preferences, options = {}) {
       const resolvedImageUrl = imageUrl || (imageData ? `data:image/png;base64,${imageData}` : null);
 
       await broadcastThought(sessionId, "image_analyzing", {
+        ...thoughtContextBase,
         query: content,
         llmThoughts
       });
@@ -1261,6 +1328,7 @@ async function executeChatTurn(sessionId, content, preferences, options = {}) {
       });
 
       await broadcastThought(sessionId, "image_generating", {
+        ...thoughtContextBase,
         query: content,
         skill: imageResult.skill,
         llmThoughts
@@ -1281,6 +1349,7 @@ async function executeChatTurn(sessionId, content, preferences, options = {}) {
         content: imageResult.explanation,
         kind: "generate",
         meta: [
+          `requestId:${turnRequestId}`,
           `scene:${imageResult.sceneId}`,
           `skill:${imageResult.skill}`,
           "source:image"
@@ -1290,7 +1359,12 @@ async function executeChatTurn(sessionId, content, preferences, options = {}) {
         role: "assistant",
         content: imageResult.explanation,
         kind: "generate",
-        meta: [`scene:${imageResult.sceneId}`, `skill:${imageResult.skill}`, "source:image"]
+        meta: [
+          `requestId:${turnRequestId}`,
+          `scene:${imageResult.sceneId}`,
+          `skill:${imageResult.skill}`,
+          "source:image"
+        ]
       });
 
       broadcastEvent("generation:complete", {
@@ -1309,7 +1383,7 @@ async function executeChatTurn(sessionId, content, preferences, options = {}) {
         message: assistantMessage
       });
 
-      await broadcastThought(sessionId, "turn_complete", { query: content, llmThoughts });
+      await broadcastThought(sessionId, "turn_complete", { ...thoughtContextBase, query: content, llmThoughts });
 
       const turnSummary = buildTurnResultSummary("image-to-code", imageResult, nextSessionState);
 
@@ -1323,7 +1397,12 @@ async function executeChatTurn(sessionId, content, preferences, options = {}) {
         explanation: turnSummary.explanation,
         modifyOutcome: null,
         noopReason: null,
-        diff: null
+        diff: null,
+        runtimeStatus: turnSummary.runtimeStatus,
+        runtimeWarning: turnSummary.runtimeWarning,
+        runtimeWarningCode: turnSummary.runtimeWarningCode,
+        runtimeErrorCode: turnSummary.runtimeErrorCode,
+        runtimeAcquireDiagnostics: turnSummary.runtimeAcquireDiagnostics
       });
 
       setSessionStatus(sessionId, "idle");
@@ -1352,6 +1431,7 @@ async function executeChatTurn(sessionId, content, preferences, options = {}) {
             ? "animejs"
             : "threejs";
     await broadcastThought(sessionId, "intent_parsed", {
+      ...thoughtContextBase,
       query: content,
       domain: plan.summary?.includes("3d") || plan.summary?.includes("3D") ? "3D" : "visual",
       intentType: "create",
@@ -1361,6 +1441,7 @@ async function executeChatTurn(sessionId, content, preferences, options = {}) {
 
     // Stream plan-created thought
     await broadcastThought(sessionId, "plan_created", {
+      ...thoughtContextBase,
       taskCount: plan.tasks.length,
       query: content,
       llmThoughts
@@ -1472,6 +1553,7 @@ async function executeChatTurn(sessionId, content, preferences, options = {}) {
 
       // Stream code generation thought
       await broadcastThought(sessionId, turn.mode === "generate" ? "code_generated" : "code_modified", {
+        ...thoughtContextBase,
         query: content,
         skill: turn.result.skill,
         llmThoughts
@@ -1500,6 +1582,7 @@ async function executeChatTurn(sessionId, content, preferences, options = {}) {
       if (!isRejectedNoopModify) {
         // Stream execution thought only when we actually execute runtime work.
         await broadcastThought(sessionId, "executing", {
+          ...thoughtContextBase,
           query: content,
           skill: turn.result.skill,
           llmThoughts
@@ -1509,6 +1592,7 @@ async function executeChatTurn(sessionId, content, preferences, options = {}) {
 
       // Stream sync thought
       await broadcastThought(sessionId, "sync_state", {
+        ...thoughtContextBase,
         query: content,
         skill: turn.result.skill,
         llmThoughts
@@ -1535,24 +1619,36 @@ async function executeChatTurn(sessionId, content, preferences, options = {}) {
 
     const turnFailed = Boolean(turn.result?.runtime && turn.result.runtime.success === false);
     const turnSummary = buildTurnResultSummary(turn.mode, turn.result, nextSessionState);
+    const runtimeTechnicalDetail = String(
+      turn.result?.runtime?.error ?? turn.result?.runtime?.warning ?? ""
+    ).toLowerCase();
+    const runtimeFailureStage =
+      /(sandbox|daytona|acquire|eai_again|getaddrinfo|enotfound|dns|provision|budget exhausted)/i.test(runtimeTechnicalDetail)
+        ? "provisioning"
+        : "execution";
     const turnError = turnFailed
       ? buildStructuredTurnError({
-          stage: "execution",
+          stage: runtimeFailureStage,
           errorMessage: turn.result?.runtime?.error ?? turn.result?.runtime?.warning ?? turn.assistantText,
           runtime: turn.result?.runtime ?? null,
           diagnostics: turn.result?.runtime
             ? {
-                stage: "execution",
+                stage: runtimeFailureStage,
                 requestId: turnRequestId,
                 sessionId,
                 messageId: assistantMessageId,
                 message: turn.result?.runtime?.error ?? turn.result?.runtime?.warning ?? "Runtime execution failed",
                 name: null,
-                code: turn.result?.runtime?.status ?? null,
+                code: turn.result?.runtime?.errorCode ?? turn.result?.runtime?.status ?? null,
                 status: null,
                 cause: null,
                 stack: null,
-                timestamp: new Date().toISOString()
+                timestamp: new Date().toISOString(),
+                runtime: {
+                  status: turn.result?.runtime?.status ?? null,
+                  warningCode: turn.result?.runtime?.warningCode ?? null,
+                  acquireDiagnostics: turn.result?.runtime?.acquireDiagnostics ?? null
+                }
               }
             : null
         })
@@ -1564,6 +1660,7 @@ async function executeChatTurn(sessionId, content, preferences, options = {}) {
       error: turnError,
       meta: turn.result
         ? [
+            `requestId:${turnRequestId}`,
             `scene:${turn.result.sceneId}`,
             turn.result.skill ? `skill:${turn.result.skill}` : null,
             turn.result.sceneVersion ? `v${turn.result.sceneVersion}` : null
@@ -1579,6 +1676,7 @@ async function executeChatTurn(sessionId, content, preferences, options = {}) {
       error: turnError,
       meta: turn.result
         ? [
+            `requestId:${turnRequestId}`,
             `scene:${turn.result.sceneId}`,
             turn.result.skill ? `skill:${turn.result.skill}` : null,
             turn.result.sceneVersion ? `v${turn.result.sceneVersion}` : null
@@ -1597,6 +1695,7 @@ async function executeChatTurn(sessionId, content, preferences, options = {}) {
 
     // Stream final thought
     await broadcastThought(sessionId, turnFailed ? "turn_error" : "turn_complete", {
+      ...thoughtContextBase,
       query: content,
       error: turnFailed ? turn.result?.runtime?.error ?? "" : "",
       llmThoughts
@@ -1615,6 +1714,7 @@ async function executeChatTurn(sessionId, content, preferences, options = {}) {
 
           if (postNarration) {
             await broadcastThought(sessionId, "post_narration", {
+              ...thoughtContextBase,
               query: content,
               llmThoughts: { complete: postNarration }
             });
@@ -1634,10 +1734,16 @@ async function executeChatTurn(sessionId, content, preferences, options = {}) {
       messageCount: listSessionMessages(sessionId).length,
       sceneId: turnSummary.sceneId,
       sceneVersion: turnSummary.sceneVersion,
+      skill: turnSummary.skill,
       explanation: turnSummary.explanation,
       modifyOutcome: turnSummary.modifyOutcome,
       noopReason: turnSummary.noopReason,
       diff: turnSummary.diff,
+      runtimeStatus: turnSummary.runtimeStatus,
+      runtimeWarning: turnSummary.runtimeWarning,
+      runtimeWarningCode: turnSummary.runtimeWarningCode,
+      runtimeErrorCode: turnSummary.runtimeErrorCode,
+      runtimeAcquireDiagnostics: turnSummary.runtimeAcquireDiagnostics,
       timings: {
         stepDurationsMs
       },
@@ -1740,16 +1846,38 @@ async function executeChatTurn(sessionId, content, preferences, options = {}) {
 }
 
 app.get("/healthz", (_req, res) => {
+  const daytonaPreflight = getDaytonaEnvPreflight();
+  const pool = getPool();
+  const poolStatus = pool.getStatus();
   res.json({
     status: "ok",
     backend: "js",
     orchestration: "langgraph",
     llm: {
-      provider: "moonshot-kimi",
-      configured: Boolean(process.env.MOONSHOT_API_KEY),
-      model: process.env.MOONSHOT_MODEL ?? "kimi-k2.5"
+      pool: {
+        enabledProviders: poolStatus.providers.filter((p) => p.state !== "disabled").length,
+        totalProviders: poolStatus.providers.length,
+        totalGenerations: poolStatus.totalGenerations,
+        fallbackCount: poolStatus.fallbackCount,
+        avgResponseMs: poolStatus.avgResponseMs,
+      },
+      primary: {
+        provider: "moonshot-kimi",
+        configured: Boolean(process.env.MOONSHOT_API_KEY),
+        model: process.env.MOONSHOT_MODEL ?? "kimi-k2.5"
+      }
+    },
+    daytona: {
+      preflightOk: daytonaPreflight.ok,
+      warningCount: daytonaPreflight.warnings.length,
+      summary: daytonaPreflight.summary
     }
   });
+});
+
+app.get("/api/pool/status", (_req, res) => {
+  const pool = getPool();
+  res.json(pool.getStatus());
 });
 
 app.post("/api/v1/sessions", (req, res) => {
@@ -2210,6 +2338,7 @@ app.get("/metrics", (_req, res) => {
     p95LatencyMs: computeP95Latency(),
     cache: cacheStats,
     sandboxPool,
+    daytonaPreflight: startupDaytonaPreflight,
     wsConnections: wsClients.size,
     uptimeSeconds: Math.round(process.uptime())
   });
@@ -2225,11 +2354,19 @@ server.listen(port, () => {
 // ── Graceful shutdown ──
 function gracefulShutdown(signal) {
   console.log(`[Server] Received ${signal}. Flushing sessions and shutting down...`);
-  shutdownSessions();
-  server.close(() => {
-    console.log("[Server] Closed.");
-    process.exit(0);
-  });
+  void (async () => {
+    try {
+      await shutdownSandboxRuntime({ deleteIdleSandboxes: true });
+    } catch (error) {
+      console.warn(`[Server] Sandbox runtime shutdown warning: ${error instanceof Error ? error.message : String(error)}`);
+    }
+
+    shutdownSessions();
+    server.close(() => {
+      console.log("[Server] Closed.");
+      process.exit(0);
+    });
+  })();
   // Force exit after 5s if server doesn't close
   setTimeout(() => process.exit(1), 5000);
 }
