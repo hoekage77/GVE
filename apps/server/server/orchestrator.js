@@ -396,6 +396,8 @@ const requestSchema = z.object({
 const modifyRequestSchema = z.object({
   sessionId: z.string().min(3),
   instruction: z.string().min(3),
+  runMode: z.enum(["modify", "rerun"]).optional(),
+  codeOverride: z.string().optional(),
   preferences: z
     .object({
       skill: z.enum(skillValues).optional(),
@@ -2005,6 +2007,10 @@ function describeGenerationSource(source) {
 
   if (normalized === "runtime-auto-fix") {
     return "Recovered via deterministic runtime auto-fix.";
+  }
+
+  if (normalized === "rerun") {
+    return "Re-executed existing scene code.";
   }
 
   return `Generated via ${normalized} provider.`;
@@ -3686,11 +3692,15 @@ export async function generateVisual(input, options = {}) {
 export async function modifyVisual(input, options = {}) {
   const onProgress = options.onProgress ?? null;
   const request = modifyRequestSchema.parse(input);
+  const runMode = request.runMode ?? "modify";
+  const normalizedInstruction = String(request.instruction ?? "").trim() || (runMode === "rerun" ? "Rerun current scene." : "");
+  const requestedCodeOverride = typeof request.codeOverride === "string" ? request.codeOverride : "";
   const sessionState = request.sceneState;
   const turnStartedAtMs = Date.now();
   const turnDeadlineAtMs = getTurnDeadlineAtMs(turnStartedAtMs);
+  const baseSceneCode = requestedCodeOverride.trim() || sessionState?.currentScene?.code || "";
 
-  if (!sessionState?.currentScene?.code) {
+  if (!sessionState?.currentScene || !baseSceneCode) {
     throw new Error("No scene available to modify.");
   }
 
@@ -3700,44 +3710,56 @@ export async function modifyVisual(input, options = {}) {
   emitPipelineProgress(onProgress, "parse_intent", "completed");
   emitPipelineProgress(onProgress, "select_skill", "completed", { selectedSkill });
   emitPipelineProgress(onProgress, "build_prompt", "completed", { selectedSkill });
-  emitPipelineProgress(onProgress, "generate_code", "running", { selectedSkill });
+  emitPipelineProgress(onProgress, "generate_code", "running", { selectedSkill, mode: runMode });
 
   const requestedQuality = resolveRequestedQuality(request, selectedSkill);
   const modificationState = {
     sessionId: request.sessionId,
-    instruction: request.instruction,
-    currentCode: sessionState.currentScene.code,
+    instruction: normalizedInstruction,
+    currentCode: baseSceneCode,
     selectedSkill,
     quality: requestedQuality
   };
 
   let modificationResult;
-  try {
-    modificationResult = await modifyCodeWithPool(modificationState);
-  } catch (error) {
-    const fallback = applyFallbackSceneEdit(modificationState.currentCode, modificationState.instruction);
+  if (runMode === "rerun") {
     modificationResult = {
-      generatedCode: fallback.generatedCode,
-      generationSource: "fallback",
-      generationWarning: error instanceof Error
-        ? error.message
-        : "LLM modification failed; used fallback modifier.",
-      changeSummary: fallback.changeSummary
+      generatedCode: modificationState.currentCode,
+      generationSource: "rerun",
+      generationWarning: null,
+      changeSummary: "Reran current scene without modifying code."
     };
+  } else {
+    try {
+      modificationResult = await modifyCodeWithPool(modificationState);
+    } catch (error) {
+      const fallback = applyFallbackSceneEdit(modificationState.currentCode, modificationState.instruction);
+      modificationResult = {
+        generatedCode: fallback.generatedCode,
+        generationSource: "fallback",
+        generationWarning: error instanceof Error
+          ? error.message
+          : "LLM modification failed; used fallback modifier.",
+        changeSummary: fallback.changeSummary
+      };
+    }
   }
 
   let retriedAfterNoop = false;
   let modifyOutcome = "applied";
   let noopReason = null;
   let codeDiff = buildCodeDiffDetails(sessionState.currentScene.code ?? "", modificationResult.generatedCode);
-  let noopCheck = detectNoopModification({
-    previousCode: sessionState.currentScene.code,
-    nextCode: modificationResult.generatedCode,
-    changeSummary: modificationResult.changeSummary,
-    diffDetails: codeDiff
-  });
+  const shouldCheckNoop = runMode !== "rerun";
+  let noopCheck = shouldCheckNoop
+    ? detectNoopModification({
+      previousCode: sessionState.currentScene.code,
+      nextCode: modificationResult.generatedCode,
+      changeSummary: modificationResult.changeSummary,
+      diffDetails: codeDiff
+    })
+    : { isNoop: false, reason: null };
 
-  if (noopCheck.isNoop && getPool().providers.some((p) => p.hasApiKey)) {
+  if (shouldCheckNoop && noopCheck.isNoop && getPool().providers.some((p) => p.hasApiKey)) {
     retriedAfterNoop = true;
 
     emitPipelineProgress(onProgress, "generate_code", "running", {
@@ -3748,7 +3770,7 @@ export async function modifyVisual(input, options = {}) {
     });
 
     const rewriteInstruction = [
-      request.instruction,
+      normalizedInstruction,
       "",
       "Apply concrete functional scene code changes.",
       "Do not return comment-only or metadata-only edits.",
@@ -3789,14 +3811,14 @@ export async function modifyVisual(input, options = {}) {
 
   emitPipelineProgress(onProgress, "generate_code", "completed", {
     selectedSkill,
-    mode: "modify",
+    mode: runMode,
     source: modificationResult.generationSource,
     code: modificationResult.generatedCode,
     retriedAfterNoop,
-    noopReason: noopCheck.isNoop ? noopCheck.reason : null
+    noopReason: shouldCheckNoop && noopCheck.isNoop ? noopCheck.reason : null
   });
 
-  if (noopCheck.isNoop) {
+  if (shouldCheckNoop && noopCheck.isNoop) {
     modifyOutcome = "rejected_noop";
     noopReason = noopCheck.reason ?? "non_semantic_diff";
     const skippedOutputKind = sessionState.currentScene.outputKind ?? (selectedSkill === "manim" ? "media" : "code");
@@ -3850,7 +3872,7 @@ export async function modifyVisual(input, options = {}) {
     };
 
     const explanation = [
-      `Applied modification: ${request.instruction}`,
+      `Applied modification: ${normalizedInstruction}`,
       modificationResult.changeSummary,
       retriedAfterNoop ? "Retried once with model rewrite after no-op detection." : null,
       "No meaningful code changes were produced, so runtime execution was skipped.",
@@ -3874,7 +3896,7 @@ export async function modifyVisual(input, options = {}) {
       code: sessionState.currentScene.code,
       explanation,
       diff: {
-        instruction: request.instruction,
+        instruction: normalizedInstruction,
         currentVersion: sessionState.currentScene.version,
         changed: false,
         changeSummary: modificationResult.changeSummary,
@@ -3924,7 +3946,7 @@ export async function modifyVisual(input, options = {}) {
 
   if (!runtimeResult.success) {
     const recovery = await attemptRuntimeAgentRecovery({
-      originalQuery: request.instruction,
+      originalQuery: normalizedInstruction,
       failedCode: modificationResult.generatedCode,
       runtimeResult,
       skill: selectedSkill,
@@ -3973,7 +3995,7 @@ export async function modifyVisual(input, options = {}) {
   });
 
   const explanation = [
-    `Applied modification: ${request.instruction}`,
+    runMode === "rerun" ? "Reran current scene." : `Applied modification: ${normalizedInstruction}`,
     modificationResult.changeSummary,
     retriedAfterNoop ? "Applied after no-op retry." : null,
     runtimeRecoveryUsed ? "Runtime self-debug recovery was applied." : null,
@@ -4006,7 +4028,7 @@ export async function modifyVisual(input, options = {}) {
     code: finalCode,
     explanation,
     diff: {
-      instruction: request.instruction,
+      instruction: normalizedInstruction,
       currentVersion: sessionState.currentScene.version,
       changed: finalCode !== sessionState.currentScene.code,
       changeSummary: modificationResult.changeSummary,

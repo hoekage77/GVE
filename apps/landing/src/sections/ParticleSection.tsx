@@ -170,7 +170,7 @@ export default function ParticleSection() {
       {/* CTA Row */}
       <div 
         ref={ctaRef}
-        className="absolute flex items-center gap-4"
+        className="landing-section-cta landing-section-cta--particle absolute flex items-center gap-4"
         style={{ left: '50%', top: '76%', transform: 'translateX(-50%)' }}
       >
         <a className="btn-primary flex items-center gap-2" href={getWebAppUrl()}>
@@ -186,7 +186,7 @@ export default function ParticleSection() {
       {/* Bottom left */}
       <p 
         ref={bottomLeftRef}
-        className="text-sm text-secondary-light absolute"
+        className="landing-edge-note text-sm text-secondary-light absolute"
         style={{ left: '6vw', top: '82%', maxWidth: '28vw' }}
       >
         Design mood with forces, fields, and real-time playback.
@@ -195,7 +195,7 @@ export default function ParticleSection() {
       {/* Bottom right */}
       <p 
         ref={bottomRightRef}
-        className="text-sm text-secondary-light absolute"
+        className="landing-edge-note text-sm text-secondary-light absolute"
         style={{ left: '72vw', top: '82%', maxWidth: '22vw' }}
       >
         Export to web, broadcast, or interactive installations.

@@ -83,6 +83,13 @@ function formatUpdatedAt(value: string | undefined): string {
 export default function Sidebar({ forceExpanded = false }: SidebarProps) {
   const [isCollapsed, setIsCollapsed] = useState(() => (forceExpanded ? false : getInitialCollapsedState()));
   const [isHistoryOpen, setIsHistoryOpen] = useState(true);
+  const [isMobileViewport, setIsMobileViewport] = useState(() => {
+    if (typeof window === 'undefined') {
+      return false;
+    }
+
+    return window.innerWidth <= 768;
+  });
   const sessions = useChatStore((state) => state.sessions);
   const messages = useChatStore((state) => state.messages);
   const activeSessionId = useChatStore((state) => state.activeSessionId);
@@ -101,8 +108,15 @@ export default function Sidebar({ forceExpanded = false }: SidebarProps) {
     });
   }, [messages, sessions]);
 
+  const closeMobileSidebar = () => {
+    if (isMobileViewport && !forceExpanded) {
+      setIsCollapsed(true);
+    }
+  };
+
   const handleCreateSession = () => {
     startDraftSession();
+    closeMobileSidebar();
   };
 
   useEffect(() => {
@@ -119,8 +133,52 @@ export default function Sidebar({ forceExpanded = false }: SidebarProps) {
     window.sessionStorage.setItem(SIDEBAR_COLLAPSED_SESSION_KEY, isCollapsed ? '1' : '0');
   }, [forceExpanded, isCollapsed]);
 
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      return;
+    }
+
+    const handleResize = () => {
+      setIsMobileViewport(window.innerWidth <= 768);
+    };
+
+    handleResize();
+    window.addEventListener('resize', handleResize);
+
+    return () => {
+      window.removeEventListener('resize', handleResize);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!isMobileViewport || isCollapsed || forceExpanded) {
+      return;
+    }
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setIsCollapsed(true);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [forceExpanded, isCollapsed, isMobileViewport]);
+
   return (
-    <aside className={`app-sidebar ${isCollapsed ? 'app-sidebar--collapsed' : 'app-sidebar--expanded'}`}>
+    <>
+      {isMobileViewport && !isCollapsed && !forceExpanded && (
+        <button
+          type="button"
+          className="app-sidebar-backdrop"
+          onClick={() => setIsCollapsed(true)}
+          aria-label="Close chat sidebar"
+        />
+      )}
+
+      <aside className={`app-sidebar ${isCollapsed ? 'app-sidebar--collapsed' : 'app-sidebar--expanded'}`}>
       <div className="app-sidebar-header">
         {isCollapsed ? (
           <div className="app-sidebar-mini">
@@ -191,7 +249,10 @@ export default function Sidebar({ forceExpanded = false }: SidebarProps) {
                         key={session.sessionId}
                         type="button"
                         className={`nav-item ${session.sessionId === activeSessionId ? 'active' : ''}`}
-                        onClick={() => void selectSession(session.sessionId)}
+                        onClick={() => {
+                          void selectSession(session.sessionId);
+                          closeMobileSidebar();
+                        }}
                       >
                         <span className="nav-item-title">{session.title}</span>
                         <span className="nav-item-meta">{session.updatedAt}</span>
@@ -210,6 +271,7 @@ export default function Sidebar({ forceExpanded = false }: SidebarProps) {
           </div>
         </>
       )}
-    </aside>
+      </aside>
+    </>
   );
 }

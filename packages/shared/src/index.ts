@@ -298,6 +298,8 @@ export interface GenerateResponse {
 export interface ModifyRequest {
   sessionId: string;
   instruction: string;
+  runMode?: "modify" | "rerun";
+  codeOverride?: string;
   preferences?: {
     skill?: SkillPreference;
     quality?: "draft" | "standard" | "high";
@@ -959,6 +961,8 @@ export async function modifyVisual(input: ModifyRequest): Promise<ModifyResponse
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         instruction: input.instruction,
+        runMode: input.runMode,
+        codeOverride: input.codeOverride,
         preferences: input.preferences
       })
     }, "Scene modification request failed");

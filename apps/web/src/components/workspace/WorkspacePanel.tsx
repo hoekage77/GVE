@@ -15,6 +15,7 @@ export default function WorkspacePanel() {
     openPanel,
     sendSceneCommand,
     selectSceneVersion,
+    rerunScene,
     taskProgressBySession,
     isSending
   } = useChatStore();
@@ -72,17 +73,40 @@ export default function WorkspacePanel() {
 
     setVersionError(null);
 
-    try {
-      await selectSceneVersion(nextVersionId);
-    } catch {
+    const selected = await selectSceneVersion(nextVersionId);
+    if (!selected) {
       setVersionError('Unable to load the selected visual version.');
     }
   };
 
+  const handleRunScene = async (code: string) => {
+    setVersionError(null);
+
+    const rerunSucceeded = await rerunScene({ codeOverride: code });
+    if (!rerunSucceeded) {
+      setVersionError('Unable to rerun the selected scene.');
+      return;
+    }
+
+    openPanel('preview');
+  };
+
   if (!panelOpen || !panelView) return null;
 
+  const dockClassName = `terranet-workspace-dock terranet-workspace-dock--${panelView}`;
+  const bodyClassName = panelView === 'preview'
+    ? 'terranet-workspace-dock__body terranet-workspace-dock__body--preview'
+    : 'terranet-workspace-dock__body';
+
   return (
-    <aside className="terranet-workspace-dock">
+    <>
+      <button
+        type="button"
+        className="terranet-workspace-backdrop"
+        aria-label="Close workspace panel"
+        onClick={closePanel}
+      />
+      <aside className={dockClassName}>
       <div className="terranet-workspace-dock__header">
         <div className="terranet-workspace-dock__header-left">
           <div className="terranet-workspace-dock__tabs">
@@ -200,7 +224,7 @@ export default function WorkspacePanel() {
         </button>
       </div>
 
-      <div className="terranet-workspace-dock__body">
+      <div className={bodyClassName}>
         {panelView === 'preview' ? (
           <div className="terranet-workspace-dock__preview-stack">
             {isMediaScene ? (
@@ -216,7 +240,14 @@ export default function WorkspacePanel() {
             )}
           </div>
         ) : (
-          <CodeEditor code={currentCode} skill={currentSkill} readOnly={true} />
+          <CodeEditor
+            code={currentCode}
+            skill={currentSkill}
+            readOnly={true}
+            onRun={(code) => {
+              void handleRunScene(code);
+            }}
+          />
         )}
       </div>
 
@@ -225,6 +256,7 @@ export default function WorkspacePanel() {
           {versionError}
         </p>
       )}
-    </aside>
+      </aside>
+    </>
   );
 }

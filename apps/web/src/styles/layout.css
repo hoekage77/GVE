@@ -115,6 +115,10 @@
   transition: width 220ms ease;
 }
 
+.app-sidebar-backdrop {
+  display: none;
+}
+
 .app-sidebar--collapsed {
   width: 72px;
 }
@@ -456,6 +460,10 @@
   border-left: 1px solid #e2e8f0;
   background: #f8fafc;
   animation: terranet-workspace-slide-in 300ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.terranet-workspace-backdrop {
+  display: none;
 }
 
 .terranet-workspace-dock--tasks {
@@ -1017,11 +1025,14 @@
   min-height: 0;
   height: 100%;
   border: 1px solid #dbe3ef;
-  border-radius: 0.85rem;
-  background: radial-gradient(circle at top, #f8fbff 0%, #f1f5f9 52%, #e2e8f0 100%);
+  border-radius: 1rem;
+  background: radial-gradient(circle at top, #111827 0%, #0f172a 62%, #020617 100%);
   overflow: hidden;
   display: flex;
   flex-direction: column;
+  position: relative;
+  isolation: isolate;
+  touch-action: manipulation;
 }
 
 .terranet-media-viewer__player {
@@ -1032,13 +1043,215 @@
   object-fit: contain;
 }
 
+.terranet-media-viewer__play-toggle {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: 4.2rem;
+  height: 4.2rem;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.45);
+  background: rgba(15, 23, 42, 0.6);
+  color: #e2e8f0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 4;
+  cursor: pointer;
+  backdrop-filter: blur(8px);
+  box-shadow: 0 14px 34px -22px rgba(15, 23, 42, 0.88);
+  transition: transform 180ms ease, background 180ms ease, opacity 200ms ease;
+}
+
+.terranet-media-viewer__play-toggle:hover {
+  transform: translate(-50%, -50%) scale(1.04);
+  background: rgba(15, 23, 42, 0.7);
+}
+
+.terranet-media-viewer__play-toggle.is-playing {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.terranet-media-viewer__chrome {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 220ms ease;
+  z-index: 3;
+}
+
+.terranet-media-viewer__chrome.is-visible {
+  opacity: 1;
+}
+
+.terranet-media-viewer__topbar,
+.terranet-media-viewer__bottombar {
+  pointer-events: auto;
+  padding: 0.78rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.55rem;
+}
+
+.terranet-media-viewer__topbar {
+  align-self: stretch;
+  background: linear-gradient(180deg, rgba(2, 6, 23, 0.78) 0%, rgba(2, 6, 23, 0) 100%);
+}
+
+.terranet-media-viewer__scene-meta {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  min-width: 0;
+}
+
+.terranet-media-viewer__scene-badge {
+  border-radius: 999px;
+  border: 1px solid rgba(147, 197, 253, 0.38);
+  background: rgba(30, 64, 175, 0.34);
+  color: #dbeafe;
+  font-size: 0.64rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  padding: 0.24rem 0.5rem;
+}
+
+.terranet-media-viewer__scene-id {
+  color: #e2e8f0;
+  font-size: 0.74rem;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.terranet-media-viewer__stage {
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.6);
+  border: 1px solid rgba(148, 163, 184, 0.3);
+  color: #cbd5e1;
+  font-size: 0.66rem;
+  font-weight: 600;
+  padding: 0.24rem 0.5rem;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.terranet-media-viewer__stage--ready {
+  background: rgba(5, 150, 105, 0.22);
+  border-color: rgba(52, 211, 153, 0.44);
+  color: #6ee7b7;
+}
+
+.terranet-media-viewer__stage--error {
+  background: rgba(185, 28, 28, 0.3);
+  border-color: rgba(248, 113, 113, 0.45);
+  color: #fecaca;
+}
+
+.terranet-media-viewer__bottombar {
+  align-self: stretch;
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: flex-end;
+  background: linear-gradient(0deg, rgba(2, 6, 23, 0.84) 0%, rgba(2, 6, 23, 0) 100%);
+  padding-top: 2.2rem;
+}
+
+.terranet-media-viewer__status-copy {
+  margin: 0;
+  color: #cbd5e1;
+  font-size: 0.72rem;
+  line-height: 1.35;
+}
+
+.terranet-media-viewer__timeline-row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.55rem;
+  color: #f8fafc;
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+.terranet-media-viewer__timeline {
+  --progress: 0%;
+  appearance: none;
+  width: 100%;
+  height: 6px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #f8fafc var(--progress), rgba(148, 163, 184, 0.38) var(--progress));
+  outline: none;
+  border: none;
+  cursor: pointer;
+}
+
+.terranet-media-viewer__timeline::-webkit-slider-thumb {
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: 2px solid #ffffff;
+  background: #0ea5e9;
+  box-shadow: 0 0 0 2px rgba(14, 165, 233, 0.28);
+}
+
+.terranet-media-viewer__timeline::-moz-range-thumb {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: 2px solid #ffffff;
+  background: #0ea5e9;
+  box-shadow: 0 0 0 2px rgba(14, 165, 233, 0.28);
+}
+
+.terranet-media-viewer__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.4rem;
+  margin-top: 0.42rem;
+}
+
+.terranet-media-viewer__action {
+  width: 2rem;
+  height: 2rem;
+  border-radius: 999px;
+  border: 1px solid rgba(148, 163, 184, 0.32);
+  background: rgba(15, 23, 42, 0.58);
+  color: #e2e8f0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: transform 160ms ease, background 160ms ease;
+}
+
+.terranet-media-viewer__action:hover {
+  transform: translateY(-1px);
+  background: rgba(30, 41, 59, 0.74);
+}
+
 .terranet-media-viewer__error {
+  position: absolute;
+  left: 0.5rem;
+  right: 0.5rem;
+  bottom: 0.5rem;
+  z-index: 5;
   flex-shrink: 0;
   display: flex;
   align-items: center;
   gap: 0.45rem;
   padding: 0.55rem 0.65rem;
-  border-top: 1px solid #fecaca;
+  border: 1px solid #fecaca;
+  border-radius: 0.6rem;
   color: #b91c1c;
   background: #fef2f2;
   font-size: 0.78rem;
@@ -1049,7 +1262,7 @@
   justify-content: center;
   text-align: center;
   gap: 0.45rem;
-  padding: 1rem;
+  padding: 1.2rem;
   color: #475569;
 }
 
@@ -1536,6 +1749,16 @@
     color: #bfdbfe;
   }
 
+  .app-body--chat .app-sidebar.app-sidebar--collapsed .app-sidebar-mini {
+    background: #1e293b;
+    border-color: #334155;
+    box-shadow: 0 24px 48px -34px rgba(2, 6, 23, 0.92);
+  }
+
+  .app-sidebar-backdrop {
+    background: rgba(2, 6, 23, 0.62);
+  }
+
   .app-sidebar-header {
     border-color: #334155;
   }
@@ -1702,7 +1925,35 @@
 
   .terranet-media-viewer {
     border-color: #334155;
-    background: radial-gradient(circle at top, #1e293b 0%, #0f172a 72%);
+    background: radial-gradient(circle at top, #111827 0%, #0f172a 72%);
+  }
+
+  .terranet-media-viewer__play-toggle {
+    border-color: rgba(148, 163, 184, 0.42);
+    background: rgba(15, 23, 42, 0.66);
+    color: #f8fafc;
+  }
+
+  .terranet-media-viewer__scene-badge {
+    background: rgba(30, 64, 175, 0.34);
+    border-color: rgba(147, 197, 253, 0.42);
+    color: #dbeafe;
+  }
+
+  .terranet-media-viewer__stage {
+    background: rgba(15, 23, 42, 0.62);
+    border-color: rgba(148, 163, 184, 0.34);
+    color: #cbd5e1;
+  }
+
+  .terranet-media-viewer__timeline {
+    background: linear-gradient(90deg, #f8fafc var(--progress), rgba(148, 163, 184, 0.34) var(--progress));
+  }
+
+  .terranet-media-viewer__action {
+    background: rgba(15, 23, 42, 0.62);
+    border-color: rgba(148, 163, 184, 0.35);
+    color: #e2e8f0;
   }
 
   .terranet-media-viewer--empty {
@@ -1801,6 +2052,67 @@
 
   .app-body--chat .app-sidebar {
     display: flex;
+    position: fixed;
+    top: 3.5rem;
+    left: 0;
+    bottom: 0;
+    width: min(82vw, 300px);
+    border-right: 1px solid #e2e8f0;
+    box-shadow: 0 24px 50px -36px rgba(15, 23, 42, 0.65);
+    transform: translateX(-100%);
+    opacity: 0;
+    pointer-events: none;
+    z-index: 155;
+    transition: transform 220ms cubic-bezier(0.2, 0.8, 0.2, 1), opacity 180ms ease;
+    will-change: transform;
+  }
+
+  .app-body--chat .app-sidebar.app-sidebar--expanded {
+    transform: translateX(0);
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  .app-body--chat .app-sidebar.app-sidebar--collapsed {
+    width: auto;
+    min-height: auto;
+    top: calc(3.5rem + 0.58rem);
+    left: 0.46rem;
+    bottom: auto;
+    transform: translateX(0);
+    opacity: 1;
+    pointer-events: auto;
+    border-right: none;
+    background: transparent;
+    overflow: visible;
+    box-shadow: none;
+    z-index: 156;
+  }
+
+  .app-body--chat .app-sidebar.app-sidebar--collapsed .app-sidebar-header {
+    padding: 0;
+    border-bottom: none;
+  }
+
+  .app-body--chat .app-sidebar.app-sidebar--collapsed .app-sidebar-mini {
+    border: 1px solid #dbe3ef;
+    border-radius: 0.84rem;
+    background: #ffffff;
+    box-shadow: 0 18px 34px -30px rgba(15, 23, 42, 0.65);
+    padding: 0.38rem;
+    gap: 0.32rem;
+  }
+
+  .app-sidebar-backdrop {
+    display: block;
+    position: fixed;
+    inset: 3.5rem 0 0 0;
+    border: none;
+    padding: 0;
+    margin: 0;
+    background: rgba(2, 6, 23, 0.46);
+    backdrop-filter: blur(2px);
+    z-index: 150;
   }
 
   .terranet-chat-shell {
@@ -1808,19 +2120,171 @@
     gap: 0.4rem;
   }
 
-  .app-body--chat .app-sidebar.app-sidebar--expanded {
-    width: min(74vw, 260px);
-  }
-
   .terranet-chat-shell--panel-open {
     grid-template-columns: minmax(0, 1fr);
-    grid-template-rows: minmax(0, 1fr) minmax(260px, 45vh);
+    grid-template-rows: minmax(0, 1fr);
   }
 
   .terranet-workspace-dock {
-    border-left: none;
-    border-top: 1px solid #e2e8f0;
-    animation: terranet-workspace-slide-up 260ms cubic-bezier(0.4, 0, 0.2, 1);
+    position: fixed;
+    left: clamp(0.32rem, 1.7vw, 0.62rem);
+    right: clamp(0.32rem, 1.7vw, 0.62rem);
+    top: calc(3.5rem + 0.34rem);
+    bottom: calc(env(safe-area-inset-bottom) + 0.34rem);
+    max-height: none;
+    border: 1px solid #dbe3ef;
+    border-radius: 1rem;
+    background: #f8fafc;
+    box-shadow: 0 20px 44px -30px rgba(15, 23, 42, 0.6);
+    z-index: 140;
+    animation: terranet-workspace-card-in 220ms cubic-bezier(0.2, 0.8, 0.2, 1);
+  }
+
+  .terranet-workspace-backdrop {
+    display: block;
+    position: fixed;
+    inset: 0;
+    border: none;
+    padding: 0;
+    background: rgba(2, 6, 23, 0.46);
+    backdrop-filter: blur(2px);
+    z-index: 135;
+  }
+
+  .terranet-workspace-dock__header {
+    align-items: flex-start;
+    padding: 0.48rem 0.52rem;
+    gap: 0.45rem;
+  }
+
+  .terranet-workspace-dock__header-left {
+    flex: 1;
+    width: 100%;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.45rem;
+  }
+
+  .terranet-workspace-dock__tabs {
+    width: 100%;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.35rem;
+  }
+
+  .terranet-workspace-dock__tabs button {
+    width: 100%;
+    justify-content: center;
+    padding: 0.34rem 0.38rem;
+    font-size: 0.69rem;
+    gap: 0.22rem;
+  }
+
+  .terranet-workspace-dock__tabs button svg {
+    width: 0.82rem;
+    height: 0.82rem;
+  }
+
+  .terranet-workspace-dock__history-controls {
+    width: 100%;
+    display: grid;
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+    gap: 0.24rem;
+  }
+
+  .terranet-workspace-dock__history-btn {
+    width: min(100%, 1.66rem);
+    height: 1.66rem;
+    justify-self: center;
+    border-radius: 0.44rem;
+  }
+
+  .terranet-workspace-dock__history-btn svg {
+    width: 0.84rem;
+    height: 0.84rem;
+  }
+
+  .terranet-workspace-dock__version-select-wrap {
+    width: 100%;
+  }
+
+  .terranet-workspace-dock__version-label {
+    font-size: 0.56rem;
+  }
+
+  .terranet-workspace-dock__version-select-shell {
+    width: 100%;
+    min-width: 0;
+    max-width: none;
+  }
+
+  .terranet-workspace-dock__version-select-shell select {
+    font-size: 0.67rem;
+    padding: 0.24rem 0;
+  }
+
+  .terranet-workspace-dock__close {
+    flex-shrink: 0;
+    width: 1.78rem;
+    height: 1.78rem;
+  }
+
+  .terranet-workspace-dock__close svg {
+    width: 0.88rem;
+    height: 0.88rem;
+  }
+
+  .terranet-workspace-dock__body {
+    padding: 0.26rem;
+  }
+
+  .terranet-workspace-dock__body--preview {
+    padding: 0.18rem;
+  }
+
+  .terranet-workspace-dock--preview {
+    top: calc(3.5rem + 0.14rem);
+    bottom: calc(env(safe-area-inset-bottom) + 0.14rem);
+    left: clamp(0.2rem, 1.1vw, 0.42rem);
+    right: clamp(0.2rem, 1.1vw, 0.42rem);
+  }
+
+  .terranet-workspace-dock--preview .terranet-workspace-dock__header {
+    padding-top: 0.38rem;
+    padding-bottom: 0.38rem;
+  }
+
+  .terranet-workspace-dock--preview .terranet-workspace-dock__body {
+    padding-top: 0.12rem;
+  }
+
+  .terranet-workspace-dock--preview .terranet-media-viewer {
+    border-radius: 0.9rem;
+  }
+
+  .terranet-workspace-dock--preview .terranet-media-viewer__play-toggle {
+    width: 4.8rem;
+    height: 4.8rem;
+  }
+
+  .terranet-workspace-dock--preview .terranet-media-viewer__topbar,
+  .terranet-workspace-dock--preview .terranet-media-viewer__bottombar {
+    padding-left: 0.64rem;
+    padding-right: 0.64rem;
+  }
+
+  .terranet-workspace-dock--preview .terranet-media-viewer__status-copy {
+    font-size: 0.7rem;
+  }
+
+  .terranet-workspace-dock--preview .terranet-media-viewer__timeline-row {
+    font-size: 0.72rem;
+    gap: 0.42rem;
+  }
+
+  .terranet-workspace-dock--preview .terranet-media-viewer__action {
+    width: 1.86rem;
+    height: 1.86rem;
   }
 
   .terranet-chat-main .chat-header,
@@ -1835,13 +2299,19 @@
   }
 }
 
-@keyframes terranet-workspace-slide-up {
+@media (max-width: 540px) {
+  .terranet-workspace-dock--preview .terranet-workspace-dock__version-select-wrap {
+    display: none;
+  }
+}
+
+@keyframes terranet-workspace-card-in {
   from {
-    transform: translateY(14px);
+    transform: translateY(18px) scale(0.985);
     opacity: 0;
   }
   to {
-    transform: translateY(0);
+    transform: translateY(0) scale(1);
     opacity: 1;
   }
 }

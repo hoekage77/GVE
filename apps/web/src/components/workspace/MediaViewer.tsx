@@ -1,5 +1,5 @@
-import { AlertCircle, Film } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import { AlertCircle, Expand, Film, Pause, Play, Volume2, VolumeX } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 interface MediaViewerProps {
   src: string | null;
@@ -19,16 +19,177 @@ const MEDIA_STAGE_TITLES: Record<NonNullable<MediaViewerProps['statusStage']>, s
   error: 'Video generation encountered an issue.'
 };
 
+const CHROME_HIDE_DELAY_MS = 2600;
+
+function formatDuration(totalSeconds: number): string {
+  if (!Number.isFinite(totalSeconds) || totalSeconds < 0) {
+    return '0:00';
+  }
+
+  const seconds = Math.floor(totalSeconds);
+  const minutes = Math.floor(seconds / 60);
+  const remainder = seconds % 60;
+  return `${minutes}:${String(remainder).padStart(2, '0')}`;
+}
+
 export default function MediaViewer({ src, mediaType, sceneId, statusStage = 'idle', statusText }: MediaViewerProps) {
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+  const hideChromeTimerRef = useRef<number | null>(null);
+
   const [loadFailed, setLoadFailed] = useState(false);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [isMuted, setIsMuted] = useState(false);
+  const [durationSec, setDurationSec] = useState(0);
+  const [currentTimeSec, setCurrentTimeSec] = useState(0);
+  const [isSeeking, setIsSeeking] = useState(false);
+  const [chromeVisible, setChromeVisible] = useState(true);
 
   const videoKey = useMemo(
     () => `${src ?? 'empty'}|${mediaType ?? ''}`,
     [src, mediaType]
   );
 
+  const statusLabel = MEDIA_STAGE_TITLES[statusStage] ?? MEDIA_STAGE_TITLES.idle;
+  const progress = durationSec > 0 ? Math.min(100, Math.max(0, (currentTimeSec / durationSec) * 100)) : 0;
+  const canPlay = Boolean(src && src !== 'about:blank' && !loadFailed);
+
+  const clearHideTimer = useCallback(() => {
+    if (hideChromeTimerRef.current !== null) {
+      window.clearTimeout(hideChromeTimerRef.current);
+      hideChromeTimerRef.current = null;
+    }
+  }, []);
+
+  const scheduleChromeHide = useCallback(() => {
+    clearHideTimer();
+    if (!isPlaying || isSeeking) {
+      return;
+    }
+
+    hideChromeTimerRef.current = window.setTimeout(() => {
+      setChromeVisible(false);
+    }, CHROME_HIDE_DELAY_MS);
+  }, [clearHideTimer, isPlaying, isSeeking]);
+
+  const revealChrome = useCallback(() => {
+    setChromeVisible(true);
+    scheduleChromeHide();
+  }, [scheduleChromeHide]);
+
+  useEffect(() => {
+    setIsPlaying(false);
+    setCurrentTimeSec(0);
+    setDurationSec(0);
+    setLoadFailed(false);
+    setChromeVisible(true);
+    clearHideTimer();
+  }, [videoKey, clearHideTimer]);
+
+  useEffect(() => {
+    if (!isPlaying) {
+      setChromeVisible(true);
+      clearHideTimer();
+      return;
+    }
+
+    scheduleChromeHide();
+    return clearHideTimer;
+  }, [clearHideTimer, isPlaying, scheduleChromeHide]);
+
+  useEffect(() => {
+    return () => {
+      clearHideTimer();
+    };
+  }, [clearHideTimer]);
+
+  const togglePlayback = useCallback(async () => {
+    const video = videoRef.current;
+    if (!video || !canPlay) {
+      return;
+    }
+
+    revealChrome();
+
+    if (video.paused || video.ended) {
+      try {
+        await video.play();
+      } catch {
+        setLoadFailed(true);
+      }
+      return;
+    }
+
+    video.pause();
+  }, [canPlay, revealChrome]);
+
+  const toggleMute = useCallback(() => {
+    const video = videoRef.current;
+    if (!video) {
+      return;
+    }
+
+    const nextMuted = !video.muted;
+    video.muted = nextMuted;
+    setIsMuted(nextMuted);
+    revealChrome();
+  }, [revealChrome]);
+
+  const toggleFullscreen = useCallback(async () => {
+    const container = containerRef.current;
+    if (!container) {
+      return;
+    }
+
+    revealChrome();
+
+    const doc = document as Document & {
+      webkitFullscreenElement?: Element;
+      webkitExitFullscreen?: () => Promise<void> | void;
+    };
+    const element = container as HTMLDivElement & {
+      webkitRequestFullscreen?: () => Promise<void> | void;
+    };
+
+    const fullscreenElement = document.fullscreenElement ?? doc.webkitFullscreenElement;
+    if (fullscreenElement) {
+      if (document.exitFullscreen) {
+        await document.exitFullscreen();
+      } else if (doc.webkitExitFullscreen) {
+        await doc.webkitExitFullscreen();
+      }
+      return;
+    }
+
+    if (element.requestFullscreen) {
+      await element.requestFullscreen();
+    } else if (element.webkitRequestFullscreen) {
+      await element.webkitRequestFullscreen();
+    }
+  }, [revealChrome]);
+
+  const handleSeekChange = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
+    const nextTime = Number.parseFloat(event.target.value);
+    if (!Number.isFinite(nextTime)) {
+      return;
+    }
+
+    setCurrentTimeSec(nextTime);
+  }, []);
+
+  const commitSeek = useCallback(() => {
+    const video = videoRef.current;
+    if (!video) {
+      return;
+    }
+
+    video.currentTime = currentTimeSec;
+    setIsSeeking(false);
+    scheduleChromeHide();
+  }, [currentTimeSec, scheduleChromeHide]);
+
   if (!src || src === 'about:blank') {
-    const title = MEDIA_STAGE_TITLES[statusStage] ?? MEDIA_STAGE_TITLES.idle;
+    const title = statusLabel;
     const detail = statusText
       ?? (sceneId ? `Scene ${sceneId} is still processing runtime output.` : 'Runtime output is still processing.');
 
@@ -46,19 +207,122 @@ export default function MediaViewer({ src, mediaType, sceneId, statusStage = 'id
   }
 
   return (
-    <div className="terranet-media-viewer">
+    <div
+      ref={containerRef}
+      className="terranet-media-viewer"
+      onPointerMove={revealChrome}
+      onPointerDown={revealChrome}
+    >
       <video
+        ref={videoRef}
         key={videoKey}
         className="terranet-media-viewer__player"
-        controls
         preload="metadata"
         playsInline
+        onLoadedMetadata={(event) => {
+          setLoadFailed(false);
+          setDurationSec(event.currentTarget.duration || 0);
+          setIsMuted(event.currentTarget.muted);
+        }}
         onLoadedData={() => setLoadFailed(false)}
         onError={() => setLoadFailed(true)}
+        onPlay={() => setIsPlaying(true)}
+        onPause={() => setIsPlaying(false)}
+        onEnded={() => {
+          setIsPlaying(false);
+          setCurrentTimeSec(0);
+          setChromeVisible(true);
+        }}
+        onTimeUpdate={(event) => {
+          if (isSeeking) {
+            return;
+          }
+          setCurrentTimeSec(event.currentTarget.currentTime);
+        }}
       >
         <source src={src} type={mediaType ?? 'video/mp4'} />
         Your browser does not support video playback.
       </video>
+
+      <button
+        type="button"
+        className={`terranet-media-viewer__play-toggle ${isPlaying ? 'is-playing' : ''}`}
+        onClick={() => {
+          void togglePlayback();
+        }}
+        aria-label={isPlaying ? 'Pause preview video' : 'Play preview video'}
+      >
+        {isPlaying ? <Pause className="h-7 w-7" /> : <Play className="h-7 w-7" />}
+      </button>
+
+      <div className={`terranet-media-viewer__chrome ${chromeVisible ? 'is-visible' : ''}`}>
+        <div className="terranet-media-viewer__topbar">
+          <div className="terranet-media-viewer__scene-meta">
+            <span className="terranet-media-viewer__scene-badge">Preview</span>
+            {sceneId ? <span className="terranet-media-viewer__scene-id">{sceneId}</span> : null}
+          </div>
+          <span className={`terranet-media-viewer__stage terranet-media-viewer__stage--${statusStage}`}>
+            {statusStage === 'ready' && isPlaying ? 'Playing' : statusLabel}
+          </span>
+        </div>
+
+        <div className="terranet-media-viewer__bottombar">
+          {statusText ? <p className="terranet-media-viewer__status-copy">{statusText}</p> : null}
+
+          <div className="terranet-media-viewer__timeline-row">
+            <span>{formatDuration(currentTimeSec)}</span>
+            <input
+              type="range"
+              className="terranet-media-viewer__timeline"
+              min={0}
+              max={durationSec || 0}
+              step={0.1}
+              value={Math.min(currentTimeSec, durationSec || currentTimeSec)}
+              onChange={handleSeekChange}
+              onPointerDown={() => {
+                setIsSeeking(true);
+                revealChrome();
+              }}
+              onPointerUp={commitSeek}
+              onKeyUp={commitSeek}
+              aria-label="Seek video timeline"
+              style={{ ['--progress' as string]: `${progress}%` }}
+            />
+            <span>{formatDuration(durationSec)}</span>
+          </div>
+
+          <div className="terranet-media-viewer__actions">
+            <button
+              type="button"
+              className="terranet-media-viewer__action"
+              onClick={() => {
+                void togglePlayback();
+              }}
+              aria-label={isPlaying ? 'Pause' : 'Play'}
+            >
+              {isPlaying ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
+            </button>
+            <button
+              type="button"
+              className="terranet-media-viewer__action"
+              onClick={toggleMute}
+              aria-label={isMuted ? 'Unmute' : 'Mute'}
+            >
+              {isMuted ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
+            </button>
+            <button
+              type="button"
+              className="terranet-media-viewer__action"
+              onClick={() => {
+                void toggleFullscreen();
+              }}
+              aria-label="Toggle fullscreen"
+            >
+              <Expand className="h-4 w-4" />
+            </button>
+          </div>
+        </div>
+      </div>
 
       {loadFailed && (
         <div className="terranet-media-viewer__error" role="alert">

@@ -2242,7 +2242,11 @@ app.post("/api/v1/generate/from-image", async (req, res) => {
 
 app.post("/api/v1/sessions/:sessionId/modify", async (req, res) => {
   const sessionId = req.params.sessionId;
-  const instruction = String(req.body?.instruction ?? req.body?.query ?? "").trim();
+  const requestedRunMode = String(req.body?.runMode ?? "").trim().toLowerCase();
+  const runMode = requestedRunMode === "rerun" ? "rerun" : "modify";
+  const instructionInput = String(req.body?.instruction ?? req.body?.query ?? "").trim();
+  const instruction = instructionInput || (runMode === "rerun" ? "Rerun current scene." : "");
+  const codeOverride = typeof req.body?.codeOverride === "string" ? req.body.codeOverride : undefined;
   const sessionState = createSession(sessionId);
 
   if (!instruction) {
@@ -2266,20 +2270,23 @@ app.post("/api/v1/sessions/:sessionId/modify", async (req, res) => {
     broadcastEvent("code:started", {
       sessionId,
       sceneId: sessionState.currentScene.sceneId,
-      instruction
+      instruction,
+      runMode
     });
 
     const result = await import("./orchestrator.js").then((module) =>
       module.modifyVisual({
         sessionId,
         instruction,
+        runMode,
+        codeOverride,
         preferences: req.body?.preferences,
         sceneState: sessionState
       })
     );
 
     await broadcastCodeStream(sessionId, result.code, {
-      mode: "modify",
+      mode: runMode,
       diff: result.diff ?? null
     });
 
@@ -2317,7 +2324,8 @@ app.post("/api/v1/sessions/:sessionId/modify", async (req, res) => {
       mediaResolution: result.mediaResolution ?? result.runtime?.mediaResolution ?? null,
       mediaBytes: result.mediaBytes ?? result.runtime?.mediaBytes ?? null,
       modifyOutcome: result.modifyOutcome ?? null,
-      noopReason: result.noopReason ?? null
+      noopReason: result.noopReason ?? null,
+      runMode
     }));
 
     if (!isRejectedNoopModify) {
@@ -2336,6 +2344,7 @@ app.post("/api/v1/sessions/:sessionId/modify", async (req, res) => {
       sessionId,
       sceneId: sessionState.currentScene.sceneId,
       instruction,
+      runMode,
       message: error instanceof Error ? error.message : "Unknown modification error"
     });
     handleError(error, res);

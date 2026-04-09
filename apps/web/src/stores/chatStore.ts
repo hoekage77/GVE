@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { devtools, persist } from 'zustand/middleware';
 import {
   createSession as apiCreateSession,
+  modifyVisual as apiModifyVisual,
   type AgentActivityEvent,
   type GveTask,
   type GveTaskAction,
@@ -731,7 +732,8 @@ interface ChatState {
   loadSessionMessages: (sessionId: string) => Promise<void>;
   sendMessage: (content?: string, options?: { mode?: 'modify' | 'generate' }) => Promise<void>;
   sendSceneCommand: (command: SceneHistoryCommand) => Promise<void>;
-  selectSceneVersion: (versionId: string) => Promise<void>;
+  selectSceneVersion: (versionId: string) => Promise<boolean>;
+  rerunScene: (options?: { codeOverride?: string | null }) => Promise<boolean>;
   stopTurn: () => void;
   connectWebSocket: () => void;
   startDraftSession: () => void;
@@ -1251,14 +1253,14 @@ export const useChatStore = create<ChatState>()(
           const normalizedVersionId = String(versionId ?? '').trim();
 
           if (!sessionId || !normalizedVersionId) {
-            return;
+            return false;
           }
 
           try {
             const response = await selectVersion(sessionId, normalizedVersionId);
             const nextSceneState = response?.sceneState;
             if (!nextSceneState) {
-              return;
+              return false;
             }
 
             set((state) => ({
@@ -1268,10 +1270,61 @@ export const useChatStore = create<ChatState>()(
                 patchTaskProgressFromScene(current, nextSceneState)
               )
             }));
+
+            return true;
           } catch (error) {
             set({
               sessionsError: error instanceof Error ? error.message : 'Version selection failed.'
             });
+
+            return false;
+          }
+        },
+
+        rerunScene: async (options) => {
+          const sessionId = get().activeSessionId;
+          if (!sessionId) {
+            return false;
+          }
+
+          const selectedSession = get().sessions.find((session) => session.sessionId === sessionId) ?? null;
+          const selectedScene = selectedSession?.currentScene ?? null;
+          const overriddenCode = typeof options?.codeOverride === 'string' ? options.codeOverride : null;
+          const rerunCode = overriddenCode ?? selectedScene?.code ?? null;
+
+          if (!rerunCode || !rerunCode.trim()) {
+            set({ sessionsError: 'No scene code is available to rerun.' });
+            return false;
+          }
+
+          try {
+            const response = await apiModifyVisual({
+              sessionId,
+              instruction: 'Rerun current scene.',
+              runMode: 'rerun',
+              codeOverride: rerunCode
+            });
+
+            const nextSceneState = response?.sceneState;
+            if (!nextSceneState) {
+              return false;
+            }
+
+            set((state) => ({
+              sessions: upsertSession(state.sessions, nextSceneState),
+              sessionsError: null,
+              taskProgressBySession: updateTaskProgressMap(state.taskProgressBySession, nextSceneState.sessionId, (current) =>
+                patchTaskProgressFromScene(current, nextSceneState)
+              )
+            }));
+
+            return true;
+          } catch (error) {
+            set({
+              sessionsError: error instanceof Error ? error.message : 'Scene rerun failed.'
+            });
+
+            return false;
           }
         },
 

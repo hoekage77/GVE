@@ -106,10 +106,10 @@ export default function PortraitSection() {
   return (
     <section 
       ref={sectionRef} 
-      className="section-pinned bg-charcoal flex z-40"
+      className="section-pinned bg-charcoal flex flex-col md:flex-row z-40"
     >
       {/* Left portrait image */}
-      <div className="relative w-1/2 h-full overflow-hidden">
+      <div className="relative w-full md:w-1/2 h-[42vh] md:h-full overflow-hidden">
         <img 
           ref={imageRef}
           src="/portrait_model.jpg" 
@@ -126,15 +126,15 @@ export default function PortraitSection() {
 
       {/* Vertical divider */}
       <div 
-        className="absolute top-0 bottom-0 w-px bg-white/10"
+        className="absolute top-0 bottom-0 w-px bg-white/10 hidden md:block"
         style={{ left: '50%' }}
       />
 
       {/* Right content area */}
-      <div className="w-1/2 h-full flex items-center justify-center relative">
+      <div className="w-full md:w-1/2 h-[58vh] md:h-full flex items-center justify-center relative">
         <div 
           ref={contentRef}
-          className="max-w-md px-8"
+          className="max-w-md px-6 md:px-8 pb-8 md:pb-0"
           style={{ opacity: 0 }}
         >
           {/* Micro label */}
@@ -162,7 +162,7 @@ export default function PortraitSection() {
           </p>
 
           {/* CTA Row */}
-          <div ref={ctaRef} className="flex items-center gap-4">
+          <div ref={ctaRef} className="landing-inline-cta flex items-center gap-4">
             <a className="btn-primary flex items-center gap-2" href={getWebAppUrl()}>
               Start Creating
               <ArrowRight className="w-4 h-4" />

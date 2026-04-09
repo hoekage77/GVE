@@ -212,6 +212,47 @@
   border-color: rgba(244, 246, 250, 0.3);
 }
 
+/* Landing mobile layout refinements */
+@media (max-width: 900px) {
+  .landing-section-cta {
+    width: min(92vw, 22rem);
+    left: 50% !important;
+    top: auto !important;
+    bottom: clamp(3.5rem, 8vh, 5.25rem) !important;
+    transform: translateX(-50%) !important;
+    flex-direction: column;
+    gap: 0.65rem !important;
+    align-items: stretch;
+  }
+
+  .landing-section-cta .btn-primary,
+  .landing-section-cta .btn-secondary,
+  .landing-inline-cta .btn-primary,
+  .landing-inline-cta .btn-secondary {
+    width: 100%;
+    justify-content: center;
+    text-align: center;
+    padding: 0.72rem 1rem;
+  }
+
+  .landing-inline-cta {
+    width: 100%;
+    flex-direction: column;
+    gap: 0.65rem;
+    align-items: stretch;
+  }
+
+  .landing-edge-note {
+    display: none;
+  }
+}
+
+@media (max-width: 900px) and (max-height: 760px) {
+  .landing-section-cta {
+    bottom: 1rem !important;
+  }
+}
+
 /* Pinned section base */
 .section-pinned {
   width: 100vw;

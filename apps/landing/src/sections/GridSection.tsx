@@ -162,7 +162,7 @@ export default function GridSection() {
       {/* CTA Row */}
       <div 
         ref={ctaRef}
-        className="absolute flex items-center gap-4"
+        className="landing-section-cta landing-section-cta--grid absolute flex items-center gap-4"
         style={{ left: '50%', top: '76%', transform: 'translateX(-50%)' }}
       >
         <a className="btn-primary flex items-center gap-2" href={getWebAppUrl()}>
@@ -178,7 +178,7 @@ export default function GridSection() {
       {/* Bottom left */}
       <p 
         ref={bottomLeftRef}
-        className="text-sm text-secondary-light absolute"
+        className="landing-edge-note text-sm text-secondary-light absolute"
         style={{ left: '6vw', top: '82%', maxWidth: '28vw' }}
       >
         Scenes, components, and design tokens—reusable and versioned.
@@ -187,7 +187,7 @@ export default function GridSection() {
       {/* Bottom right */}
       <p 
         ref={bottomRightRef}
-        className="text-sm text-secondary-light absolute"
+        className="landing-edge-note text-sm text-secondary-light absolute"
         style={{ left: '72vw', top: '82%', maxWidth: '22vw' }}
       >
         Built for teams who care about craft—and performance.

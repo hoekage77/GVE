@@ -43,15 +43,8 @@ interface AIMessageProps {
   thinkingDuration?: number;
   timestamp?: number;
   sceneId?: string;
-  artifact?: {
-    previewUrl: string | null;
-    mediaUrl: string | null;
-    mediaType: string | null;
-    outputKind: "code" | "media" | null;
-    skill: string | null;
-  };
-  activeSceneView?: 'preview' | 'code' | null;
-  onSceneAction?: (action: 'preview' | 'code') => void;
+  isPreviewActive?: boolean;
+  onScenePreview?: () => void;
 }
 
 function compactSceneName(sceneId: string | undefined): string {
@@ -102,10 +95,10 @@ export function AIMessage({
   thinkingDuration,
   timestamp,
   sceneId,
-  activeSceneView,
-  onSceneAction
+  isPreviewActive = false,
+  onScenePreview
 }: AIMessageProps) {
-  const showSceneFooter = Boolean(sceneId && onSceneAction && !isThinking);
+  const showSceneFooter = Boolean(onScenePreview && !isThinking);
   const compactSceneId = compactSceneName(sceneId);
 
   return (
@@ -162,8 +155,8 @@ export function AIMessage({
             <div className="ai-message-artifact__actions">
               <button
                 type="button"
-                className={`ai-message-artifact__button ${activeSceneView === 'preview' ? 'is-active' : ''}`}
-                onClick={() => onSceneAction?.('preview')}
+                className={`ai-message-artifact__button ${isPreviewActive ? 'is-active' : ''}`}
+                onClick={onScenePreview}
                 aria-label="Open preview"
                 title={compactSceneId ? `Open ${compactSceneId} preview` : 'Open scene preview'}
               >

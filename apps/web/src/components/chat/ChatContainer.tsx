@@ -1,7 +1,7 @@
 import { useMemo, useRef, useEffect, useState, useCallback, type CSSProperties } from "react";
 import { UserMessage, AIMessage } from "./MessageComponents";
 import { Composer } from "./Composer";
-import { useChatStore, type SessionMessage } from "../../stores";
+import { useChatStore, type Session, type SessionMessage } from "../../stores";
 import { Send } from "lucide-react";
 import WorkspacePanel from "../workspace/WorkspacePanel";
 import TaskStatusBar from "./TaskStatusBar";
@@ -19,6 +19,8 @@ type DisplayMessage = {
   sceneId?: string;
   promptContext?: string;
 };
+
+type SceneVersionRecord = NonNullable<Session["currentScene"]>;
 
 const RUNTIME_DIAGNOSTIC_PATTERNS = [
   "Generated through LangGraph",
@@ -252,6 +254,51 @@ function buildDisplayMessages(messages: SessionMessage[]): DisplayMessage[] {
   return displayMessages;
 }
 
+function buildMessageVersionMap(sceneVersions: SceneVersionRecord[]): Map<string, SceneVersionRecord> {
+  const versionsByMessageId = new Map<string, SceneVersionRecord>();
+
+  for (const version of sceneVersions) {
+    const messageId = typeof version.messageId === "string" ? version.messageId.trim() : "";
+    if (!messageId) {
+      continue;
+    }
+
+    // Keep the latest revision for each assistant message id.
+    versionsByMessageId.set(messageId, version);
+  }
+
+  return versionsByMessageId;
+}
+
+function buildUniqueSceneIdVersionMap(sceneVersions: SceneVersionRecord[]): Map<string, SceneVersionRecord> {
+  const versionsBySceneId = new Map<string, SceneVersionRecord[]>();
+
+  for (const version of sceneVersions) {
+    const sceneId = typeof version.sceneId === "string" ? version.sceneId.trim() : "";
+    if (!sceneId) {
+      continue;
+    }
+
+    const existing = versionsBySceneId.get(sceneId);
+    if (existing) {
+      existing.push(version);
+      continue;
+    }
+
+    versionsBySceneId.set(sceneId, [version]);
+  }
+
+  const uniqueBySceneId = new Map<string, SceneVersionRecord>();
+
+  for (const [sceneId, versions] of versionsBySceneId.entries()) {
+    if (versions.length === 1) {
+      uniqueBySceneId.set(sceneId, versions[0]);
+    }
+  }
+
+  return uniqueBySceneId;
+}
+
 export function ChatContainer() {
   const [isTasksExpanded, setIsTasksExpanded] = useState(false);
   const chatRef = useRef<HTMLDivElement>(null);
@@ -274,7 +321,9 @@ export function ChatContainer() {
     createNewSession,
     sendMessage,
     stopTurn,
-    togglePanel,
+    openPanel,
+    closePanel,
+    selectSceneVersion,
   } = useChatStore();
 
   const activeSession = sessions.find(s => s.sessionId === activeSessionId);
@@ -284,6 +333,20 @@ export function ChatContainer() {
   const activeStatusText = activeTaskProgress?.liveThought?.text ?? thinkingText ?? null;
 
   const displayMessages = useMemo(() => buildDisplayMessages(activeMessages), [activeMessages]);
+  const sceneVersions = useMemo(
+    () => (activeSession?.sceneVersions ?? []).filter((version): version is SceneVersionRecord => {
+      return Boolean(version && typeof version.versionId === "string");
+    }),
+    [activeSession?.sceneVersions]
+  );
+  const versionsByMessageId = useMemo(
+    () => buildMessageVersionMap(sceneVersions),
+    [sceneVersions]
+  );
+  const uniqueVersionsBySceneId = useMemo(
+    () => buildUniqueSceneIdVersionMap(sceneVersions),
+    [sceneVersions]
+  );
 
   // Show inline thinking bubble when agent is active.
   // - If the last message is already from the assistant: attach thought to it via isThinking prop
@@ -327,8 +390,26 @@ export function ChatContainer() {
     stopTurn();
   };
 
-  const handleMessageSceneAction = (action: 'code' | 'preview') => {
-    togglePanel(action);
+  const handleMessageSceneAction = async (action: 'code' | 'preview', versionId: string) => {
+    const normalizedVersionId = String(versionId ?? '').trim();
+    if (!normalizedVersionId) {
+      return;
+    }
+
+    const currentVersionId = activeSession?.currentScene?.versionId ?? null;
+    const isAlreadyActive = panelOpen && panelView === action && currentVersionId === normalizedVersionId;
+
+    if (isAlreadyActive) {
+      closePanel();
+      return;
+    }
+
+    const selected = await selectSceneVersion(normalizedVersionId);
+    if (!selected) {
+      return;
+    }
+
+    openPanel(action);
   };
 
   const handleOpenTasks = () => {
@@ -377,8 +458,19 @@ export function ChatContainer() {
               {displayMessages.map(({ message, thoughts, sceneId, promptContext }, index) => {
                 const isLast = index === displayMessages.length - 1;
                 const thinkingDuration = getThinkingDuration(thoughts);
-                const activeSceneId = activeSession?.currentScene?.sceneId ?? undefined;
-                const resolvedSceneId = sceneId ?? (isLast ? activeSceneId : undefined);
+                const matchedVersion = message.role === 'assistant'
+                  ? (versionsByMessageId.get(message.id)
+                    ?? (sceneId ? uniqueVersionsBySceneId.get(sceneId) : undefined)
+                    ?? undefined)
+                  : undefined;
+                const resolvedSceneId = matchedVersion?.sceneId ?? sceneId;
+                const resolvedVersionId = matchedVersion?.versionId ?? null;
+                const isPreviewActive = Boolean(
+                  panelOpen
+                  && panelView === 'preview'
+                  && resolvedVersionId
+                  && activeSession?.currentScene?.versionId === resolvedVersionId
+                );
                 const displayContent = message.role === "assistant"
                   ? getAssistantDisplayContent(message.content, promptContext, resolvedSceneId)
                   : message.content;
@@ -404,8 +496,12 @@ export function ChatContainer() {
                     thoughts={thoughts}
                     thinkingDuration={thinkingDuration}
                     sceneId={resolvedSceneId}
-                    activeSceneView={panelOpen ? panelView : null}
-                    onSceneAction={resolvedSceneId ? handleMessageSceneAction : undefined}
+                    isPreviewActive={isPreviewActive}
+                    onScenePreview={resolvedVersionId
+                      ? () => {
+                          void handleMessageSceneAction('preview', resolvedVersionId);
+                        }
+                      : undefined}
                   />
                 );
               })}

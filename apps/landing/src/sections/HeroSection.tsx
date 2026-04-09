@@ -157,7 +157,7 @@ export default function HeroSection() {
       {/* CTA Row */}
       <div 
         ref={ctaRef}
-        className="absolute flex items-center gap-4"
+        className="landing-section-cta landing-section-cta--hero absolute flex items-center gap-4"
         style={{ left: '50%', top: '78%', transform: 'translateX(-50%)' }}
       >
         <a className="btn-primary flex items-center gap-2" href={getWebAppUrl()}>
@@ -173,7 +173,7 @@ export default function HeroSection() {
       {/* Bottom left paragraph */}
       <p 
         ref={bottomLeftRef}
-        className="text-sm text-secondary-light absolute"
+        className="landing-edge-note text-sm text-secondary-light absolute"
         style={{ left: '6vw', top: '82%', maxWidth: '28vw' }}
       >
         Build scenes, materials, and motion logic—then publish anywhere.
@@ -182,7 +182,7 @@ export default function HeroSection() {
       {/* Bottom right paragraph */}
       <p 
         ref={bottomRightRef}
-        className="text-sm text-secondary-light absolute"
+        className="landing-edge-note text-sm text-secondary-light absolute"
         style={{ left: '72vw', top: '82%', maxWidth: '22vw' }}
       >
         Used by teams who ship campaigns, products, and experiences.
