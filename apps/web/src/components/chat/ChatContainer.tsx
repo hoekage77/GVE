@@ -444,7 +444,7 @@ export function ChatContainer() {
           onSubmit={handleSend}
           isSending={isSending}
           onStop={handleStop}
-          placeholder="Message Terranet..."
+          placeholder="Message GenVis..."
         />
       </div>
 
@@ -481,8 +481,8 @@ function WelcomeScreen({
   return (
     <div className="chat-welcome">
       <div className="chat-welcome-content">
-        <h1>Terranet</h1>
-        <p>Generative Visual Intelligence</p>
+        <h1>GenVis</h1>
+        <p>Generative Visual Engine</p>
         {error && <p className="chat-welcome-error">{error}</p>}
         <div className="chat-welcome-actions">
           <button type="button" className="chat-welcome-button" onClick={() => void createNewChat()}>

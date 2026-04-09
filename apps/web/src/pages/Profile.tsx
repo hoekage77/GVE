@@ -1,9 +1,14 @@
 import { useUser } from '@clerk/clerk-react';
 import { Link } from '@tanstack/react-router';
 import { ArrowLeft, User, Key, Database } from 'lucide-react';
+import { useEffect } from 'react';
 
 export default function ProfilePage() {
   const { user } = useUser();
+
+  useEffect(() => {
+    document.title = 'GenVis | Profile';
+  }, []);
 
   return (
     <div className="profile-page">
@@ -37,7 +42,7 @@ export default function ProfilePage() {
             <h2>API Keys</h2>
           </div>
           <p className="profile-hint">
-            Manage your API keys for programmatic access to Terranet.
+            Manage your API keys for programmatic access to GenVis.
           </p>
           <button type="button" className="profile-button">
             Generate New Key

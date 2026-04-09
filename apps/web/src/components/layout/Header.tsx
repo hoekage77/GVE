@@ -33,7 +33,7 @@ export default function Header() {
       <div className="app-header-brand">
         <Link to="/chat">
           <Sparkles className="h-5 w-5" />
-          <span>Terranet</span>
+          <span>GenVis</span>
         </Link>
         {title && (
           <>

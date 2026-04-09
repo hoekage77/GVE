@@ -32,7 +32,7 @@ export function Composer({
   onRemoveImage,
   isSending, 
   onStop,
-  placeholder = "Message Terranet..."
+  placeholder = "Message GenVis..."
 }: ComposerProps) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);

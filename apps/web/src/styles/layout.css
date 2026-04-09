@@ -344,7 +344,7 @@
   margin: 0;
 }
 
-/* Terranet chat shell: centered by default, push panel when open */
+/* GenVis chat shell: centered by default, push panel when open */
 .terranet-chat-shell {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
