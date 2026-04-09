@@ -95,7 +95,11 @@ export default function Navigation() {
             >
               Sign In
             </a>
-            <a className="btn-primary mt-4" href={WEB_APP_URL}>
+            <a
+              className="btn-primary mt-4"
+              href={WEB_APP_URL}
+              onClick={() => setIsMobileMenuOpen(false)}
+            >
               Get Started
             </a>
           </div>
