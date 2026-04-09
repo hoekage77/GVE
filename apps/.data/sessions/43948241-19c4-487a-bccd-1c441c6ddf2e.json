@@ -1,0 +1,520 @@
+{
+  "sessionId": "43948241-19c4-487a-bccd-1c441c6ddf2e",
+  "createdAt": "2026-04-09T01:05:46.030Z",
+  "updatedAt": "2026-04-09T01:06:17.952Z",
+  "status": "idle",
+  "currentScene": {
+    "sessionId": "43948241-19c4-487a-bccd-1c441c6ddf2e",
+    "sceneId": "scene-failed-1775696777947",
+    "code": "from manim import *\n\nclass GVERichScene(Scene):\n    def construct(self):\n        title = Text(\"Activation Functions\", font_size=64)\n        equation = MathTex(r\"y=\\sigma(x)\", font_size=64)\n        self.play(FadeIn(title))\n        self.wait(1)\n        self.play(Transform(title, equation))\n        self.wait(1)\n        self.play(FadeOut(title))\n\n        self.set_camera(pixel_width=1920, pixel_height=1080)\n        self.camera.frame_rate = 60",
+    "previewUrl": null,
+    "skill": "manim",
+    "outputKind": "media",
+    "mediaType": "video/mp4",
+    "mediaUrl": null,
+    "mediaArtifactId": null,
+    "mediaDurationMs": null,
+    "mediaFps": 60,
+    "mediaResolution": "1920x1080",
+    "mediaBytes": null,
+    "explanation": "Create a short Manim animation: title Activation Functions, then write MathTex y=\\sigma(x), then fade out. Keep it minimal and stable. Live preview is currently unavailable, but the animation concept has been prepared.",
+    "messageId": "message-2",
+    "source": "generate",
+    "createdAt": "2026-04-09T01:06:17.949Z",
+    "updatedAt": "2026-04-09T01:06:17.949Z",
+    "versionId": "version-1",
+    "version": 1,
+    "artifactId": "artifact-1775696777949-b8ddee",
+    "artifactVersion": 1
+  },
+  "artifacts": [
+    {
+      "artifactId": "artifact-1775696777949-b8ddee",
+      "title": "scene-failed-1775696777947",
+      "createdAt": "2026-04-09T01:06:17.949Z",
+      "updatedAt": "2026-04-09T01:06:17.949Z",
+      "revisions": [
+        {
+          "sessionId": "43948241-19c4-487a-bccd-1c441c6ddf2e",
+          "sceneId": "scene-failed-1775696777947",
+          "code": "from manim import *\n\nclass GVERichScene(Scene):\n    def construct(self):\n        title = Text(\"Activation Functions\", font_size=64)\n        equation = MathTex(r\"y=\\sigma(x)\", font_size=64)\n        self.play(FadeIn(title))\n        self.wait(1)\n        self.play(Transform(title, equation))\n        self.wait(1)\n        self.play(FadeOut(title))\n\n        self.set_camera(pixel_width=1920, pixel_height=1080)\n        self.camera.frame_rate = 60",
+          "previewUrl": null,
+          "skill": "manim",
+          "outputKind": "media",
+          "mediaType": "video/mp4",
+          "mediaUrl": null,
+          "mediaArtifactId": null,
+          "mediaDurationMs": null,
+          "mediaFps": 60,
+          "mediaResolution": "1920x1080",
+          "mediaBytes": null,
+          "explanation": "Create a short Manim animation: title Activation Functions, then write MathTex y=\\sigma(x), then fade out. Keep it minimal and stable. Live preview is currently unavailable, but the animation concept has been prepared.",
+          "messageId": "message-2",
+          "source": "generate",
+          "createdAt": "2026-04-09T01:06:17.949Z",
+          "updatedAt": "2026-04-09T01:06:17.949Z",
+          "versionId": "version-1",
+          "version": 1,
+          "artifactId": "artifact-1775696777949-b8ddee",
+          "artifactVersion": 1
+        }
+      ],
+      "revisionPointer": 0
+    }
+  ],
+  "artifactPointer": 0,
+  "versions": [
+    {
+      "sessionId": "43948241-19c4-487a-bccd-1c441c6ddf2e",
+      "sceneId": "scene-failed-1775696777947",
+      "code": "from manim import *\n\nclass GVERichScene(Scene):\n    def construct(self):\n        title = Text(\"Activation Functions\", font_size=64)\n        equation = MathTex(r\"y=\\sigma(x)\", font_size=64)\n        self.play(FadeIn(title))\n        self.wait(1)\n        self.play(Transform(title, equation))\n        self.wait(1)\n        self.play(FadeOut(title))\n\n        self.set_camera(pixel_width=1920, pixel_height=1080)\n        self.camera.frame_rate = 60",
+      "previewUrl": null,
+      "skill": "manim",
+      "outputKind": "media",
+      "mediaType": "video/mp4",
+      "mediaUrl": null,
+      "mediaArtifactId": null,
+      "mediaDurationMs": null,
+      "mediaFps": 60,
+      "mediaResolution": "1920x1080",
+      "mediaBytes": null,
+      "explanation": "Create a short Manim animation: title Activation Functions, then write MathTex y=\\sigma(x), then fade out. Keep it minimal and stable. Live preview is currently unavailable, but the animation concept has been prepared.",
+      "messageId": "message-2",
+      "source": "generate",
+      "createdAt": "2026-04-09T01:06:17.949Z",
+      "updatedAt": "2026-04-09T01:06:17.949Z",
+      "versionId": "version-1",
+      "version": 1,
+      "artifactId": "artifact-1775696777949-b8ddee",
+      "artifactVersion": 1
+    }
+  ],
+  "sceneVersions": [
+    {
+      "sessionId": "43948241-19c4-487a-bccd-1c441c6ddf2e",
+      "sceneId": "scene-failed-1775696777947",
+      "code": "from manim import *\n\nclass GVERichScene(Scene):\n    def construct(self):\n        title = Text(\"Activation Functions\", font_size=64)\n        equation = MathTex(r\"y=\\sigma(x)\", font_size=64)\n        self.play(FadeIn(title))\n        self.wait(1)\n        self.play(Transform(title, equation))\n        self.wait(1)\n        self.play(FadeOut(title))\n\n        self.set_camera(pixel_width=1920, pixel_height=1080)\n        self.camera.frame_rate = 60",
+      "previewUrl": null,
+      "skill": "manim",
+      "outputKind": "media",
+      "mediaType": "video/mp4",
+      "mediaUrl": null,
+      "mediaArtifactId": null,
+      "mediaDurationMs": null,
+      "mediaFps": 60,
+      "mediaResolution": "1920x1080",
+      "mediaBytes": null,
+      "explanation": "Create a short Manim animation: title Activation Functions, then write MathTex y=\\sigma(x), then fade out. Keep it minimal and stable. Live preview is currently unavailable, but the animation concept has been prepared.",
+      "messageId": "message-2",
+      "source": "generate",
+      "createdAt": "2026-04-09T01:06:17.949Z",
+      "updatedAt": "2026-04-09T01:06:17.949Z",
+      "versionId": "version-1",
+      "version": 1,
+      "artifactId": "artifact-1775696777949-b8ddee",
+      "artifactVersion": 1
+    }
+  ],
+  "versionPointer": 0,
+  "revisionPointer": 0,
+  "messages": [
+    {
+      "id": "ws-prebuilt-simple-1775696746036",
+      "role": "user",
+      "content": "Create a short Manim animation: title Activation Functions, then write MathTex y=\\sigma(x), then fade out. Keep it minimal and stable.",
+      "kind": "input",
+      "meta": [],
+      "error": null,
+      "createdAt": "2026-04-09T01:05:46.045Z",
+      "updatedAt": "2026-04-09T01:05:46.045Z"
+    },
+    {
+      "id": "message-2",
+      "role": "assistant",
+      "content": "Create a short Manim animation: title Activation Functions, then write MathTex y=\\sigma(x), then fade out. Keep it minimal and stable. Live preview is currently unavailable, but the animation concept has been prepared.",
+      "kind": "generate",
+      "meta": [
+        "requestId:ws-prebuilt-simple-1775696746036",
+        "scene:scene-failed-1775696777947",
+        "skill:manim",
+        "error:EXECUTION_FAILED"
+      ],
+      "error": {
+        "code": "EXECUTION_FAILED",
+        "title": "Scene execution failed",
+        "userMessage": "I could not run this generated scene successfully.",
+        "retryable": false,
+        "suggestedAction": "Try generating again with a slightly simpler request.",
+        "technicalDetail": "Manim runtime returned malformed JSON payload. payload={\"success\": false, \"error\": \"'GVERichScene' object has no attribute 'set_camera'\", \"traceback\": \"Traceback (most recent call last):\\n  File \\\"/tmp/gve_manim_runner_mnqrzxie-f5380c.py\\\", line 72, in <module>\\n    main()\\n    ~~~~^^\\n  File \\\"/tmp/gve_manim_runner_mnqrzxie-f5380c.py\\\", line 54, in main\\n    scene.render( output=[04/09/26 01:05:59] INFO     Writing                     tex_file_writing.py:110\n                             \\special{dvisvgm:raw <g                            \n                             id='unique000'>}y=\\sigma(x)                        \n                             \\special{dvisvgm:raw </g>}                       | code:RUNTIME_MANIM_MALFORMED_RESULT",
+        "stage": "execution",
+        "diagnostics": {
+          "stage": "execution",
+          "requestId": "ws-prebuilt-simple-1775696746036",
+          "sessionId": "43948241-19c4-487a-bccd-1c441c6ddf2e",
+          "messageId": "message-2",
+          "message": "Manim runtime returned malformed JSON payload. payload={\"success\": false, \"error\": \"'GVERichScene' object has no attribute 'set_camera'\", \"traceback\": \"Traceback (most recent call last):\\n  File \\\"/tmp/gve_manim_runner_mnqrzxie-f5380c.py\\\", line 72, in <module>\\n    main()\\n    ~~~~^^\\n  File \\\"/tmp/gve_manim_runner_mnqrzxie-f5380c.py\\\", line 54, in main\\n    scene.render( output=[04/09/26 01:05:59] INFO     Writing                     tex_file_writing.py:110\n                             \\special{dvisvgm:raw <g                            \n                             id='unique000'>}y=\\sigma(x)                        \n                             \\special{dvisvgm:raw </g>}                      ",
+          "name": null,
+          "code": "RUNTIME_MANIM_MALFORMED_RESULT",
+          "status": null,
+          "cause": null,
+          "stack": null,
+          "timestamp": "2026-04-09T01:06:17.950Z",
+          "runtime": {
+            "status": "error",
+            "warningCode": null,
+            "acquireDiagnostics": {
+              "skillId": "manim",
+              "reason": "acquire",
+              "startedAt": "2026-04-09T01:05:47.415Z",
+              "startedAtMs": 1775696747415,
+              "initialRemainingBudgetMs": 60000,
+              "turnDeadlineAtMs": 1775696807415,
+              "retryAttempts": 1,
+              "retryDelaysMs": [],
+              "directAttemptedAny": true,
+              "prewarmHit": false,
+              "success": true,
+              "acquireDurationMs": 3022,
+              "completedAt": "2026-04-09T01:05:50.437Z",
+              "creationMode": "direct",
+              "source": "direct",
+              "direct": {
+                "attempted": true,
+                "skipped": false,
+                "skipReason": null,
+                "timeoutSec": 59,
+                "durationMs": 3022,
+                "error": null,
+                "circuitOpenAtStart": false,
+                "circuitOpened": false,
+                "circuitOpenUntil": null
+              },
+              "fallback": {
+                "attempted": false,
+                "skipped": false,
+                "skipReason": null,
+                "timeoutSec": null,
+                "durationMs": null,
+                "error": null
+              },
+              "internalFirstAttempt": true
+            }
+          }
+        }
+      },
+      "createdAt": "2026-04-09T01:05:46.045Z",
+      "updatedAt": "2026-04-09T01:06:17.951Z"
+    },
+    {
+      "id": "thought-turn_started-1775696746047",
+      "role": "thought",
+      "content": "I'm on it. First, I need to parse your intent and figure out the best approach.",
+      "kind": "thought",
+      "meta": [
+        "turn_started",
+        "requestId:ws-prebuilt-simple-1775696746036",
+        "messageId:message-2"
+      ],
+      "error": null,
+      "createdAt": "2026-04-09T01:05:46.047Z",
+      "updatedAt": "2026-04-09T01:05:46.047Z"
+    },
+    {
+      "id": "thought-intent_parsed-1775696746067",
+      "role": "thought",
+      "content": "Clear — I need to build a visual visual from scratch. Checking available engines...",
+      "kind": "thought",
+      "meta": [
+        "intent_parsed",
+        "requestId:ws-prebuilt-simple-1775696746036",
+        "messageId:message-2"
+      ],
+      "error": null,
+      "createdAt": "2026-04-09T01:05:46.067Z",
+      "updatedAt": "2026-04-09T01:05:46.067Z"
+    },
+    {
+      "id": "thought-plan_created-1775696746067",
+      "role": "thought",
+      "content": "I've outlined 7 steps. Kicking off code generation...",
+      "kind": "thought",
+      "meta": [
+        "plan_created",
+        "requestId:ws-prebuilt-simple-1775696746036",
+        "messageId:message-2"
+      ],
+      "error": null,
+      "createdAt": "2026-04-09T01:05:46.067Z",
+      "updatedAt": "2026-04-09T01:05:46.067Z"
+    },
+    {
+      "id": "thought-code_generated-1775696777948",
+      "role": "thought",
+      "content": "I've written the code. Let me validate it before running...",
+      "kind": "thought",
+      "meta": [
+        "code_generated",
+        "requestId:ws-prebuilt-simple-1775696746036",
+        "messageId:message-2"
+      ],
+      "error": null,
+      "createdAt": "2026-04-09T01:06:17.948Z",
+      "updatedAt": "2026-04-09T01:06:17.948Z"
+    },
+    {
+      "id": "thought-executing-1775696777949",
+      "role": "thought",
+      "content": "Validation passed. Executing in an isolated sandbox environment now...",
+      "kind": "thought",
+      "meta": [
+        "executing",
+        "requestId:ws-prebuilt-simple-1775696746036",
+        "messageId:message-2"
+      ],
+      "error": null,
+      "createdAt": "2026-04-09T01:06:17.949Z",
+      "updatedAt": "2026-04-09T01:06:17.949Z"
+    },
+    {
+      "id": "thought-sync_state-1775696777950",
+      "role": "thought",
+      "content": "The render is done. I'm saving the scene state and preparing the preview.",
+      "kind": "thought",
+      "meta": [
+        "sync_state",
+        "requestId:ws-prebuilt-simple-1775696746036",
+        "messageId:message-2"
+      ],
+      "error": null,
+      "createdAt": "2026-04-09T01:06:17.950Z",
+      "updatedAt": "2026-04-09T01:06:17.950Z"
+    },
+    {
+      "id": "thought-turn_error-1775696777951",
+      "role": "thought",
+      "content": "Unfortunately this didn't work as expected. Let me surface the issue.",
+      "kind": "thought",
+      "meta": [
+        "turn_error",
+        "requestId:ws-prebuilt-simple-1775696746036",
+        "messageId:message-2"
+      ],
+      "error": null,
+      "createdAt": "2026-04-09T01:06:17.951Z",
+      "updatedAt": "2026-04-09T01:06:17.951Z"
+    }
+  ],
+  "orchestrationTrace": [
+    {
+      "id": "trace-1",
+      "step": "intent_parsed",
+      "payload": {
+        "sessionId": "43948241-19c4-487a-bccd-1c441c6ddf2e",
+        "content": "Create a short Manim animation: title Activation Functions, then write MathTex y=\\sigma(x), then fade out. Keep it minimal and stable."
+      },
+      "createdAt": "2026-04-09T01:05:46.049Z"
+    },
+    {
+      "id": "trace-2",
+      "step": "parse_intent",
+      "payload": {
+        "sessionId": "43948241-19c4-487a-bccd-1c441c6ddf2e",
+        "status": "running"
+      },
+      "createdAt": "2026-04-09T01:05:46.071Z"
+    },
+    {
+      "id": "trace-3",
+      "step": "select_skill",
+      "payload": {
+        "sessionId": "43948241-19c4-487a-bccd-1c441c6ddf2e",
+        "status": "running"
+      },
+      "createdAt": "2026-04-09T01:05:46.075Z"
+    },
+    {
+      "id": "trace-4",
+      "step": "build_prompt",
+      "payload": {
+        "sessionId": "43948241-19c4-487a-bccd-1c441c6ddf2e",
+        "status": "running"
+      },
+      "createdAt": "2026-04-09T01:05:46.079Z"
+    },
+    {
+      "id": "trace-5",
+      "step": "generate_code",
+      "payload": {
+        "sessionId": "43948241-19c4-487a-bccd-1c441c6ddf2e",
+        "status": "running"
+      },
+      "createdAt": "2026-04-09T01:05:46.083Z"
+    },
+    {
+      "id": "trace-6",
+      "step": "generate_code",
+      "payload": {
+        "sessionId": "43948241-19c4-487a-bccd-1c441c6ddf2e",
+        "status": "completed",
+        "selectedSkill": "manim",
+        "source": "groq",
+        "code": "from manim import *\n\nclass GVERichScene(Scene):\n    def construct(self):\n        title = Text(\"Activation Functions\", font_size=64)\n        equation = MathTex(r\"y=\\sigma(x)\", font_size=64)\n        self.play(FadeIn(title))\n        self.wait(1)\n        self.play(Transform(title, equation))\n        self.wait(1)\n        self.play(FadeOut(title))\n\n        self.set_camera(pixel_width=1920, pixel_height=1080)\n        self.camera.frame_rate = 60",
+        "stageDurationMs": 1321
+      },
+      "createdAt": "2026-04-09T01:05:47.405Z"
+    },
+    {
+      "id": "trace-7",
+      "step": "validate_code",
+      "payload": {
+        "sessionId": "43948241-19c4-487a-bccd-1c441c6ddf2e",
+        "status": "running"
+      },
+      "createdAt": "2026-04-09T01:05:47.409Z"
+    },
+    {
+      "id": "trace-8",
+      "step": "validate_code",
+      "payload": {
+        "sessionId": "43948241-19c4-487a-bccd-1c441c6ddf2e",
+        "status": "completed",
+        "valid": true,
+        "passable": true,
+        "stageDurationMs": 1
+      },
+      "createdAt": "2026-04-09T01:05:47.410Z"
+    },
+    {
+      "id": "trace-9",
+      "step": "execute_code",
+      "payload": {
+        "sessionId": "43948241-19c4-487a-bccd-1c441c6ddf2e",
+        "status": "running"
+      },
+      "createdAt": "2026-04-09T01:05:47.414Z"
+    },
+    {
+      "id": "trace-10",
+      "step": "thinking_analysis_failed",
+      "payload": {
+        "sessionId": "43948241-19c4-487a-bccd-1c441c6ddf2e",
+        "requestId": "ws-prebuilt-simple-1775696746036",
+        "diagnostics": {
+          "stage": "thinking_analysis",
+          "context": {
+            "stage": "thinking_analysis",
+            "queryPreview": "Create a short Manim animation: title Activation Functions, then write MathTex y=\\sigma(x), then...",
+            "hasScene": false,
+            "llm": {
+              "providerId": null,
+              "model": null,
+              "fallbackUsed": false,
+              "attemptCount": 1,
+              "attempts": [
+                {
+                  "providerId": "moonshot",
+                  "model": "kimi-k2.5",
+                  "status": "failed",
+                  "reason": "PROVIDER_RATE_LIMITED",
+                  "retryable": true
+                }
+              ]
+            }
+          },
+          "message": "ThinkingAnalysis: all eligible LLM providers were exhausted.",
+          "code": "ALL_LLM_PROVIDERS_EXHAUSTED",
+          "status": null,
+          "cause": null,
+          "stack": "Error: ThinkingAnalysis: all eligible LLM providers were exhausted. |     at executeWithProviderFailover (file:///home/kage/visualruntime/apps/server/server/orchestrator.js:1348:26) |     at process.processTicksAndRejections (node:internal/process/task_queues:95:5)",
+          "timestamp": "2026-04-09T01:05:49.412Z"
+        }
+      },
+      "createdAt": "2026-04-09T01:05:49.413Z"
+    },
+    {
+      "id": "trace-11",
+      "step": "execute_code",
+      "payload": {
+        "sessionId": "43948241-19c4-487a-bccd-1c441c6ddf2e",
+        "status": "error",
+        "error": "Manim runtime returned malformed JSON payload. payload={\"success\": false, \"error\": \"'GVERichScene' object has no attribute 'set_camera'\", \"traceback\": \"Traceback (most recent call last):\\n  File \\\"/tmp/gve_manim_runner_mnqrzxie-f5380c.py\\\", line 72, in <module>\\n    main()\\n    ~~~~^^\\n  File \\\"/tmp/gve_manim_runner_mnqrzxie-f5380c.py\\\", line 54, in main\\n    scene.render( output=[04/09/26 01:05:59] INFO     Writing                     tex_file_writing.py:110\n                             \\special{dvisvgm:raw <g                            \n                             id='unique000'>}y=\\sigma(x)                        \n                             \\special{dvisvgm:raw </g>}                      ",
+        "runtimeRecoveryUsed": false,
+        "stageDurationMs": 30522
+      },
+      "createdAt": "2026-04-09T01:06:17.936Z"
+    },
+    {
+      "id": "trace-12",
+      "step": "turn_error",
+      "payload": {
+        "sessionId": "43948241-19c4-487a-bccd-1c441c6ddf2e",
+        "mode": "generate",
+        "messageCount": 9,
+        "error": {
+          "code": "EXECUTION_FAILED",
+          "title": "Scene execution failed",
+          "userMessage": "I could not run this generated scene successfully.",
+          "retryable": false,
+          "suggestedAction": "Try generating again with a slightly simpler request.",
+          "technicalDetail": "Manim runtime returned malformed JSON payload. payload={\"success\": false, \"error\": \"'GVERichScene' object has no attribute 'set_camera'\", \"traceback\": \"Traceback (most recent call last):\\n  File \\\"/tmp/gve_manim_runner_mnqrzxie-f5380c.py\\\", line 72, in <module>\\n    main()\\n    ~~~~^^\\n  File \\\"/tmp/gve_manim_runner_mnqrzxie-f5380c.py\\\", line 54, in main\\n    scene.render( output=[04/09/26 01:05:59] INFO     Writing                     tex_file_writing.py:110\n                             \\special{dvisvgm:raw <g                            \n                             id='unique000'>}y=\\sigma(x)                        \n                             \\special{dvisvgm:raw </g>}                       | code:RUNTIME_MANIM_MALFORMED_RESULT",
+          "stage": "execution",
+          "diagnostics": {
+            "stage": "execution",
+            "requestId": "ws-prebuilt-simple-1775696746036",
+            "sessionId": "43948241-19c4-487a-bccd-1c441c6ddf2e",
+            "messageId": "message-2",
+            "message": "Manim runtime returned malformed JSON payload. payload={\"success\": false, \"error\": \"'GVERichScene' object has no attribute 'set_camera'\", \"traceback\": \"Traceback (most recent call last):\\n  File \\\"/tmp/gve_manim_runner_mnqrzxie-f5380c.py\\\", line 72, in <module>\\n    main()\\n    ~~~~^^\\n  File \\\"/tmp/gve_manim_runner_mnqrzxie-f5380c.py\\\", line 54, in main\\n    scene.render( output=[04/09/26 01:05:59] INFO     Writing                     tex_file_writing.py:110\n                             \\special{dvisvgm:raw <g                            \n                             id='unique000'>}y=\\sigma(x)                        \n                             \\special{dvisvgm:raw </g>}                      ",
+            "name": null,
+            "code": "RUNTIME_MANIM_MALFORMED_RESULT",
+            "status": null,
+            "cause": null,
+            "stack": null,
+            "timestamp": "2026-04-09T01:06:17.950Z",
+            "runtime": {
+              "status": "error",
+              "warningCode": null,
+              "acquireDiagnostics": {
+                "skillId": "manim",
+                "reason": "acquire",
+                "startedAt": "2026-04-09T01:05:47.415Z",
+                "startedAtMs": 1775696747415,
+                "initialRemainingBudgetMs": 60000,
+                "turnDeadlineAtMs": 1775696807415,
+                "retryAttempts": 1,
+                "retryDelaysMs": [],
+                "directAttemptedAny": true,
+                "prewarmHit": false,
+                "success": true,
+                "acquireDurationMs": 3022,
+                "completedAt": "2026-04-09T01:05:50.437Z",
+                "creationMode": "direct",
+                "source": "direct",
+                "direct": {
+                  "attempted": true,
+                  "skipped": false,
+                  "skipReason": null,
+                  "timeoutSec": 59,
+                  "durationMs": 3022,
+                  "error": null,
+                  "circuitOpenAtStart": false,
+                  "circuitOpened": false,
+                  "circuitOpenUntil": null
+                },
+                "fallback": {
+                  "attempted": false,
+                  "skipped": false,
+                  "skipReason": null,
+                  "timeoutSec": null,
+                  "durationMs": null,
+                  "error": null
+                },
+                "internalFirstAttempt": true
+              }
+            }
+          }
+        }
+      },
+      "createdAt": "2026-04-09T01:06:17.952Z"
+    }
+  ]
+}

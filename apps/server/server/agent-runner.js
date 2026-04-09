@@ -91,6 +91,29 @@ function parseToolArguments(argsString) {
   }
 }
 
+function isManimSkill(skill) {
+  return String(skill ?? "").trim().toLowerCase() === "manim";
+}
+
+function buildCodeFenceLanguage(skill) {
+  return isManimSkill(skill) ? "python" : "javascript";
+}
+
+function extractCodeFromFinalText(finalText, skill) {
+  const text = String(finalText ?? "");
+  if (!text) {
+    return null;
+  }
+
+  if (isManimSkill(skill)) {
+    const manimMatch = text.match(/```(?:python|py)?\s*([\s\S]*?)```/i);
+    return manimMatch ? manimMatch[1].trim() : null;
+  }
+
+  const jsMatch = text.match(/```(?:javascript|js)?\s*([\s\S]*?)```/i);
+  return jsMatch ? jsMatch[1].trim() : null;
+}
+
 /**
  * Run the agent loop until completion or max iterations.
  *
@@ -246,36 +269,47 @@ export async function runSelfDebugSession({
   onToolResult,
   onIteration
 }) {
+  const manim = isManimSkill(skill);
+  const codeFenceLanguage = buildCodeFenceLanguage(skill);
   const errorSummary = validationErrors
     .map((e) => `[${e.code}] ${e.message}${e.line ? ` (line ${e.line})` : ""}`)
     .join("\n");
 
   const systemPrompt = [
-    "You are a JavaScript code debugging agent for a visual generation engine.",
+    manim
+      ? "You are a Python Manim code debugging agent for a visual generation engine."
+      : "You are a JavaScript code debugging agent for a visual generation engine.",
     "The user asked for a visualization and I generated code, but it failed validation.",
     "Your job is to fix the code so it passes validation.",
     "",
     "Rules:",
-    `- The code must target the ${skill} rendering engine.`,
-    skill === "threejs"
-      ? "- Assume scene, camera, renderer, THREE, and OrbitControls are pre-initialized globals."
-      : skill === "p5js"
-        ? "- The code should define setup() and/or draw() functions or use createCanvas()."
-        : skill === "animejs"
-          ? "- Use the anime global API for timeline/tween animation and target DOM/SVG nodes."
-          : "- The code should use the d3 namespace for DOM manipulation.",
-    "- Do NOT use eval(), Function constructor, fetch(), require(), or import().",
-    "- Do NOT use any Node.js APIs (process, fs, child_process).",
+    `- The code must target the ${skill} rendering engine/runtime.`,
+    manim
+      ? "- Return valid Python Manim code with one scene class named GVERichScene and construct(self)."
+      : skill === "threejs"
+        ? "- Assume scene, camera, renderer, THREE, and OrbitControls are pre-initialized globals."
+        : skill === "p5js"
+          ? "- The code should define setup() and/or draw() functions or use createCanvas()."
+          : skill === "animejs"
+            ? "- Use the anime global API for timeline/tween animation and target DOM/SVG nodes."
+            : "- The code should use the d3 namespace for DOM manipulation.",
+    manim
+      ? "- Include from manim import * near the top. If NumPy is used, include import numpy as np."
+      : "- Do NOT use eval(), Function constructor, fetch(), require(), or import().",
+    manim
+      ? "- Use modern Manim APIs: Axes/NumberPlane should use x_range/y_range, not x_min/x_max/y_min/y_max."
+      : "- Do NOT use any Node.js APIs (process, fs, child_process).",
+    manim ? "- Avoid filesystem/network/subprocess operations." : null,
     "- Use the fix_code tool to submit your corrected code.",
     "- If fix_code says the code still has issues, keep fixing until it passes.",
     "- Once the code validates successfully, respond with the final working code in a code block."
-  ].join("\n");
+  ].filter(Boolean).join("\n");
 
   const userPrompt = [
     `Original user request: "${originalQuery}"`,
     "",
     "The following code was generated but failed validation:",
-    "```javascript",
+    `\`\`\`${codeFenceLanguage}`,
     failedCode,
     "```",
     "",
@@ -319,9 +353,9 @@ export async function runSelfDebugSession({
     console.log(`[SelfDebug] Successfully fixed code via ${lastSuccessfulFix.tool} tool.`);
   } else if (result.finalText) {
     // Try extracting code from the agent's final text response
-    const codeMatch = result.finalText.match(/```(?:javascript|js)?\s*([\s\S]*?)```/i);
-    if (codeMatch) {
-      fixedCode = codeMatch[1].trim();
+    const extractedCode = extractCodeFromFinalText(result.finalText, skill);
+    if (extractedCode) {
+      fixedCode = extractedCode;
       // We'll need to re-validate this outside
       console.log("[SelfDebug] Extracted code from agent's final text response.");
     }
@@ -374,33 +408,44 @@ export async function runRuntimeDebugSession({
   onIteration,
   compatibilityHints = []
 }) {
+  const manim = isManimSkill(skill);
+  const codeFenceLanguage = buildCodeFenceLanguage(skill);
   const normalizedHints = Array.isArray(compatibilityHints)
     ? compatibilityHints.filter((hint) => typeof hint === "string" && hint.trim().length > 0)
     : [];
 
   const systemPrompt = [
-    "You are a JavaScript runtime-debugging agent for a visual generation engine.",
+    manim
+      ? "You are a Python Manim runtime-debugging agent for a visual generation engine."
+      : "You are a JavaScript runtime-debugging agent for a visual generation engine.",
     "The code passed static validation but failed during sandbox execution.",
     "Your job is to fix runtime issues and verify execution success.",
     "",
     "Rules:",
-    `- The code must target the ${skill} rendering engine.`,
-    skill === "threejs"
-      ? "- Assume scene, camera, renderer, THREE, and OrbitControls are pre-initialized globals."
-      : skill === "p5js"
-        ? "- The code should define setup() and/or draw() functions or use createCanvas()."
-        : skill === "animejs"
-          ? "- Use the anime global API for timeline/tween animation and target DOM/SVG nodes."
-          : "- The code should use the d3 namespace for DOM manipulation.",
-    "- Do NOT use eval(), Function constructor, fetch(), require(), or import().",
-    "- Do NOT use any Node.js APIs (process, fs, child_process).",
+    `- The code must target the ${skill} rendering engine/runtime.`,
+    manim
+      ? "- Return valid Python Manim code with one scene class named GVERichScene and construct(self)."
+      : skill === "threejs"
+        ? "- Assume scene, camera, renderer, THREE, and OrbitControls are pre-initialized globals."
+        : skill === "p5js"
+          ? "- The code should define setup() and/or draw() functions or use createCanvas()."
+          : skill === "animejs"
+            ? "- Use the anime global API for timeline/tween animation and target DOM/SVG nodes."
+            : "- The code should use the d3 namespace for DOM manipulation.",
+    manim
+      ? "- Include from manim import * near the top. If NumPy is used, include import numpy as np."
+      : "- Do NOT use eval(), Function constructor, fetch(), require(), or import().",
+    manim
+      ? "- Use modern Manim APIs: Axes/NumberPlane should use x_range/y_range, not x_min/x_max/y_min/y_max."
+      : "- Do NOT use any Node.js APIs (process, fs, child_process).",
+    manim ? "- Avoid filesystem/network/subprocess operations." : null,
     "- Use fix_code to submit corrected code.",
     "- Use execute_code to verify runtime behavior after fixes.",
     "- Keep iterating until execute_code returns success=true or you run out of iterations.",
     "- Once execution succeeds, return the final working code in a code block.",
     "- Prefer compatibility-safe API calls over cutting-edge constructors/methods.",
     "- Keep patches minimal and targeted to the failing API lines."
-  ].join("\n");
+  ].filter(Boolean).join("\n");
 
   const userPrompt = [
     `Original user request: \"${originalQuery}\"`,
@@ -408,7 +453,7 @@ export async function runRuntimeDebugSession({
     `Runtime error: ${runtimeError ?? "Unknown runtime error"}`,
     "",
     "The following code failed at runtime:",
-    "```javascript",
+    `\`\`\`${codeFenceLanguage}`,
     failedCode,
     "```",
     "",
@@ -458,9 +503,9 @@ export async function runRuntimeDebugSession({
   }
 
   if (!fixedCode && result.finalText) {
-    const codeMatch = result.finalText.match(/```(?:javascript|js)?\s*([\s\S]*?)```/i);
-    if (codeMatch) {
-      fixedCode = codeMatch[1].trim();
+    const extractedCode = extractCodeFromFinalText(result.finalText, skill);
+    if (extractedCode) {
+      fixedCode = extractedCode;
       console.log("[RuntimeDebug] Extracted code from agent final text.");
     }
   }

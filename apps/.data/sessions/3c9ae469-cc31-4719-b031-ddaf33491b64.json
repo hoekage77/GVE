@@ -1,0 +1,113 @@
+{
+  "sessionId": "3c9ae469-cc31-4719-b031-ddaf33491b64",
+  "createdAt": "2026-04-06T23:48:43.937Z",
+  "updatedAt": "2026-04-06T23:49:04.402Z",
+  "status": "idle",
+  "currentScene": null,
+  "artifacts": [],
+  "artifactPointer": -1,
+  "versions": [],
+  "sceneVersions": [],
+  "versionPointer": -1,
+  "revisionPointer": -1,
+  "messages": [
+    {
+      "id": "ws-runtime-1775519323947",
+      "role": "user",
+      "content": "Hello. Confirm websocket runtime event flow.",
+      "kind": "input",
+      "meta": [],
+      "error": null,
+      "createdAt": "2026-04-06T23:48:43.955Z",
+      "updatedAt": "2026-04-06T23:48:43.955Z"
+    },
+    {
+      "id": "message-2",
+      "role": "assistant",
+      "content": "Hello. \n\nThe websocket runtime event flow works like this:\n\n**Connection & Setup**\n- Client opens a persistent websocket connection to the runtime endpoint\n- Optional authentication handshake (token validation)\n- Connection stays open for the session duration\n\n**Request Flow**\n1. **Send** – Client emits a `generation.request` with parameters (prompt, style, constraints)\n2. **Acknowledge** – Server immediately confirms receipt with a request ID\n3. **Stream** – Server pushes progress events (`progress.update`, `stage.complete`) as the engine works\n4. **Deliver** – Final `generation.complete` event contains the result URL/data (or `generation.error` if it fails)\n5. **Heartbeat** – Ping/pong frames keep the connection alive during long generations\n\n**Cleanup**\n- Connection closes on client disconnect, explicit `session.end`, or timeout (typically 5–10 minutes idle)\n- Each message is a JSON payload with `type`, `timestamp`, and `payload` fields\n\nNeed details on a specific event type or authentication method?",
+      "kind": "chat",
+      "meta": [],
+      "error": null,
+      "createdAt": "2026-04-06T23:48:43.956Z",
+      "updatedAt": "2026-04-06T23:49:04.396Z"
+    },
+    {
+      "id": "thought-turn_started-1775519323972",
+      "role": "thought",
+      "content": "Interesting — let me process what you're looking for here.",
+      "kind": "thought",
+      "meta": [
+        "turn_started",
+        "requestId:ws-runtime-1775519323947",
+        "messageId:message-2"
+      ],
+      "error": null,
+      "createdAt": "2026-04-06T23:48:43.972Z",
+      "updatedAt": "2026-04-06T23:48:43.972Z"
+    },
+    {
+      "id": "thought-intent_parsed-1775519324021",
+      "role": "thought",
+      "content": "I see — you want me to create a visual visualization. Let me figure out the best tool for this.",
+      "kind": "thought",
+      "meta": [
+        "intent_parsed",
+        "requestId:ws-runtime-1775519323947",
+        "messageId:message-2"
+      ],
+      "error": null,
+      "createdAt": "2026-04-06T23:48:44.021Z",
+      "updatedAt": "2026-04-06T23:48:44.021Z"
+    },
+    {
+      "id": "thought-plan_created-1775519324022",
+      "role": "thought",
+      "content": "I've outlined 7 steps. Kicking off code generation...",
+      "kind": "thought",
+      "meta": [
+        "plan_created",
+        "requestId:ws-runtime-1775519323947",
+        "messageId:message-2"
+      ],
+      "error": null,
+      "createdAt": "2026-04-06T23:48:44.023Z",
+      "updatedAt": "2026-04-06T23:48:44.023Z"
+    },
+    {
+      "id": "thought-turn_complete-1775519344401",
+      "role": "thought",
+      "content": "All done! Your visual is ready.",
+      "kind": "thought",
+      "meta": [
+        "turn_complete",
+        "requestId:ws-runtime-1775519323947",
+        "messageId:message-2"
+      ],
+      "error": null,
+      "createdAt": "2026-04-06T23:49:04.401Z",
+      "updatedAt": "2026-04-06T23:49:04.401Z"
+    }
+  ],
+  "orchestrationTrace": [
+    {
+      "id": "trace-1",
+      "step": "intent_parsed",
+      "payload": {
+        "sessionId": "3c9ae469-cc31-4719-b031-ddaf33491b64",
+        "content": "Hello. Confirm websocket runtime event flow."
+      },
+      "createdAt": "2026-04-06T23:48:43.975Z"
+    },
+    {
+      "id": "trace-2",
+      "step": "turn_complete",
+      "payload": {
+        "sessionId": "3c9ae469-cc31-4719-b031-ddaf33491b64",
+        "mode": "chat",
+        "messageCount": 6,
+        "error": null
+      },
+      "createdAt": "2026-04-06T23:49:04.402Z"
+    }
+  ]
+}

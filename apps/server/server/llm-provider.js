@@ -24,7 +24,7 @@ const PROVIDER_DEFINITIONS = [
     capabilities: {
       codeGeneration: true,
       thinking: true,
-      vision: false,
+      vision: true,
       streaming: true,
     },
     limits: {

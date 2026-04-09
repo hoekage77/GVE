@@ -11,6 +11,7 @@ import { getSandboxRuntimeMetrics, shutdownSandboxRuntime } from "./skill-runtim
 import { getPool } from "./llm-pool.js";
 import { generateThought, tokenizeThought } from "./thought-generator.js";
 import { getSkillCatalog } from "./skill-registry.js";
+import { streamMediaArtifact } from "./media-artifacts.js";
 import {
   appendSessionMessage,
   appendOrchestrationTrace,
@@ -31,6 +32,7 @@ import {
   nextRevision,
   previousSceneVersion,
   nextSceneVersion,
+  selectSceneVersion,
   previousArtifactVersion,
   nextArtifactVersion,
   listSceneVersions,
@@ -145,7 +147,43 @@ function compactModifyDiff(diff) {
   };
 }
 
-function buildTurnResultSummary(mode, result, sceneState) {
+function buildTurnLifecyclePayload(turnSummary) {
+  return {
+    sceneId: turnSummary?.sceneId ?? null,
+    sceneVersion: turnSummary?.sceneVersion ?? null,
+    skill: turnSummary?.skill ?? null,
+    explanation: turnSummary?.explanation ?? null,
+    modifyOutcome: turnSummary?.modifyOutcome ?? null,
+    noopReason: turnSummary?.noopReason ?? null,
+    diff: turnSummary?.diff ?? null,
+    runtimeStatus: turnSummary?.runtimeStatus ?? null,
+    runtimeWarning: turnSummary?.runtimeWarning ?? null,
+    runtimeWarningCode: turnSummary?.runtimeWarningCode ?? null,
+    runtimeErrorCode: turnSummary?.runtimeErrorCode ?? null,
+    runtimeAcquireDiagnostics: turnSummary?.runtimeAcquireDiagnostics ?? null,
+    outputKind: turnSummary?.outputKind ?? null,
+    mediaType: turnSummary?.mediaType ?? null,
+    mediaUrl: turnSummary?.mediaUrl ?? null,
+    mediaArtifactId: turnSummary?.mediaArtifactId ?? null,
+    mediaDurationMs: turnSummary?.mediaDurationMs ?? null,
+    mediaFps: turnSummary?.mediaFps ?? null,
+    mediaResolution: turnSummary?.mediaResolution ?? null,
+    mediaBytes: turnSummary?.mediaBytes ?? null,
+    generationSource: turnSummary?.generationSource ?? null,
+    generationWarning: turnSummary?.generationWarning ?? null,
+    assistantSource: turnSummary?.assistantSource ?? null,
+    assistantWarning: turnSummary?.assistantWarning ?? null,
+    assistantLlm: turnSummary?.assistantLlm ?? null,
+    llmTrace: turnSummary?.llmTrace ?? null
+  };
+}
+
+function buildTurnResultSummary(mode, result, sceneState, metadata = {}) {
+  const currentScene = sceneState?.currentScene ?? null;
+  const assistantSource = metadata?.assistantSource ?? null;
+  const assistantWarning = metadata?.assistantWarning ?? null;
+  const assistantLlm = metadata?.assistantLlm ?? null;
+
   if (!result || (mode !== "generate" && mode !== "modify" && mode !== "image-to-code")) {
     return {
       sceneId: null,
@@ -159,9 +197,34 @@ function buildTurnResultSummary(mode, result, sceneState) {
       runtimeWarning: null,
       runtimeWarningCode: null,
       runtimeErrorCode: null,
-      runtimeAcquireDiagnostics: null
+      runtimeAcquireDiagnostics: null,
+      outputKind: null,
+      mediaType: null,
+      mediaUrl: null,
+      mediaArtifactId: null,
+      mediaDurationMs: null,
+      mediaFps: null,
+      mediaResolution: null,
+      mediaBytes: null,
+      generationSource: null,
+      generationWarning: null,
+      assistantSource,
+      assistantWarning,
+      assistantLlm,
+      llmTrace: null
     };
   }
+
+  const resolvedOutputKind =
+    result.outputKind
+    ?? result.runtime?.outputKind
+    ?? currentScene?.outputKind
+    ?? null;
+  const resolvedMediaUrl =
+    result.mediaUrl
+    ?? result.runtime?.mediaUrl
+    ?? currentScene?.mediaUrl
+    ?? (resolvedOutputKind === "media" ? (result.previewUrl ?? currentScene?.previewUrl ?? null) : null);
 
   return {
     sceneId: result.sceneId ?? null,
@@ -175,7 +238,21 @@ function buildTurnResultSummary(mode, result, sceneState) {
     runtimeWarning: result.runtime?.warning ?? null,
     runtimeWarningCode: result.runtime?.warningCode ?? null,
     runtimeErrorCode: result.runtime?.errorCode ?? null,
-    runtimeAcquireDiagnostics: result.runtime?.acquireDiagnostics ?? null
+    runtimeAcquireDiagnostics: result.runtime?.acquireDiagnostics ?? null,
+    outputKind: resolvedOutputKind,
+    mediaType: result.mediaType ?? result.runtime?.mediaType ?? currentScene?.mediaType ?? null,
+    mediaUrl: resolvedMediaUrl,
+    mediaArtifactId: result.mediaArtifactId ?? result.runtime?.mediaArtifactId ?? currentScene?.mediaArtifactId ?? null,
+    mediaDurationMs: result.mediaDurationMs ?? result.runtime?.mediaDurationMs ?? currentScene?.mediaDurationMs ?? null,
+    mediaFps: result.mediaFps ?? result.runtime?.mediaFps ?? currentScene?.mediaFps ?? null,
+    mediaResolution: result.mediaResolution ?? result.runtime?.mediaResolution ?? currentScene?.mediaResolution ?? null,
+    mediaBytes: result.mediaBytes ?? result.runtime?.mediaBytes ?? currentScene?.mediaBytes ?? null,
+    generationSource: result.generationSource ?? null,
+    generationWarning: result.generationWarning ?? null,
+    assistantSource,
+    assistantWarning,
+    assistantLlm,
+    llmTrace: result.llmTrace ?? null
   };
 }
 
@@ -333,7 +410,7 @@ function replayEventsSince(socket, lastSeq, sessionId = "") {
 }
 
 app.use(cors());
-app.use(express.json({ limit: "1mb" }));
+app.use(express.json({ limit: "8mb" }));
 
 wsServer.on("connection", (socket) => {
   wsClients.add(socket);
@@ -499,6 +576,9 @@ wsServer.on("connection", (socket) => {
 
         const sessionId = String(parsedMessage?.payload?.sessionId ?? "").trim();
         const content = String(parsedMessage?.payload?.content ?? parsedMessage?.payload?.query ?? "").trim();
+        const imageUrl = String(parsedMessage?.payload?.imageUrl ?? "").trim();
+        const imageData = String(parsedMessage?.payload?.imageData ?? "").trim();
+        const hasImage = Boolean(imageUrl || imageData);
         const clientMessageId = String(parsedMessage?.payload?.clientMessageId ?? "").trim();
         const requestId = String(parsedMessage?.payload?.requestId ?? clientMessageId ?? "").trim();
         const idempotencyKey = String(parsedMessage?.payload?.idempotencyKey ?? requestId ?? clientMessageId ?? "").trim();
@@ -507,10 +587,10 @@ wsServer.on("connection", (socket) => {
         );
         const normalizedPreferences = normalizeTurnPreferences(parsedMessage?.payload?.preferences, forcedMode);
 
-        if (!sessionId || !content) {
+        if (!sessionId || (!content && !hasImage)) {
           sendSocketEvent(socket, "message:error", {
             requestId: requestId || null,
-            message: "sessionId and content are required for message.send"
+            message: "sessionId and at least one of content or image is required for message.send"
           });
           return;
         }
@@ -524,9 +604,10 @@ wsServer.on("connection", (socket) => {
         });
 
         const turnModeKey = forcedMode ?? "auto";
+        const payloadFingerprint = content || imageUrl || imageData.slice(0, 64) || String(Date.now());
         const turnKey = idempotencyKey
           ? `${sessionId}:${turnModeKey}:${idempotencyKey}`
-          : `${sessionId}:${turnModeKey}:${content}`;
+          : `${sessionId}:${turnModeKey}:${payloadFingerprint}`;
 
         if (turnKey && completedChatTurns.has(turnKey)) {
           const completed = completedChatTurns.get(turnKey);
@@ -561,18 +642,7 @@ wsServer.on("connection", (socket) => {
             messageCount: listSessionMessages(sessionId).length,
             duplicate: true,
             requestId: requestId || null,
-            sceneId: completed?.turnSummary?.sceneId ?? null,
-            sceneVersion: completed?.turnSummary?.sceneVersion ?? null,
-            skill: completed?.turnSummary?.skill ?? null,
-            explanation: completed?.turnSummary?.explanation ?? null,
-            modifyOutcome: completed?.turnSummary?.modifyOutcome ?? null,
-            noopReason: completed?.turnSummary?.noopReason ?? null,
-            diff: completed?.turnSummary?.diff ?? null,
-            runtimeStatus: completed?.turnSummary?.runtimeStatus ?? null,
-            runtimeWarning: completed?.turnSummary?.runtimeWarning ?? null,
-            runtimeWarningCode: completed?.turnSummary?.runtimeWarningCode ?? null,
-            runtimeErrorCode: completed?.turnSummary?.runtimeErrorCode ?? null,
-            runtimeAcquireDiagnostics: completed?.turnSummary?.runtimeAcquireDiagnostics ?? null
+            ...buildTurnLifecyclePayload(completed?.turnSummary)
           });
           return;
         }
@@ -612,18 +682,7 @@ wsServer.on("connection", (socket) => {
               messageCount: listSessionMessages(sessionId).length,
               duplicate: true,
               requestId: requestId || null,
-              sceneId: completed?.turnSummary?.sceneId ?? null,
-              sceneVersion: completed?.turnSummary?.sceneVersion ?? null,
-              skill: completed?.turnSummary?.skill ?? null,
-              explanation: completed?.turnSummary?.explanation ?? null,
-              modifyOutcome: completed?.turnSummary?.modifyOutcome ?? null,
-              noopReason: completed?.turnSummary?.noopReason ?? null,
-              diff: completed?.turnSummary?.diff ?? null,
-              runtimeStatus: completed?.turnSummary?.runtimeStatus ?? null,
-              runtimeWarning: completed?.turnSummary?.runtimeWarning ?? null,
-              runtimeWarningCode: completed?.turnSummary?.runtimeWarningCode ?? null,
-              runtimeErrorCode: completed?.turnSummary?.runtimeErrorCode ?? null,
-              runtimeAcquireDiagnostics: completed?.turnSummary?.runtimeAcquireDiagnostics ?? null
+              ...buildTurnLifecyclePayload(completed?.turnSummary)
             });
           }
           return;
@@ -645,8 +704,8 @@ wsServer.on("connection", (socket) => {
               idempotencyKey: idempotencyKey || null,
               transport: "websocket",
               forcedMode,
-              imageUrl: String(parsedMessage?.payload?.imageUrl ?? "").trim() || null,
-              imageData: String(parsedMessage?.payload?.imageData ?? "").trim() || null
+              imageUrl: imageUrl || null,
+              imageData: imageData || null
             });
           } finally {
             activeChatTurns.delete(turnKey);
@@ -1159,6 +1218,14 @@ async function executeChatTurn(sessionId, content, preferences, options = {}) {
   const imageUrl = options.imageUrl || null;
   const imageData = options.imageData || null;
   const hasImage = Boolean(imageUrl || imageData);
+  const normalizedContent = String(content ?? "").trim();
+  const turnContent = normalizedContent || (hasImage ? "Generate a scene from the attached image." : "");
+
+  if (!turnContent && !hasImage) {
+    throw new Error("Message content or image is required.");
+  }
+
+  content = turnContent;
   const effectivePreferences = normalizeTurnPreferences(preferences, normalizeRequestedTurnMode(options.forcedMode));
 
   const userMessage = appendSessionMessage(sessionId, {
@@ -1340,6 +1407,14 @@ async function executeChatTurn(sessionId, content, preferences, options = {}) {
         code: imageResult.code,
         previewUrl: imageResult.previewUrl,
         skill: imageResult.skill,
+        outputKind: imageResult.outputKind ?? imageResult.runtime?.outputKind ?? null,
+        mediaType: imageResult.mediaType ?? imageResult.runtime?.mediaType ?? null,
+        mediaUrl: imageResult.mediaUrl ?? imageResult.runtime?.mediaUrl ?? null,
+        mediaArtifactId: imageResult.mediaArtifactId ?? imageResult.runtime?.mediaArtifactId ?? null,
+        mediaDurationMs: imageResult.mediaDurationMs ?? imageResult.runtime?.mediaDurationMs ?? null,
+        mediaFps: imageResult.mediaFps ?? imageResult.runtime?.mediaFps ?? null,
+        mediaResolution: imageResult.mediaResolution ?? imageResult.runtime?.mediaResolution ?? null,
+        mediaBytes: imageResult.mediaBytes ?? imageResult.runtime?.mediaBytes ?? null,
         explanation: imageResult.explanation,
         source: "image-to-code",
         messageId: assistantMessageId
@@ -1371,6 +1446,14 @@ async function executeChatTurn(sessionId, content, preferences, options = {}) {
         sessionId,
         sceneId: imageResult.sceneId,
         previewUrl: imageResult.previewUrl,
+        outputKind: imageResult.outputKind ?? imageResult.runtime?.outputKind ?? null,
+        mediaType: imageResult.mediaType ?? imageResult.runtime?.mediaType ?? null,
+        mediaUrl: imageResult.mediaUrl ?? imageResult.runtime?.mediaUrl ?? null,
+        mediaArtifactId: imageResult.mediaArtifactId ?? imageResult.runtime?.mediaArtifactId ?? null,
+        mediaDurationMs: imageResult.mediaDurationMs ?? imageResult.runtime?.mediaDurationMs ?? null,
+        mediaFps: imageResult.mediaFps ?? imageResult.runtime?.mediaFps ?? null,
+        mediaResolution: imageResult.mediaResolution ?? imageResult.runtime?.mediaResolution ?? null,
+        mediaBytes: imageResult.mediaBytes ?? imageResult.runtime?.mediaBytes ?? null,
         skill: imageResult.skill,
         sceneVersion: nextSessionState.currentScene?.version ?? 0,
         mode: "image-to-code"
@@ -1392,17 +1475,7 @@ async function executeChatTurn(sessionId, content, preferences, options = {}) {
         requestId: options.requestId ?? null,
         mode: "image-to-code",
         messageCount: listSessionMessages(sessionId).length,
-        sceneId: turnSummary.sceneId,
-        sceneVersion: turnSummary.sceneVersion,
-        explanation: turnSummary.explanation,
-        modifyOutcome: null,
-        noopReason: null,
-        diff: null,
-        runtimeStatus: turnSummary.runtimeStatus,
-        runtimeWarning: turnSummary.runtimeWarning,
-        runtimeWarningCode: turnSummary.runtimeWarningCode,
-        runtimeErrorCode: turnSummary.runtimeErrorCode,
-        runtimeAcquireDiagnostics: turnSummary.runtimeAcquireDiagnostics
+        ...buildTurnLifecyclePayload(turnSummary)
       });
 
       setSessionStatus(sessionId, "idle");
@@ -1573,6 +1646,14 @@ async function executeChatTurn(sessionId, content, preferences, options = {}) {
           code: turn.result.code,
           previewUrl: turn.result.previewUrl,
           skill: turn.result.skill,
+          outputKind: turn.result.outputKind ?? turn.result.runtime?.outputKind ?? null,
+          mediaType: turn.result.mediaType ?? turn.result.runtime?.mediaType ?? null,
+          mediaUrl: turn.result.mediaUrl ?? turn.result.runtime?.mediaUrl ?? null,
+          mediaArtifactId: turn.result.mediaArtifactId ?? turn.result.runtime?.mediaArtifactId ?? null,
+          mediaDurationMs: turn.result.mediaDurationMs ?? turn.result.runtime?.mediaDurationMs ?? null,
+          mediaFps: turn.result.mediaFps ?? turn.result.runtime?.mediaFps ?? null,
+          mediaResolution: turn.result.mediaResolution ?? turn.result.runtime?.mediaResolution ?? null,
+          mediaBytes: turn.result.mediaBytes ?? turn.result.runtime?.mediaBytes ?? null,
           explanation: turn.result.explanation,
           source: turn.mode,
           messageId: assistantMessageId
@@ -1602,6 +1683,14 @@ async function executeChatTurn(sessionId, content, preferences, options = {}) {
         sessionId,
         sceneId: turn.result.sceneId,
         previewUrl: turn.result.previewUrl,
+        outputKind: turn.result.outputKind ?? turn.result.runtime?.outputKind ?? null,
+        mediaType: turn.result.mediaType ?? turn.result.runtime?.mediaType ?? null,
+        mediaUrl: turn.result.mediaUrl ?? turn.result.runtime?.mediaUrl ?? null,
+        mediaArtifactId: turn.result.mediaArtifactId ?? turn.result.runtime?.mediaArtifactId ?? null,
+        mediaDurationMs: turn.result.mediaDurationMs ?? turn.result.runtime?.mediaDurationMs ?? null,
+        mediaFps: turn.result.mediaFps ?? turn.result.runtime?.mediaFps ?? null,
+        mediaResolution: turn.result.mediaResolution ?? turn.result.runtime?.mediaResolution ?? null,
+        mediaBytes: turn.result.mediaBytes ?? turn.result.runtime?.mediaBytes ?? null,
         skill: turn.result.skill,
         code: turn.result.code,
         diff: turn.result.diff ?? null,
@@ -1618,7 +1707,11 @@ async function executeChatTurn(sessionId, content, preferences, options = {}) {
     }
 
     const turnFailed = Boolean(turn.result?.runtime && turn.result.runtime.success === false);
-    const turnSummary = buildTurnResultSummary(turn.mode, turn.result, nextSessionState);
+    const turnSummary = buildTurnResultSummary(turn.mode, turn.result, nextSessionState, {
+      assistantSource: turn.assistantSource ?? null,
+      assistantWarning: turn.assistantWarning ?? null,
+      assistantLlm: turn.assistantLlm ?? null
+    });
     const runtimeTechnicalDetail = String(
       turn.result?.runtime?.error ?? turn.result?.runtime?.warning ?? ""
     ).toLowerCase();
@@ -1665,9 +1758,14 @@ async function executeChatTurn(sessionId, content, preferences, options = {}) {
             turn.result.skill ? `skill:${turn.result.skill}` : null,
             turn.result.sceneVersion ? `v${turn.result.sceneVersion}` : null
             ,
-            turnError ? `error:${turnError.code}` : null
+            turnError ? `error:${turnError.code}` : null,
+            turn.assistantSource ? `assistantSource:${turn.assistantSource}` : null,
+            turn.assistantWarning ? "assistantWarning:true" : null
           ].filter(Boolean)
-        : []
+        : [
+            turn.assistantSource ? `assistantSource:${turn.assistantSource}` : null,
+            turn.assistantWarning ? "assistantWarning:true" : null
+          ].filter(Boolean)
     }) ?? appendSessionMessage(sessionId, {
       id: assistantMessageId,
       role: "assistant",
@@ -1681,9 +1779,14 @@ async function executeChatTurn(sessionId, content, preferences, options = {}) {
             turn.result.skill ? `skill:${turn.result.skill}` : null,
             turn.result.sceneVersion ? `v${turn.result.sceneVersion}` : null
             ,
-            turnError ? `error:${turnError.code}` : null
+            turnError ? `error:${turnError.code}` : null,
+            turn.assistantSource ? `assistantSource:${turn.assistantSource}` : null,
+            turn.assistantWarning ? "assistantWarning:true" : null
           ].filter(Boolean)
-        : []
+        : [
+            turn.assistantSource ? `assistantSource:${turn.assistantSource}` : null,
+            turn.assistantWarning ? "assistantWarning:true" : null
+          ].filter(Boolean)
     });
 
     broadcastEvent("message.append", {
@@ -1732,18 +1835,7 @@ async function executeChatTurn(sessionId, content, preferences, options = {}) {
       requestId: turnRequestId,
       mode: turn.mode,
       messageCount: listSessionMessages(sessionId).length,
-      sceneId: turnSummary.sceneId,
-      sceneVersion: turnSummary.sceneVersion,
-      skill: turnSummary.skill,
-      explanation: turnSummary.explanation,
-      modifyOutcome: turnSummary.modifyOutcome,
-      noopReason: turnSummary.noopReason,
-      diff: turnSummary.diff,
-      runtimeStatus: turnSummary.runtimeStatus,
-      runtimeWarning: turnSummary.runtimeWarning,
-      runtimeWarningCode: turnSummary.runtimeWarningCode,
-      runtimeErrorCode: turnSummary.runtimeErrorCode,
-      runtimeAcquireDiagnostics: turnSummary.runtimeAcquireDiagnostics,
+      ...buildTurnLifecyclePayload(turnSummary),
       timings: {
         stepDurationsMs
       },
@@ -1774,6 +1866,9 @@ async function executeChatTurn(sessionId, content, preferences, options = {}) {
       sessionId,
       mode: turn.mode,
       intent: turn.parsedIntent,
+      assistantSource: turn.assistantSource ?? null,
+      assistantWarning: turn.assistantWarning ?? null,
+      assistantLlm: turn.assistantLlm ?? null,
       userMessage,
       assistantMessage,
       sceneState: nextSessionState,
@@ -1904,17 +1999,23 @@ app.get("/api/v1/sessions/:sessionId/messages", (req, res) => {
 app.post("/api/v1/sessions/:sessionId/messages", async (req, res) => {
   const sessionId = req.params.sessionId;
   const content = String(req.body?.content ?? req.body?.query ?? "").trim();
+  const imageUrl = String(req.body?.imageUrl ?? "").trim();
+  const imageData = String(req.body?.imageData ?? "").trim();
 
-  if (!content) {
+  if (!content && !imageUrl && !imageData) {
     res.status(400).json({
       error: "VALIDATION_ERROR",
-      message: "Message content is required."
+      message: "Message content or image payload is required."
     });
     return;
   }
 
   try {
-    const result = await executeChatTurn(sessionId, content, req.body?.preferences);
+    const result = await executeChatTurn(sessionId, content, req.body?.preferences, {
+      imageUrl: imageUrl || null,
+      imageData: imageData || null,
+      transport: "rest"
+    });
     res.json(result);
   } catch (error) {
     handleError(error, res);
@@ -1925,6 +2026,10 @@ app.get("/api/v1/skills", (_req, res) => {
   res.json({
     skills: getSkillCatalog()
   });
+});
+
+app.get("/api/v1/media/:mediaKey", (req, res) => {
+  streamMediaArtifact(req, res, req.params.mediaKey);
 });
 
 app.post("/api/v1/tasks/plan", async (req, res) => {
@@ -1993,6 +2098,14 @@ app.post("/api/v1/generate", async (req, res) => {
       code: result.code,
       previewUrl: result.previewUrl,
       skill: result.skill,
+      outputKind: result.outputKind ?? result.runtime?.outputKind ?? null,
+      mediaType: result.mediaType ?? result.runtime?.mediaType ?? null,
+      mediaUrl: result.mediaUrl ?? result.runtime?.mediaUrl ?? null,
+      mediaArtifactId: result.mediaArtifactId ?? result.runtime?.mediaArtifactId ?? null,
+      mediaDurationMs: result.mediaDurationMs ?? result.runtime?.mediaDurationMs ?? null,
+      mediaFps: result.mediaFps ?? result.runtime?.mediaFps ?? null,
+      mediaResolution: result.mediaResolution ?? result.runtime?.mediaResolution ?? null,
+      mediaBytes: result.mediaBytes ?? result.runtime?.mediaBytes ?? null,
       explanation: result.explanation,
       source: "generate"
     });
@@ -2006,6 +2119,14 @@ app.post("/api/v1/generate", async (req, res) => {
       requestId,
       sceneId: result.sceneId,
       previewUrl: result.previewUrl,
+      outputKind: result.outputKind ?? result.runtime?.outputKind ?? null,
+      mediaType: result.mediaType ?? result.runtime?.mediaType ?? null,
+      mediaUrl: result.mediaUrl ?? result.runtime?.mediaUrl ?? null,
+      mediaArtifactId: result.mediaArtifactId ?? result.runtime?.mediaArtifactId ?? null,
+      mediaDurationMs: result.mediaDurationMs ?? result.runtime?.mediaDurationMs ?? null,
+      mediaFps: result.mediaFps ?? result.runtime?.mediaFps ?? null,
+      mediaResolution: result.mediaResolution ?? result.runtime?.mediaResolution ?? null,
+      mediaBytes: result.mediaBytes ?? result.runtime?.mediaBytes ?? null,
       skill: result.skill,
       code: result.code,
       diff: result.diff ?? null,
@@ -2070,6 +2191,14 @@ app.post("/api/v1/generate/from-image", async (req, res) => {
       code: result.code,
       previewUrl: result.previewUrl,
       skill: result.skill,
+      outputKind: result.outputKind ?? result.runtime?.outputKind ?? null,
+      mediaType: result.mediaType ?? result.runtime?.mediaType ?? null,
+      mediaUrl: result.mediaUrl ?? result.runtime?.mediaUrl ?? null,
+      mediaArtifactId: result.mediaArtifactId ?? result.runtime?.mediaArtifactId ?? null,
+      mediaDurationMs: result.mediaDurationMs ?? result.runtime?.mediaDurationMs ?? null,
+      mediaFps: result.mediaFps ?? result.runtime?.mediaFps ?? null,
+      mediaResolution: result.mediaResolution ?? result.runtime?.mediaResolution ?? null,
+      mediaBytes: result.mediaBytes ?? result.runtime?.mediaBytes ?? null,
       explanation: result.explanation,
       source: "image-to-code"
     });
@@ -2078,6 +2207,14 @@ app.post("/api/v1/generate/from-image", async (req, res) => {
       requestId,
       sceneId: result.sceneId,
       previewUrl: result.previewUrl,
+      outputKind: result.outputKind ?? result.runtime?.outputKind ?? null,
+      mediaType: result.mediaType ?? result.runtime?.mediaType ?? null,
+      mediaUrl: result.mediaUrl ?? result.runtime?.mediaUrl ?? null,
+      mediaArtifactId: result.mediaArtifactId ?? result.runtime?.mediaArtifactId ?? null,
+      mediaDurationMs: result.mediaDurationMs ?? result.runtime?.mediaDurationMs ?? null,
+      mediaFps: result.mediaFps ?? result.runtime?.mediaFps ?? null,
+      mediaResolution: result.mediaResolution ?? result.runtime?.mediaResolution ?? null,
+      mediaBytes: result.mediaBytes ?? result.runtime?.mediaBytes ?? null,
       skill: result.skill,
       sessionId: updatedSessionState.sessionId,
       sceneVersion: updatedSessionState.currentScene?.version ?? 0,
@@ -2154,6 +2291,14 @@ app.post("/api/v1/sessions/:sessionId/modify", async (req, res) => {
           code: result.code,
           previewUrl: result.previewUrl,
           skill: result.skill,
+          outputKind: result.outputKind ?? result.runtime?.outputKind ?? null,
+          mediaType: result.mediaType ?? result.runtime?.mediaType ?? null,
+          mediaUrl: result.mediaUrl ?? result.runtime?.mediaUrl ?? null,
+          mediaArtifactId: result.mediaArtifactId ?? result.runtime?.mediaArtifactId ?? null,
+          mediaDurationMs: result.mediaDurationMs ?? result.runtime?.mediaDurationMs ?? null,
+          mediaFps: result.mediaFps ?? result.runtime?.mediaFps ?? null,
+          mediaResolution: result.mediaResolution ?? result.runtime?.mediaResolution ?? null,
+          mediaBytes: result.mediaBytes ?? result.runtime?.mediaBytes ?? null,
           explanation: result.explanation,
           source: "modify"
         });
@@ -2163,6 +2308,14 @@ app.post("/api/v1/sessions/:sessionId/modify", async (req, res) => {
       code: result.code,
       diff: result.diff,
       sceneVersion: updatedSessionState.currentScene?.version ?? 0,
+      outputKind: result.outputKind ?? result.runtime?.outputKind ?? null,
+      mediaType: result.mediaType ?? result.runtime?.mediaType ?? null,
+      mediaUrl: result.mediaUrl ?? result.runtime?.mediaUrl ?? null,
+      mediaArtifactId: result.mediaArtifactId ?? result.runtime?.mediaArtifactId ?? null,
+      mediaDurationMs: result.mediaDurationMs ?? result.runtime?.mediaDurationMs ?? null,
+      mediaFps: result.mediaFps ?? result.runtime?.mediaFps ?? null,
+      mediaResolution: result.mediaResolution ?? result.runtime?.mediaResolution ?? null,
+      mediaBytes: result.mediaBytes ?? result.runtime?.mediaBytes ?? null,
       modifyOutcome: result.modifyOutcome ?? null,
       noopReason: result.noopReason ?? null
     }));
@@ -2298,6 +2451,29 @@ app.post("/api/v1/sessions/:sessionId/artifacts/next", (req, res) => {
     artifactCount: result.state.artifactCount,
     currentArtifactId: result.state.currentArtifactId
   });
+
+  res.json({
+    success: true,
+    sceneState: result.state
+  });
+});
+
+app.post("/api/v1/sessions/:sessionId/versions/select", (req, res) => {
+  const sessionId = req.params.sessionId;
+  const versionId = typeof req.body?.versionId === "string" ? req.body.versionId : "";
+
+  const result = selectSceneVersion(sessionId, versionId);
+
+  if (!result.success) {
+    res.status(400).json({
+      error: "VERSION_SELECTION_FAILED",
+      message: result.reason,
+      sceneState: result.state
+    });
+    return;
+  }
+
+  broadcastEvent("scene:update", buildSceneUpdatePayload(result.state));
 
   res.json({
     success: true,

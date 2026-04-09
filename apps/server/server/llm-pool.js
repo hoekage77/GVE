@@ -138,6 +138,7 @@ export class LLMProviderPool {
    * @param {object} [filter] - Optional filter criteria
    * @param {boolean} [filter.requireThinking] - Only select providers with thinking capability
    * @param {boolean} [filter.requireCodeGeneration] - Only select code-gen capable providers
+   * @param {boolean} [filter.requireVision] - Only select providers with vision capability
    * @returns {{ provider: object, waitMs: number } | null}
    *   - provider: the selected provider object
    *   - waitMs: 0 if healthy, or ms to wait if in cooldown
@@ -151,6 +152,7 @@ export class LLMProviderPool {
       if (health.state === HEALTH_STATES.DISABLED) return false;
       if (filter.requireThinking && !p.capabilities?.thinking) return false;
       if (filter.requireCodeGeneration && !p.capabilities?.codeGeneration) return false;
+      if (filter.requireVision && !p.capabilities?.vision) return false;
       return true;
     });
 

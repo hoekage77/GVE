@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Sparkles, ChevronDown, Eye, Code2 } from "lucide-react";
+import { Sparkles, ChevronDown, Eye } from "lucide-react";
 import MarkdownRenderer from "./MarkdownRenderer";
 
 // === User Message ===
@@ -43,6 +43,13 @@ interface AIMessageProps {
   thinkingDuration?: number;
   timestamp?: number;
   sceneId?: string;
+  artifact?: {
+    previewUrl: string | null;
+    mediaUrl: string | null;
+    mediaType: string | null;
+    outputKind: "code" | "media" | null;
+    skill: string | null;
+  };
   activeSceneView?: 'preview' | 'code' | null;
   onSceneAction?: (action: 'preview' | 'code') => void;
 }
@@ -151,26 +158,17 @@ export function AIMessage({
         )}
 
         {showSceneFooter && (
-          <div className="ai-message-scene-footer" aria-label="Scene actions">
-
-            <div className="ai-message-scene-footer__actions">
+          <div className="ai-message-artifact" aria-label="Generated visual artifact">
+            <div className="ai-message-artifact__actions">
               <button
                 type="button"
-                className={`ai-message-scene-footer__button ${activeSceneView === 'code' ? 'is-active' : ''}`}
-                onClick={() => onSceneAction?.('code')}
-                aria-label="Open code"
-              >
-                <Code2 className="h-3.5 w-3.5" aria-hidden="true" />
-                Code
-              </button>
-              <button
-                type="button"
-                className={`ai-message-scene-footer__button ${activeSceneView === 'preview' ? 'is-active' : ''}`}
+                className={`ai-message-artifact__button ${activeSceneView === 'preview' ? 'is-active' : ''}`}
                 onClick={() => onSceneAction?.('preview')}
                 aria-label="Open preview"
+                title={compactSceneId ? `Open ${compactSceneId} preview` : 'Open scene preview'}
               >
                 <Eye className="h-3.5 w-3.5" aria-hidden="true" />
-                Preview
+                Preview Scene
               </button>
             </div>
           </div>

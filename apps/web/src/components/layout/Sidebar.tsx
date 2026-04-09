@@ -3,6 +3,10 @@ import { Link } from '@tanstack/react-router';
 import { Plus, MessageSquare, History, ChevronDown, ChevronRight, ChevronLeft } from 'lucide-react';
 import { useChatStore, type Session, type SessionMessage } from '../../stores';
 
+interface SidebarProps {
+  forceExpanded?: boolean;
+}
+
 const SIDEBAR_COLLAPSED_SESSION_KEY = 'terranet.sidebar.collapsed';
 
 function getInitialCollapsedState(): boolean {
@@ -76,14 +80,14 @@ function formatUpdatedAt(value: string | undefined): string {
   return new Date(value).toLocaleDateString();
 }
 
-export default function Sidebar() {
-  const [isCollapsed, setIsCollapsed] = useState(getInitialCollapsedState);
+export default function Sidebar({ forceExpanded = false }: SidebarProps) {
+  const [isCollapsed, setIsCollapsed] = useState(() => (forceExpanded ? false : getInitialCollapsedState()));
   const [isHistoryOpen, setIsHistoryOpen] = useState(true);
   const sessions = useChatStore((state) => state.sessions);
   const messages = useChatStore((state) => state.messages);
   const activeSessionId = useChatStore((state) => state.activeSessionId);
   const isBootstrapping = useChatStore((state) => state.isBootstrapping);
-  const createNewSession = useChatStore((state) => state.createNewSession);
+  const startDraftSession = useChatStore((state) => state.startDraftSession);
   const selectSession = useChatStore((state) => state.selectSession);
 
   const sessionRows = useMemo(() => {
@@ -97,17 +101,23 @@ export default function Sidebar() {
     });
   }, [messages, sessions]);
 
-  const handleCreateSession = async () => {
-    await createNewSession();
+  const handleCreateSession = () => {
+    startDraftSession();
   };
 
   useEffect(() => {
-    if (typeof window === 'undefined') {
+    if (forceExpanded) {
+      setIsCollapsed(false);
+    }
+  }, [forceExpanded]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined' || forceExpanded) {
       return;
     }
 
     window.sessionStorage.setItem(SIDEBAR_COLLAPSED_SESSION_KEY, isCollapsed ? '1' : '0');
-  }, [isCollapsed]);
+  }, [forceExpanded, isCollapsed]);
 
   return (
     <aside className={`app-sidebar ${isCollapsed ? 'app-sidebar--collapsed' : 'app-sidebar--expanded'}`}>
@@ -126,7 +136,7 @@ export default function Sidebar() {
             <button
               type="button"
               className="sidebar-mini-button sidebar-mini-button--new"
-              onClick={() => void handleCreateSession()}
+              onClick={handleCreateSession}
               aria-label="Create new chat"
               title={isBootstrapping ? 'Loading...' : 'New chat'}
             >
@@ -135,19 +145,21 @@ export default function Sidebar() {
           </div>
         ) : (
           <div className="app-sidebar-header-row">
-            <button type="button" className="new-chat-button" onClick={() => void handleCreateSession()}>
+            <button type="button" className="new-chat-button" onClick={handleCreateSession}>
               <Plus className="h-4 w-4" />
               <span>{isBootstrapping ? 'Loading...' : 'New Chat'}</span>
             </button>
-            <button
-              type="button"
-              className="sidebar-collapse-button"
-              onClick={() => setIsCollapsed(true)}
-              aria-label="Collapse sidebar"
-              title="Collapse sidebar"
-            >
-              <ChevronLeft className="h-4 w-4" />
-            </button>
+            {!forceExpanded && (
+              <button
+                type="button"
+                className="sidebar-collapse-button"
+                onClick={() => setIsCollapsed(true)}
+                aria-label="Collapse sidebar"
+                title="Collapse sidebar"
+              >
+                <ChevronLeft className="h-4 w-4" />
+              </button>
+            )}
           </div>
         )}
       </div>

@@ -11,7 +11,7 @@ import { runSelfDebugSession, runRuntimeDebugSession } from "./agent-runner.js";
 import { getDebugTools, getRuntimeDebugTools, setErrorContext, clearErrorContext } from "./agent-tools.js";
 import { getPool } from "./llm-pool.js";
 
-const skillValues = ["threejs", "p5js", "d3js", "animejs", "auto"];
+const skillValues = ["threejs", "p5js", "d3js", "animejs", "manim", "auto"];
 const qualityValues = ["draft", "standard", "high"];
 const moonshotBaseUrl = process.env.MOONSHOT_BASE_URL ?? "https://api.moonshot.ai/v1";
 const moonshotModel = process.env.MOONSHOT_MODEL ?? "kimi-k2.5";
@@ -71,6 +71,11 @@ const runtimeExecutionTimeoutMs = parsePositiveIntEnv(
   2200,
   300
 );
+const manimRuntimeExecutionTimeoutMs = parsePositiveIntEnv(
+  process.env.RUNTIME_EXEC_TIMEOUT_MANIM_MS,
+  fastModeEnabled ? 90_000 : 150_000,
+  2_000
+);
 const runtimeExecutionMaxFrames = parsePositiveIntEnv(
   process.env.RUNTIME_EXEC_MAX_FRAMES,
   48,
@@ -80,6 +85,11 @@ const runtimeExecutionReserveMs = parsePositiveIntEnv(
   process.env.RUNTIME_EXEC_RESERVE_MS,
   10_000,
   1_000
+);
+const manimRuntimeExecutionReserveMs = parsePositiveIntEnv(
+  process.env.RUNTIME_EXEC_RESERVE_MANIM_MS,
+  fastModeEnabled ? 90_000 : 120_000,
+  2_000
 );
 const turnBudgetMs = parsePositiveIntEnv(
   process.env.TURN_BUDGET_MS,
@@ -111,6 +121,15 @@ const runtimeDebugMaxIterations = parsePositiveIntEnv(
   2,
   1
 );
+
+function resolveRuntimeExecutionTimeoutMs(skillId) {
+  return skillId === "manim" ? manimRuntimeExecutionTimeoutMs : runtimeExecutionTimeoutMs;
+}
+
+function resolveRuntimeExecutionReserveMs(skillId) {
+  return skillId === "manim" ? manimRuntimeExecutionReserveMs : runtimeExecutionReserveMs;
+}
+
 const disableGenerateAutoModify = parseBooleanEnv(
   process.env.DISABLE_GENERATE_AUTO_MODIFY,
   true
@@ -161,17 +180,30 @@ function shouldDegradeRuntimeFailure(runtimeResult) {
     .join(" | ")
     .toLowerCase();
 
-  return /(acquire_budget_exhausted|runtime_budget_exhausted|budget exhausted|daytona|sandbox|eai_again|getaddrinfo|enotfound|dns|enetunreach|operation timed out|timed out|failed to create and start sandbox|acquire timeout)/i.test(
+  return /(acquire_budget_exhausted|runtime_budget_exhausted|budget exhausted|daytona|eai_again|getaddrinfo|enotfound|dns|enetunreach|operation timed out|timed out|failed to create and start sandbox|acquire timeout)/i.test(
     detail
   );
 }
 
 function buildDegradedRuntimeResult(runtimeResult, selectedSkill, fallbackPreviewUrl = "about:blank") {
   const originalDetail = runtimeResult?.error || runtimeResult?.warning || "Sandbox runtime unavailable.";
+  const resolvedOutputKind = runtimeResult?.outputKind ?? (selectedSkill === "manim" ? "media" : "code");
+  const resolvedMediaType = runtimeResult?.mediaType ?? (resolvedOutputKind === "media" ? "video/mp4" : null);
+  const resolvedPreviewUrl = runtimeResult?.previewUrl ?? fallbackPreviewUrl;
+  const resolvedMediaUrl = runtimeResult?.mediaUrl ?? (resolvedOutputKind === "media" ? resolvedPreviewUrl : null);
+
   return {
     success: true,
     status: "degraded",
-    previewUrl: runtimeResult?.previewUrl ?? fallbackPreviewUrl,
+    previewUrl: resolvedPreviewUrl,
+    outputKind: resolvedOutputKind,
+    mediaType: resolvedMediaType,
+    mediaUrl: resolvedMediaUrl,
+    mediaArtifactId: runtimeResult?.mediaArtifactId ?? null,
+    mediaDurationMs: runtimeResult?.mediaDurationMs ?? null,
+    mediaFps: runtimeResult?.mediaFps ?? null,
+    mediaResolution: runtimeResult?.mediaResolution ?? null,
+    mediaBytes: runtimeResult?.mediaBytes ?? null,
     skillId: runtimeResult?.skillId ?? selectedSkill,
     skillName: runtimeResult?.skillName ?? selectedSkill,
     dependencyCount: runtimeResult?.dependencyCount ?? 0,
@@ -241,10 +273,21 @@ async function withTimeout(promise, timeoutMs, timeoutMessage) {
 }
 
 function buildRuntimeFailureResult({ skillId, errorMessage, errorCode = "RUNTIME_EXEC_TIMEOUT" }) {
+  const outputKind = skillId === "manim" ? "media" : "code";
+  const mediaType = outputKind === "media" ? "video/mp4" : null;
+
   return {
     success: false,
     status: "error",
     previewUrl: null,
+    outputKind,
+    mediaType,
+    mediaUrl: null,
+    mediaArtifactId: null,
+    mediaDurationMs: null,
+    mediaFps: null,
+    mediaResolution: null,
+    mediaBytes: null,
     skillId,
     skillName: skillId,
     dependencyCount: 0,
@@ -260,7 +303,7 @@ function buildRuntimeFailureResult({ skillId, errorMessage, errorCode = "RUNTIME
   };
 }
 
-async function executeSkillRuntimeBounded({ skillId, code, timeoutMs, maxFrames, turnDeadlineAtMs }) {
+async function executeSkillRuntimeBounded({ skillId, code, timeoutMs, maxFrames, turnDeadlineAtMs, sessionId = null }) {
   if (!Number.isFinite(timeoutMs) || timeoutMs <= 0) {
     return buildRuntimeFailureResult({
       skillId,
@@ -277,7 +320,8 @@ async function executeSkillRuntimeBounded({ skillId, code, timeoutMs, maxFrames,
         code,
         timeoutMs,
         maxFrames,
-        turnDeadlineAtMs
+        turnDeadlineAtMs,
+        sessionId
       }),
       envelopeTimeoutMs,
       `Runtime execution timed out after ${envelopeTimeoutMs}ms.`
@@ -311,7 +355,9 @@ function resolveRequestedQuality(request, selectedSkill) {
     return explicitQuality;
   }
 
-  return selectedSkill === "threejs" || selectedSkill === "animejs" ? "high" : "standard";
+  return selectedSkill === "threejs" || selectedSkill === "animejs" || selectedSkill === "manim"
+    ? "high"
+    : "standard";
 }
 
 const moonshotModeProfiles = Object.freeze({
@@ -407,7 +453,7 @@ function hasActionIntent(normalizedQuery) {
 }
 
 function hasVisualTopicIntent(normalizedQuery) {
-  return /\b(scene|visual|image|3d|2d|canvas|diagram|chart|graph|data|cube|sphere|particle|color|rotation|spin|orbit|layout|lighting|material|shader|threejs|p5js|d3js|anime|animejs|motion|timeline|tween|easing|mermaid|wave|waves|scalar|interference|frequency|resonance|field|fields)\b/.test(
+  return /\b(scene|visual|image|video|animation|3d|2d|canvas|diagram|chart|graph|data|cube|sphere|particle|color|rotation|spin|orbit|layout|lighting|material|shader|threejs|p5js|d3js|anime|animejs|manim|motion|timeline|tween|easing|equation|formula|latex|math|mermaid|wave|waves|scalar|interference|frequency|resonance|field|fields)\b/.test(
     normalizedQuery
   );
 }
@@ -418,6 +464,20 @@ function hasRefinementIntent(normalizedQuery) {
   }
 
   return /\bmake\b/.test(normalizedQuery) && /(better|cleaner|sharper|richer|deeper|premium)/.test(normalizedQuery);
+}
+
+function hasExplicitEditInstruction(normalizedQuery) {
+  if (/(\bmodify\b|\bchange\b|\bupdate\b|\bedit\b|\brefine\b|\bpolish\b|\benhance\b|\bimprove\b|\bupgrade\b|\btweak\b|\badjust\b|\brevise\b|\brework\b)/.test(normalizedQuery)) {
+    return true;
+  }
+
+  if (!/\bmake\b/.test(normalizedQuery)) {
+    return false;
+  }
+
+  const referencesCurrentScene = /\b(it|this|that|current|existing|same)\b/.test(normalizedQuery);
+  const refinementQualifier = /(better|cleaner|sharper|richer|deeper|premium|cinematic|high\s*quality)/.test(normalizedQuery);
+  return referencesCurrentScene && refinementQualifier;
 }
 
 function isQuestionQuery(normalizedQuery) {
@@ -479,18 +539,53 @@ function extractAssistantText(rawContent) {
   return cleaned;
 }
 
-async function generateConversationReplyWithMoonshot({ sessionState, request, parsedIntent, mode, onChunk }) {
-  if (!moonshotApiKey) {
-    const replyText = buildConversationHelpText(sessionState, request.query, parsedIntent);
-    await emitTextChunks(replyText, onChunk);
-
-    return {
-      replyText,
-      replySource: "fallback",
-      replyWarning: "MOONSHOT_API_KEY not configured; used fallback conversation reply."
-    };
+function extractChoiceContent(rawContent) {
+  if (typeof rawContent === "string") {
+    return rawContent;
   }
 
+  if (Array.isArray(rawContent)) {
+    return rawContent
+      .map((part) => {
+        if (typeof part === "string") {
+          return part;
+        }
+
+        if (!part || typeof part !== "object") {
+          return "";
+        }
+
+        if (typeof part.text === "string") {
+          return part.text;
+        }
+
+        if (typeof part.content === "string") {
+          return part.content;
+        }
+
+        if (typeof part.value === "string") {
+          return part.value;
+        }
+
+        return "";
+      })
+      .join("");
+  }
+
+  if (rawContent && typeof rawContent === "object") {
+    if (typeof rawContent.text === "string") {
+      return rawContent.text;
+    }
+
+    if (typeof rawContent.content === "string") {
+      return rawContent.content;
+    }
+  }
+
+  return "";
+}
+
+async function generateConversationReplyWithMoonshot({ sessionState, request, parsedIntent, mode, onChunk }) {
   const { systemPrompt, userPrompt } = buildConversationPromptBundle({
     sessionState,
     request,
@@ -499,36 +594,60 @@ async function generateConversationReplyWithMoonshot({ sessionState, request, pa
   });
 
   try {
-    const response = await fetchMoonshotChatCompletion({
-      model: moonshotModel,
-      stream: true,
-      messages: [
-        { role: "system", content: systemPrompt },
-        { role: "user", content: userPrompt }
-      ]
-    }, { mode: "thinking" });
+    const completion = await executeWithProviderFailover({
+      operationName: "ConversationReply",
+      filter: { requireThinking: true },
+      mode: "thinking",
+      retryDelays: moonshotRetryDelaysMs,
+      executeProvider: async ({ provider, mode: providerMode, retryDelays }) => {
+        const response = await fetchChatCompletion(
+          provider,
+          {
+            messages: [
+              { role: "system", content: systemPrompt },
+              { role: "user", content: userPrompt }
+            ]
+          },
+          { mode: providerMode, retryDelays }
+        );
 
-    const contentType = response.headers.get("content-type") ?? "";
-    const replyText = contentType.includes("text/event-stream")
-      ? extractAssistantText(await streamMoonshotAssistantText(response, onChunk))
-      : extractAssistantText((await response.json())?.choices?.[0]?.message?.content);
+        const payload = await response.json();
+        const replyText = extractAssistantText(extractChoiceContent(payload?.choices?.[0]?.message?.content));
 
-    if (!replyText) {
-      throw new Error("Moonshot returned empty conversational output.");
-    }
+        if (!replyText) {
+          throw createRetryableProviderError(`${provider.id} returned empty conversational output.`, "PROVIDER_EMPTY_OUTPUT");
+        }
+
+        return { replyText };
+      }
+    });
+
+    const replyText = completion?.value?.replyText ?? "";
+    await emitTextChunks(replyText, onChunk);
 
     return {
       replyText,
-      replySource: "moonshot-kimi",
-      replyWarning: null
+      replySource: completion.provider.id,
+      replyWarning: completion.llm.fallbackUsed
+        ? `Primary conversation model unavailable; replied via ${completion.provider.id}.`
+        : null,
+      replyLlm: completion.llm
     };
   } catch (error) {
-    return {
-      replyText: buildConversationHelpText(sessionState, request.query, parsedIntent),
-      replySource: "fallback",
-      replyWarning: isMoonshotOverloaded(error)
+    const replyText = buildConversationHelpText(sessionState, request.query, parsedIntent);
+    await emitTextChunks(replyText, onChunk);
+
+    const fallbackReason = error?.code === "NO_ELIGIBLE_LLM_PROVIDER"
+      ? "No eligible LLM providers configured; used fallback conversation reply."
+      : isMoonshotOverloaded(error)
         ? moonshotOverloadedMessage
-        : `Conversation fallback used after model error: ${error instanceof Error ? error.message : "Unknown error"}`
+        : `Conversation fallback used after model error: ${error instanceof Error ? error.message : "Unknown error"}`;
+
+    return {
+      replyText,
+      replySource: "fallback",
+      replyWarning: fallbackReason,
+      replyLlm: error?.llm ?? null
     };
   }
 }
@@ -538,7 +657,7 @@ function extractCodeContent(rawContent) {
     return "";
   }
 
-  const fencedBlock = rawContent.match(/```(?:javascript|js)?\s*([\s\S]*?)```/i);
+  const fencedBlock = rawContent.match(/```(?:[a-z0-9_-]+)?\s*([\s\S]*?)```/i);
   const output = fencedBlock ? fencedBlock[1] : rawContent;
   return output.trim();
 }
@@ -1050,6 +1169,202 @@ async function fetchChatCompletion(provider, payload, options = {}) {
   throw lastError ?? new Error(`${provider.id} request failed.`);
 }
 
+function providerMatchesFilter(provider, filter = {}) {
+  if (!provider?.hasApiKey) {
+    return false;
+  }
+
+  if (filter.requireThinking && !provider.capabilities?.thinking) {
+    return false;
+  }
+
+  if (filter.requireCodeGeneration && !provider.capabilities?.codeGeneration) {
+    return false;
+  }
+
+  if (filter.requireVision && !provider.capabilities?.vision) {
+    return false;
+  }
+
+  return true;
+}
+
+function countEligibleProviders(pool, filter = {}) {
+  return pool.providers.filter((provider) => providerMatchesFilter(provider, filter)).length;
+}
+
+function createRetryableProviderError(message, code = "PROVIDER_RETRYABLE_FAILURE") {
+  const error = new Error(message);
+  error.code = code;
+  error.retryable = true;
+  return error;
+}
+
+function isRetryableProviderFailure(error) {
+  if (error?.retryable === true) {
+    return true;
+  }
+
+  if (error?.status === 429 || error?.code === "PROVIDER_RATE_LIMITED") {
+    return true;
+  }
+
+  const text = String(error?.message ?? "").toLowerCase();
+  return /(timed? ?out|overloaded|engine_overloaded|temporarily|connection reset|socket hang up)/i.test(text);
+}
+
+function getRetryableProviderFailureReason(error) {
+  if (error?.status === 429 || error?.code === "PROVIDER_RATE_LIMITED") {
+    return "429";
+  }
+
+  const text = String(error?.message ?? "").toLowerCase();
+  if (/timed? ?out/i.test(text)) {
+    return "timeout";
+  }
+
+  if (/(overloaded|engine_overloaded|temporarily)/i.test(text)) {
+    return "overloaded";
+  }
+
+  return truncateDiagnostic(error?.code ?? error?.message ?? "provider_failure", 96) ?? "provider_failure";
+}
+
+function buildLlmSourceMetadata({ providerId, model, attempts }) {
+  const normalizedAttempts = Array.isArray(attempts)
+    ? attempts.map((attempt) => ({
+      providerId: attempt.providerId,
+      model: attempt.model,
+      status: attempt.status,
+      reason: attempt.reason ?? null,
+      retryable: Boolean(attempt.retryable)
+    }))
+    : [];
+
+  return {
+    providerId: providerId ?? null,
+    model: model ?? null,
+    fallbackUsed: normalizedAttempts.length > 1,
+    attemptCount: normalizedAttempts.length,
+    attempts: normalizedAttempts
+  };
+}
+
+async function executeWithProviderFailover(options = {}) {
+  const operationName = options.operationName ?? "LLMOperation";
+  const filter = options.filter ?? {};
+  const mode = options.mode ?? "instant";
+  const retryDelays = Array.isArray(options.retryDelays) ? options.retryDelays : [150, 350];
+  const maxCooldownWaitMs = Number.isFinite(options.maxCooldownWaitMs)
+    ? Math.max(0, options.maxCooldownWaitMs)
+    : 15_000;
+  const executeProvider = options.executeProvider;
+
+  if (typeof executeProvider !== "function") {
+    throw new Error(`${operationName} requires executeProvider callback.`);
+  }
+
+  const pool = getPool();
+  const maxAttempts = countEligibleProviders(pool, filter);
+
+  if (maxAttempts === 0) {
+    const error = new Error(`${operationName} has no eligible LLM providers configured.`);
+    error.code = "NO_ELIGIBLE_LLM_PROVIDER";
+    throw error;
+  }
+
+  const triedProviders = new Set();
+  const attempts = [];
+
+  for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
+    const acquired = pool.acquire(filter);
+    if (!acquired) {
+      break;
+    }
+
+    const { provider, waitMs } = acquired;
+    const resolvedModel = provider.model;
+
+    if (triedProviders.has(provider.id)) {
+      if (waitMs > 0 && waitMs <= maxCooldownWaitMs) {
+        await sleep(waitMs);
+      } else {
+        break;
+      }
+    }
+
+    triedProviders.add(provider.id);
+    const requestStartedAt = Date.now();
+
+    try {
+      const value = await executeProvider({
+        provider,
+        mode,
+        retryDelays,
+        attempt: attempt + 1,
+        maxAttempts
+      });
+
+      pool.recordRequest(provider.id, Date.now() - requestStartedAt);
+      pool.markHealthy(provider.id);
+
+      attempts.push({
+        providerId: provider.id,
+        model: resolvedModel,
+        status: "success",
+        reason: null,
+        retryable: false
+      });
+
+      return {
+        value,
+        provider,
+        model: resolvedModel,
+        llm: buildLlmSourceMetadata({
+          providerId: provider.id,
+          model: resolvedModel,
+          attempts
+        })
+      };
+    } catch (error) {
+      const retryable = isRetryableProviderFailure(error);
+      const reason = truncateDiagnostic(error?.code ?? error?.message ?? "provider_failure", 180);
+
+      attempts.push({
+        providerId: provider.id,
+        model: resolvedModel,
+        status: "failed",
+        reason,
+        retryable
+      });
+
+      if (retryable) {
+        pool.markExhausted(provider.id, getRetryableProviderFailureReason(error));
+        continue;
+      }
+
+      if (!error.llm) {
+        error.llm = buildLlmSourceMetadata({
+          providerId: provider.id,
+          model: resolvedModel,
+          attempts
+        });
+      }
+
+      throw error;
+    }
+  }
+
+  const exhaustedError = new Error(`${operationName}: all eligible LLM providers were exhausted.`);
+  exhaustedError.code = "ALL_LLM_PROVIDERS_EXHAUSTED";
+  exhaustedError.llm = buildLlmSourceMetadata({
+    providerId: null,
+    model: null,
+    attempts
+  });
+  throw exhaustedError;
+}
+
 /**
  * Generate code using the LLM provider pool with round-robin failover.
  * Tries each provider in priority order; on 429 or timeout, marks the provider
@@ -1305,10 +1620,6 @@ async function modifyCodeWithPool(state, options = {}) {
  * @returns {Promise<object|null>} Object with step narrations, or null on failure
  */
 export async function generateThinkingAnalysis(query, sessionContext = {}, options = {}) {
-  if (!moonshotApiKey) {
-    return null;
-  }
-
   const hasScene = Boolean(sessionContext?.currentScene?.code);
   const sceneHint = hasScene
     ? `The user already has an active scene (skill: ${sessionContext.currentScene.skill ?? "unknown"}, version ${sessionContext.currentScene.version ?? 1}).`
@@ -1338,38 +1649,51 @@ export async function generateThinkingAnalysis(query, sessionContext = {}, optio
   ].join("\n");
 
   try {
-    const payload = await withNarrationRetries("ThinkingAnalysis", async () => {
-      const response = await fetchMoonshotChatCompletion(
-        {
-          model: moonshotModel,
-          messages: [
-            { role: "system", content: systemPrompt },
-            { role: "user", content: userPrompt }
-          ]
-        },
-        { mode: "thinking" }
-      );
+    const thinkingRetryDelays = narrationRetryDelaysMs.length > 0
+      ? narrationRetryDelaysMs
+      : moonshotRetryDelaysMs;
 
-      return response.json();
+    const completion = await executeWithProviderFailover({
+      operationName: "ThinkingAnalysis",
+      filter: { requireThinking: true },
+      mode: "thinking",
+      retryDelays: thinkingRetryDelays,
+      executeProvider: async ({ provider, mode: providerMode, retryDelays }) => {
+        const response = await fetchChatCompletion(
+          provider,
+          {
+            messages: [
+              { role: "system", content: systemPrompt },
+              { role: "user", content: userPrompt }
+            ]
+          },
+          { mode: providerMode, retryDelays }
+        );
+
+        const payload = await response.json();
+        const content = extractChoiceContent(payload?.choices?.[0]?.message?.content ?? "");
+        const jsonMatch = content.match(/\{[\s\S]*\}/);
+
+        if (!jsonMatch) {
+          throw createRetryableProviderError(`${provider.id} returned non-JSON thinking output.`, "PROVIDER_INVALID_OUTPUT");
+        }
+
+        try {
+          return JSON.parse(jsonMatch[0]);
+        } catch {
+          throw createRetryableProviderError(`${provider.id} returned malformed thinking JSON.`, "PROVIDER_INVALID_OUTPUT");
+        }
+      }
     });
 
-    const content = payload?.choices?.[0]?.message?.content ?? "";
-
-    // Extract JSON from response (may be wrapped in code blocks)
-    const jsonMatch = content.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) {
-      console.warn("[ThinkingAnalysis] Could not extract JSON from response.");
-      return null;
-    }
-
-    const parsed = JSON.parse(jsonMatch[0]);
-    console.log("[ThinkingAnalysis] Generated context-aware thoughts for:", query.slice(0, 60));
-    return parsed;
+    console.log(`[ThinkingAnalysis] Generated context-aware thoughts via ${completion.provider.id} for:`, query.slice(0, 60));
+    return completion.value;
   } catch (err) {
     const diagnostics = serializeErrorForDiagnostics(err, {
       stage: "thinking_analysis",
       queryPreview: truncateDiagnostic(query, 96),
-      hasScene
+      hasScene,
+      llm: err?.llm ?? null
     });
 
     console.warn("[ThinkingAnalysis] Failed:", JSON.stringify(diagnostics));
@@ -1397,9 +1721,6 @@ export async function generateThinkingAnalysis(query, sessionContext = {}, optio
  */
 export async function generatePostTurnNarration(turnResult, query, options = {}) {
   const fastNarrationMode = options.fastMode ?? fastModeEnabled;
-  if (!moonshotApiKey) {
-    return buildLocalPostTurnNarration(turnResult, query);
-  }
 
   const skill = turnResult?.result?.skill ?? "unknown";
   const runtimeStatus = turnResult?.result?.runtime?.status ?? "unknown";
@@ -1424,25 +1745,38 @@ export async function generatePostTurnNarration(turnResult, query, options = {})
 
   try {
     const narrationRetryDelays = fastNarrationMode ? [] : narrationRetryDelaysMs;
-    const payload = await withNarrationRetries("PostTurnNarration", async () => {
-      const response = await fetchMoonshotChatCompletion(
-        {
-          model: moonshotModel,
-          messages: [
-            { role: "system", content: systemPrompt },
-            { role: "user", content: userPrompt }
-          ]
-        },
-        { mode: "thinking" }
-      );
+    const completion = await executeWithProviderFailover({
+      operationName: "PostTurnNarration",
+      filter: { requireThinking: true },
+      mode: "thinking",
+      retryDelays: narrationRetryDelays,
+      executeProvider: async ({ provider, mode: providerMode, retryDelays }) => {
+        const response = await fetchChatCompletion(
+          provider,
+          {
+            messages: [
+              { role: "system", content: systemPrompt },
+              { role: "user", content: userPrompt }
+            ]
+          },
+          { mode: providerMode, retryDelays }
+        );
 
-      return response.json();
-    }, { retryDelays: narrationRetryDelays });
+        const payload = await response.json();
+        const content = extractAssistantText(extractChoiceContent(payload?.choices?.[0]?.message?.content ?? ""));
 
-    const content = extractAssistantText(payload?.choices?.[0]?.message?.content ?? "");
+        if (!content) {
+          throw createRetryableProviderError(`${provider.id} returned empty narration output.`, "PROVIDER_EMPTY_OUTPUT");
+        }
+
+        return content;
+      }
+    });
+
+    const content = completion.value;
 
     if (content) {
-      console.log("[PostTurnNarration] Generated summary for:", query.slice(0, 60));
+      console.log(`[PostTurnNarration] Generated summary via ${completion.provider.id} for:`, query.slice(0, 60));
     }
 
     return content || null;
@@ -1610,6 +1944,25 @@ function buildAnimeFallbackCode() {
   ].join("\n");
 }
 
+function buildManimFallbackCode() {
+  return [
+    "from manim import *",
+    "",
+    "class GVERichScene(Scene):",
+    "    def construct(self):",
+    "        title = Text('Terranet Rich Video', weight=BOLD).scale(0.86)",
+    "        subtitle = Text('Manim fallback composition', font_size=30).next_to(title, DOWN, buff=0.25)",
+    "        halo = Circle(radius=2.15, stroke_color=BLUE_D, stroke_width=10)",
+    "        orbit = Dot(color=TEAL_A)",
+    "",
+    "        self.play(FadeIn(title, shift=UP * 0.2), FadeIn(subtitle, shift=DOWN * 0.2), run_time=1.0)",
+    "        self.play(Create(halo), FadeIn(orbit), run_time=1.2)",
+    "        self.play(MoveAlongPath(orbit, halo), run_time=2.2, rate_func=smooth)",
+    "        self.play(Rotate(halo, angle=TAU, run_time=1.8, rate_func=linear), orbit.animate.scale(1.5), run_time=1.8)",
+    "        self.wait(0.4)"
+  ].join("\n");
+}
+
 function buildFallbackGeneratedCode(selectedSkill = "threejs") {
   const skillId = String(selectedSkill ?? "threejs").toLowerCase();
   if (skillId === "p5js") {
@@ -1624,7 +1977,37 @@ function buildFallbackGeneratedCode(selectedSkill = "threejs") {
     return buildAnimeFallbackCode();
   }
 
+  if (skillId === "manim") {
+    return buildManimFallbackCode();
+  }
+
   return buildThreeJsFallbackCode();
+}
+
+function describeGenerationSource(source) {
+  const normalized = String(source ?? "").trim().toLowerCase();
+
+  if (!normalized || normalized === "fallback" || normalized === "static-fallback") {
+    return "Generated via local fallback output.";
+  }
+
+  if (normalized === "cache") {
+    return "Generated from cache.";
+  }
+
+  if (normalized === "moonshot-kimi") {
+    return `Generated via Moonshot Kimi (${moonshotModel}).`;
+  }
+
+  if (normalized === "agent-runtime-debug") {
+    return "Recovered via runtime self-debug agent.";
+  }
+
+  if (normalized === "runtime-auto-fix") {
+    return "Recovered via deterministic runtime auto-fix.";
+  }
+
+  return `Generated via ${normalized} provider.`;
 }
 
 async function generateCodeWithMoonshot(state) {
@@ -1856,8 +2239,8 @@ export function parseIntentFromQuery(query) {
   if (/(modify|change|update|edit|refine|polish|enhance|improve|upgrade|tweak|adjust)/.test(normalized) || hasRefinementIntent(normalized)) {
     intentType = "modify";
   }
-  if (/(animate|rotation|spin|orbit)/.test(normalized)) intentType = "animate";
   if (/(create|make|build|generate|design|draw|sketch|render|animation|video)/.test(normalized)) intentType = "create";
+  if (/(animate|animation|rotation|spin|orbit|timeline|video|manim)/.test(normalized)) intentType = "animate";
   if (conversationQuery) intentType = "chat";
 
   const hasStrong3dSignal = /\b(threejs|three\.js|3d|orbit(?:al)?\s+controls?|mesh|geometry|material|shader|volumetric|fog|lighting|emissive|camera|instanc(?:e|ed|ing)|terrain|pbr|catmullrom|vertex)\b/.test(
@@ -1867,14 +2250,16 @@ export function parseIntentFromQuery(query) {
     normalized
   );
   const hasDiagramSignal = /\b(diagram|flow|sequence|class diagram|mermaid)\b/.test(normalized);
-  const hasStrong2dSignal = /\b(2d|canvas|p5(?:js)?|sprite|pixel(?:\s+art)?|sketch)\b/.test(normalized);
+  const hasStrong2dSignal = /\b(2d|canvas|p5(?:js)?|sprite|pixel(?:\s+art)?|sketch|manim|equation|latex|formula|math\s+animation)\b/.test(normalized);
   const hasWeak2dSignal = /\bparticles?\b/.test(normalized);
+  const hasAnimationVideoSignal = /\b(video|mp4|timeline|motion|cinematic|storyboard|manim)\b/.test(normalized);
 
   let targetDomain = "3d";
   if (hasStrongDataSignal) targetDomain = "data-viz";
   if (hasDiagramSignal) targetDomain = "diagram";
   if (hasStrong2dSignal || (hasWeak2dSignal && !hasStrong3dSignal)) targetDomain = "2d";
-  if (hasStrong3dSignal && !hasStrongDataSignal && !hasDiagramSignal) targetDomain = "3d";
+  if (hasAnimationVideoSignal && !hasStrongDataSignal && !hasDiagramSignal) targetDomain = "animation";
+  if (hasStrong3dSignal && !hasStrongDataSignal && !hasDiagramSignal && !hasAnimationVideoSignal) targetDomain = "3d";
 
   const entities = [];
   if (/cube/.test(normalized)) entities.push({ kind: "object", name: "cube" });
@@ -1885,10 +2270,15 @@ export function parseIntentFromQuery(query) {
   }
   if (/metallic|pbr/.test(normalized)) entities.push({ kind: "material", name: "metallic" });
   if (/rotate|rotation|spin|orbit/.test(normalized)) entities.push({ kind: "animation", name: "rotation" });
+  if (/equation|latex|formula|proof|theorem/.test(normalized)) entities.push({ kind: "equation", name: "math" });
+  if (/video|mp4|cinematic|manim/.test(normalized)) entities.push({ kind: "video", name: "render" });
 
   const constraints = [];
   if (/real-time|realtime|interactive/.test(normalized)) {
     constraints.push({ name: "rendering", value: "realtime" });
+  }
+  if (/video|mp4|cinematic|manim|60\s?fps|1080p/.test(normalized)) {
+    constraints.push({ name: "output", value: "video" });
   }
 
   let confidence = query.length > 20 ? 0.9 : 0.72;
@@ -1933,7 +2323,7 @@ function applySessionAwareIntentOverrides(parsedIntent, query, sessionState) {
   }
 
   const normalized = normalizeQuery(query);
-  if (!hasRefinementIntent(normalized)) {
+  if (!hasExplicitEditInstruction(normalized)) {
     return parsedIntent;
   }
 
@@ -1987,6 +2377,7 @@ export async function resolveChatTurn(request, sessionState, options = {}) {
       assistantText: reply.replyText,
       assistantSource: reply.replySource,
       assistantWarning: reply.replyWarning,
+      assistantLlm: reply.replyLlm ?? null,
       result: null,
       sceneState: sessionState ?? null
     };
@@ -2007,6 +2398,7 @@ export async function resolveChatTurn(request, sessionState, options = {}) {
       assistantText: reply.replyText,
       assistantSource: reply.replySource,
       assistantWarning: reply.replyWarning,
+      assistantLlm: reply.replyLlm ?? null,
       result: null,
       sceneState: sessionState ?? null
     };
@@ -2027,6 +2419,7 @@ export async function resolveChatTurn(request, sessionState, options = {}) {
       assistantText: reply.replyText,
       assistantSource: reply.replySource,
       assistantWarning: reply.replyWarning,
+      assistantLlm: reply.replyLlm ?? null,
       result: null,
       sceneState: sessionState ?? null
     };
@@ -2244,6 +2637,7 @@ const generateState = Annotation.Root({
   generatedCode: Annotation,
   generationSource: Annotation,
   generationWarning: Annotation,
+  llmTrace: Annotation,
   validation: Annotation,
   validationRecoveryUsed: Annotation,
   runtimeRecoveryUsed: Annotation,
@@ -2274,8 +2668,9 @@ const generateCodeNode = async (state) => {
   console.log(`[Graph] [TRACE] generateCodeNode started.`);
   emitPipelineProgress(state.progress, "generate_code", "running");
   const normalizedQuery = normalizeQuery(state.request.query);
+  const runtimeReserveMs = resolveRuntimeExecutionReserveMs(state.selectedSkill);
   const generationBudgetMs = Number.isFinite(state.turnDeadlineAtMs)
-    ? Math.max(0, getRemainingBudgetMs(state.turnDeadlineAtMs) - runtimeExecutionReserveMs)
+    ? Math.max(0, getRemainingBudgetMs(state.turnDeadlineAtMs) - runtimeReserveMs)
     : Number.POSITIVE_INFINITY;
 
   console.log(`[Graph] [TRACE] generateCodeNode budget=${Number.isFinite(generationBudgetMs) ? generationBudgetMs + "ms" : "infinite"}, skill=${state.selectedSkill}, query=${state.request.query.slice(0, 80)}`);
@@ -2524,7 +2919,8 @@ async function attemptRuntimeAgentRecovery({
   runtimeResult,
   skill,
   maxIterations = runtimeDebugMaxIterations,
-  turnDeadlineAtMs
+  turnDeadlineAtMs,
+  sessionId = null
 }) {
   let workingCode = failedCode;
   let workingRuntime = runtimeResult;
@@ -2566,7 +2962,10 @@ async function attemptRuntimeAgentRecovery({
 
     deterministicFixApplied = true;
     deterministicFixes = [...new Set([...deterministicFixes, ...deterministicPatch.appliedFixes])];
-    const deterministicTimeoutMs = computeBoundedTimeoutMs(recoveryDeadlineAtMs, runtimeExecutionTimeoutMs);
+    const deterministicTimeoutMs = computeBoundedTimeoutMs(
+      recoveryDeadlineAtMs,
+      resolveRuntimeExecutionTimeoutMs(skill)
+    );
     if (deterministicTimeoutMs <= 0) {
       return {
         recovered: false,
@@ -2586,7 +2985,8 @@ async function attemptRuntimeAgentRecovery({
         code: deterministicPatch.patchedCode,
         timeoutMs: deterministicTimeoutMs,
         maxFrames: runtimeExecutionMaxFrames,
-        turnDeadlineAtMs: recoveryDeadlineAtMs
+        turnDeadlineAtMs: recoveryDeadlineAtMs,
+        sessionId
       });
 
       if (deterministicRuntime.success) {
@@ -2707,7 +3107,10 @@ async function attemptRuntimeAgentRecovery({
   }
 
   let retriedRuntime;
-  const retryTimeoutMs = computeBoundedTimeoutMs(recoveryDeadlineAtMs, runtimeExecutionTimeoutMs);
+  const retryTimeoutMs = computeBoundedTimeoutMs(
+    recoveryDeadlineAtMs,
+    resolveRuntimeExecutionTimeoutMs(skill)
+  );
   if (retryTimeoutMs <= 0) {
     return {
       recovered: false,
@@ -2732,7 +3135,8 @@ async function attemptRuntimeAgentRecovery({
       code: debugResult.fixedCode,
       timeoutMs: retryTimeoutMs,
       maxFrames: runtimeExecutionMaxFrames,
-      turnDeadlineAtMs: recoveryDeadlineAtMs
+      turnDeadlineAtMs: recoveryDeadlineAtMs,
+      sessionId
     });
   } catch (error) {
     return {
@@ -2779,6 +3183,7 @@ const executeCodeNode = async (state) => {
   console.log(`[Graph] [TRACE] executeCodeNode started.`);
   emitPipelineProgress(state.progress, "execute_code", "running");
   if (!isValidationPassable(state.validation)) {
+    const skippedOutputKind = state.selectedSkill === "manim" ? "media" : "code";
     emitPipelineProgress(state.progress, "execute_code", "failed", {
       error: "Validation failed; execution skipped."
     });
@@ -2792,6 +3197,14 @@ const executeCodeNode = async (state) => {
         success: false,
         status: "skipped",
         previewUrl: null,
+        outputKind: skippedOutputKind,
+        mediaType: skippedOutputKind === "media" ? "video/mp4" : null,
+        mediaUrl: null,
+        mediaArtifactId: null,
+        mediaDurationMs: null,
+        mediaFps: null,
+        mediaResolution: null,
+        mediaBytes: null,
         skillId: state.selectedSkill,
         skillName: state.selectedSkill,
         dependencyCount: 0,
@@ -2807,13 +3220,17 @@ const executeCodeNode = async (state) => {
     };
   }
 
-  const initialRuntimeTimeoutMs = computeBoundedTimeoutMs(state.turnDeadlineAtMs, runtimeExecutionTimeoutMs);
+  const initialRuntimeTimeoutMs = computeBoundedTimeoutMs(
+    state.turnDeadlineAtMs,
+    resolveRuntimeExecutionTimeoutMs(state.selectedSkill)
+  );
   const initialRuntimeResult = await executeSkillRuntimeBounded({
     skillId: state.selectedSkill,
     code: state.generatedCode,
     timeoutMs: initialRuntimeTimeoutMs,
     maxFrames: runtimeExecutionMaxFrames,
-    turnDeadlineAtMs: state.turnDeadlineAtMs
+    turnDeadlineAtMs: state.turnDeadlineAtMs,
+    sessionId: state.request?.sessionId ?? null
   });
 
   let finalRuntimeResult = initialRuntimeResult;
@@ -2835,7 +3252,8 @@ const executeCodeNode = async (state) => {
       runtimeResult: initialRuntimeResult,
       skill: state.selectedSkill,
       maxIterations: runtimeDebugMaxIterations,
-      turnDeadlineAtMs: state.turnDeadlineAtMs
+      turnDeadlineAtMs: state.turnDeadlineAtMs,
+      sessionId: state.request?.sessionId ?? null
     });
 
     if (recovery.recovered) {
@@ -3073,6 +3491,9 @@ const abortExecutionNode = () => {
 
 const skipExecutionAfterValidationFailureNode = (state) => {
   const warning = "Validation failed and immutable-generate mode is enabled; skipped runtime execution to preserve generated code.";
+  const outputKind = state.selectedSkill === "manim" ? "media" : "code";
+  const mediaType = outputKind === "media" ? "video/mp4" : null;
+
   emitPipelineProgress(state.progress, "execute_code", "completed", {
     status: "degraded",
     skipped: true,
@@ -3091,6 +3512,14 @@ const skipExecutionAfterValidationFailureNode = (state) => {
       success: true,
       status: "degraded",
       previewUrl: "about:blank",
+      outputKind,
+      mediaType,
+      mediaUrl: outputKind === "media" ? "about:blank" : null,
+      mediaArtifactId: null,
+      mediaDurationMs: null,
+      mediaFps: null,
+      mediaResolution: null,
+      mediaBytes: null,
       skillId: state.selectedSkill,
       skillName: state.selectedSkill,
       dependencyCount: 0,
@@ -3141,13 +3570,27 @@ const buildResponseNode = (state) => {
   const executionNote = state.execution.success
     ? (state.runtime?.status === "degraded" ? " Live preview may be limited, but the animation concept is ready." : "")
     : " Live preview is currently unavailable, but the animation concept has been prepared.";
+  const outputKind = state.runtime?.outputKind ?? (state.selectedSkill === "manim" ? "media" : "code");
+  const mediaType = state.runtime?.mediaType ?? (outputKind === "media" ? "video/mp4" : null);
+  const mediaUrl = state.runtime?.mediaUrl ?? (outputKind === "media" ? state.execution.previewUrl ?? null : null);
 
   const response = {
     sceneId: state.sceneState?.id ?? `scene-failed-${Date.now()}`,
     previewUrl: state.execution.previewUrl,
     skill: state.selectedSkill,
+    outputKind,
+    mediaType,
+    mediaUrl,
+    mediaArtifactId: state.runtime?.mediaArtifactId ?? null,
+    mediaDurationMs: state.runtime?.mediaDurationMs ?? null,
+    mediaFps: state.runtime?.mediaFps ?? null,
+    mediaResolution: state.runtime?.mediaResolution ?? null,
+    mediaBytes: state.runtime?.mediaBytes ?? null,
     explanation: `${animationDescription}${executionNote}`,
     code: state.generatedCode,
+    generationSource: state.generationSource ?? null,
+    generationWarning: state.generationWarning ?? null,
+    llmTrace: state.llmTrace ?? null,
     runtime: state.runtime,
     runtimeRecoveryUsed: Boolean(state.runtimeRecoveryUsed),
     deterministicRuntimeFixApplied: Boolean(state.deterministicRuntimeFixApplied),
@@ -3356,6 +3799,10 @@ export async function modifyVisual(input, options = {}) {
   if (noopCheck.isNoop) {
     modifyOutcome = "rejected_noop";
     noopReason = noopCheck.reason ?? "non_semantic_diff";
+    const skippedOutputKind = sessionState.currentScene.outputKind ?? (selectedSkill === "manim" ? "media" : "code");
+    const skippedMediaType = sessionState.currentScene.mediaType ?? (skippedOutputKind === "media" ? "video/mp4" : null);
+    const skippedMediaUrl = sessionState.currentScene.mediaUrl
+      ?? (skippedOutputKind === "media" ? sessionState.currentScene.previewUrl ?? "about:blank" : null);
 
     emitPipelineProgress(onProgress, "validate_code", "completed", {
       selectedSkill,
@@ -3377,6 +3824,14 @@ export async function modifyVisual(input, options = {}) {
       success: true,
       status: "skipped",
       previewUrl: sessionState.currentScene.previewUrl ?? "about:blank",
+      outputKind: skippedOutputKind,
+      mediaType: skippedMediaType,
+      mediaUrl: skippedMediaUrl,
+      mediaArtifactId: sessionState.currentScene.mediaArtifactId ?? null,
+      mediaDurationMs: sessionState.currentScene.mediaDurationMs ?? null,
+      mediaFps: sessionState.currentScene.mediaFps ?? null,
+      mediaResolution: sessionState.currentScene.mediaResolution ?? null,
+      mediaBytes: sessionState.currentScene.mediaBytes ?? null,
       skillId: selectedSkill,
       skillName: selectedSkill,
       dependencyCount: 0,
@@ -3408,6 +3863,14 @@ export async function modifyVisual(input, options = {}) {
       sceneId: sessionState.currentScene.sceneId,
       skill: selectedSkill,
       previewUrl: skippedRuntime.previewUrl,
+      outputKind: skippedRuntime.outputKind,
+      mediaType: skippedRuntime.mediaType,
+      mediaUrl: skippedRuntime.mediaUrl,
+      mediaArtifactId: skippedRuntime.mediaArtifactId,
+      mediaDurationMs: skippedRuntime.mediaDurationMs,
+      mediaFps: skippedRuntime.mediaFps,
+      mediaResolution: skippedRuntime.mediaResolution,
+      mediaBytes: skippedRuntime.mediaBytes,
       code: sessionState.currentScene.code,
       explanation,
       diff: {
@@ -3438,13 +3901,17 @@ export async function modifyVisual(input, options = {}) {
   emitPipelineProgress(onProgress, "validate_code", "completed", { selectedSkill });
   emitPipelineProgress(onProgress, "execute_code", "running", { selectedSkill });
 
-  const modifyRuntimeTimeoutMs = computeBoundedTimeoutMs(turnDeadlineAtMs, runtimeExecutionTimeoutMs);
+  const modifyRuntimeTimeoutMs = computeBoundedTimeoutMs(
+    turnDeadlineAtMs,
+    resolveRuntimeExecutionTimeoutMs(selectedSkill)
+  );
   const runtimeResult = await executeSkillRuntimeBounded({
     skillId: selectedSkill,
     code: modificationResult.generatedCode,
     timeoutMs: modifyRuntimeTimeoutMs,
     maxFrames: runtimeExecutionMaxFrames,
-    turnDeadlineAtMs
+    turnDeadlineAtMs,
+    sessionId: request.sessionId
   });
 
   let finalRuntimeResult = runtimeResult;
@@ -3462,7 +3929,8 @@ export async function modifyVisual(input, options = {}) {
       runtimeResult,
       skill: selectedSkill,
       maxIterations: runtimeDebugMaxIterations,
-      turnDeadlineAtMs
+      turnDeadlineAtMs,
+      sessionId: request.sessionId
     });
 
     if (recovery.recovered) {
@@ -3515,11 +3983,7 @@ export async function modifyVisual(input, options = {}) {
         ? `Runtime degraded: ${finalRuntimeResult.warning}`
         : `Runtime completed in ${finalRuntimeResult.durationMs}ms.`)
       : `Runtime failed: ${finalRuntimeResult.error}`,
-    finalGenerationSource === "moonshot-kimi"
-      ? `Generated via Moonshot Kimi (${moonshotModel}).`
-      : finalGenerationSource === "agent-runtime-debug"
-        ? "Recovered via runtime self-debug agent."
-      : `Generated via local fallback modifier.`
+    describeGenerationSource(finalGenerationSource)
   ]
     .filter(Boolean)
     .join(" ");
@@ -3530,6 +3994,15 @@ export async function modifyVisual(input, options = {}) {
     sceneId: sessionState.currentScene.sceneId,
     skill: selectedSkill,
     previewUrl: finalRuntimeResult.previewUrl ?? sessionState.currentScene.previewUrl ?? "about:blank",
+    outputKind: finalRuntimeResult.outputKind ?? (selectedSkill === "manim" ? "media" : "code"),
+    mediaType: finalRuntimeResult.mediaType ?? null,
+    mediaUrl: finalRuntimeResult.mediaUrl
+      ?? (finalRuntimeResult.outputKind === "media" ? finalRuntimeResult.previewUrl ?? null : null),
+    mediaArtifactId: finalRuntimeResult.mediaArtifactId ?? null,
+    mediaDurationMs: finalRuntimeResult.mediaDurationMs ?? null,
+    mediaFps: finalRuntimeResult.mediaFps ?? null,
+    mediaResolution: finalRuntimeResult.mediaResolution ?? null,
+    mediaBytes: finalRuntimeResult.mediaBytes ?? null,
     code: finalCode,
     explanation,
     diff: {
@@ -3558,7 +4031,7 @@ export async function modifyVisual(input, options = {}) {
 /**
  * Generate a visual scene from a reference image.
  *
- * Uses Kimi K2.5's native vision capabilities to analyze the image
+ * Uses eligible vision-capable LLM providers to analyze the image
  * and produce matching scene code. Validates and optionally self-debugs.
  *
  * @param {object} input
@@ -3579,10 +4052,6 @@ export async function generateFromImage(input) {
     throw new Error("imageUrl is required for image-to-code generation.");
   }
 
-  if (!moonshotApiKey) {
-    throw new Error("MOONSHOT_API_KEY is not configured. Image-to-code requires the Moonshot API.");
-  }
-
   // Determine skill — default to threejs for image-to-code
   const requestedSkill = input.preferences?.skill ?? "auto";
   let selectedSkill = requestedSkill;
@@ -3590,7 +4059,9 @@ export async function generateFromImage(input) {
   if (requestedSkill === "auto") {
     // For images, default to threejs unless there's a text hint
     const normalizedQuery = (query || "").toLowerCase();
-    if (/(chart|graph|data|bar|pie|line chart)/.test(normalizedQuery)) {
+    if (/(manim|equation|latex|formula|proof|theorem|educational\s+video|storyboard|cinematic\s+video|mp4|narrated\s+animation)/.test(normalizedQuery)) {
+      selectedSkill = "manim";
+    } else if (/(chart|graph|data|bar|pie|line chart)/.test(normalizedQuery)) {
       selectedSkill = "d3js";
     } else if (/(2d|canvas|sketch|drawing|pixel|flat)/.test(normalizedQuery)) {
       selectedSkill = "p5js";
@@ -3609,26 +4080,55 @@ export async function generateFromImage(input) {
     parsedIntent: query ? parseIntentFromQuery(query) : null
   });
 
-  // Call Kimi K2.5 with vision-enabled message format
-  const response = await fetchMoonshotChatCompletion({
-    model: moonshotModel,
-    messages: [
-      { role: "system", content: systemPrompt },
-      { role: "user", content: userContent }
-    ]
-  }, { mode: "thinking" });
-
-  const payload = await response.json();
-  const content = payload?.choices?.[0]?.message?.content ?? "";
-  let generatedCode = extractCodeContent(content);
-
-  if (!generatedCode) {
-    throw new Error("Moonshot returned empty code output for image-to-code generation.");
-  }
-
+  let generatedCode = "";
   let generationSource = "image-to-code";
   let generationWarning = null;
   let agentDebugInfo = null;
+  let llmTrace = null;
+
+  try {
+    const completion = await executeWithProviderFailover({
+      operationName: "ImageToCode",
+      filter: { requireCodeGeneration: true, requireVision: true },
+      mode: "thinking",
+      retryDelays: moonshotRetryDelaysMs,
+      executeProvider: async ({ provider, mode: providerMode, retryDelays }) => {
+        const response = await fetchChatCompletion(
+          provider,
+          {
+            messages: [
+              { role: "system", content: systemPrompt },
+              { role: "user", content: userContent }
+            ]
+          },
+          { mode: providerMode, retryDelays }
+        );
+
+        const payload = await response.json();
+        const content = extractChoiceContent(payload?.choices?.[0]?.message?.content ?? "");
+        const code = extractCodeContent(content);
+
+        if (!code) {
+          throw createRetryableProviderError(`${provider.id} returned empty code output for image-to-code generation.`, "PROVIDER_EMPTY_OUTPUT");
+        }
+
+        return code;
+      }
+    });
+
+    generatedCode = completion.value;
+    generationSource = completion.provider.id;
+    llmTrace = completion.llm;
+    if (completion.llm.fallbackUsed) {
+      generationWarning = `Primary vision model unavailable; generated via ${completion.provider.id}.`;
+    }
+  } catch (error) {
+    if (error?.code === "NO_ELIGIBLE_LLM_PROVIDER") {
+      throw new Error("No vision-capable LLM provider is configured for image-to-code generation.");
+    }
+
+    throw error;
+  }
 
   // Validate the generated code
   const validation = validateCode(generatedCode, selectedSkill);
@@ -3680,13 +4180,17 @@ export async function generateFromImage(input) {
   }
 
   // Execute in sandbox
-  const imageRuntimeTimeoutMs = computeBoundedTimeoutMs(turnDeadlineAtMs, runtimeExecutionTimeoutMs);
+  const imageRuntimeTimeoutMs = computeBoundedTimeoutMs(
+    turnDeadlineAtMs,
+    resolveRuntimeExecutionTimeoutMs(selectedSkill)
+  );
   const runtimeResult = await executeSkillRuntimeBounded({
     skillId: selectedSkill,
     code: generatedCode,
     timeoutMs: imageRuntimeTimeoutMs,
     maxFrames: runtimeExecutionMaxFrames,
-    turnDeadlineAtMs
+    turnDeadlineAtMs,
+    sessionId
   });
 
   let finalRuntimeResult = runtimeResult;
@@ -3699,7 +4203,8 @@ export async function generateFromImage(input) {
       runtimeResult,
       skill: selectedSkill,
       maxIterations: runtimeDebugMaxIterations,
-      turnDeadlineAtMs
+      turnDeadlineAtMs,
+      sessionId
     });
 
     if (recovery.recovered) {
@@ -3751,11 +4256,21 @@ export async function generateFromImage(input) {
     sceneId: `scene-img-${Date.now()}`,
     skill: selectedSkill,
     previewUrl: finalRuntimeResult.previewUrl ?? "about:blank",
+    outputKind: finalRuntimeResult.outputKind ?? (selectedSkill === "manim" ? "media" : "code"),
+    mediaType: finalRuntimeResult.mediaType ?? null,
+    mediaUrl: finalRuntimeResult.mediaUrl
+      ?? (finalRuntimeResult.outputKind === "media" ? finalRuntimeResult.previewUrl ?? null : null),
+    mediaArtifactId: finalRuntimeResult.mediaArtifactId ?? null,
+    mediaDurationMs: finalRuntimeResult.mediaDurationMs ?? null,
+    mediaFps: finalRuntimeResult.mediaFps ?? null,
+    mediaResolution: finalRuntimeResult.mediaResolution ?? null,
+    mediaBytes: finalRuntimeResult.mediaBytes ?? null,
     code: generatedCode,
     explanation,
     runtime: finalRuntimeResult,
     generationSource,
     generationWarning,
+    llmTrace,
     agentDebug: agentDebugInfo,
     runtimeRecoveryUsed,
     imageUrl

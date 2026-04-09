@@ -125,6 +125,22 @@ function buildRevisionLocations(session) {
   return locations;
 }
 
+function buildArtifactTimeline(session) {
+  return session.artifacts.map((artifact, artifactIndex) => {
+    const pointer = artifact.revisionPointer ?? artifact.revisions.length - 1;
+
+    return {
+      artifactId: artifact.artifactId,
+      title: artifact.title,
+      isCurrent: artifactIndex === session.artifactPointer,
+      revisions: artifact.revisions.map((revision, revisionIndex) => ({
+        ...revision,
+        isCurrent: artifactIndex === session.artifactPointer && revisionIndex === pointer
+      }))
+    };
+  });
+}
+
 function resolveCurrentLocationIndex(session, locations) {
   if (!locations.length) {
     return -1;
@@ -482,6 +498,14 @@ export function recordSceneVersion(sessionId, sceneSnapshot) {
       code: sceneSnapshot.code ?? null,
       previewUrl: sceneSnapshot.previewUrl ?? null,
       skill: sceneSnapshot.skill ?? null,
+      outputKind: sceneSnapshot.outputKind ?? null,
+      mediaType: sceneSnapshot.mediaType ?? null,
+      mediaUrl: sceneSnapshot.mediaUrl ?? null,
+      mediaArtifactId: sceneSnapshot.mediaArtifactId ?? null,
+      mediaDurationMs: Number.isFinite(sceneSnapshot.mediaDurationMs) ? sceneSnapshot.mediaDurationMs : null,
+      mediaFps: Number.isFinite(sceneSnapshot.mediaFps) ? sceneSnapshot.mediaFps : null,
+      mediaResolution: sceneSnapshot.mediaResolution ?? null,
+      mediaBytes: Number.isFinite(sceneSnapshot.mediaBytes) ? sceneSnapshot.mediaBytes : null,
       explanation: sceneSnapshot.explanation ?? null,
       messageId: sceneSnapshot.messageId ?? null,
       source,
@@ -659,6 +683,41 @@ export function nextSceneVersion(sessionId) {
   return navigateSessionVersion(sessionId, 1);
 }
 
+export function selectSceneVersion(sessionId, versionId) {
+  const session = getOrCreateInternalSession(sessionId);
+  normalizeArtifacts(session);
+
+  if (session.artifacts.length === 0) {
+    return { success: false, reason: "No artifacts available.", state: cloneSessionState(session) };
+  }
+
+  const normalizedVersionId = String(versionId ?? "").trim();
+  if (!normalizedVersionId) {
+    return { success: false, reason: "Version id is required.", state: cloneSessionState(session) };
+  }
+
+  const locations = buildRevisionLocations(session);
+  if (locations.length === 0) {
+    return { success: false, reason: "No versions available.", state: cloneSessionState(session) };
+  }
+
+  const targetLocation = locations.find((location) => location.versionId === normalizedVersionId);
+  if (!targetLocation) {
+    return { success: false, reason: "Version not found.", state: cloneSessionState(session) };
+  }
+
+  const targetArtifact = session.artifacts[targetLocation.artifactIndex];
+  session.artifactPointer = targetLocation.artifactIndex;
+  targetArtifact.revisionPointer = targetLocation.revisionIndex;
+
+  syncDerivedSessionFields(session);
+  session.updatedAt = isoNow();
+  sessions.set(sessionId, session);
+  persistSession(session);
+
+  return { success: true, reason: null, state: cloneSessionState(session) };
+}
+
 export function listSceneVersions(sessionId) {
   const session = getOrCreateInternalSession(sessionId);
   normalizeArtifacts(session);
@@ -679,7 +738,8 @@ export function listSceneVersions(sessionId) {
       ...version,
       isCurrent: index === pointer
     })),
-    artifacts: buildArtifactSummaries(session)
+    artifacts: buildArtifactSummaries(session),
+    artifactTimeline: buildArtifactTimeline(session)
   };
 }
 

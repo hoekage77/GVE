@@ -159,6 +159,10 @@ export class SandboxPoolManager {
       process.env.DAYTONA_DIRECT_CREATE_IMAGE,
       null
     );
+    this.directCreateImageManim = parseOptionalStringEnv(
+      process.env.DAYTONA_DIRECT_CREATE_IMAGE_MANIM,
+      null
+    );
     this.prewarmSize = parsePositiveIntEnv(
       process.env.DAYTONA_PREWARM_SIZE,
       1,
@@ -276,6 +280,22 @@ export class SandboxPoolManager {
     };
 
     this._startMaintenanceLoop();
+  }
+
+  _resolveDirectCreateImageForSkill(skillId = "unknown") {
+    if (skillId === "manim") {
+      return this.directCreateImageManim ?? this.directCreateImage;
+    }
+
+    return this.directCreateImage;
+  }
+
+  _isSandboxImageCompatible(sandboxImageRef, requestedImageRef) {
+    if (!requestedImageRef) {
+      return true;
+    }
+
+    return sandboxImageRef === requestedImageRef;
   }
 
   _startMaintenanceLoop() {
@@ -545,6 +565,7 @@ export class SandboxPoolManager {
   async _provisionWorkspace({ skillId = "unknown", reason = "acquire", turnDeadlineAtMs = null, diagnostics = null } = {}) {
     const daytona = await this._getDaytonaClient();
     const acquireStartedAt = Date.now();
+    const resolvedDirectImage = this._resolveDirectCreateImageForSkill(skillId);
     let workspace;
     let workspaceId = `gve-${crypto.randomUUID().slice(0, 8)}`;
     let directCreateDurationMs = 0;
@@ -596,8 +617,8 @@ export class SandboxPoolManager {
         }
 
         const directCreateStartedAt = Date.now();
-        const directCreateOptions = this.directCreateImage
-          ? { id: workspaceId, image: this.directCreateImage }
+        const directCreateOptions = resolvedDirectImage
+          ? { id: workspaceId, image: resolvedDirectImage }
           : { id: workspaceId };
         workspace = await daytona.create(directCreateOptions, { timeout: directTimeoutSec });
         directCreateDurationMs = Date.now() - directCreateStartedAt;
@@ -618,7 +639,8 @@ export class SandboxPoolManager {
           workspace,
           workspaceId,
           creationMode: "direct",
-          acquireDurationMs: Date.now() - acquireStartedAt
+          acquireDurationMs: Date.now() - acquireStartedAt,
+          imageRef: resolvedDirectImage ?? null
         };
       } catch (err) {
         directError = err;
@@ -663,7 +685,10 @@ export class SandboxPoolManager {
       diagnostics.fallback.attempted = true;
     }
     try {
-      workspace = await daytona.create(undefined, { timeout: fallbackTimeoutSec });
+      const fallbackCreateOptions = resolvedDirectImage
+        ? { image: resolvedDirectImage }
+        : undefined;
+      workspace = await daytona.create(fallbackCreateOptions, { timeout: fallbackTimeoutSec });
       workspaceId = workspace.id;
       const fallbackDurationMs = Date.now() - fallbackCreateStartedAt;
       const totalAcquireMs = Date.now() - acquireStartedAt;
@@ -683,7 +708,8 @@ export class SandboxPoolManager {
         workspace,
         workspaceId,
         creationMode: "fallback",
-        acquireDurationMs: totalAcquireMs
+        acquireDurationMs: totalAcquireMs,
+        imageRef: resolvedDirectImage ?? null
       };
     } catch (fallbackErr) {
       const totalDurationMs = Date.now() - acquireStartedAt;
@@ -797,7 +823,7 @@ export class SandboxPoolManager {
       this.pendingWarmups += 1;
 
       void this._provisionWorkspaceWithRetry({ skillId, reason: "prewarm" })
-        .then(({ workspace, workspaceId, creationMode, acquireDurationMs }) => {
+        .then(({ workspace, workspaceId, creationMode, acquireDurationMs, imageRef }) => {
           this.metrics.prewarmProvisionSuccessTotal += 1;
           if (this.closed) {
             void this._deleteWorkspace(workspace, workspaceId, "pool_closed");
@@ -808,7 +834,7 @@ export class SandboxPoolManager {
             return;
           }
 
-          this.idleSandboxes.push({ workspace, workspaceId, idledAt: Date.now() });
+          this.idleSandboxes.push({ workspace, workspaceId, idledAt: Date.now(), imageRef: imageRef ?? null });
           console.log(
             `[Daytona] Prewarmed sandbox ${workspaceId} ready via ${creationMode} in ${acquireDurationMs}ms. idle=${this.idleSandboxes.length}/${this.prewarmSize}`
           );
@@ -827,12 +853,13 @@ export class SandboxPoolManager {
     this._ensurePrewarmCapacity(skillId, { force: true });
   }
 
-  _createSandboxHandle({ workspaceId, workspace, source = "ondemand" }) {
+  _createSandboxHandle({ workspaceId, workspace, source = "ondemand", imageRef = null }) {
     const handle = {
       workspaceId,
       _workspace: workspace,
       _reusable: true,
       _source: source,
+      _imageRef: imageRef,
       execute: async (payloadStr) => {
         const runnerPath = path.join(__dirname, "runner-script.js");
         const runnerScript = await fs.readFile(runnerPath, "utf-8");
@@ -926,6 +953,7 @@ export class SandboxPoolManager {
     }
 
     const normalizedSkillId = requirements?.skillId ?? "unknown";
+    const requestedImageRef = this._resolveDirectCreateImageForSkill(normalizedSkillId);
     const turnDeadlineAtMs = Number.isFinite(requirements?.turnDeadlineAtMs)
       ? Number(requirements.turnDeadlineAtMs)
       : null;
@@ -941,8 +969,13 @@ export class SandboxPoolManager {
     this._ensurePrewarmCapacity(normalizedSkillId, { force: false });
 
     // Try to acquire a healthy idle sandbox with liveness check
+    const deferredIdleSandboxes = [];
     while (this.idleSandboxes.length > 0) {
       const reused = this.idleSandboxes.pop();
+      if (!this._isSandboxImageCompatible(reused?.imageRef ?? null, requestedImageRef)) {
+        deferredIdleSandboxes.push(reused);
+        continue;
+      }
       
       // ── Liveness ping before reuse ─────────────────────────────────────────
       // Verify the idle sandbox is still responsive before handing it to executor
@@ -992,11 +1025,18 @@ export class SandboxPoolManager {
         const handle = this._createSandboxHandle({
           workspaceId: reused.workspaceId,
           workspace: reused.workspace,
-          source: "prewarm"
+          source: "prewarm",
+          imageRef: reused.imageRef ?? null
         });
+        if (deferredIdleSandboxes.length > 0) {
+          this.idleSandboxes.push(...deferredIdleSandboxes);
+        }
         handle._acquireDiagnostics = acquireDiagnostics;
         return handle;
       }
+    }
+    if (deferredIdleSandboxes.length > 0) {
+      this.idleSandboxes.push(...deferredIdleSandboxes);
     }
 
     console.log(
@@ -1056,7 +1096,8 @@ export class SandboxPoolManager {
     const handle = this._createSandboxHandle({
       workspaceId: provisioned.workspaceId,
       workspace: provisioned.workspace,
-      source: provisioned.creationMode
+      source: provisioned.creationMode,
+      imageRef: provisioned.imageRef ?? null
     });
     handle._acquireDiagnostics = acquireDiagnostics;
     return handle;
@@ -1086,7 +1127,8 @@ export class SandboxPoolManager {
       this.idleSandboxes.push({
         workspaceId: sandboxEnv.workspaceId,
         workspace: sandboxEnv._workspace,
-        idledAt: Date.now()
+        idledAt: Date.now(),
+        imageRef: sandboxEnv._imageRef ?? null
       });
       this.metrics.releaseReturnedToPoolTotal += 1;
       console.log(

@@ -1,0 +1,115 @@
+{
+  "sessionId": "9cdf3a8d-7b7e-413d-94a9-e81acca5a276",
+  "createdAt": "2026-04-07T10:42:38.403Z",
+  "updatedAt": "2026-04-07T10:43:32.274Z",
+  "status": "idle",
+  "currentScene": null,
+  "artifacts": [],
+  "artifactPointer": -1,
+  "versions": [],
+  "sceneVersions": [],
+  "versionPointer": -1,
+  "revisionPointer": -1,
+  "messages": [
+    {
+      "id": "ws-runtime-1775558558408",
+      "role": "user",
+      "content": "Hello. Confirm websocket runtime event flow.",
+      "kind": "input",
+      "meta": [],
+      "error": null,
+      "createdAt": "2026-04-07T10:42:38.416Z",
+      "updatedAt": "2026-04-07T10:42:38.416Z"
+    },
+    {
+      "id": "message-2",
+      "role": "assistant",
+      "content": "Hi there! In a standard WebSocket runtime flow: the client initiates an HTTP upgrade request, the server returns a 101 Switching Protocols response, the connection upgrades to a persistent TCP socket, and then bidirectional message frames flow until either peer initiates a close handshake.\n\nWould you like me to generate a sequence diagram showing this event flow, or are you verifying a specific implementation detail?",
+      "kind": "chat",
+      "meta": [
+        "assistantSource:moonshot"
+      ],
+      "error": null,
+      "createdAt": "2026-04-07T10:42:38.417Z",
+      "updatedAt": "2026-04-07T10:43:32.272Z"
+    },
+    {
+      "id": "thought-turn_started-1775558558422",
+      "role": "thought",
+      "content": "I'm on it. First, I need to parse your intent and figure out the best approach.",
+      "kind": "thought",
+      "meta": [
+        "turn_started",
+        "requestId:ws-runtime-1775558558408",
+        "messageId:message-2"
+      ],
+      "error": null,
+      "createdAt": "2026-04-07T10:42:38.422Z",
+      "updatedAt": "2026-04-07T10:42:38.422Z"
+    },
+    {
+      "id": "thought-intent_parsed-1775558558441",
+      "role": "thought",
+      "content": "Got it. You're looking for a visual scene. I'm selecting the right rendering engine now.",
+      "kind": "thought",
+      "meta": [
+        "intent_parsed",
+        "requestId:ws-runtime-1775558558408",
+        "messageId:message-2"
+      ],
+      "error": null,
+      "createdAt": "2026-04-07T10:42:38.441Z",
+      "updatedAt": "2026-04-07T10:42:38.441Z"
+    },
+    {
+      "id": "thought-plan_created-1775558558441",
+      "role": "thought",
+      "content": "Alright, 7 tasks queued. I'm moving through the pipeline now.",
+      "kind": "thought",
+      "meta": [
+        "plan_created",
+        "requestId:ws-runtime-1775558558408",
+        "messageId:message-2"
+      ],
+      "error": null,
+      "createdAt": "2026-04-07T10:42:38.442Z",
+      "updatedAt": "2026-04-07T10:42:38.442Z"
+    },
+    {
+      "id": "thought-turn_complete-1775558612273",
+      "role": "thought",
+      "content": "That's a wrap — your visualization should be live now.",
+      "kind": "thought",
+      "meta": [
+        "turn_complete",
+        "requestId:ws-runtime-1775558558408",
+        "messageId:message-2"
+      ],
+      "error": null,
+      "createdAt": "2026-04-07T10:43:32.273Z",
+      "updatedAt": "2026-04-07T10:43:32.273Z"
+    }
+  ],
+  "orchestrationTrace": [
+    {
+      "id": "trace-1",
+      "step": "intent_parsed",
+      "payload": {
+        "sessionId": "9cdf3a8d-7b7e-413d-94a9-e81acca5a276",
+        "content": "Hello. Confirm websocket runtime event flow."
+      },
+      "createdAt": "2026-04-07T10:42:38.424Z"
+    },
+    {
+      "id": "trace-2",
+      "step": "turn_complete",
+      "payload": {
+        "sessionId": "9cdf3a8d-7b7e-413d-94a9-e81acca5a276",
+        "mode": "chat",
+        "messageCount": 6,
+        "error": null
+      },
+      "createdAt": "2026-04-07T10:43:32.274Z"
+    }
+  ]
+}

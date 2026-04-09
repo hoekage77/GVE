@@ -13,6 +13,7 @@
     "test:ws:runtime": "node ./scripts/ws-runtime-test.mjs",
     "test:ws:soak": "node ./scripts/ws-soak-test.mjs",
     "test:routing:regression": "node ./scripts/routing-regression-test.mjs",
+    "test:llm:failover": "node ./scripts/llm-failover-test.mjs",
     "test:threejs:deepdive": "node ./scripts/threejs-constructor-deepdive.mjs"
   },
   "dependencies": {

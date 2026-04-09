@@ -67,6 +67,26 @@ const skillRuntimeProfiles = {
     templates: {
       sceneBootstrap: "const stage = document.getElementById('stage') || document.body;"
     }
+  },
+  manim: {
+    id: "manim",
+    name: "Manim Video Composer",
+    runtime: {
+      adapter: "python-manim",
+      timeoutMs: 180000,
+      maxFrames: 1,
+      quality: {
+        width: 1920,
+        height: 1080,
+        fps: 60
+      }
+    },
+    dependencies: ["manim", "numpy", "pillow"],
+    bootstrapScript: "",
+    templates: {
+      sceneBootstrap:
+        "from manim import *\n\nclass GVERichScene(Scene):\n    def construct(self):\n        title = Text('Terranet', weight=BOLD)\n        self.play(Write(title))\n        self.wait(0.3)"
+    }
   }
 };
 

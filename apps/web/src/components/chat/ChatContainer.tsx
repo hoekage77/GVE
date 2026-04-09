@@ -2,8 +2,9 @@ import { useMemo, useRef, useEffect, useState, useCallback, type CSSProperties }
 import { UserMessage, AIMessage } from "./MessageComponents";
 import { Composer } from "./Composer";
 import { useChatStore, type SessionMessage } from "../../stores";
-import { Send, Sparkles } from "lucide-react";
+import { Send } from "lucide-react";
 import WorkspacePanel from "../workspace/WorkspacePanel";
+import TaskStatusBar from "./TaskStatusBar";
 
 // Types for message grouping
 type ThoughtItem = {
@@ -252,11 +253,13 @@ function buildDisplayMessages(messages: SessionMessage[]): DisplayMessage[] {
 }
 
 export function ChatContainer() {
+  const [isTasksExpanded, setIsTasksExpanded] = useState(false);
   const chatRef = useRef<HTMLDivElement>(null);
   const {
     sessions,
     activeSessionId,
     messages,
+    taskProgressBySession,
     connectionState,
     sessionsError,
     isBootstrapping,
@@ -276,6 +279,9 @@ export function ChatContainer() {
 
   const activeSession = sessions.find(s => s.sessionId === activeSessionId);
   const activeMessages = activeSessionId ? messages[activeSessionId] || [] : [];
+  const activeTaskProgress = activeSessionId ? taskProgressBySession[activeSessionId] ?? null : null;
+  const activeStatusStep = activeTaskProgress?.liveThought?.step ?? activeTaskProgress?.currentStep ?? thinkingStep;
+  const activeStatusText = activeTaskProgress?.liveThought?.text ?? thinkingText ?? null;
 
   const displayMessages = useMemo(() => buildDisplayMessages(activeMessages), [activeMessages]);
 
@@ -324,6 +330,16 @@ export function ChatContainer() {
   const handleMessageSceneAction = (action: 'code' | 'preview') => {
     togglePanel(action);
   };
+
+  const handleOpenTasks = () => {
+    setIsTasksExpanded((previous) => !previous);
+  };
+
+  useEffect(() => {
+    if (!activeTaskProgress && isTasksExpanded) {
+      setIsTasksExpanded(false);
+    }
+  }, [activeTaskProgress, isTasksExpanded]);
 
   if (!activeSession) {
     return (
@@ -408,6 +424,18 @@ export function ChatContainer() {
         </div>
 
         {sessionsError && <div className="chat-error-banner">{sessionsError}</div>}
+
+        {activeTaskProgress && (
+          <div className="chat-task-status-container">
+            <TaskStatusBar
+              taskProgress={activeTaskProgress}
+              statusStep={activeStatusStep}
+              statusText={activeStatusText}
+              isExpanded={isTasksExpanded}
+              onToggle={handleOpenTasks}
+            />
+          </div>
+        )}
 
         {/* Composer */}
         <Composer

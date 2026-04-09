@@ -1,8 +1,9 @@
-import { Eye, Code, X, Undo2, Redo2, SkipBack, SkipForward } from 'lucide-react';
+import { Eye, Code, X, Undo2, Redo2, SkipBack, SkipForward, ChevronsLeft, ChevronsRight } from 'lucide-react';
 import SceneViewer from '../SceneViewer';
 import CodeEditor from '../CodeEditor';
+import MediaViewer from './MediaViewer';
 import { useChatStore } from '../../stores';
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 
 export default function WorkspacePanel() {
   const {
@@ -13,17 +14,70 @@ export default function WorkspacePanel() {
     closePanel,
     openPanel,
     sendSceneCommand,
-    sendMessage,
+    selectSceneVersion,
+    taskProgressBySession,
     isSending
   } = useChatStore();
+
+  const [versionError, setVersionError] = useState<string | null>(null);
 
   const currentSession = useMemo(() =>
     sessions.find(s => s.sessionId === activeSessionId),
     [sessions, activeSessionId]
   );
 
-  const currentCode = currentSession?.currentScene?.code ?? null;
-  const currentSkill = currentSession?.currentScene?.skill ?? null;
+  const currentScene = currentSession?.currentScene ?? null;
+  const currentCode = currentScene?.code ?? null;
+  const currentSkill = currentScene?.skill ?? null;
+  const currentOutputKind = currentScene?.outputKind ?? null;
+  const currentMediaType = currentScene?.mediaType ?? null;
+  const currentMediaUrl = currentScene?.mediaUrl ?? currentScene?.previewUrl ?? null;
+  const taskProgress = activeSessionId ? taskProgressBySession[activeSessionId] ?? null : null;
+
+  const versions = currentSession?.versions ?? [];
+  const computedVersionPointer = useMemo(() => {
+    if (!currentSession) {
+      return -1;
+    }
+
+    if (typeof currentSession.versionPointer === 'number') {
+      return currentSession.versionPointer;
+    }
+
+    const currentVersionId = currentSession.currentScene?.versionId ?? null;
+    if (currentVersionId) {
+      const byIdIndex = versions.findIndex((version) => version.versionId === currentVersionId);
+      if (byIdIndex >= 0) {
+        return byIdIndex;
+      }
+    }
+
+    return versions.findIndex((version) => (version as { isCurrent?: boolean }).isCurrent);
+  }, [currentSession, versions]);
+
+  const hasVersionHistory = (currentSession?.versionCount ?? versions.length) > 1;
+  const canPreviousVersion = computedVersionPointer > 0;
+  const canNextVersion = computedVersionPointer >= 0 && computedVersionPointer < versions.length - 1;
+  const isMediaScene = currentOutputKind === 'media'
+    || (typeof currentMediaType === 'string' && currentMediaType.startsWith('video/'))
+    || currentSkill === 'manim';
+
+  const activeVersionId = currentScene?.versionId
+    ?? (computedVersionPointer >= 0 ? versions[computedVersionPointer]?.versionId ?? '' : '');
+
+  const handleVersionSelect = async (nextVersionId: string) => {
+    if (!nextVersionId || nextVersionId === activeVersionId) {
+      return;
+    }
+
+    setVersionError(null);
+
+    try {
+      await selectSceneVersion(nextVersionId);
+    } catch {
+      setVersionError('Unable to load the selected visual version.');
+    }
+  };
 
   if (!panelOpen || !panelView) return null;
 
@@ -52,6 +106,16 @@ export default function WorkspacePanel() {
             </button>
           </div>
           <div className="terranet-workspace-dock__history-controls">
+            <button
+              type="button"
+              className="terranet-workspace-dock__history-btn"
+              onClick={() => void sendSceneCommand('version.previous')}
+              disabled={!hasVersionHistory || !canPreviousVersion}
+              title="Previous version"
+              aria-label="Previous version"
+            >
+              <ChevronsLeft className="h-4 w-4" />
+            </button>
             <button
               type="button"
               className="terranet-workspace-dock__history-btn"
@@ -92,6 +156,38 @@ export default function WorkspacePanel() {
             >
               <SkipForward className="h-4 w-4" />
             </button>
+            <button
+              type="button"
+              className="terranet-workspace-dock__history-btn"
+              onClick={() => void sendSceneCommand('version.next')}
+              disabled={!hasVersionHistory || !canNextVersion}
+              title="Next version"
+              aria-label="Next version"
+            >
+              <ChevronsRight className="h-4 w-4" />
+            </button>
+          </div>
+
+          <div className="terranet-workspace-dock__version-select-wrap">
+            <span className="terranet-workspace-dock__version-label">
+              Visual Version
+            </span>
+            <div className="terranet-workspace-dock__version-select-shell">
+              <select
+                value={activeVersionId}
+                onChange={(event) => {
+                  void handleVersionSelect(event.target.value);
+                }}
+                disabled={versions.length <= 1 || isSending}
+                aria-label="Select visual version"
+              >
+                {versions.map((version) => (
+                  <option key={version.versionId} value={version.versionId}>
+                    {`v${version.version}${version.artifactVersion ? ` · r${version.artifactVersion}` : ''} · ${version.skill ?? 'scene'}`}
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
         </div>
         <button
@@ -107,12 +203,28 @@ export default function WorkspacePanel() {
       <div className="terranet-workspace-dock__body">
         {panelView === 'preview' ? (
           <div className="terranet-workspace-dock__preview-stack">
-            <SceneViewer code={currentCode} skill={currentSkill} />
+            {isMediaScene ? (
+              <MediaViewer
+                src={currentMediaUrl}
+                mediaType={currentMediaType}
+                sceneId={currentScene?.sceneId ?? null}
+                statusStage={taskProgress?.mediaStage ?? 'idle'}
+                statusText={taskProgress?.mediaStatusText ?? null}
+              />
+            ) : (
+              <SceneViewer code={currentCode} skill={currentSkill} />
+            )}
           </div>
         ) : (
           <CodeEditor code={currentCode} skill={currentSkill} readOnly={true} />
         )}
       </div>
+
+      {versionError && (
+        <p className="terranet-workspace-dock__version-error" role="alert">
+          {versionError}
+        </p>
+      )}
     </aside>
   );
 }

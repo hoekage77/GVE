@@ -12,6 +12,17 @@ const SECURITY_BLOCKED_PATTERNS = [
   { pattern: /\bfs\b\s*\.\s*(read|write|unlink|mkdir|rmdir)/, code: "SECURITY_FILESYSTEM", message: "Direct filesystem access is forbidden." }
 ];
 
+const MANIM_SECURITY_BLOCKED_PATTERNS = [
+  { pattern: /\bimport\s+os\b|\bfrom\s+os\s+import\b/, code: "SECURITY_OS", message: "os module access is forbidden." },
+  { pattern: /\bimport\s+subprocess\b|\bfrom\s+subprocess\s+import\b/, code: "SECURITY_SUBPROCESS", message: "subprocess usage is forbidden." },
+  { pattern: /\bimport\s+socket\b|\bfrom\s+socket\s+import\b/, code: "SECURITY_SOCKET", message: "Socket networking is forbidden." },
+  { pattern: /\bimport\s+requests\b|\bfrom\s+requests\s+import\b/, code: "SECURITY_NETWORK", message: "Network requests are forbidden." },
+  { pattern: /\bimport\s+urllib\b|\bfrom\s+urllib\s+import\b/, code: "SECURITY_NETWORK", message: "Network requests are forbidden." },
+  { pattern: /\b(open|exec|eval|compile)\s*\(/, code: "SECURITY_UNSAFE_CALL", message: "Unsafe runtime calls are forbidden." },
+  { pattern: /\bimport\s+pathlib\b|\bfrom\s+pathlib\s+import\b/, code: "SECURITY_FILESYSTEM", message: "Filesystem path operations are forbidden." },
+  { pattern: /\bimport\s+shutil\b|\bfrom\s+shutil\s+import\b/, code: "SECURITY_FILESYSTEM", message: "Filesystem copy/move operations are forbidden." }
+];
+
 const SKILL_API_WHITELIST = {
   threejs: {
     globals: ["THREE", "scene", "camera", "renderer", "OrbitControls", "requestAnimationFrame", "cancelAnimationFrame", "console", "Math", "Date", "JSON", "Array", "Object", "String", "Number", "Boolean", "parseInt", "parseFloat", "isNaN", "isFinite", "undefined", "null", "NaN", "Infinity", "window", "document", "performance"],
@@ -63,6 +74,100 @@ function checkSecurity(code) {
         message: rule.message
       });
     }
+  }
+
+  return errors;
+}
+
+function checkManimSecurity(code) {
+  const errors = [];
+
+  for (const rule of MANIM_SECURITY_BLOCKED_PATTERNS) {
+    if (rule.pattern.test(code)) {
+      errors.push({
+        code: rule.code,
+        message: rule.message
+      });
+    }
+  }
+
+  return errors;
+}
+
+function checkBracketBalance(code) {
+  const stack = [];
+  const opens = { "(": ")", "[": "]", "{": "}" };
+  const closes = new Set(Object.values(opens));
+
+  for (const char of String(code ?? "")) {
+    if (opens[char]) {
+      stack.push(char);
+      continue;
+    }
+
+    if (closes.has(char)) {
+      const last = stack.pop();
+      if (!last || opens[last] !== char) {
+        return false;
+      }
+    }
+  }
+
+  return stack.length === 0;
+}
+
+function checkManimSyntax(code) {
+  const errors = [];
+  const normalized = String(code ?? "");
+
+  if (!normalized.trim()) {
+    errors.push({
+      code: "SYNTAX_EMPTY_CODE",
+      message: "Code output is empty."
+    });
+    return errors;
+  }
+
+  if (/```/.test(normalized)) {
+    errors.push({
+      code: "SYNTAX_MARKDOWN_FENCE",
+      message: "Markdown fences are not allowed; return raw Python code only."
+    });
+  }
+
+  if (!checkBracketBalance(normalized)) {
+    errors.push({
+      code: "SYNTAX_BRACKET_MISMATCH",
+      message: "Code appears to have mismatched brackets or parentheses."
+    });
+  }
+
+  return errors;
+}
+
+function checkManimSchema(code) {
+  const errors = [];
+  const normalized = String(code ?? "");
+
+  if (!/(from\s+manim\s+import\s+\*|import\s+manim)/.test(normalized)) {
+    errors.push({
+      code: "SCHEMA_MISSING_MANIM_IMPORT",
+      message: "Manim code should import the Manim API."
+    });
+  }
+
+  if (!/class\s+[A-Za-z_][A-Za-z0-9_]*\s*\(\s*[^)]*Scene[^)]*\)\s*:/.test(normalized)) {
+    errors.push({
+      code: "SCHEMA_MISSING_SCENE_CLASS",
+      message: "Manim code should define a Scene subclass."
+    });
+  }
+
+  if (!/def\s+construct\s*\(\s*self\s*\)\s*:/.test(normalized)) {
+    errors.push({
+      code: "SCHEMA_MISSING_CONSTRUCT",
+      message: "Manim Scene should define construct(self)."
+    });
   }
 
   return errors;
@@ -206,6 +311,25 @@ function checkSchema(code, skillId) {
 }
 
 export function validateCode(code, skillId = "threejs") {
+  if (skillId === "manim") {
+    const syntaxErrors = checkManimSyntax(code);
+    const securityErrors = checkManimSecurity(code);
+    const schemaErrors = checkManimSchema(code);
+    const allErrors = [...syntaxErrors, ...securityErrors, ...schemaErrors];
+    const hasCritical = syntaxErrors.length > 0 || securityErrors.length > 0;
+
+    return {
+      valid: allErrors.length === 0,
+      passable: !hasCritical,
+      errors: allErrors,
+      checks: {
+        syntax: { passed: syntaxErrors.length === 0, errors: syntaxErrors },
+        security: { passed: securityErrors.length === 0, errors: securityErrors },
+        schema: { passed: schemaErrors.length === 0, errors: schemaErrors }
+      }
+    };
+  }
+
   const syntaxErrors = checkSyntax(code);
   const securityErrors = checkSecurity(code);
   const schemaErrors = checkSchema(code, skillId);
@@ -227,6 +351,10 @@ export function validateCode(code, skillId = "threejs") {
 }
 
 export function validateCodeStrict(code, skillId = "threejs") {
+  if (skillId === "manim") {
+    return validateCode(code, skillId);
+  }
+
   const base = validateCode(code, skillId);
   const apiErrors = checkApiUsage(code, skillId);
 

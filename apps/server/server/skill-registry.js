@@ -42,6 +42,17 @@ const skills = [
     executionReliability: 0.9,
     warmPoolAvailability: 0.74,
     safeDefault: true
+  },
+  {
+    id: "manim",
+    name: "Manim Video Composer",
+    version: "0.18.1",
+    description: "Cinematic Python-based animation rendering for rich educational and narrative videos.",
+    domainFocus: ["animation", "2d"],
+    capabilities: ["video", "timeline", "easing", "camera", "typography", "math", "animation", "primitive", "drawing", "layout"],
+    executionReliability: 0.86,
+    warmPoolAvailability: 0.62,
+    safeDefault: false
   }
 ];
 
@@ -93,7 +104,7 @@ function hasStrong2dSignals(rawQuery) {
     return false;
   }
 
-  return /\b(2d|canvas|p5(?:js)?|sprite|pixel(?:\s+art)?|sketch)\b/.test(normalized);
+  return /\b(2d|canvas|p5(?:js)?|sprite|pixel(?:\s+art)?|sketch|manim|equation|latex|math\s+animation|mathematical\s+animation)\b/.test(normalized);
 }
 
 function hasStrongDataVizSignals(rawQuery) {
@@ -166,7 +177,13 @@ function capabilityCoverage(skill, intent) {
     timeline: ["timeline", "animation"],
     easing: ["easing", "animation"],
     svg: ["svg", "timeline"],
-    dom: ["interaction", "timeline"]
+    dom: ["interaction", "timeline"],
+    equation: ["math", "typography", "animation"],
+    formula: ["math", "typography"],
+    math: ["math", "animation"],
+    video: ["video", "timeline", "camera"],
+    cinematic: ["camera", "video", "animation"],
+    subtitle: ["typography", "video"]
   };
 
   if (intent.entities.length === 0 && intent.constraints.length === 0) {
@@ -202,6 +219,19 @@ function constraintFit(skill, intent) {
 
   if (intent.intentType === "animate") {
     score += skill.capabilities.includes("animation") ? 0.25 : 0;
+  }
+
+  const wantsVideo = intent.constraints.some((constraint) =>
+    /video|mp4|cinematic|export|render/.test(String(constraint.value ?? constraint.name ?? "").toLowerCase())
+  );
+
+  if (wantsVideo) {
+    score += skill.capabilities.includes("video") ? 0.35 : 0;
+  }
+
+  const asksForManim = /\bmanim\b/.test(String(intent.rawQuery ?? "").toLowerCase());
+  if (asksForManim) {
+    score += skill.id === "manim" ? 0.4 : -0.05;
   }
 
   if (intent.targetDomain === "diagram" || intent.targetDomain === "data-viz") {

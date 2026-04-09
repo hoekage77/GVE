@@ -1,0 +1,115 @@
+{
+  "sessionId": "9aa6ed01-4a0a-4100-a98d-18a53ee2fa23",
+  "createdAt": "2026-04-07T11:42:18.846Z",
+  "updatedAt": "2026-04-07T11:42:40.246Z",
+  "status": "idle",
+  "currentScene": null,
+  "artifacts": [],
+  "artifactPointer": -1,
+  "versions": [],
+  "sceneVersions": [],
+  "versionPointer": -1,
+  "revisionPointer": -1,
+  "messages": [
+    {
+      "id": "ws-runtime-1775562138873",
+      "role": "user",
+      "content": "Hello. Confirm websocket runtime event flow.",
+      "kind": "input",
+      "meta": [],
+      "error": null,
+      "createdAt": "2026-04-07T11:42:18.935Z",
+      "updatedAt": "2026-04-07T11:42:18.935Z"
+    },
+    {
+      "id": "message-2",
+      "role": "assistant",
+      "content": "Hey! 👋\n\n**WebSocket runtime event flow** typically runs like this:\n\n1. **Handshake** – Client sends HTTP upgrade request; server responds with `101 Switching Protocols`\n2. **Connection Open** – Both sides trigger an `open` event; the socket moves to `OPEN` state\n3. **Bidirectional Messaging** – \n   - **Client → Server**: `send()` pushes text/binary frames\n   - **Server → Client**: Server pushes frames anytime (no polling)\n   - Both trigger `message` events on the receiving end\n4. **Error Handling** – Network hiccups or protocol violations fire `error` events; connection may auto-retry depending on your client config\n5. **Close** – Either side sends a close frame → `close` event fires with code (e.g., 1000 for normal, 1006 for abnormal) and reason string\n\n**Key runtime quirks to confirm:**\n- Messages are **frames**, not streams—if you send large payloads, the runtime handles fragmentation, but your app sees them as discrete `message` events\n- **No request/response pairing** built-in—you'll need correlation IDs if you want request-response semantics over the socket\n- The connection stays open until explicit `close()` or network failure; idle timeouts depend on your server/proxy settings (often 60s–5min)\n\nDoes that match what you were expecting, or were you looking at a specific implementation (Socket.io, raw WS, a particular cloud provider)?",
+      "kind": "chat",
+      "meta": [
+        "assistantSource:moonshot"
+      ],
+      "error": null,
+      "createdAt": "2026-04-07T11:42:18.961Z",
+      "updatedAt": "2026-04-07T11:42:40.226Z"
+    },
+    {
+      "id": "thought-turn_started-1775562139053",
+      "role": "thought",
+      "content": "Let me think about this... I need to understand what you're asking for.",
+      "kind": "thought",
+      "meta": [
+        "turn_started",
+        "requestId:ws-runtime-1775562138873",
+        "messageId:message-2"
+      ],
+      "error": null,
+      "createdAt": "2026-04-07T11:42:19.053Z",
+      "updatedAt": "2026-04-07T11:42:19.053Z"
+    },
+    {
+      "id": "thought-intent_parsed-1775562139362",
+      "role": "thought",
+      "content": "Got it. You're looking for a visual scene. I'm selecting the right rendering engine now.",
+      "kind": "thought",
+      "meta": [
+        "intent_parsed",
+        "requestId:ws-runtime-1775562138873",
+        "messageId:message-2"
+      ],
+      "error": null,
+      "createdAt": "2026-04-07T11:42:19.362Z",
+      "updatedAt": "2026-04-07T11:42:19.362Z"
+    },
+    {
+      "id": "thought-plan_created-1775562139366",
+      "role": "thought",
+      "content": "Alright, 7 tasks queued. I'm moving through the pipeline now.",
+      "kind": "thought",
+      "meta": [
+        "plan_created",
+        "requestId:ws-runtime-1775562138873",
+        "messageId:message-2"
+      ],
+      "error": null,
+      "createdAt": "2026-04-07T11:42:19.366Z",
+      "updatedAt": "2026-04-07T11:42:19.366Z"
+    },
+    {
+      "id": "thought-turn_complete-1775562160236",
+      "role": "thought",
+      "content": "Complete. The scene has been generated and synced.",
+      "kind": "thought",
+      "meta": [
+        "turn_complete",
+        "requestId:ws-runtime-1775562138873",
+        "messageId:message-2"
+      ],
+      "error": null,
+      "createdAt": "2026-04-07T11:42:40.236Z",
+      "updatedAt": "2026-04-07T11:42:40.236Z"
+    }
+  ],
+  "orchestrationTrace": [
+    {
+      "id": "trace-1",
+      "step": "intent_parsed",
+      "payload": {
+        "sessionId": "9aa6ed01-4a0a-4100-a98d-18a53ee2fa23",
+        "content": "Hello. Confirm websocket runtime event flow."
+      },
+      "createdAt": "2026-04-07T11:42:19.070Z"
+    },
+    {
+      "id": "trace-2",
+      "step": "turn_complete",
+      "payload": {
+        "sessionId": "9aa6ed01-4a0a-4100-a98d-18a53ee2fa23",
+        "mode": "chat",
+        "messageCount": 6,
+        "error": null
+      },
+      "createdAt": "2026-04-07T11:42:40.246Z"
+    }
+  ]
+}

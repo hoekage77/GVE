@@ -15,6 +15,9 @@ export default function CodeEditor({ code, skill, readOnly, onChange, onRun }: C
   const [localCode, setLocalCode] = useState(code ?? "");
   const [copied, setCopied] = useState(false);
   const [isDirty, setIsDirty] = useState(false);
+  const isPythonSkill = skill === "manim";
+  const fileExtension = isPythonSkill ? "py" : skill === "threejs" ? "tsx" : "js";
+  const highlightLanguage = isPythonSkill ? "python" : skill === "threejs" ? "tsx" : "javascript";
 
   useEffect(() => {
     setLocalCode(code ?? "");
@@ -54,7 +57,7 @@ export default function CodeEditor({ code, skill, readOnly, onChange, onRun }: C
       <div className="code-editor-toolbar">
         <div className="code-editor-info">
           <FileCode className="h-4 w-4" />
-          <span>scene.{skill === "threejs" ? "tsx" : "js"}</span>
+          <span>scene.{fileExtension}</span>
           <span className="code-editor-meta">{lineCount} lines</span>
           {isDirty && <span className="code-editor-dirty">Modified</span>}
         </div>
@@ -97,7 +100,7 @@ export default function CodeEditor({ code, skill, readOnly, onChange, onRun }: C
         <Highlight
           theme={themes.github}
           code={localCode}
-          language={skill === "threejs" ? "tsx" : "javascript"}
+          language={highlightLanguage}
         >
           {({ className, style, tokens, getLineProps, getTokenProps }) => (
             <pre className={cn(className, "code-pre")} style={style}>

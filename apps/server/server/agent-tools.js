@@ -27,11 +27,20 @@ const runtimeExecutionTimeoutMs = parsePositiveIntEnv(
   2200,
   300
 );
+const manimRuntimeExecutionTimeoutMs = parsePositiveIntEnv(
+  process.env.RUNTIME_EXEC_TIMEOUT_MANIM_MS,
+  90_000,
+  2_000
+);
 const runtimeExecutionMaxFrames = parsePositiveIntEnv(
   process.env.RUNTIME_EXEC_MAX_FRAMES,
   48,
   1
 );
+
+function resolveRuntimeExecutionTimeoutMs(skillId) {
+  return skillId === "manim" ? manimRuntimeExecutionTimeoutMs : runtimeExecutionTimeoutMs;
+}
 
 function getRemainingBudgetMs(deadlineAtMs) {
   if (!Number.isFinite(deadlineAtMs)) {
@@ -62,17 +71,17 @@ const toolDefinitions = {
     type: "function",
     function: {
       name: "validate_code",
-      description: "Validate generated JavaScript scene code for syntax errors, security violations, and API compliance. Returns validation results with specific error details.",
+      description: "Validate generated scene code for syntax errors, security violations, and API compliance. Returns validation results with specific error details.",
       parameters: {
         type: "object",
         properties: {
           code: {
             type: "string",
-            description: "The JavaScript scene code to validate."
+            description: "The scene code to validate."
           },
           skill: {
             type: "string",
-            enum: ["threejs", "p5js", "d3js", "animejs"],
+            enum: ["threejs", "p5js", "d3js", "animejs", "manim"],
             description: "The rendering skill/engine the code targets."
           }
         },
@@ -85,17 +94,17 @@ const toolDefinitions = {
     type: "function",
     function: {
       name: "fix_code",
-      description: "Submit corrected JavaScript scene code after seeing validation errors. The code will be re-validated automatically. Returns validation results for the fixed code.",
+      description: "Submit corrected scene code after seeing validation errors. The code will be re-validated automatically. Returns validation results for the fixed code.",
       parameters: {
         type: "object",
         properties: {
           code: {
             type: "string",
-            description: "The corrected JavaScript scene code."
+            description: "The corrected scene code."
           },
           skill: {
             type: "string",
-            enum: ["threejs", "p5js", "d3js", "animejs"],
+            enum: ["threejs", "p5js", "d3js", "animejs", "manim"],
             description: "The rendering skill/engine the code targets."
           },
           changes_made: {
@@ -118,11 +127,11 @@ const toolDefinitions = {
         properties: {
           code: {
             type: "string",
-            description: "The validated JavaScript scene code to execute."
+            description: "The validated scene code to execute."
           },
           skill: {
             type: "string",
-            enum: ["threejs", "p5js", "d3js", "animejs"],
+            enum: ["threejs", "p5js", "d3js", "animejs", "manim"],
             description: "The rendering skill/engine."
           }
         },
@@ -294,9 +303,10 @@ function handleFixCode({ code, skill, changes_made }) {
 
 async function handleExecuteCode({ code, skill }) {
   try {
+    const resolvedSkill = skill ?? "threejs";
     const timeoutMs = computeBoundedTimeoutMs(
       _currentErrorContext?.runtimeDebugDeadlineAtMs,
-      runtimeExecutionTimeoutMs
+      resolveRuntimeExecutionTimeoutMs(resolvedSkill)
     );
     if (timeoutMs <= 0) {
       return {
@@ -308,10 +318,10 @@ async function handleExecuteCode({ code, skill }) {
     }
 
     const runtimeResult = await executeSkillRuntime({
-      skillId: skill ?? "threejs",
+      skillId: resolvedSkill,
       code,
       timeoutMs,
-      maxFrames: runtimeExecutionMaxFrames,
+      maxFrames: resolvedSkill === "manim" ? 1 : runtimeExecutionMaxFrames,
       turnDeadlineAtMs: _currentErrorContext?.runtimeDebugDeadlineAtMs
     });
 

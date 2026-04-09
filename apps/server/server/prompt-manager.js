@@ -138,7 +138,9 @@ function resolveRequestedQuality(request, selectedSkill) {
     return requested;
   }
 
-  return selectedSkill === "threejs" || selectedSkill === "animejs" ? "high" : "standard";
+  return selectedSkill === "threejs" || selectedSkill === "animejs" || selectedSkill === "manim"
+    ? "high"
+    : "standard";
 }
 
 function buildSkillRuntimeAssumption(selectedSkill) {
@@ -158,7 +160,89 @@ function buildSkillRuntimeAssumption(selectedSkill) {
     return "Use the anime global API. Build DOM or SVG targets first, then animate with anime() or anime.timeline().";
   }
 
+  if (selectedSkill === "manim") {
+    return "Return Python Manim code only. Always include from manim import * near the top. Define one Scene subclass named GVERichScene (use MovingCameraScene only when manipulating self.camera.frame) with construct(self). If NumPy is used, include import numpy as np. Use modern Manim APIs (Axes/NumberPlane with x_range and y_range, not x_min/x_max/y_min/y_max), avoid deprecated camera helpers such as set_camera(), avoid filesystem/network/system calls, and optimize for cinematic output.";
+  }
+
   return "Use only globals provided by the selected skill runtime.";
+}
+
+function buildManimQualityProfile(quality) {
+  if (quality === "draft") {
+    return "Draft: keep composition simple but still clean, with short transitions and minimal objects.";
+  }
+
+  if (quality === "high") {
+    return "High: deliver rich cinematic output with 1080p, 60fps pacing, layered composition, expressive camera movement, strong typography hierarchy, nuanced easing, and polished transitions.";
+  }
+
+  return "Standard: polished composition, smooth pacing, readable typography, and stable camera choreography.";
+}
+
+function buildManimGenerationPromptBundle(state) {
+  const requestedQuality = resolveRequestedQuality(state.request, state.selectedSkill);
+  const systemPrompt = [
+    "You are a senior Manim animation director and Python engineer.",
+    "Generate runnable Python Manim code only.",
+    "Return raw code with no markdown fences and no prose.",
+    "Always include `from manim import *` near the top of the file.",
+    "If NumPy is used, include `import numpy as np`.",
+    "Produce one subclass named GVERichScene (subclass MovingCameraScene instead of Scene if you need to manipulate self.camera.frame) with a construct(self) method.",
+    "Use modern Manim APIs only: for Axes/NumberPlane use x_range and y_range (never x_min/x_max/y_min/y_max).",
+    "Do not use deprecated camera helpers such as set_camera(); use self.camera.frame methods for camera motion.",
+    "Do not perform filesystem, network, subprocess, or shell operations.",
+    "Keep code deterministic and self-contained."
+  ].join(" ");
+
+  const userPrompt = [
+    `User query: ${state.request.query}`,
+    `Selected skill: ${state.selectedSkill}`,
+    `Runtime assumptions: ${buildSkillRuntimeAssumption(state.selectedSkill)}`,
+    `Requested quality: ${requestedQuality}`,
+    `Manim quality profile: ${buildManimQualityProfile(requestedQuality)}`,
+    "Render target: video/mp4 at 1920x1080 and 60fps.",
+    "Art direction: keep visuals rich, cinematic, and highly readable.",
+    `Intent: ${JSON.stringify(state.parsedIntent)}`,
+    "Return complete Python code only."
+  ].join("\n");
+
+  return {
+    systemPrompt,
+    userPrompt
+  };
+}
+
+function buildManimModificationPromptBundle(state) {
+  const requestedQuality = state.quality ?? "high";
+
+  const systemPrompt = [
+    "You are a senior Manim animation editor.",
+    "Revise the supplied Python Manim code to satisfy the edit instruction.",
+    "Return raw Python code only with no markdown fences.",
+    "Keep `from manim import *` near the top of the file.",
+    "If NumPy helpers are used, include `import numpy as np`.",
+    "Keep one Scene subclass named GVERichScene (subclass MovingCameraScene if using self.camera.frame) and preserve compatibility.",
+    "Use modern Manim APIs only: for Axes/NumberPlane use x_range and y_range (never x_min/x_max/y_min/y_max).",
+    "Do not use deprecated camera helpers such as set_camera(); use self.camera.frame methods for camera motion.",
+    "Do not perform filesystem, network, subprocess, or shell operations."
+  ].join(" ");
+
+  const userPrompt = [
+    `Edit instruction: ${state.instruction}`,
+    `Selected skill: ${state.selectedSkill}`,
+    `Runtime assumptions: ${buildSkillRuntimeAssumption(state.selectedSkill)}`,
+    `Requested quality: ${requestedQuality}`,
+    `Manim quality profile: ${buildManimQualityProfile(requestedQuality)}`,
+    "Render target: video/mp4 at 1920x1080 and 60fps.",
+    "Current code:",
+    state.currentCode,
+    "Return complete revised Python code only."
+  ].join("\n");
+
+  return {
+    systemPrompt,
+    userPrompt
+  };
 }
 
 function buildBackgroundPolicy(sourceText) {
@@ -256,6 +340,10 @@ export function buildConversationPromptBundle({ sessionState, request, parsedInt
 }
 
 export function buildGenerationPromptBundle(state) {
+  if (state.selectedSkill === "manim") {
+    return buildManimGenerationPromptBundle(state);
+  }
+
   const requestedQuality = resolveRequestedQuality(state.request, state.selectedSkill);
 
   return buildPromptBundle(promptConfig.generation, {
@@ -271,6 +359,10 @@ export function buildGenerationPromptBundle(state) {
 }
 
 export function buildModificationPromptBundle(state) {
+  if (state.selectedSkill === "manim") {
+    return buildManimModificationPromptBundle(state);
+  }
+
   const requestedQuality = state.quality ?? (state.selectedSkill === "threejs" ? "high" : "standard");
 
   return buildPromptBundle(promptConfig.modification, {
@@ -300,34 +392,46 @@ export function buildModificationPromptBundle(state) {
  * @returns {{ systemPrompt: string, userContent: Array }}
  */
 export function buildImageToCodePromptBundle({ imageUrl, query, selectedSkill, parsedIntent }) {
+  const isManim = selectedSkill === "manim";
+
   const systemPrompt = [
-    "You are a senior JavaScript visual generation agent with vision capabilities.",
+    isManim
+      ? "You are a senior Manim animation director with vision capabilities."
+      : "You are a senior JavaScript visual generation agent with vision capabilities.",
     "The user has provided a reference image. Analyze the visual elements carefully:",
     "- Identify colors, gradients, and palettes",
     "- Identify shapes, objects, and their spatial arrangement",
     "- Identify any motion, animation, or dynamic elements",
     "- Identify lighting, shadows, and depth cues",
     "",
-    `Generate runnable ${
-      selectedSkill === "threejs"
-        ? "Three.js"
-        : selectedSkill === "p5js"
-          ? "p5.js"
-          : selectedSkill === "animejs"
-            ? "Anime.js"
-            : "D3.js"
-    } JavaScript code that recreates or closely matches the visual.`,
+    isManim
+      ? "Generate runnable Python Manim code that recreates or closely matches the visual."
+      : `Generate runnable ${
+          selectedSkill === "threejs"
+            ? "Three.js"
+            : selectedSkill === "p5js"
+              ? "p5.js"
+              : selectedSkill === "animejs"
+                ? "Anime.js"
+                : "D3.js"
+        } JavaScript code that recreates or closely matches the visual.`,
     selectedSkill === "threejs"
       ? "Assume scene, camera, renderer, THREE, and OrbitControls are pre-initialized globals."
       : selectedSkill === "p5js"
         ? "Define setup() and draw() functions. createCanvas() is available."
         : selectedSkill === "animejs"
           ? "Use anime() and anime.timeline() on DOM/SVG targets. Build targets before starting animations."
+      : selectedSkill === "manim"
+        ? "Define one Scene subclass named GVERichScene (subclass MovingCameraScene if you need to use self.camera.frame). Target 1080p/60fps rich motion quality."
           : "Use the d3 namespace for DOM manipulation. SVG container is available.",
     "",
     "Rules:",
-    "- Output runnable JavaScript code ONLY. No markdown fences, no prose.",
-    "- Do NOT use eval(), Function constructor, fetch(), require(), or import().",
+    isManim
+      ? "- Output runnable Python code ONLY. No markdown fences, no prose."
+      : "- Output runnable JavaScript code ONLY. No markdown fences, no prose.",
+    isManim
+      ? "- Do NOT use filesystem, subprocess, shell, or network APIs."
+      : "- Do NOT use eval(), Function constructor, fetch(), require(), or import().",
     "- Match the reference image's visual style as closely as possible.",
     "- Prefer light or neutral backgrounds unless the reference clearly indicates a dark/night scene.",
     "- Add animation/motion if the image suggests movement or dynamics.",

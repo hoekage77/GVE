@@ -34,6 +34,15 @@ runCheck("parse_intent_detects_data_viz", () => {
   assert.equal(parsed.targetDomain, "data-viz");
 });
 
+runCheck("parse_intent_prefers_animation_for_video_prompt_with_camera_cues", () => {
+  const parsed = parseIntentFromQuery(
+    "Create a cinematic video with a moving camera around a rotating cube."
+  );
+
+  assert.equal(parsed.targetDomain, "animation");
+  assert.equal(parsed.intentType, "animate");
+});
+
 runCheck("ranking_anchors_weak_2d_to_3d", () => {
   const ranking = rankSkillsForIntent({
     intentType: "create",
@@ -46,6 +55,15 @@ runCheck("ranking_anchors_weak_2d_to_3d", () => {
 
   assert.equal(ranking.selectedSkill, "threejs");
   assert.match(ranking.reason, /Domain anchored/);
+});
+
+runCheck("ranking_prefers_manim_for_video_generation", () => {
+  const parsed = parseIntentFromQuery(
+    "Create a cinematic video with a moving camera around a rotating cube."
+  );
+  const ranking = rankSkillsForIntent(parsed);
+
+  assert.equal(ranking.selectedSkill, "manim");
 });
 
 runCheck("validation_passable_preferred_over_valid", () => {

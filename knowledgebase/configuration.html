@@ -163,6 +163,12 @@
             <td>-</td>
             <td>Custom Docker image for direct create</td>
           </tr>
+          <tr>
+            <td>DAYTONA_DIRECT_CREATE_IMAGE_MANIM</td>
+            <td>No</td>
+            <td>-</td>
+            <td>Manim-only custom Docker image for direct create (preferred for LaTeX workloads)</td>
+          </tr>
         </table>
         <p><em>* Either DAYTONA_API_KEY or (DAYTONA_JWT_TOKEN + DAYTONA_ORG_ID) is required</em></p>
         
@@ -238,6 +244,50 @@
             <td>Delay between code stream chunks (ms)</td>
           </tr>
         </table>
+
+        <h3>Manim Runtime Configuration</h3>
+        <table>
+          <tr>
+            <th>Variable</th>
+            <th>Default</th>
+            <th>Description</th>
+          </tr>
+          <tr>
+            <td>MANIM_PIP_INSTALL_ON_DEMAND</td>
+            <td>true</td>
+            <td>Install Manim package inside sandbox when missing</td>
+          </tr>
+          <tr>
+            <td>MANIM_PIP_PACKAGE</td>
+            <td>manim==0.20.1</td>
+            <td>Python package spec used for on-demand Manim install</td>
+          </tr>
+          <tr>
+            <td>MANIM_LATEX_INSTALL_ON_DEMAND</td>
+            <td>true</td>
+            <td>Install LaTeX dependencies (latex + dvisvgm) inside sandbox when missing</td>
+          </tr>
+          <tr>
+            <td>MANIM_LATEX_APT_PACKAGES</td>
+            <td>texlive-latex-base texlive-latex-extra texlive-fonts-recommended dvisvgm</td>
+            <td>APT package set used for on-demand LaTeX provisioning</td>
+          </tr>
+          <tr>
+            <td>MANIM_RENDER_WIDTH</td>
+            <td>1920</td>
+            <td>Manim output width in pixels</td>
+          </tr>
+          <tr>
+            <td>MANIM_RENDER_HEIGHT</td>
+            <td>1080</td>
+            <td>Manim output height in pixels</td>
+          </tr>
+          <tr>
+            <td>MANIM_RENDER_FPS</td>
+            <td>60</td>
+            <td>Manim output frame rate</td>
+          </tr>
+        </table>
         
         <h3>Web Configuration</h3>
         <table>
@@ -280,6 +330,10 @@ DAYTONA_PREWARM_SIZE=2
 DAYTONA_PREWARM_CHECK_INTERVAL_SECONDS=15
 DAYTONA_DIRECT_CREATE_TIMEOUT_SECONDS=10
 DAYTONA_FALLBACK_CREATE_TIMEOUT_SECONDS=25
+# Optional: provide a custom Daytona image with LaTeX preinstalled for faster Manim startup
+# DAYTONA_DIRECT_CREATE_IMAGE=ghcr.io/your-org/daytona-manim:latest
+# Recommended: scope image override to Manim only
+# DAYTONA_DIRECT_CREATE_IMAGE_MANIM=manimcommunity/manim:v0.20.1
 
 # Circuit Breaker
 DAYTONA_DIRECT_CIRCUIT_BREAKER_THRESHOLD=3
@@ -296,6 +350,20 @@ PORT=8000
 FAST_MODE=true
 ENABLE_ASYNC_THINKING=true
 ENABLE_POST_TURN_NARRATION=true
+
+# Manim Runtime Settings
+MANIM_PIP_INSTALL_ON_DEMAND=true
+MANIM_PIP_PACKAGE=manim==0.20.1
+MANIM_LATEX_INSTALL_ON_DEMAND=true
+MANIM_LATEX_APT_PACKAGES="texlive-latex-base texlive-latex-extra texlive-fonts-recommended dvisvgm"
+MANIM_RENDER_WIDTH=1920
+MANIM_RENDER_HEIGHT=1080
+MANIM_RENDER_FPS=60
+
+# Recommended when using a prebuilt image with LaTeX+dvisvgm already installed
+# MANIM_PIP_INSTALL_ON_DEMAND=false
+# MANIM_LATEX_INSTALL_ON_DEMAND=false
+# RUNTIME_ACQUIRE_BUDGET_MS=60000
         </pre>
       </section>
       

@@ -1,0 +1,845 @@
+{
+  "sessionId": "98be53e9-ca75-41b3-b58c-387784e3180a",
+  "createdAt": "2026-04-06T22:53:39.988Z",
+  "updatedAt": "2026-04-06T23:02:16.415Z",
+  "status": "idle",
+  "currentScene": {
+    "sessionId": "98be53e9-ca75-41b3-b58c-387784e3180a",
+    "sceneId": "scene-1775516497921",
+    "code": "const clock = new THREE.Clock();\nscene.background = new THREE.Color(0xf8f9fa);\nrenderer.toneMapping = THREE.ACESFilmicToneMapping;\nrenderer.toneMappingExposure = 1.08;\nrenderer.shadowMap.enabled = true;\nrenderer.shadowMap.type = THREE.PCFSoftShadowMap;\n\nconst keyLight = new THREE.DirectionalLight(0xffffff, 1.4);\nkeyLight.position.set(6, 12, 8);\nkeyLight.castShadow = true;\nkeyLight.shadow.mapSize.width = 2048;\nkeyLight.shadow.mapSize.height = 2048;\nkeyLight.shadow.camera.near = 0.1;\nkeyLight.shadow.camera.far = 50;\nkeyLight.shadow.bias = -0.001;\n\nconst fillLight = new THREE.DirectionalLight(0xdbeafe, 0.6);\nfillLight.position.set(-8, 6, 4);\n\nconst rimLight = new THREE.PointLight(0x60a5fa, 0.5, 25);\nrimLight.position.set(-5, 4, -6);\n\nscene.add(new THREE.AmbientLight(0x64748b, 0.35), keyLight, fillLight, rimLight);\n\nconst COLORS = {\n  curve: 0x3b82f6,\n  accent: 0xf59e0b,\n  highlight: 0x10b981,\n  text: 0x1e293b,\n  grid: 0xcbd5e1\n};\n\nconst gridGroup = new THREE.Group();\nconst gridHelper = new THREE.GridHelper(20, 20, COLORS.grid, COLORS.grid);\ngridHelper.position.y = -2;\ngridGroup.add(gridHelper);\n\nconst axesGroup = new THREE.Group();\nconst axisMaterial = new THREE.MeshStandardMaterial({ \n  color: 0x475569, \n  roughness: 0.4, \n  metalness: 0.1 \n});\n\nconst xAxis = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 12, 16), axisMaterial);\nxAxis.rotation.z = -Math.PI / 2;\nxAxis.position.y = -2;\naxesGroup.add(xAxis);\n\nconst yAxis = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 8, 16), axisMaterial);\nyAxis.position.set(-6, 0, 0);\naxesGroup.add(yAxis);\n\nscene.add(gridGroup);\nscene.add(axesGroup);\n\nconst curvePath = new THREE.CatmullRomCurve3(\n  Array.from({ length: 50 }, (_, i) => {\n    const x = -5 + (i / 49) * 10;\n    const y = 0.5 * Math.sin(x) + 0.2 * x;\n    return new THREE.Vector3(x, y, 0);\n  })\n);\n\nconst tubeGeometry = new THREE.TubeGeometry(curvePath, 64, 0.08, 16, false);\nconst curveMaterial = new THREE.MeshStandardMaterial({ \n  color: COLORS.curve, \n  roughness: 0.3, \n  metalness: 0.1,\n  emissive: COLORS.curve,\n  emissiveIntensity: 0.1\n});\nconst curveMesh = new THREE.Mesh(tubeGeometry, curveMaterial);\ncurveMesh.castShadow = true;\ncurveMesh.receiveShadow = true;\nscene.add(curveMesh);\n\nfunction getCurvePoint(t) {\n  const x = -5 + t * 10;\n  const y = 0.5 * Math.sin(x) + 0.2 * x;\n  return new THREE.Vector3(x, y, 0);\n}\n\nfunction getDerivative(t) {\n  const x = -5 + t * 10;\n  return 0.5 * Math.cos(x) + 0.2;\n}\n\nconst pointGeometry = new THREE.SphereGeometry(0.15, 32, 32);\nconst fixedPointMaterial = new THREE.MeshStandardMaterial({ \n  color: COLORS.highlight, \n  roughness: 0.2, \n  metalness: 0.3,\n  emissive: COLORS.highlight,\n  emissiveIntensity: 0.3\n});\nconst movingPointMaterial = new THREE.MeshStandardMaterial({ \n  color: COLORS.accent, \n  roughness: 0.2, \n  metalness: 0.3,\n  emissive: COLORS.accent,\n  emissiveIntensity: 0.3\n});\n\nconst fixedPoint = new THREE.Mesh(pointGeometry, fixedPointMaterial);\nconst movingPoint = new THREE.Mesh(pointGeometry, movingPointMaterial);\nfixedPoint.position.copy(getCurvePoint(0.6));\nfixedPoint.castShadow = true;\nmovingPoint.castShadow = true;\nscene.add(fixedPoint);\nscene.add(movingPoint);\n\nconst lineMaterial = new THREE.LineBasicMaterial({ \n  color: COLORS.accent, \n  linewidth: 3,\n  opacity: 0.8,\n  transparent: true\n});\n\nconst secantGeometry = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(0,0,0), new THREE.Vector3(1,1,0)]);\nconst secantLine = new THREE.Line(secantGeometry, lineMaterial);\nscene.add(secantLine);\n\nconst tangentMaterial = new THREE.LineBasicMaterial({ \n  color: COLORS.highlight, \n  linewidth: 4,\n  opacity: 0,\n  transparent: true\n});\nconst tangentGeometry = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(0,0,0), new THREE.Vector3(1,1,0)]);\nconst tangentLine = new THREE.Line(tangentGeometry, tangentMaterial);\nscene.add(tangentLine);\n\nfunction createLabel(text, color = '#1e293b') {\n  const canvas = document.createElement('canvas');\n  const ctx = canvas.getContext('2d');\n  canvas.width = 512;\n  canvas.height = 256;\n  ctx.fillStyle = 'rgba(255,255,255,0)';\n  ctx.fillRect(0, 0, canvas.width, canvas.height);\n  ctx.font = 'bold 64px \"Times New Roman\", serif';\n  ctx.fillStyle = color;\n  ctx.textAlign = 'center';\n  ctx.textBaseline = 'middle';\n  ctx.fillText(text, 256, 128);\n  const texture = new THREE.CanvasTexture(canvas);\n  texture.minFilter = THREE.LinearFilter;\n  const material = new THREE.MeshBasicMaterial({ \n    map: texture, \n    transparent: true, \n    side: THREE.DoubleSide,\n    opacity: 0\n  });\n  const geometry = new THREE.PlaneGeometry(3, 1.5);\n  const mesh = new THREE.Mesh(geometry, material);\n  return mesh;\n}\n\nconst labelP = createLabel(\"P\", \"#10b981\");\nlabelP.position.set(0.5, 0.5, 0);\nfixedPoint.add(labelP);\n\nconst labelQ = createLabel(\"Q\", \"#f59e0b\");\nlabelQ.position.set(0.5, 0.5, 0);\nmovingPoint.add(labelQ);\n\nconst secantLabel = createLabel(\"Secant\", \"#f59e0b\");\nsecantLabel.position.set(2, 3, 0);\nscene.add(secantLabel);\n\nconst tangentLabel = createLabel(\"Tangent\", \"#10b981\");\ntangentLabel.position.set(2, 3.5, 0);\nscene.add(tangentLabel);\n\ncamera.position.set(0, 2, 8);\ncamera.lookAt(0, 0, 0);\n\nconst controls = new OrbitControls(camera, renderer.domElement);\ncontrols.enableDamping = true;\ncontrols.dampingFactor = 0.05;\ncontrols.target.set(0, 0, 0);\n\nfunction animate() {\n  requestAnimationFrame(animate);\n  const t = clock.getElapsedTime();\n  const cycle = t % 12;\n  \n  camera.position.x = Math.sin(t * 0.1) * 0.5;\n  camera.lookAt(0, 0, 0);\n  \n  if (cycle < 2) {\n    const localTime = cycle / 2;\n    fixedPoint.scale.setScalar(0);\n    movingPoint.scale.setScalar(0);\n    secantLine.material.opacity = 0;\n    tangentLine.material.opacity = 0;\n    secantLabel.material.opacity = 0;\n    tangentLabel.material.opacity = 0;\n    labelP.material.opacity = 0;\n    labelQ.material.opacity = 0;\n  } else if (cycle < 3) {\n    const localTime = (cycle - 2);\n    fixedPoint.scale.setScalar(localTime);\n    movingPoint.scale.setScalar(0);\n    secantLine.material.opacity = 0;\n    tangentLine.material.opacity = 0;\n    secantLabel.material.opacity = 0;\n    tangentLabel.material.opacity = 0;\n    labelP.material.opacity = localTime;\n    labelQ.material.opacity = 0;\n  } else if (cycle < 7) {\n    const localTime = (cycle - 3) / 4;\n    fixedPoint.scale.setScalar(1);\n    movingPoint.scale.setScalar(1);\n    labelP.material.opacity = 1;\n    labelQ.material.opacity = 1;\n    \n    const startT = 0.9;\n    const endT = 0.61;\n    const easeT = 1 - Math.pow(1 - localTime, 3);\n    const actualT = startT - (startT - endT) * easeT;\n    \n    const pPos = getCurvePoint(0.6);\n    const qPos = getCurvePoint(actualT);\n    \n    fixedPoint.position.copy(pPos);\n    movingPoint.position.copy(qPos);\n    \n    const positions = new Float32Array([\n      pPos.x, pPos.y, pPos.z,\n      qPos.x, qPos.y, qPos.z\n    ]);\n    secantLine.geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));\n    secantLine.geometry.attributes.position.needsUpdate = true;\n    \n    secantLine.material.opacity = 0.8;\n    tangentLine.material.opacity = 0;\n    secantLabel.material.opacity = 1;\n    tangentLabel.material.opacity = 0;\n    secantLabel.position.set((pPos.x + qPos.x) / 2 + 0.5, (pPos.y + qPos.y) / 2 + 0.8, 0);\n  } else if (cycle < 9) {\n    const localTime = (cycle - 7) / 2;\n    const pPos = getCurvePoint(0.6);\n    fixedPoint.position.copy(pPos);\n    movingPoint.position.copy(pPos);\n    \n    fixedPoint.scale.setScalar(1);\n    movingPoint.scale.setScalar(1 - localTime * 0.5);\n    \n    secantLine.material.opacity = 0.8 * (1 - localTime);\n    secantLabel.material.opacity = 1 - localTime;\n    \n    const slope = getDerivative(0.6);\n    const length = 3;\n    const dx = length / Math.sqrt(1 + slope * slope);\n    const dy = slope * dx;\n    \n    const tangentPositions = new Float32Array([\n      pPos.x - dx, pPos.y - dy, pPos.z,\n      pPos.x + dx, pPos.y + dy, pPos.z\n    ]);\n    tangentLine.geometry.setAttribute('position', new THREE.BufferAttribute(tangentPositions, 3));\n    tangentLine.geometry.attributes.position.needsUpdate = true;\n    tangentLine.material.opacity = localTime;\n    tangentLabel.material.opacity = localTime;\n    tangentLabel.position.set(pPos.x + 1.5, pPos.y + slope * 1.5 + 0.5, 0);\n  } else {\n    const pPos = getCurvePoint(0.6);\n    fixedPoint.position.copy(pPos);\n    movingPoint.scale.setScalar(0.5);\n    \n    const slope = getDerivative(0.6);\n    const length = 3;\n    const dx = length / Math.sqrt(1 + slope * slope);\n    const dy = slope * dx;\n    \n    const tangentPositions = new Float32Array([\n      pPos.x - dx, pPos.y - dy, pPos.z,\n      pPos.x + dx, pPos.y + dy, pPos.z\n    ]);\n    tangentLine.geometry.setAttribute('position', new THREE.BufferAttribute(tangentPositions, 3));\n    tangentLine.geometry.attributes.position.needsUpdate = true;\n    \n    tangentLine.material.opacity = 1;\n    tangentLabel.material.opacity = 1;\n    secantLine.material.opacity = 0;\n    secantLabel.material.opacity = 0;\n  }\n  \n  controls.update();\n  renderer.render(scene, camera);\n}\nanimate();",
+    "previewUrl": "about:blank",
+    "skill": "threejs",
+    "explanation": "Show me a manim video explainig the concept. Live preview may be limited, but the animation concept is ready.",
+    "messageId": "message-17",
+    "source": "generate",
+    "createdAt": "2026-04-06T23:01:37.957Z",
+    "updatedAt": "2026-04-06T23:01:37.957Z",
+    "versionId": "version-2",
+    "version": 2,
+    "artifactId": "artifact-1775516497957-65af91",
+    "artifactVersion": 1
+  },
+  "artifacts": [
+    {
+      "artifactId": "artifact-1775516235722-6e74fd",
+      "title": "scene-failed-1775516235710",
+      "createdAt": "2026-04-06T22:57:15.722Z",
+      "updatedAt": "2026-04-06T22:57:15.722Z",
+      "revisions": [
+        {
+          "sessionId": "98be53e9-ca75-41b3-b58c-387784e3180a",
+          "sceneId": "scene-failed-1775516235710",
+          "code": "const clock = new THREE.Clock();\nscene.background = new THREE.Color(0xf4f7fb);\nrenderer.toneMapping = THREE.ACESFilmicToneMapping;\nrenderer.toneMappingExposure = 1.08;\nrenderer.shadowMap.enabled = true;\nrenderer.shadowMap.type = THREE.PCFSoftShadowMap;\n\nconst keyLight = new THREE.DirectionalLight(0xffffff, 1.35);\nkeyLight.position.set(6, 10, 8);\nkeyLight.castShadow = true;\nkeyLight.shadow.mapSize.width = 2048;\nkeyLight.shadow.mapSize.height = 2048;\nkeyLight.shadow.bias = -0.0001;\n\nconst fillLight = new THREE.DirectionalLight(0xbfd7ff, 0.55);\nfillLight.position.set(-7, 4, 5);\n\nconst rimLight = new THREE.PointLight(0xaad6ff, 0.45, 22);\nrimLight.position.set(-4, 3, -5);\n\nconst screenGlow = new THREE.PointLight(0x88ccff, 0.6, 10);\nscreenGlow.position.set(0, 0, 2);\n\nscene.add(new THREE.AmbientLight(0x7f8aa6, 0.32), keyLight, fillLight, rimLight, screenGlow);\n\nconst floor = new THREE.Mesh(\n  new THREE.CircleGeometry(10, 96),\n  new THREE.MeshStandardMaterial({ color: 0xe6ecf5, roughness: 0.92, metalness: 0.02 })\n);\nfloor.rotation.x = -Math.PI / 2;\nfloor.position.y = -1.2;\nfloor.receiveShadow = true;\nscene.add(floor);\n\nconst videoCanvas = document.createElement('canvas');\nvideoCanvas.width = 1024;\nvideoCanvas.height = 576;\nconst ctx = videoCanvas.getContext('2d');\n\nconst videoTexture = new THREE.CanvasTexture(videoCanvas);\nvideoTexture.colorSpace = THREE.SRGBColorSpace;\n\nconst screenGroup = new THREE.Group();\nscene.add(screenGroup);\n\nconst screenGeometry = new THREE.PlaneGeometry(4, 2.25);\nconst screenMaterial = new THREE.MeshStandardMaterial({\n  map: videoTexture,\n  emissive: 0xffffff,\n  emissiveMap: videoTexture,\n  emissiveIntensity: 0.8,\n  roughness: 0.2,\n  metalness: 0.1\n});\nconst screenMesh = new THREE.Mesh(screenGeometry, screenMaterial);\nscreenMesh.castShadow = true;\nscreenGroup.add(screenMesh);\n\nconst frameMaterial = new THREE.MeshStandardMaterial({ \n  color: 0x2a2a2a, \n  roughness: 0.3, \n  metalness: 0.8 \n});\n\nconst topFrame = new THREE.Mesh(new THREE.BoxGeometry(4.2, 0.1, 0.15), frameMaterial);\ntopFrame.position.y = 1.175;\ntopFrame.castShadow = true;\nscreenGroup.add(topFrame);\n\nconst bottomFrame = new THREE.Mesh(new THREE.BoxGeometry(4.2, 0.1, 0.15), frameMaterial);\nbottomFrame.position.y = -1.175;\nbottomFrame.castShadow = true;\nscreenGroup.add(bottomFrame);\n\nconst leftFrame = new THREE.Mesh(new THREE.BoxGeometry(0.1, 2.25, 0.15), frameMaterial);\nleftFrame.position.x = -2.05;\nleftFrame.castShadow = true;\nscreenGroup.add(leftFrame);\n\nconst rightFrame = new THREE.Mesh(new THREE.BoxGeometry(0.1, 2.25, 0.15), frameMaterial);\nrightFrame.position.x = 2.05;\nrightFrame.castShadow = true;\nscreenGroup.add(rightFrame);\n\nconst backPanel = new THREE.Mesh(\n  new THREE.BoxGeometry(4.2, 2.45, 0.05),\n  new THREE.MeshStandardMaterial({ color: 0x1a1a1a, roughness: 0.7, metalness: 0.2 })\n);\nbackPanel.position.z = -0.1;\nbackPanel.castShadow = true;\nscreenGroup.add(backPanel);\n\nconst standStem = new THREE.Mesh(\n  new THREE.CylinderGeometry(0.15, 0.2, 1.5, 32),\n  new THREE.MeshStandardMaterial({ color: 0x333333, roughness: 0.4, metalness: 0.6 })\n);\nstandStem.position.y = -2;\nstandStem.castShadow = true;\nscreenGroup.add(standStem);\n\nconst standBase = new THREE.Mesh(\n  new THREE.CylinderGeometry(1.2, 1.3, 0.15, 64),\n  new THREE.MeshStandardMaterial({ color: 0x333333, roughness: 0.4, metalness: 0.6 })\n);\nstandBase.position.y = -2.75;\nstandBase.castShadow = true;\nstandBase.receiveShadow = true;\nscreenGroup.add(standBase);\n\nscreenGroup.position.y = 0.5;\n\ncamera.position.set(0, 1.5, 6);\ncamera.lookAt(0, 0.5, 0);\n\nif (typeof OrbitControls !== 'undefined') {\n  const controls = new OrbitControls(camera, renderer.domElement);\n  controls.enableDamping = true;\n  controls.dampingFactor = 0.05;\n  controls.target.set(0, 0.5, 0);\n  controls.maxPolarAngle = Math.PI / 2 - 0.05;\n}\n\nfunction updateVideoContent(time) {\n  const gradient = ctx.createLinearGradient(0, 0, 1024, 576);\n  gradient.addColorStop(0, '#1e3c72');\n  gradient.addColorStop(0.5, '#2a5298');\n  gradient.addColorStop(1, '#7e8ba3');\n  ctx.fillStyle = gradient;\n  ctx.fillRect(0, 0, 1024, 576);\n  \n  ctx.lineWidth = 4;\n  ctx.strokeStyle = 'rgba(255, 255, 255, 0.8)';\n  ctx.beginPath();\n  for (let i = 0; i < 1024; i += 5) {\n    const amplitude = 50 + Math.sin(time * 2 + i * 0.01) * 30;\n    const y = 288 + Math.sin(i * 0.02 + time * 3) * amplitude * Math.sin(time + i * 0.005);\n    if (i === 0) ctx.moveTo(i, y);\n    else ctx.lineTo(i, y);\n  }\n  ctx.stroke();\n  \n  ctx.strokeStyle = 'rgba(100, 200, 255, 0.6)';\n  ctx.beginPath();\n  for (let i = 0; i < 1024; i += 5) {\n    const amplitude = 40 + Math.cos(time * 1.5 + i * 0.02) * 25;\n    const y = 288 + Math.cos(i * 0.015 + time * 2.5) * amplitude;\n    if (i === 0) ctx.moveTo(i, y);\n    else ctx.lineTo(i, y);\n  }\n  ctx.stroke();\n  \n  ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';\n  ctx.fillRect(100, 500, 824, 12);\n  \n  const progress = (time % 10) / 10;\n  ctx.fillStyle = '#00d4ff';\n  ctx.fillRect(100, 500, 824 * progress, 12);\n  \n  const glowGradient = ctx.createLinearGradient(100 + 824 * progress - 20, 500, 100 + 824 * progress + 20, 512);\n  glowGradient.addColorStop(0, 'rgba(0, 212, 255, 0)');\n  glowGradient.addColorStop(0.5, 'rgba(0, 212, 255, 0.8)');\n  glowGradient.addColorStop(1, 'rgba(0, 212, 255, 0)');\n  ctx.fillStyle = glowGradient;\n  ctx.fillRect(100 + 824 * progress - 20, 498, 40, 16);\n  \n  ctx.font = 'bold 48px Arial';\n  ctx.fillStyle = 'white';\n  ctx.textAlign = 'left';\n  ctx.fillText('PLAYING', 100, 100);\n  \n  const seconds = Math.floor(time % 60).toString().padStart(2, '0');\n  const minutes = Math.floor((time / 60) % 60).toString().padStart(2, '0');\n  ctx.font = '36px monospace';\n  ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';\n  ctx.fillText(`${minutes}:${seconds} / 10:00`, 100, 150);\n  \n  const pulse = 1 + Math.sin(time * 4) * 0.1;\n  ctx.save();\n  ctx.translate(900, 100);\n  ctx.scale(pulse, pulse);\n  ctx.fillStyle = '#00d4ff';\n  ctx.beginPath();\n  ctx.moveTo(0, -30);\n  ctx.lineTo(40, 0);\n  ctx.lineTo(0, 30);\n  ctx.closePath();\n  ctx.fill();\n  ctx.restore();\n  \n  ctx.fillStyle = 'rgba(0, 0, 0, 0.1)';\n  for (let i = 0; i < 576; i += 4) {\n    ctx.fillRect(0, i, 1024, 2);\n  }\n}\n\nfunction animate() {\n  requestAnimationFrame(animate);\n  const t = clock.getElapsedTime();\n  \n  updateVideoContent(t);\n  videoTexture.needsUpdate = true;\n  \n  screenGroup.position.y = 0.5 + Math.sin(t * 0.5) * 0.05;\n  screenGroup.rotation.y = Math.sin(t * 0.2) * 0.02;\n  \n  screenGlow.intensity = 0.6 + Math.sin(t * 2) * 0.1;\n  rimLight.intensity = 0.35 + Math.sin(t * 1.2) * 0.08;\n  \n  renderer.render(scene, camera);\n}\n\nanimate();",
+          "previewUrl": null,
+          "skill": "threejs",
+          "explanation": "Show a video. Live preview is currently unavailable, but the animation concept has been prepared.",
+          "messageId": "message-8",
+          "source": "generate",
+          "createdAt": "2026-04-06T22:57:15.722Z",
+          "updatedAt": "2026-04-06T22:57:15.722Z",
+          "versionId": "version-1",
+          "version": 1,
+          "artifactId": "artifact-1775516235722-6e74fd",
+          "artifactVersion": 1
+        }
+      ],
+      "revisionPointer": 0
+    },
+    {
+      "artifactId": "artifact-1775516497957-65af91",
+      "title": "scene-1775516497921",
+      "createdAt": "2026-04-06T23:01:37.957Z",
+      "updatedAt": "2026-04-06T23:01:37.957Z",
+      "revisions": [
+        {
+          "sessionId": "98be53e9-ca75-41b3-b58c-387784e3180a",
+          "sceneId": "scene-1775516497921",
+          "code": "const clock = new THREE.Clock();\nscene.background = new THREE.Color(0xf8f9fa);\nrenderer.toneMapping = THREE.ACESFilmicToneMapping;\nrenderer.toneMappingExposure = 1.08;\nrenderer.shadowMap.enabled = true;\nrenderer.shadowMap.type = THREE.PCFSoftShadowMap;\n\nconst keyLight = new THREE.DirectionalLight(0xffffff, 1.4);\nkeyLight.position.set(6, 12, 8);\nkeyLight.castShadow = true;\nkeyLight.shadow.mapSize.width = 2048;\nkeyLight.shadow.mapSize.height = 2048;\nkeyLight.shadow.camera.near = 0.1;\nkeyLight.shadow.camera.far = 50;\nkeyLight.shadow.bias = -0.001;\n\nconst fillLight = new THREE.DirectionalLight(0xdbeafe, 0.6);\nfillLight.position.set(-8, 6, 4);\n\nconst rimLight = new THREE.PointLight(0x60a5fa, 0.5, 25);\nrimLight.position.set(-5, 4, -6);\n\nscene.add(new THREE.AmbientLight(0x64748b, 0.35), keyLight, fillLight, rimLight);\n\nconst COLORS = {\n  curve: 0x3b82f6,\n  accent: 0xf59e0b,\n  highlight: 0x10b981,\n  text: 0x1e293b,\n  grid: 0xcbd5e1\n};\n\nconst gridGroup = new THREE.Group();\nconst gridHelper = new THREE.GridHelper(20, 20, COLORS.grid, COLORS.grid);\ngridHelper.position.y = -2;\ngridGroup.add(gridHelper);\n\nconst axesGroup = new THREE.Group();\nconst axisMaterial = new THREE.MeshStandardMaterial({ \n  color: 0x475569, \n  roughness: 0.4, \n  metalness: 0.1 \n});\n\nconst xAxis = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 12, 16), axisMaterial);\nxAxis.rotation.z = -Math.PI / 2;\nxAxis.position.y = -2;\naxesGroup.add(xAxis);\n\nconst yAxis = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 8, 16), axisMaterial);\nyAxis.position.set(-6, 0, 0);\naxesGroup.add(yAxis);\n\nscene.add(gridGroup);\nscene.add(axesGroup);\n\nconst curvePath = new THREE.CatmullRomCurve3(\n  Array.from({ length: 50 }, (_, i) => {\n    const x = -5 + (i / 49) * 10;\n    const y = 0.5 * Math.sin(x) + 0.2 * x;\n    return new THREE.Vector3(x, y, 0);\n  })\n);\n\nconst tubeGeometry = new THREE.TubeGeometry(curvePath, 64, 0.08, 16, false);\nconst curveMaterial = new THREE.MeshStandardMaterial({ \n  color: COLORS.curve, \n  roughness: 0.3, \n  metalness: 0.1,\n  emissive: COLORS.curve,\n  emissiveIntensity: 0.1\n});\nconst curveMesh = new THREE.Mesh(tubeGeometry, curveMaterial);\ncurveMesh.castShadow = true;\ncurveMesh.receiveShadow = true;\nscene.add(curveMesh);\n\nfunction getCurvePoint(t) {\n  const x = -5 + t * 10;\n  const y = 0.5 * Math.sin(x) + 0.2 * x;\n  return new THREE.Vector3(x, y, 0);\n}\n\nfunction getDerivative(t) {\n  const x = -5 + t * 10;\n  return 0.5 * Math.cos(x) + 0.2;\n}\n\nconst pointGeometry = new THREE.SphereGeometry(0.15, 32, 32);\nconst fixedPointMaterial = new THREE.MeshStandardMaterial({ \n  color: COLORS.highlight, \n  roughness: 0.2, \n  metalness: 0.3,\n  emissive: COLORS.highlight,\n  emissiveIntensity: 0.3\n});\nconst movingPointMaterial = new THREE.MeshStandardMaterial({ \n  color: COLORS.accent, \n  roughness: 0.2, \n  metalness: 0.3,\n  emissive: COLORS.accent,\n  emissiveIntensity: 0.3\n});\n\nconst fixedPoint = new THREE.Mesh(pointGeometry, fixedPointMaterial);\nconst movingPoint = new THREE.Mesh(pointGeometry, movingPointMaterial);\nfixedPoint.position.copy(getCurvePoint(0.6));\nfixedPoint.castShadow = true;\nmovingPoint.castShadow = true;\nscene.add(fixedPoint);\nscene.add(movingPoint);\n\nconst lineMaterial = new THREE.LineBasicMaterial({ \n  color: COLORS.accent, \n  linewidth: 3,\n  opacity: 0.8,\n  transparent: true\n});\n\nconst secantGeometry = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(0,0,0), new THREE.Vector3(1,1,0)]);\nconst secantLine = new THREE.Line(secantGeometry, lineMaterial);\nscene.add(secantLine);\n\nconst tangentMaterial = new THREE.LineBasicMaterial({ \n  color: COLORS.highlight, \n  linewidth: 4,\n  opacity: 0,\n  transparent: true\n});\nconst tangentGeometry = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(0,0,0), new THREE.Vector3(1,1,0)]);\nconst tangentLine = new THREE.Line(tangentGeometry, tangentMaterial);\nscene.add(tangentLine);\n\nfunction createLabel(text, color = '#1e293b') {\n  const canvas = document.createElement('canvas');\n  const ctx = canvas.getContext('2d');\n  canvas.width = 512;\n  canvas.height = 256;\n  ctx.fillStyle = 'rgba(255,255,255,0)';\n  ctx.fillRect(0, 0, canvas.width, canvas.height);\n  ctx.font = 'bold 64px \"Times New Roman\", serif';\n  ctx.fillStyle = color;\n  ctx.textAlign = 'center';\n  ctx.textBaseline = 'middle';\n  ctx.fillText(text, 256, 128);\n  const texture = new THREE.CanvasTexture(canvas);\n  texture.minFilter = THREE.LinearFilter;\n  const material = new THREE.MeshBasicMaterial({ \n    map: texture, \n    transparent: true, \n    side: THREE.DoubleSide,\n    opacity: 0\n  });\n  const geometry = new THREE.PlaneGeometry(3, 1.5);\n  const mesh = new THREE.Mesh(geometry, material);\n  return mesh;\n}\n\nconst labelP = createLabel(\"P\", \"#10b981\");\nlabelP.position.set(0.5, 0.5, 0);\nfixedPoint.add(labelP);\n\nconst labelQ = createLabel(\"Q\", \"#f59e0b\");\nlabelQ.position.set(0.5, 0.5, 0);\nmovingPoint.add(labelQ);\n\nconst secantLabel = createLabel(\"Secant\", \"#f59e0b\");\nsecantLabel.position.set(2, 3, 0);\nscene.add(secantLabel);\n\nconst tangentLabel = createLabel(\"Tangent\", \"#10b981\");\ntangentLabel.position.set(2, 3.5, 0);\nscene.add(tangentLabel);\n\ncamera.position.set(0, 2, 8);\ncamera.lookAt(0, 0, 0);\n\nconst controls = new OrbitControls(camera, renderer.domElement);\ncontrols.enableDamping = true;\ncontrols.dampingFactor = 0.05;\ncontrols.target.set(0, 0, 0);\n\nfunction animate() {\n  requestAnimationFrame(animate);\n  const t = clock.getElapsedTime();\n  const cycle = t % 12;\n  \n  camera.position.x = Math.sin(t * 0.1) * 0.5;\n  camera.lookAt(0, 0, 0);\n  \n  if (cycle < 2) {\n    const localTime = cycle / 2;\n    fixedPoint.scale.setScalar(0);\n    movingPoint.scale.setScalar(0);\n    secantLine.material.opacity = 0;\n    tangentLine.material.opacity = 0;\n    secantLabel.material.opacity = 0;\n    tangentLabel.material.opacity = 0;\n    labelP.material.opacity = 0;\n    labelQ.material.opacity = 0;\n  } else if (cycle < 3) {\n    const localTime = (cycle - 2);\n    fixedPoint.scale.setScalar(localTime);\n    movingPoint.scale.setScalar(0);\n    secantLine.material.opacity = 0;\n    tangentLine.material.opacity = 0;\n    secantLabel.material.opacity = 0;\n    tangentLabel.material.opacity = 0;\n    labelP.material.opacity = localTime;\n    labelQ.material.opacity = 0;\n  } else if (cycle < 7) {\n    const localTime = (cycle - 3) / 4;\n    fixedPoint.scale.setScalar(1);\n    movingPoint.scale.setScalar(1);\n    labelP.material.opacity = 1;\n    labelQ.material.opacity = 1;\n    \n    const startT = 0.9;\n    const endT = 0.61;\n    const easeT = 1 - Math.pow(1 - localTime, 3);\n    const actualT = startT - (startT - endT) * easeT;\n    \n    const pPos = getCurvePoint(0.6);\n    const qPos = getCurvePoint(actualT);\n    \n    fixedPoint.position.copy(pPos);\n    movingPoint.position.copy(qPos);\n    \n    const positions = new Float32Array([\n      pPos.x, pPos.y, pPos.z,\n      qPos.x, qPos.y, qPos.z\n    ]);\n    secantLine.geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));\n    secantLine.geometry.attributes.position.needsUpdate = true;\n    \n    secantLine.material.opacity = 0.8;\n    tangentLine.material.opacity = 0;\n    secantLabel.material.opacity = 1;\n    tangentLabel.material.opacity = 0;\n    secantLabel.position.set((pPos.x + qPos.x) / 2 + 0.5, (pPos.y + qPos.y) / 2 + 0.8, 0);\n  } else if (cycle < 9) {\n    const localTime = (cycle - 7) / 2;\n    const pPos = getCurvePoint(0.6);\n    fixedPoint.position.copy(pPos);\n    movingPoint.position.copy(pPos);\n    \n    fixedPoint.scale.setScalar(1);\n    movingPoint.scale.setScalar(1 - localTime * 0.5);\n    \n    secantLine.material.opacity = 0.8 * (1 - localTime);\n    secantLabel.material.opacity = 1 - localTime;\n    \n    const slope = getDerivative(0.6);\n    const length = 3;\n    const dx = length / Math.sqrt(1 + slope * slope);\n    const dy = slope * dx;\n    \n    const tangentPositions = new Float32Array([\n      pPos.x - dx, pPos.y - dy, pPos.z,\n      pPos.x + dx, pPos.y + dy, pPos.z\n    ]);\n    tangentLine.geometry.setAttribute('position', new THREE.BufferAttribute(tangentPositions, 3));\n    tangentLine.geometry.attributes.position.needsUpdate = true;\n    tangentLine.material.opacity = localTime;\n    tangentLabel.material.opacity = localTime;\n    tangentLabel.position.set(pPos.x + 1.5, pPos.y + slope * 1.5 + 0.5, 0);\n  } else {\n    const pPos = getCurvePoint(0.6);\n    fixedPoint.position.copy(pPos);\n    movingPoint.scale.setScalar(0.5);\n    \n    const slope = getDerivative(0.6);\n    const length = 3;\n    const dx = length / Math.sqrt(1 + slope * slope);\n    const dy = slope * dx;\n    \n    const tangentPositions = new Float32Array([\n      pPos.x - dx, pPos.y - dy, pPos.z,\n      pPos.x + dx, pPos.y + dy, pPos.z\n    ]);\n    tangentLine.geometry.setAttribute('position', new THREE.BufferAttribute(tangentPositions, 3));\n    tangentLine.geometry.attributes.position.needsUpdate = true;\n    \n    tangentLine.material.opacity = 1;\n    tangentLabel.material.opacity = 1;\n    secantLine.material.opacity = 0;\n    secantLabel.material.opacity = 0;\n  }\n  \n  controls.update();\n  renderer.render(scene, camera);\n}\nanimate();",
+          "previewUrl": "about:blank",
+          "skill": "threejs",
+          "explanation": "Show me a manim video explainig the concept. Live preview may be limited, but the animation concept is ready.",
+          "messageId": "message-17",
+          "source": "generate",
+          "createdAt": "2026-04-06T23:01:37.957Z",
+          "updatedAt": "2026-04-06T23:01:37.957Z",
+          "versionId": "version-2",
+          "version": 2,
+          "artifactId": "artifact-1775516497957-65af91",
+          "artifactVersion": 1
+        }
+      ],
+      "revisionPointer": 0
+    }
+  ],
+  "artifactPointer": 1,
+  "versions": [
+    {
+      "sessionId": "98be53e9-ca75-41b3-b58c-387784e3180a",
+      "sceneId": "scene-1775516497921",
+      "code": "const clock = new THREE.Clock();\nscene.background = new THREE.Color(0xf8f9fa);\nrenderer.toneMapping = THREE.ACESFilmicToneMapping;\nrenderer.toneMappingExposure = 1.08;\nrenderer.shadowMap.enabled = true;\nrenderer.shadowMap.type = THREE.PCFSoftShadowMap;\n\nconst keyLight = new THREE.DirectionalLight(0xffffff, 1.4);\nkeyLight.position.set(6, 12, 8);\nkeyLight.castShadow = true;\nkeyLight.shadow.mapSize.width = 2048;\nkeyLight.shadow.mapSize.height = 2048;\nkeyLight.shadow.camera.near = 0.1;\nkeyLight.shadow.camera.far = 50;\nkeyLight.shadow.bias = -0.001;\n\nconst fillLight = new THREE.DirectionalLight(0xdbeafe, 0.6);\nfillLight.position.set(-8, 6, 4);\n\nconst rimLight = new THREE.PointLight(0x60a5fa, 0.5, 25);\nrimLight.position.set(-5, 4, -6);\n\nscene.add(new THREE.AmbientLight(0x64748b, 0.35), keyLight, fillLight, rimLight);\n\nconst COLORS = {\n  curve: 0x3b82f6,\n  accent: 0xf59e0b,\n  highlight: 0x10b981,\n  text: 0x1e293b,\n  grid: 0xcbd5e1\n};\n\nconst gridGroup = new THREE.Group();\nconst gridHelper = new THREE.GridHelper(20, 20, COLORS.grid, COLORS.grid);\ngridHelper.position.y = -2;\ngridGroup.add(gridHelper);\n\nconst axesGroup = new THREE.Group();\nconst axisMaterial = new THREE.MeshStandardMaterial({ \n  color: 0x475569, \n  roughness: 0.4, \n  metalness: 0.1 \n});\n\nconst xAxis = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 12, 16), axisMaterial);\nxAxis.rotation.z = -Math.PI / 2;\nxAxis.position.y = -2;\naxesGroup.add(xAxis);\n\nconst yAxis = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 8, 16), axisMaterial);\nyAxis.position.set(-6, 0, 0);\naxesGroup.add(yAxis);\n\nscene.add(gridGroup);\nscene.add(axesGroup);\n\nconst curvePath = new THREE.CatmullRomCurve3(\n  Array.from({ length: 50 }, (_, i) => {\n    const x = -5 + (i / 49) * 10;\n    const y = 0.5 * Math.sin(x) + 0.2 * x;\n    return new THREE.Vector3(x, y, 0);\n  })\n);\n\nconst tubeGeometry = new THREE.TubeGeometry(curvePath, 64, 0.08, 16, false);\nconst curveMaterial = new THREE.MeshStandardMaterial({ \n  color: COLORS.curve, \n  roughness: 0.3, \n  metalness: 0.1,\n  emissive: COLORS.curve,\n  emissiveIntensity: 0.1\n});\nconst curveMesh = new THREE.Mesh(tubeGeometry, curveMaterial);\ncurveMesh.castShadow = true;\ncurveMesh.receiveShadow = true;\nscene.add(curveMesh);\n\nfunction getCurvePoint(t) {\n  const x = -5 + t * 10;\n  const y = 0.5 * Math.sin(x) + 0.2 * x;\n  return new THREE.Vector3(x, y, 0);\n}\n\nfunction getDerivative(t) {\n  const x = -5 + t * 10;\n  return 0.5 * Math.cos(x) + 0.2;\n}\n\nconst pointGeometry = new THREE.SphereGeometry(0.15, 32, 32);\nconst fixedPointMaterial = new THREE.MeshStandardMaterial({ \n  color: COLORS.highlight, \n  roughness: 0.2, \n  metalness: 0.3,\n  emissive: COLORS.highlight,\n  emissiveIntensity: 0.3\n});\nconst movingPointMaterial = new THREE.MeshStandardMaterial({ \n  color: COLORS.accent, \n  roughness: 0.2, \n  metalness: 0.3,\n  emissive: COLORS.accent,\n  emissiveIntensity: 0.3\n});\n\nconst fixedPoint = new THREE.Mesh(pointGeometry, fixedPointMaterial);\nconst movingPoint = new THREE.Mesh(pointGeometry, movingPointMaterial);\nfixedPoint.position.copy(getCurvePoint(0.6));\nfixedPoint.castShadow = true;\nmovingPoint.castShadow = true;\nscene.add(fixedPoint);\nscene.add(movingPoint);\n\nconst lineMaterial = new THREE.LineBasicMaterial({ \n  color: COLORS.accent, \n  linewidth: 3,\n  opacity: 0.8,\n  transparent: true\n});\n\nconst secantGeometry = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(0,0,0), new THREE.Vector3(1,1,0)]);\nconst secantLine = new THREE.Line(secantGeometry, lineMaterial);\nscene.add(secantLine);\n\nconst tangentMaterial = new THREE.LineBasicMaterial({ \n  color: COLORS.highlight, \n  linewidth: 4,\n  opacity: 0,\n  transparent: true\n});\nconst tangentGeometry = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(0,0,0), new THREE.Vector3(1,1,0)]);\nconst tangentLine = new THREE.Line(tangentGeometry, tangentMaterial);\nscene.add(tangentLine);\n\nfunction createLabel(text, color = '#1e293b') {\n  const canvas = document.createElement('canvas');\n  const ctx = canvas.getContext('2d');\n  canvas.width = 512;\n  canvas.height = 256;\n  ctx.fillStyle = 'rgba(255,255,255,0)';\n  ctx.fillRect(0, 0, canvas.width, canvas.height);\n  ctx.font = 'bold 64px \"Times New Roman\", serif';\n  ctx.fillStyle = color;\n  ctx.textAlign = 'center';\n  ctx.textBaseline = 'middle';\n  ctx.fillText(text, 256, 128);\n  const texture = new THREE.CanvasTexture(canvas);\n  texture.minFilter = THREE.LinearFilter;\n  const material = new THREE.MeshBasicMaterial({ \n    map: texture, \n    transparent: true, \n    side: THREE.DoubleSide,\n    opacity: 0\n  });\n  const geometry = new THREE.PlaneGeometry(3, 1.5);\n  const mesh = new THREE.Mesh(geometry, material);\n  return mesh;\n}\n\nconst labelP = createLabel(\"P\", \"#10b981\");\nlabelP.position.set(0.5, 0.5, 0);\nfixedPoint.add(labelP);\n\nconst labelQ = createLabel(\"Q\", \"#f59e0b\");\nlabelQ.position.set(0.5, 0.5, 0);\nmovingPoint.add(labelQ);\n\nconst secantLabel = createLabel(\"Secant\", \"#f59e0b\");\nsecantLabel.position.set(2, 3, 0);\nscene.add(secantLabel);\n\nconst tangentLabel = createLabel(\"Tangent\", \"#10b981\");\ntangentLabel.position.set(2, 3.5, 0);\nscene.add(tangentLabel);\n\ncamera.position.set(0, 2, 8);\ncamera.lookAt(0, 0, 0);\n\nconst controls = new OrbitControls(camera, renderer.domElement);\ncontrols.enableDamping = true;\ncontrols.dampingFactor = 0.05;\ncontrols.target.set(0, 0, 0);\n\nfunction animate() {\n  requestAnimationFrame(animate);\n  const t = clock.getElapsedTime();\n  const cycle = t % 12;\n  \n  camera.position.x = Math.sin(t * 0.1) * 0.5;\n  camera.lookAt(0, 0, 0);\n  \n  if (cycle < 2) {\n    const localTime = cycle / 2;\n    fixedPoint.scale.setScalar(0);\n    movingPoint.scale.setScalar(0);\n    secantLine.material.opacity = 0;\n    tangentLine.material.opacity = 0;\n    secantLabel.material.opacity = 0;\n    tangentLabel.material.opacity = 0;\n    labelP.material.opacity = 0;\n    labelQ.material.opacity = 0;\n  } else if (cycle < 3) {\n    const localTime = (cycle - 2);\n    fixedPoint.scale.setScalar(localTime);\n    movingPoint.scale.setScalar(0);\n    secantLine.material.opacity = 0;\n    tangentLine.material.opacity = 0;\n    secantLabel.material.opacity = 0;\n    tangentLabel.material.opacity = 0;\n    labelP.material.opacity = localTime;\n    labelQ.material.opacity = 0;\n  } else if (cycle < 7) {\n    const localTime = (cycle - 3) / 4;\n    fixedPoint.scale.setScalar(1);\n    movingPoint.scale.setScalar(1);\n    labelP.material.opacity = 1;\n    labelQ.material.opacity = 1;\n    \n    const startT = 0.9;\n    const endT = 0.61;\n    const easeT = 1 - Math.pow(1 - localTime, 3);\n    const actualT = startT - (startT - endT) * easeT;\n    \n    const pPos = getCurvePoint(0.6);\n    const qPos = getCurvePoint(actualT);\n    \n    fixedPoint.position.copy(pPos);\n    movingPoint.position.copy(qPos);\n    \n    const positions = new Float32Array([\n      pPos.x, pPos.y, pPos.z,\n      qPos.x, qPos.y, qPos.z\n    ]);\n    secantLine.geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));\n    secantLine.geometry.attributes.position.needsUpdate = true;\n    \n    secantLine.material.opacity = 0.8;\n    tangentLine.material.opacity = 0;\n    secantLabel.material.opacity = 1;\n    tangentLabel.material.opacity = 0;\n    secantLabel.position.set((pPos.x + qPos.x) / 2 + 0.5, (pPos.y + qPos.y) / 2 + 0.8, 0);\n  } else if (cycle < 9) {\n    const localTime = (cycle - 7) / 2;\n    const pPos = getCurvePoint(0.6);\n    fixedPoint.position.copy(pPos);\n    movingPoint.position.copy(pPos);\n    \n    fixedPoint.scale.setScalar(1);\n    movingPoint.scale.setScalar(1 - localTime * 0.5);\n    \n    secantLine.material.opacity = 0.8 * (1 - localTime);\n    secantLabel.material.opacity = 1 - localTime;\n    \n    const slope = getDerivative(0.6);\n    const length = 3;\n    const dx = length / Math.sqrt(1 + slope * slope);\n    const dy = slope * dx;\n    \n    const tangentPositions = new Float32Array([\n      pPos.x - dx, pPos.y - dy, pPos.z,\n      pPos.x + dx, pPos.y + dy, pPos.z\n    ]);\n    tangentLine.geometry.setAttribute('position', new THREE.BufferAttribute(tangentPositions, 3));\n    tangentLine.geometry.attributes.position.needsUpdate = true;\n    tangentLine.material.opacity = localTime;\n    tangentLabel.material.opacity = localTime;\n    tangentLabel.position.set(pPos.x + 1.5, pPos.y + slope * 1.5 + 0.5, 0);\n  } else {\n    const pPos = getCurvePoint(0.6);\n    fixedPoint.position.copy(pPos);\n    movingPoint.scale.setScalar(0.5);\n    \n    const slope = getDerivative(0.6);\n    const length = 3;\n    const dx = length / Math.sqrt(1 + slope * slope);\n    const dy = slope * dx;\n    \n    const tangentPositions = new Float32Array([\n      pPos.x - dx, pPos.y - dy, pPos.z,\n      pPos.x + dx, pPos.y + dy, pPos.z\n    ]);\n    tangentLine.geometry.setAttribute('position', new THREE.BufferAttribute(tangentPositions, 3));\n    tangentLine.geometry.attributes.position.needsUpdate = true;\n    \n    tangentLine.material.opacity = 1;\n    tangentLabel.material.opacity = 1;\n    secantLine.material.opacity = 0;\n    secantLabel.material.opacity = 0;\n  }\n  \n  controls.update();\n  renderer.render(scene, camera);\n}\nanimate();",
+      "previewUrl": "about:blank",
+      "skill": "threejs",
+      "explanation": "Show me a manim video explainig the concept. Live preview may be limited, but the animation concept is ready.",
+      "messageId": "message-17",
+      "source": "generate",
+      "createdAt": "2026-04-06T23:01:37.957Z",
+      "updatedAt": "2026-04-06T23:01:37.957Z",
+      "versionId": "version-2",
+      "version": 2,
+      "artifactId": "artifact-1775516497957-65af91",
+      "artifactVersion": 1
+    }
+  ],
+  "sceneVersions": [
+    {
+      "sessionId": "98be53e9-ca75-41b3-b58c-387784e3180a",
+      "sceneId": "scene-failed-1775516235710",
+      "code": "const clock = new THREE.Clock();\nscene.background = new THREE.Color(0xf4f7fb);\nrenderer.toneMapping = THREE.ACESFilmicToneMapping;\nrenderer.toneMappingExposure = 1.08;\nrenderer.shadowMap.enabled = true;\nrenderer.shadowMap.type = THREE.PCFSoftShadowMap;\n\nconst keyLight = new THREE.DirectionalLight(0xffffff, 1.35);\nkeyLight.position.set(6, 10, 8);\nkeyLight.castShadow = true;\nkeyLight.shadow.mapSize.width = 2048;\nkeyLight.shadow.mapSize.height = 2048;\nkeyLight.shadow.bias = -0.0001;\n\nconst fillLight = new THREE.DirectionalLight(0xbfd7ff, 0.55);\nfillLight.position.set(-7, 4, 5);\n\nconst rimLight = new THREE.PointLight(0xaad6ff, 0.45, 22);\nrimLight.position.set(-4, 3, -5);\n\nconst screenGlow = new THREE.PointLight(0x88ccff, 0.6, 10);\nscreenGlow.position.set(0, 0, 2);\n\nscene.add(new THREE.AmbientLight(0x7f8aa6, 0.32), keyLight, fillLight, rimLight, screenGlow);\n\nconst floor = new THREE.Mesh(\n  new THREE.CircleGeometry(10, 96),\n  new THREE.MeshStandardMaterial({ color: 0xe6ecf5, roughness: 0.92, metalness: 0.02 })\n);\nfloor.rotation.x = -Math.PI / 2;\nfloor.position.y = -1.2;\nfloor.receiveShadow = true;\nscene.add(floor);\n\nconst videoCanvas = document.createElement('canvas');\nvideoCanvas.width = 1024;\nvideoCanvas.height = 576;\nconst ctx = videoCanvas.getContext('2d');\n\nconst videoTexture = new THREE.CanvasTexture(videoCanvas);\nvideoTexture.colorSpace = THREE.SRGBColorSpace;\n\nconst screenGroup = new THREE.Group();\nscene.add(screenGroup);\n\nconst screenGeometry = new THREE.PlaneGeometry(4, 2.25);\nconst screenMaterial = new THREE.MeshStandardMaterial({\n  map: videoTexture,\n  emissive: 0xffffff,\n  emissiveMap: videoTexture,\n  emissiveIntensity: 0.8,\n  roughness: 0.2,\n  metalness: 0.1\n});\nconst screenMesh = new THREE.Mesh(screenGeometry, screenMaterial);\nscreenMesh.castShadow = true;\nscreenGroup.add(screenMesh);\n\nconst frameMaterial = new THREE.MeshStandardMaterial({ \n  color: 0x2a2a2a, \n  roughness: 0.3, \n  metalness: 0.8 \n});\n\nconst topFrame = new THREE.Mesh(new THREE.BoxGeometry(4.2, 0.1, 0.15), frameMaterial);\ntopFrame.position.y = 1.175;\ntopFrame.castShadow = true;\nscreenGroup.add(topFrame);\n\nconst bottomFrame = new THREE.Mesh(new THREE.BoxGeometry(4.2, 0.1, 0.15), frameMaterial);\nbottomFrame.position.y = -1.175;\nbottomFrame.castShadow = true;\nscreenGroup.add(bottomFrame);\n\nconst leftFrame = new THREE.Mesh(new THREE.BoxGeometry(0.1, 2.25, 0.15), frameMaterial);\nleftFrame.position.x = -2.05;\nleftFrame.castShadow = true;\nscreenGroup.add(leftFrame);\n\nconst rightFrame = new THREE.Mesh(new THREE.BoxGeometry(0.1, 2.25, 0.15), frameMaterial);\nrightFrame.position.x = 2.05;\nrightFrame.castShadow = true;\nscreenGroup.add(rightFrame);\n\nconst backPanel = new THREE.Mesh(\n  new THREE.BoxGeometry(4.2, 2.45, 0.05),\n  new THREE.MeshStandardMaterial({ color: 0x1a1a1a, roughness: 0.7, metalness: 0.2 })\n);\nbackPanel.position.z = -0.1;\nbackPanel.castShadow = true;\nscreenGroup.add(backPanel);\n\nconst standStem = new THREE.Mesh(\n  new THREE.CylinderGeometry(0.15, 0.2, 1.5, 32),\n  new THREE.MeshStandardMaterial({ color: 0x333333, roughness: 0.4, metalness: 0.6 })\n);\nstandStem.position.y = -2;\nstandStem.castShadow = true;\nscreenGroup.add(standStem);\n\nconst standBase = new THREE.Mesh(\n  new THREE.CylinderGeometry(1.2, 1.3, 0.15, 64),\n  new THREE.MeshStandardMaterial({ color: 0x333333, roughness: 0.4, metalness: 0.6 })\n);\nstandBase.position.y = -2.75;\nstandBase.castShadow = true;\nstandBase.receiveShadow = true;\nscreenGroup.add(standBase);\n\nscreenGroup.position.y = 0.5;\n\ncamera.position.set(0, 1.5, 6);\ncamera.lookAt(0, 0.5, 0);\n\nif (typeof OrbitControls !== 'undefined') {\n  const controls = new OrbitControls(camera, renderer.domElement);\n  controls.enableDamping = true;\n  controls.dampingFactor = 0.05;\n  controls.target.set(0, 0.5, 0);\n  controls.maxPolarAngle = Math.PI / 2 - 0.05;\n}\n\nfunction updateVideoContent(time) {\n  const gradient = ctx.createLinearGradient(0, 0, 1024, 576);\n  gradient.addColorStop(0, '#1e3c72');\n  gradient.addColorStop(0.5, '#2a5298');\n  gradient.addColorStop(1, '#7e8ba3');\n  ctx.fillStyle = gradient;\n  ctx.fillRect(0, 0, 1024, 576);\n  \n  ctx.lineWidth = 4;\n  ctx.strokeStyle = 'rgba(255, 255, 255, 0.8)';\n  ctx.beginPath();\n  for (let i = 0; i < 1024; i += 5) {\n    const amplitude = 50 + Math.sin(time * 2 + i * 0.01) * 30;\n    const y = 288 + Math.sin(i * 0.02 + time * 3) * amplitude * Math.sin(time + i * 0.005);\n    if (i === 0) ctx.moveTo(i, y);\n    else ctx.lineTo(i, y);\n  }\n  ctx.stroke();\n  \n  ctx.strokeStyle = 'rgba(100, 200, 255, 0.6)';\n  ctx.beginPath();\n  for (let i = 0; i < 1024; i += 5) {\n    const amplitude = 40 + Math.cos(time * 1.5 + i * 0.02) * 25;\n    const y = 288 + Math.cos(i * 0.015 + time * 2.5) * amplitude;\n    if (i === 0) ctx.moveTo(i, y);\n    else ctx.lineTo(i, y);\n  }\n  ctx.stroke();\n  \n  ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';\n  ctx.fillRect(100, 500, 824, 12);\n  \n  const progress = (time % 10) / 10;\n  ctx.fillStyle = '#00d4ff';\n  ctx.fillRect(100, 500, 824 * progress, 12);\n  \n  const glowGradient = ctx.createLinearGradient(100 + 824 * progress - 20, 500, 100 + 824 * progress + 20, 512);\n  glowGradient.addColorStop(0, 'rgba(0, 212, 255, 0)');\n  glowGradient.addColorStop(0.5, 'rgba(0, 212, 255, 0.8)');\n  glowGradient.addColorStop(1, 'rgba(0, 212, 255, 0)');\n  ctx.fillStyle = glowGradient;\n  ctx.fillRect(100 + 824 * progress - 20, 498, 40, 16);\n  \n  ctx.font = 'bold 48px Arial';\n  ctx.fillStyle = 'white';\n  ctx.textAlign = 'left';\n  ctx.fillText('PLAYING', 100, 100);\n  \n  const seconds = Math.floor(time % 60).toString().padStart(2, '0');\n  const minutes = Math.floor((time / 60) % 60).toString().padStart(2, '0');\n  ctx.font = '36px monospace';\n  ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';\n  ctx.fillText(`${minutes}:${seconds} / 10:00`, 100, 150);\n  \n  const pulse = 1 + Math.sin(time * 4) * 0.1;\n  ctx.save();\n  ctx.translate(900, 100);\n  ctx.scale(pulse, pulse);\n  ctx.fillStyle = '#00d4ff';\n  ctx.beginPath();\n  ctx.moveTo(0, -30);\n  ctx.lineTo(40, 0);\n  ctx.lineTo(0, 30);\n  ctx.closePath();\n  ctx.fill();\n  ctx.restore();\n  \n  ctx.fillStyle = 'rgba(0, 0, 0, 0.1)';\n  for (let i = 0; i < 576; i += 4) {\n    ctx.fillRect(0, i, 1024, 2);\n  }\n}\n\nfunction animate() {\n  requestAnimationFrame(animate);\n  const t = clock.getElapsedTime();\n  \n  updateVideoContent(t);\n  videoTexture.needsUpdate = true;\n  \n  screenGroup.position.y = 0.5 + Math.sin(t * 0.5) * 0.05;\n  screenGroup.rotation.y = Math.sin(t * 0.2) * 0.02;\n  \n  screenGlow.intensity = 0.6 + Math.sin(t * 2) * 0.1;\n  rimLight.intensity = 0.35 + Math.sin(t * 1.2) * 0.08;\n  \n  renderer.render(scene, camera);\n}\n\nanimate();",
+      "previewUrl": null,
+      "skill": "threejs",
+      "explanation": "Show a video. Live preview is currently unavailable, but the animation concept has been prepared.",
+      "messageId": "message-8",
+      "source": "generate",
+      "createdAt": "2026-04-06T22:57:15.722Z",
+      "updatedAt": "2026-04-06T22:57:15.722Z",
+      "versionId": "version-1",
+      "version": 1,
+      "artifactId": "artifact-1775516235722-6e74fd",
+      "artifactVersion": 1
+    },
+    {
+      "sessionId": "98be53e9-ca75-41b3-b58c-387784e3180a",
+      "sceneId": "scene-1775516497921",
+      "code": "const clock = new THREE.Clock();\nscene.background = new THREE.Color(0xf8f9fa);\nrenderer.toneMapping = THREE.ACESFilmicToneMapping;\nrenderer.toneMappingExposure = 1.08;\nrenderer.shadowMap.enabled = true;\nrenderer.shadowMap.type = THREE.PCFSoftShadowMap;\n\nconst keyLight = new THREE.DirectionalLight(0xffffff, 1.4);\nkeyLight.position.set(6, 12, 8);\nkeyLight.castShadow = true;\nkeyLight.shadow.mapSize.width = 2048;\nkeyLight.shadow.mapSize.height = 2048;\nkeyLight.shadow.camera.near = 0.1;\nkeyLight.shadow.camera.far = 50;\nkeyLight.shadow.bias = -0.001;\n\nconst fillLight = new THREE.DirectionalLight(0xdbeafe, 0.6);\nfillLight.position.set(-8, 6, 4);\n\nconst rimLight = new THREE.PointLight(0x60a5fa, 0.5, 25);\nrimLight.position.set(-5, 4, -6);\n\nscene.add(new THREE.AmbientLight(0x64748b, 0.35), keyLight, fillLight, rimLight);\n\nconst COLORS = {\n  curve: 0x3b82f6,\n  accent: 0xf59e0b,\n  highlight: 0x10b981,\n  text: 0x1e293b,\n  grid: 0xcbd5e1\n};\n\nconst gridGroup = new THREE.Group();\nconst gridHelper = new THREE.GridHelper(20, 20, COLORS.grid, COLORS.grid);\ngridHelper.position.y = -2;\ngridGroup.add(gridHelper);\n\nconst axesGroup = new THREE.Group();\nconst axisMaterial = new THREE.MeshStandardMaterial({ \n  color: 0x475569, \n  roughness: 0.4, \n  metalness: 0.1 \n});\n\nconst xAxis = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 12, 16), axisMaterial);\nxAxis.rotation.z = -Math.PI / 2;\nxAxis.position.y = -2;\naxesGroup.add(xAxis);\n\nconst yAxis = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 8, 16), axisMaterial);\nyAxis.position.set(-6, 0, 0);\naxesGroup.add(yAxis);\n\nscene.add(gridGroup);\nscene.add(axesGroup);\n\nconst curvePath = new THREE.CatmullRomCurve3(\n  Array.from({ length: 50 }, (_, i) => {\n    const x = -5 + (i / 49) * 10;\n    const y = 0.5 * Math.sin(x) + 0.2 * x;\n    return new THREE.Vector3(x, y, 0);\n  })\n);\n\nconst tubeGeometry = new THREE.TubeGeometry(curvePath, 64, 0.08, 16, false);\nconst curveMaterial = new THREE.MeshStandardMaterial({ \n  color: COLORS.curve, \n  roughness: 0.3, \n  metalness: 0.1,\n  emissive: COLORS.curve,\n  emissiveIntensity: 0.1\n});\nconst curveMesh = new THREE.Mesh(tubeGeometry, curveMaterial);\ncurveMesh.castShadow = true;\ncurveMesh.receiveShadow = true;\nscene.add(curveMesh);\n\nfunction getCurvePoint(t) {\n  const x = -5 + t * 10;\n  const y = 0.5 * Math.sin(x) + 0.2 * x;\n  return new THREE.Vector3(x, y, 0);\n}\n\nfunction getDerivative(t) {\n  const x = -5 + t * 10;\n  return 0.5 * Math.cos(x) + 0.2;\n}\n\nconst pointGeometry = new THREE.SphereGeometry(0.15, 32, 32);\nconst fixedPointMaterial = new THREE.MeshStandardMaterial({ \n  color: COLORS.highlight, \n  roughness: 0.2, \n  metalness: 0.3,\n  emissive: COLORS.highlight,\n  emissiveIntensity: 0.3\n});\nconst movingPointMaterial = new THREE.MeshStandardMaterial({ \n  color: COLORS.accent, \n  roughness: 0.2, \n  metalness: 0.3,\n  emissive: COLORS.accent,\n  emissiveIntensity: 0.3\n});\n\nconst fixedPoint = new THREE.Mesh(pointGeometry, fixedPointMaterial);\nconst movingPoint = new THREE.Mesh(pointGeometry, movingPointMaterial);\nfixedPoint.position.copy(getCurvePoint(0.6));\nfixedPoint.castShadow = true;\nmovingPoint.castShadow = true;\nscene.add(fixedPoint);\nscene.add(movingPoint);\n\nconst lineMaterial = new THREE.LineBasicMaterial({ \n  color: COLORS.accent, \n  linewidth: 3,\n  opacity: 0.8,\n  transparent: true\n});\n\nconst secantGeometry = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(0,0,0), new THREE.Vector3(1,1,0)]);\nconst secantLine = new THREE.Line(secantGeometry, lineMaterial);\nscene.add(secantLine);\n\nconst tangentMaterial = new THREE.LineBasicMaterial({ \n  color: COLORS.highlight, \n  linewidth: 4,\n  opacity: 0,\n  transparent: true\n});\nconst tangentGeometry = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(0,0,0), new THREE.Vector3(1,1,0)]);\nconst tangentLine = new THREE.Line(tangentGeometry, tangentMaterial);\nscene.add(tangentLine);\n\nfunction createLabel(text, color = '#1e293b') {\n  const canvas = document.createElement('canvas');\n  const ctx = canvas.getContext('2d');\n  canvas.width = 512;\n  canvas.height = 256;\n  ctx.fillStyle = 'rgba(255,255,255,0)';\n  ctx.fillRect(0, 0, canvas.width, canvas.height);\n  ctx.font = 'bold 64px \"Times New Roman\", serif';\n  ctx.fillStyle = color;\n  ctx.textAlign = 'center';\n  ctx.textBaseline = 'middle';\n  ctx.fillText(text, 256, 128);\n  const texture = new THREE.CanvasTexture(canvas);\n  texture.minFilter = THREE.LinearFilter;\n  const material = new THREE.MeshBasicMaterial({ \n    map: texture, \n    transparent: true, \n    side: THREE.DoubleSide,\n    opacity: 0\n  });\n  const geometry = new THREE.PlaneGeometry(3, 1.5);\n  const mesh = new THREE.Mesh(geometry, material);\n  return mesh;\n}\n\nconst labelP = createLabel(\"P\", \"#10b981\");\nlabelP.position.set(0.5, 0.5, 0);\nfixedPoint.add(labelP);\n\nconst labelQ = createLabel(\"Q\", \"#f59e0b\");\nlabelQ.position.set(0.5, 0.5, 0);\nmovingPoint.add(labelQ);\n\nconst secantLabel = createLabel(\"Secant\", \"#f59e0b\");\nsecantLabel.position.set(2, 3, 0);\nscene.add(secantLabel);\n\nconst tangentLabel = createLabel(\"Tangent\", \"#10b981\");\ntangentLabel.position.set(2, 3.5, 0);\nscene.add(tangentLabel);\n\ncamera.position.set(0, 2, 8);\ncamera.lookAt(0, 0, 0);\n\nconst controls = new OrbitControls(camera, renderer.domElement);\ncontrols.enableDamping = true;\ncontrols.dampingFactor = 0.05;\ncontrols.target.set(0, 0, 0);\n\nfunction animate() {\n  requestAnimationFrame(animate);\n  const t = clock.getElapsedTime();\n  const cycle = t % 12;\n  \n  camera.position.x = Math.sin(t * 0.1) * 0.5;\n  camera.lookAt(0, 0, 0);\n  \n  if (cycle < 2) {\n    const localTime = cycle / 2;\n    fixedPoint.scale.setScalar(0);\n    movingPoint.scale.setScalar(0);\n    secantLine.material.opacity = 0;\n    tangentLine.material.opacity = 0;\n    secantLabel.material.opacity = 0;\n    tangentLabel.material.opacity = 0;\n    labelP.material.opacity = 0;\n    labelQ.material.opacity = 0;\n  } else if (cycle < 3) {\n    const localTime = (cycle - 2);\n    fixedPoint.scale.setScalar(localTime);\n    movingPoint.scale.setScalar(0);\n    secantLine.material.opacity = 0;\n    tangentLine.material.opacity = 0;\n    secantLabel.material.opacity = 0;\n    tangentLabel.material.opacity = 0;\n    labelP.material.opacity = localTime;\n    labelQ.material.opacity = 0;\n  } else if (cycle < 7) {\n    const localTime = (cycle - 3) / 4;\n    fixedPoint.scale.setScalar(1);\n    movingPoint.scale.setScalar(1);\n    labelP.material.opacity = 1;\n    labelQ.material.opacity = 1;\n    \n    const startT = 0.9;\n    const endT = 0.61;\n    const easeT = 1 - Math.pow(1 - localTime, 3);\n    const actualT = startT - (startT - endT) * easeT;\n    \n    const pPos = getCurvePoint(0.6);\n    const qPos = getCurvePoint(actualT);\n    \n    fixedPoint.position.copy(pPos);\n    movingPoint.position.copy(qPos);\n    \n    const positions = new Float32Array([\n      pPos.x, pPos.y, pPos.z,\n      qPos.x, qPos.y, qPos.z\n    ]);\n    secantLine.geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));\n    secantLine.geometry.attributes.position.needsUpdate = true;\n    \n    secantLine.material.opacity = 0.8;\n    tangentLine.material.opacity = 0;\n    secantLabel.material.opacity = 1;\n    tangentLabel.material.opacity = 0;\n    secantLabel.position.set((pPos.x + qPos.x) / 2 + 0.5, (pPos.y + qPos.y) / 2 + 0.8, 0);\n  } else if (cycle < 9) {\n    const localTime = (cycle - 7) / 2;\n    const pPos = getCurvePoint(0.6);\n    fixedPoint.position.copy(pPos);\n    movingPoint.position.copy(pPos);\n    \n    fixedPoint.scale.setScalar(1);\n    movingPoint.scale.setScalar(1 - localTime * 0.5);\n    \n    secantLine.material.opacity = 0.8 * (1 - localTime);\n    secantLabel.material.opacity = 1 - localTime;\n    \n    const slope = getDerivative(0.6);\n    const length = 3;\n    const dx = length / Math.sqrt(1 + slope * slope);\n    const dy = slope * dx;\n    \n    const tangentPositions = new Float32Array([\n      pPos.x - dx, pPos.y - dy, pPos.z,\n      pPos.x + dx, pPos.y + dy, pPos.z\n    ]);\n    tangentLine.geometry.setAttribute('position', new THREE.BufferAttribute(tangentPositions, 3));\n    tangentLine.geometry.attributes.position.needsUpdate = true;\n    tangentLine.material.opacity = localTime;\n    tangentLabel.material.opacity = localTime;\n    tangentLabel.position.set(pPos.x + 1.5, pPos.y + slope * 1.5 + 0.5, 0);\n  } else {\n    const pPos = getCurvePoint(0.6);\n    fixedPoint.position.copy(pPos);\n    movingPoint.scale.setScalar(0.5);\n    \n    const slope = getDerivative(0.6);\n    const length = 3;\n    const dx = length / Math.sqrt(1 + slope * slope);\n    const dy = slope * dx;\n    \n    const tangentPositions = new Float32Array([\n      pPos.x - dx, pPos.y - dy, pPos.z,\n      pPos.x + dx, pPos.y + dy, pPos.z\n    ]);\n    tangentLine.geometry.setAttribute('position', new THREE.BufferAttribute(tangentPositions, 3));\n    tangentLine.geometry.attributes.position.needsUpdate = true;\n    \n    tangentLine.material.opacity = 1;\n    tangentLabel.material.opacity = 1;\n    secantLine.material.opacity = 0;\n    secantLabel.material.opacity = 0;\n  }\n  \n  controls.update();\n  renderer.render(scene, camera);\n}\nanimate();",
+      "previewUrl": "about:blank",
+      "skill": "threejs",
+      "explanation": "Show me a manim video explainig the concept. Live preview may be limited, but the animation concept is ready.",
+      "messageId": "message-17",
+      "source": "generate",
+      "createdAt": "2026-04-06T23:01:37.957Z",
+      "updatedAt": "2026-04-06T23:01:37.957Z",
+      "versionId": "version-2",
+      "version": 2,
+      "artifactId": "artifact-1775516497957-65af91",
+      "artifactVersion": 1
+    }
+  ],
+  "versionPointer": 0,
+  "revisionPointer": 0,
+  "messages": [
+    {
+      "id": "client-9eeb9925-abc1-4807-8ef2-0bd9bbe198b7",
+      "role": "user",
+      "content": "explain how vectors work in games",
+      "kind": "input",
+      "meta": [],
+      "error": null,
+      "createdAt": "2026-04-06T22:53:57.030Z",
+      "updatedAt": "2026-04-06T22:53:57.030Z"
+    },
+    {
+      "id": "message-2",
+      "role": "assistant",
+      "content": "In games, vectors are simply arrows that tell objects where to go and how fast. Think of them as instructions with two parts: **direction** (which way) and **magnitude** (how much).\n\n**Positions**\nEvery character, bullet, or camera sits at a coordinate like (10, 20, 5). That’s a vector pointing from the world’s origin (0,0,0) to where the object actually is.\n\n**Movement & Physics**\nWhen your character runs forward, the game adds a \"velocity vector\" to their position each frame. If the vector is (2, 0, 0), they move 2 units right every tick. Gravity is just a downward vector (0, -9.8, 0) pulling the player down.\n\n**Aiming & Shooting**\nWhen you click to fire, the game draws a vector from the gun to the target. It normalizes that vector (sets its length to 1) to get pure direction, then multiplies it by bullet speed—so the shot travels straight toward the cursor regardless of distance.\n\n**Common Math**\n- **Addition**: Combining forces (running + wind push)\n- **Dot product**: Checking if an enemy is in front of you (positive) or behind (negative)\n- **Cross product**: Finding surface normals for lighting or determining \"up\" relative to a slope\n\nWithout vectors, every movement would require manual trigonometry. Vectors let you say \"move that way at this speed\" in one clean line of code.",
+      "kind": "explain",
+      "meta": [],
+      "error": null,
+      "createdAt": "2026-04-06T22:53:57.031Z",
+      "updatedAt": "2026-04-06T22:54:11.059Z"
+    },
+    {
+      "id": "thought-turn_started-1775516037041",
+      "role": "thought",
+      "content": "Alright, I'm reading through your request now. Let me break this down.",
+      "kind": "thought",
+      "meta": [
+        "turn_started",
+        "requestId:client-9eeb9925-abc1-4807-8ef2-0bd9bbe198b7",
+        "messageId:message-2"
+      ],
+      "error": null,
+      "createdAt": "2026-04-06T22:53:57.041Z",
+      "updatedAt": "2026-04-06T22:53:57.041Z"
+    },
+    {
+      "id": "thought-intent_parsed-1775516037074",
+      "role": "thought",
+      "content": "I understand — this is a visual creation task. Let me pick the most suitable skill.",
+      "kind": "thought",
+      "meta": [
+        "intent_parsed",
+        "requestId:client-9eeb9925-abc1-4807-8ef2-0bd9bbe198b7",
+        "messageId:message-2"
+      ],
+      "error": null,
+      "createdAt": "2026-04-06T22:53:57.074Z",
+      "updatedAt": "2026-04-06T22:53:57.074Z"
+    },
+    {
+      "id": "thought-plan_created-1775516037074",
+      "role": "thought",
+      "content": "My plan has 7 stages. Let me run through them systematically.",
+      "kind": "thought",
+      "meta": [
+        "plan_created",
+        "requestId:client-9eeb9925-abc1-4807-8ef2-0bd9bbe198b7",
+        "messageId:message-2"
+      ],
+      "error": null,
+      "createdAt": "2026-04-06T22:53:57.074Z",
+      "updatedAt": "2026-04-06T22:53:57.074Z"
+    },
+    {
+      "id": "thought-turn_complete-1775516051060",
+      "role": "thought",
+      "content": "All done! Your visual is ready.",
+      "kind": "thought",
+      "meta": [
+        "turn_complete",
+        "requestId:client-9eeb9925-abc1-4807-8ef2-0bd9bbe198b7",
+        "messageId:message-2"
+      ],
+      "error": null,
+      "createdAt": "2026-04-06T22:54:11.060Z",
+      "updatedAt": "2026-04-06T22:54:11.060Z"
+    },
+    {
+      "id": "client-2d83e8b1-497e-43e1-a750-e326810aabcb",
+      "role": "user",
+      "content": "show a video",
+      "kind": "input",
+      "meta": [],
+      "error": null,
+      "createdAt": "2026-04-06T22:54:40.003Z",
+      "updatedAt": "2026-04-06T22:54:40.003Z"
+    },
+    {
+      "id": "message-8",
+      "role": "assistant",
+      "content": "Show a video. Live preview is currently unavailable, but the animation concept has been prepared.",
+      "kind": "generate",
+      "meta": [
+        "requestId:client-2d83e8b1-497e-43e1-a750-e326810aabcb",
+        "scene:scene-failed-1775516235710",
+        "skill:threejs",
+        "error:RUNTIME_API_MISMATCH"
+      ],
+      "error": {
+        "code": "RUNTIME_API_MISMATCH",
+        "title": "Runtime API mismatch",
+        "userMessage": "The generated scene called an API that failed at runtime.",
+        "retryable": true,
+        "suggestedAction": "Retry generation or ask for a compatibility-safe version.",
+        "technicalDetail": "THREE.CanvasTexture is not a constructor | code:error",
+        "stage": "execution",
+        "diagnostics": {
+          "stage": "execution",
+          "requestId": "client-2d83e8b1-497e-43e1-a750-e326810aabcb",
+          "sessionId": "98be53e9-ca75-41b3-b58c-387784e3180a",
+          "messageId": "message-8",
+          "message": "THREE.CanvasTexture is not a constructor",
+          "name": null,
+          "code": "error",
+          "status": null,
+          "cause": null,
+          "stack": null,
+          "timestamp": "2026-04-06T22:57:15.733Z",
+          "runtime": {
+            "status": "error",
+            "warningCode": null,
+            "acquireDiagnostics": {
+              "skillId": "threejs",
+              "reason": "acquire",
+              "startedAt": "2026-04-06T22:57:12.303Z",
+              "startedAtMs": 1775516232303,
+              "initialRemainingBudgetMs": 12000,
+              "turnDeadlineAtMs": 1775516244303,
+              "retryAttempts": 0,
+              "retryDelaysMs": [],
+              "directAttemptedAny": false,
+              "prewarmHit": true,
+              "success": true,
+              "acquireDurationMs": 1578,
+              "completedAt": "2026-04-06T22:57:13.882Z",
+              "creationMode": "prewarm",
+              "source": "prewarm",
+              "direct": {
+                "attempted": false,
+                "skipped": false,
+                "skipReason": null,
+                "timeoutSec": null,
+                "durationMs": null,
+                "error": null,
+                "circuitOpenAtStart": false,
+                "circuitOpened": false,
+                "circuitOpenUntil": null
+              },
+              "fallback": {
+                "attempted": false,
+                "skipped": false,
+                "skipReason": null,
+                "timeoutSec": null,
+                "durationMs": null,
+                "error": null
+              },
+              "livenessPingMs": 1578,
+              "internalFirstAttempt": true
+            }
+          }
+        }
+      },
+      "createdAt": "2026-04-06T22:54:40.004Z",
+      "updatedAt": "2026-04-06T22:57:15.737Z"
+    },
+    {
+      "id": "thought-turn_started-1775516080009",
+      "role": "thought",
+      "content": "Let me think about this... I need to understand what you're asking for.",
+      "kind": "thought",
+      "meta": [
+        "turn_started",
+        "requestId:client-2d83e8b1-497e-43e1-a750-e326810aabcb",
+        "messageId:message-8"
+      ],
+      "error": null,
+      "createdAt": "2026-04-06T22:54:40.009Z",
+      "updatedAt": "2026-04-06T22:54:40.009Z"
+    },
+    {
+      "id": "thought-intent_parsed-1775516080042",
+      "role": "thought",
+      "content": "I see — you want me to create a visual visualization. Let me figure out the best tool for this.",
+      "kind": "thought",
+      "meta": [
+        "intent_parsed",
+        "requestId:client-2d83e8b1-497e-43e1-a750-e326810aabcb",
+        "messageId:message-8"
+      ],
+      "error": null,
+      "createdAt": "2026-04-06T22:54:40.042Z",
+      "updatedAt": "2026-04-06T22:54:40.042Z"
+    },
+    {
+      "id": "thought-plan_created-1775516080043",
+      "role": "thought",
+      "content": "I've mapped out 7 steps to build this. Starting the generation pipeline now.",
+      "kind": "thought",
+      "meta": [
+        "plan_created",
+        "requestId:client-2d83e8b1-497e-43e1-a750-e326810aabcb",
+        "messageId:message-8"
+      ],
+      "error": null,
+      "createdAt": "2026-04-06T22:54:40.043Z",
+      "updatedAt": "2026-04-06T22:54:40.043Z"
+    },
+    {
+      "id": "thought-code_generated-1775516235719",
+      "role": "thought",
+      "content": "I'm writing code to instantiate a PlaneGeometry mesh, create a VideoTexture from an HTMLVideoElement, apply it to a MeshBasicMaterial for luminous playback, and add soft ambient lighting to frame the screen.",
+      "kind": "thought",
+      "meta": [
+        "code_generated",
+        "requestId:client-2d83e8b1-497e-43e1-a750-e326810aabcb",
+        "messageId:message-8"
+      ],
+      "error": null,
+      "createdAt": "2026-04-06T22:57:15.719Z",
+      "updatedAt": "2026-04-06T22:57:15.719Z"
+    },
+    {
+      "id": "thought-executing-1775516235724",
+      "role": "thought",
+      "content": "I'm spinning up the WebGL renderer in the sandbox, mounting the video element to the DOM, and triggering playback to start the stream.",
+      "kind": "thought",
+      "meta": [
+        "executing",
+        "requestId:client-2d83e8b1-497e-43e1-a750-e326810aabcb",
+        "messageId:message-8"
+      ],
+      "error": null,
+      "createdAt": "2026-04-06T22:57:15.724Z",
+      "updatedAt": "2026-04-06T22:57:15.724Z"
+    },
+    {
+      "id": "thought-sync_state-1775516235727",
+      "role": "thought",
+      "content": "The video is now playing on a large 3D screen in your scene, complete with real-time texture mapping and smooth frame updates.",
+      "kind": "thought",
+      "meta": [
+        "sync_state",
+        "requestId:client-2d83e8b1-497e-43e1-a750-e326810aabcb",
+        "messageId:message-8"
+      ],
+      "error": null,
+      "createdAt": "2026-04-06T22:57:15.727Z",
+      "updatedAt": "2026-04-06T22:57:15.727Z"
+    },
+    {
+      "id": "thought-turn_error-1775516235742",
+      "role": "thought",
+      "content": "Something went wrong during execution. Let me show you what happened.",
+      "kind": "thought",
+      "meta": [
+        "turn_error",
+        "requestId:client-2d83e8b1-497e-43e1-a750-e326810aabcb",
+        "messageId:message-8"
+      ],
+      "error": null,
+      "createdAt": "2026-04-06T22:57:15.742Z",
+      "updatedAt": "2026-04-06T22:57:15.742Z"
+    },
+    {
+      "id": "client-f768b9c8-f2b2-4bf1-ad49-2295c468089e",
+      "role": "user",
+      "content": "show me a manim video explainig the concept",
+      "kind": "input",
+      "meta": [],
+      "error": null,
+      "createdAt": "2026-04-06T22:58:26.589Z",
+      "updatedAt": "2026-04-06T22:58:26.589Z"
+    },
+    {
+      "id": "message-17",
+      "role": "assistant",
+      "content": "Show me a manim video explainig the concept. Live preview may be limited, but the animation concept is ready.",
+      "kind": "generate",
+      "meta": [
+        "requestId:client-f768b9c8-f2b2-4bf1-ad49-2295c468089e",
+        "scene:scene-1775516497921",
+        "skill:threejs"
+      ],
+      "error": null,
+      "createdAt": "2026-04-06T22:58:26.589Z",
+      "updatedAt": "2026-04-06T23:01:38.013Z"
+    },
+    {
+      "id": "thought-turn_started-1775516306591",
+      "role": "thought",
+      "content": "I'm on it. First, I need to parse your intent and figure out the best approach.",
+      "kind": "thought",
+      "meta": [
+        "turn_started",
+        "requestId:client-f768b9c8-f2b2-4bf1-ad49-2295c468089e",
+        "messageId:message-17"
+      ],
+      "error": null,
+      "createdAt": "2026-04-06T22:58:26.591Z",
+      "updatedAt": "2026-04-06T22:58:26.591Z"
+    },
+    {
+      "id": "thought-intent_parsed-1775516306660",
+      "role": "thought",
+      "content": "I understand — this is a visual creation task. Let me pick the most suitable skill.",
+      "kind": "thought",
+      "meta": [
+        "intent_parsed",
+        "requestId:client-f768b9c8-f2b2-4bf1-ad49-2295c468089e",
+        "messageId:message-17"
+      ],
+      "error": null,
+      "createdAt": "2026-04-06T22:58:26.660Z",
+      "updatedAt": "2026-04-06T22:58:26.660Z"
+    },
+    {
+      "id": "thought-plan_created-1775516306663",
+      "role": "thought",
+      "content": "My plan has 7 stages. Let me run through them systematically.",
+      "kind": "thought",
+      "meta": [
+        "plan_created",
+        "requestId:client-f768b9c8-f2b2-4bf1-ad49-2295c468089e",
+        "messageId:message-17"
+      ],
+      "error": null,
+      "createdAt": "2026-04-06T22:58:26.663Z",
+      "updatedAt": "2026-04-06T22:58:26.663Z"
+    },
+    {
+      "id": "thought-code_generated-1775516497949",
+      "role": "thought",
+      "content": "Code for a Group containing plane geometries for squares on triangle sides, LineBasicMaterial in Manim's signature dark blue, HTML5 canvas textures for LaTeX-style equation sprites, and a Clock-driven animation loop with cubic easing for camera arcs and object morphing.",
+      "kind": "thought",
+      "meta": [
+        "code_generated",
+        "requestId:client-f768b9c8-f2b2-4bf1-ad49-2295c468089e",
+        "messageId:message-17"
+      ],
+      "error": null,
+      "createdAt": "2026-04-06T23:01:37.950Z",
+      "updatedAt": "2026-04-06T23:01:37.950Z"
+    },
+    {
+      "id": "thought-executing-1775516497968",
+      "role": "thought",
+      "content": "Spinning up the Three.js sandbox with the new mathematical scene, enabling shadows for depth, and starting the animation timeline that reveals the geometric proof step by step.",
+      "kind": "thought",
+      "meta": [
+        "executing",
+        "requestId:client-f768b9c8-f2b2-4bf1-ad49-2295c468089e",
+        "messageId:message-17"
+      ],
+      "error": null,
+      "createdAt": "2026-04-06T23:01:37.970Z",
+      "updatedAt": "2026-04-06T23:01:37.970Z"
+    },
+    {
+      "id": "thought-sync_state-1775516497979",
+      "role": "thought",
+      "content": "Delivered a Manim-inspired geometric proof animation using Three.js, featuring the characteristic clean white background, smooth camera movements, and step-by-step construction of mathematical objects with equation labels.",
+      "kind": "thought",
+      "meta": [
+        "sync_state",
+        "requestId:client-f768b9c8-f2b2-4bf1-ad49-2295c468089e",
+        "messageId:message-17"
+      ],
+      "error": null,
+      "createdAt": "2026-04-06T23:01:37.979Z",
+      "updatedAt": "2026-04-06T23:01:37.979Z"
+    },
+    {
+      "id": "thought-turn_complete-1775516498025",
+      "role": "thought",
+      "content": "Delivered a Manim-inspired geometric proof animation using Three.js, featuring the characteristic clean white background, smooth camera movements, and step-by-step construction of mathematical objects with equation labels.",
+      "kind": "thought",
+      "meta": [
+        "turn_complete",
+        "requestId:client-f768b9c8-f2b2-4bf1-ad49-2295c468089e",
+        "messageId:message-17"
+      ],
+      "error": null,
+      "createdAt": "2026-04-06T23:01:38.025Z",
+      "updatedAt": "2026-04-06T23:01:38.025Z"
+    },
+    {
+      "id": "thought-post_narration-1775516536415",
+      "role": "thought",
+      "content": "Processing step: post narration...",
+      "kind": "thought",
+      "meta": [
+        "post_narration",
+        "requestId:client-f768b9c8-f2b2-4bf1-ad49-2295c468089e",
+        "messageId:message-17"
+      ],
+      "error": null,
+      "createdAt": "2026-04-06T23:02:16.415Z",
+      "updatedAt": "2026-04-06T23:02:16.415Z"
+    }
+  ],
+  "orchestrationTrace": [
+    {
+      "id": "trace-1",
+      "step": "intent_parsed",
+      "payload": {
+        "sessionId": "98be53e9-ca75-41b3-b58c-387784e3180a",
+        "content": "explain how vectors work in games"
+      },
+      "createdAt": "2026-04-06T22:53:57.045Z"
+    },
+    {
+      "id": "trace-2",
+      "step": "turn_complete",
+      "payload": {
+        "sessionId": "98be53e9-ca75-41b3-b58c-387784e3180a",
+        "mode": "explain",
+        "messageCount": 6,
+        "error": null
+      },
+      "createdAt": "2026-04-06T22:54:11.061Z"
+    },
+    {
+      "id": "trace-3",
+      "step": "intent_parsed",
+      "payload": {
+        "sessionId": "98be53e9-ca75-41b3-b58c-387784e3180a",
+        "content": "show a video"
+      },
+      "createdAt": "2026-04-06T22:54:40.015Z"
+    },
+    {
+      "id": "trace-4",
+      "step": "parse_intent",
+      "payload": {
+        "sessionId": "98be53e9-ca75-41b3-b58c-387784e3180a",
+        "status": "running"
+      },
+      "createdAt": "2026-04-06T22:54:40.055Z"
+    },
+    {
+      "id": "trace-5",
+      "step": "select_skill",
+      "payload": {
+        "sessionId": "98be53e9-ca75-41b3-b58c-387784e3180a",
+        "status": "running"
+      },
+      "createdAt": "2026-04-06T22:54:40.066Z"
+    },
+    {
+      "id": "trace-6",
+      "step": "build_prompt",
+      "payload": {
+        "sessionId": "98be53e9-ca75-41b3-b58c-387784e3180a",
+        "status": "running"
+      },
+      "createdAt": "2026-04-06T22:54:40.080Z"
+    },
+    {
+      "id": "trace-7",
+      "step": "generate_code",
+      "payload": {
+        "sessionId": "98be53e9-ca75-41b3-b58c-387784e3180a",
+        "status": "running"
+      },
+      "createdAt": "2026-04-06T22:54:40.095Z"
+    },
+    {
+      "id": "trace-8",
+      "step": "generate_code",
+      "payload": {
+        "sessionId": "98be53e9-ca75-41b3-b58c-387784e3180a",
+        "status": "completed",
+        "selectedSkill": "threejs",
+        "source": "moonshot",
+        "code": "const clock = new THREE.Clock();\nscene.background = new THREE.Color(0xf4f7fb);\nrenderer.toneMapping = THREE.ACESFilmicToneMapping;\nrenderer.toneMappingExposure = 1.08;\nrenderer.shadowMap.enabled = true;\nrenderer.shadowMap.type = THREE.PCFSoftShadowMap;\n\nconst keyLight = new THREE.DirectionalLight(0xffffff, 1.35);\nkeyLight.position.set(6, 10, 8);\nkeyLight.castShadow = true;\nkeyLight.shadow.mapSize.width = 2048;\nkeyLight.shadow.mapSize.height = 2048;\nkeyLight.shadow.bias = -0.0001;\n\nconst fillLight = new THREE.DirectionalLight(0xbfd7ff, 0.55);\nfillLight.position.set(-7, 4, 5);\n\nconst rimLight = new THREE.PointLight(0xaad6ff, 0.45, 22);\nrimLight.position.set(-4, 3, -5);\n\nconst screenGlow = new THREE.PointLight(0x88ccff, 0.6, 10);\nscreenGlow.position.set(0, 0, 2);\n\nscene.add(new THREE.AmbientLight(0x7f8aa6, 0.32), keyLight, fillLight, rimLight, screenGlow);\n\nconst floor = new THREE.Mesh(\n  new THREE.CircleGeometry(10, 96),\n  new THREE.MeshStandardMaterial({ color: 0xe6ecf5, roughness: 0.92, metalness: 0.02 })\n);\nfloor.rotation.x = -Math.PI / 2;\nfloor.position.y = -1.2;\nfloor.receiveShadow = true;\nscene.add(floor);\n\nconst videoCanvas = document.createElement('canvas');\nvideoCanvas.width = 1024;\nvideoCanvas.height = 576;\nconst ctx = videoCanvas.getContext('2d');\n\nconst videoTexture = new THREE.CanvasTexture(videoCanvas);\nvideoTexture.colorSpace = THREE.SRGBColorSpace;\n\nconst screenGroup = new THREE.Group();\nscene.add(screenGroup);\n\nconst screenGeometry = new THREE.PlaneGeometry(4, 2.25);\nconst screenMaterial = new THREE.MeshStandardMaterial({\n  map: videoTexture,\n  emissive: 0xffffff,\n  emissiveMap: videoTexture,\n  emissiveIntensity: 0.8,\n  roughness: 0.2,\n  metalness: 0.1\n});\nconst screenMesh = new THREE.Mesh(screenGeometry, screenMaterial);\nscreenMesh.castShadow = true;\nscreenGroup.add(screenMesh);\n\nconst frameMaterial = new THREE.MeshStandardMaterial({ \n  color: 0x2a2a2a, \n  roughness: 0.3, \n  metalness: 0.8 \n});\n\nconst topFrame = new THREE.Mesh(new THREE.BoxGeometry(4.2, 0.1, 0.15), frameMaterial);\ntopFrame.position.y = 1.175;\ntopFrame.castShadow = true;\nscreenGroup.add(topFrame);\n\nconst bottomFrame = new THREE.Mesh(new THREE.BoxGeometry(4.2, 0.1, 0.15), frameMaterial);\nbottomFrame.position.y = -1.175;\nbottomFrame.castShadow = true;\nscreenGroup.add(bottomFrame);\n\nconst leftFrame = new THREE.Mesh(new THREE.BoxGeometry(0.1, 2.25, 0.15), frameMaterial);\nleftFrame.position.x = -2.05;\nleftFrame.castShadow = true;\nscreenGroup.add(leftFrame);\n\nconst rightFrame = new THREE.Mesh(new THREE.BoxGeometry(0.1, 2.25, 0.15), frameMaterial);\nrightFrame.position.x = 2.05;\nrightFrame.castShadow = true;\nscreenGroup.add(rightFrame);\n\nconst backPanel = new THREE.Mesh(\n  new THREE.BoxGeometry(4.2, 2.45, 0.05),\n  new THREE.MeshStandardMaterial({ color: 0x1a1a1a, roughness: 0.7, metalness: 0.2 })\n);\nbackPanel.position.z = -0.1;\nbackPanel.castShadow = true;\nscreenGroup.add(backPanel);\n\nconst standStem = new THREE.Mesh(\n  new THREE.CylinderGeometry(0.15, 0.2, 1.5, 32),\n  new THREE.MeshStandardMaterial({ color: 0x333333, roughness: 0.4, metalness: 0.6 })\n);\nstandStem.position.y = -2;\nstandStem.castShadow = true;\nscreenGroup.add(standStem);\n\nconst standBase = new THREE.Mesh(\n  new THREE.CylinderGeometry(1.2, 1.3, 0.15, 64),\n  new THREE.MeshStandardMaterial({ color: 0x333333, roughness: 0.4, metalness: 0.6 })\n);\nstandBase.position.y = -2.75;\nstandBase.castShadow = true;\nstandBase.receiveShadow = true;\nscreenGroup.add(standBase);\n\nscreenGroup.position.y = 0.5;\n\ncamera.position.set(0, 1.5, 6);\ncamera.lookAt(0, 0.5, 0);\n\nif (typeof OrbitControls !== 'undefined') {\n  const controls = new OrbitControls(camera, renderer.domElement);\n  controls.enableDamping = true;\n  controls.dampingFactor = 0.05;\n  controls.target.set(0, 0.5, 0);\n  controls.maxPolarAngle = Math.PI / 2 - 0.05;\n}\n\nfunction updateVideoContent(time) {\n  const gradient = ctx.createLinearGradient(0, 0, 1024, 576);\n  gradient.addColorStop(0, '#1e3c72');\n  gradient.addColorStop(0.5, '#2a5298');\n  gradient.addColorStop(1, '#7e8ba3');\n  ctx.fillStyle = gradient;\n  ctx.fillRect(0, 0, 1024, 576);\n  \n  ctx.lineWidth = 4;\n  ctx.strokeStyle = 'rgba(255, 255, 255, 0.8)';\n  ctx.beginPath();\n  for (let i = 0; i < 1024; i += 5) {\n    const amplitude = 50 + Math.sin(time * 2 + i * 0.01) * 30;\n    const y = 288 + Math.sin(i * 0.02 + time * 3) * amplitude * Math.sin(time + i * 0.005);\n    if (i === 0) ctx.moveTo(i, y);\n    else ctx.lineTo(i, y);\n  }\n  ctx.stroke();\n  \n  ctx.strokeStyle = 'rgba(100, 200, 255, 0.6)';\n  ctx.beginPath();\n  for (let i = 0; i < 1024; i += 5) {\n    const amplitude = 40 + Math.cos(time * 1.5 + i * 0.02) * 25;\n    const y = 288 + Math.cos(i * 0.015 + time * 2.5) * amplitude;\n    if (i === 0) ctx.moveTo(i, y);\n    else ctx.lineTo(i, y);\n  }\n  ctx.stroke();\n  \n  ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';\n  ctx.fillRect(100, 500, 824, 12);\n  \n  const progress = (time % 10) / 10;\n  ctx.fillStyle = '#00d4ff';\n  ctx.fillRect(100, 500, 824 * progress, 12);\n  \n  const glowGradient = ctx.createLinearGradient(100 + 824 * progress - 20, 500, 100 + 824 * progress + 20, 512);\n  glowGradient.addColorStop(0, 'rgba(0, 212, 255, 0)');\n  glowGradient.addColorStop(0.5, 'rgba(0, 212, 255, 0.8)');\n  glowGradient.addColorStop(1, 'rgba(0, 212, 255, 0)');\n  ctx.fillStyle = glowGradient;\n  ctx.fillRect(100 + 824 * progress - 20, 498, 40, 16);\n  \n  ctx.font = 'bold 48px Arial';\n  ctx.fillStyle = 'white';\n  ctx.textAlign = 'left';\n  ctx.fillText('PLAYING', 100, 100);\n  \n  const seconds = Math.floor(time % 60).toString().padStart(2, '0');\n  const minutes = Math.floor((time / 60) % 60).toString().padStart(2, '0');\n  ctx.font = '36px monospace';\n  ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';\n  ctx.fillText(`${minutes}:${seconds} / 10:00`, 100, 150);\n  \n  const pulse = 1 + Math.sin(time * 4) * 0.1;\n  ctx.save();\n  ctx.translate(900, 100);\n  ctx.scale(pulse, pulse);\n  ctx.fillStyle = '#00d4ff';\n  ctx.beginPath();\n  ctx.moveTo(0, -30);\n  ctx.lineTo(40, 0);\n  ctx.lineTo(0, 30);\n  ctx.closePath();\n  ctx.fill();\n  ctx.restore();\n  \n  ctx.fillStyle = 'rgba(0, 0, 0, 0.1)';\n  for (let i = 0; i < 576; i += 4) {\n    ctx.fillRect(0, i, 1024, 2);\n  }\n}\n\nfunction animate() {\n  requestAnimationFrame(animate);\n  const t = clock.getElapsedTime();\n  \n  updateVideoContent(t);\n  videoTexture.needsUpdate = true;\n  \n  screenGroup.position.y = 0.5 + Math.sin(t * 0.5) * 0.05;\n  screenGroup.rotation.y = Math.sin(t * 0.2) * 0.02;\n  \n  screenGlow.intensity = 0.6 + Math.sin(t * 2) * 0.1;\n  rimLight.intensity = 0.35 + Math.sin(t * 1.2) * 0.08;\n  \n  renderer.render(scene, camera);\n}\n\nanimate();",
+        "stageDurationMs": 152142
+      },
+      "createdAt": "2026-04-06T22:57:12.247Z"
+    },
+    {
+      "id": "trace-9",
+      "step": "validate_code",
+      "payload": {
+        "sessionId": "98be53e9-ca75-41b3-b58c-387784e3180a",
+        "status": "running"
+      },
+      "createdAt": "2026-04-06T22:57:12.254Z"
+    },
+    {
+      "id": "trace-10",
+      "step": "validate_code",
+      "payload": {
+        "sessionId": "98be53e9-ca75-41b3-b58c-387784e3180a",
+        "status": "completed",
+        "valid": true,
+        "passable": true,
+        "stageDurationMs": 33
+      },
+      "createdAt": "2026-04-06T22:57:12.287Z"
+    },
+    {
+      "id": "trace-11",
+      "step": "execute_code",
+      "payload": {
+        "sessionId": "98be53e9-ca75-41b3-b58c-387784e3180a",
+        "status": "running"
+      },
+      "createdAt": "2026-04-06T22:57:12.302Z"
+    },
+    {
+      "id": "trace-12",
+      "step": "execute_code",
+      "payload": {
+        "sessionId": "98be53e9-ca75-41b3-b58c-387784e3180a",
+        "status": "error",
+        "error": "THREE.CanvasTexture is not a constructor",
+        "runtimeRecoveryUsed": false,
+        "stageDurationMs": 3394
+      },
+      "createdAt": "2026-04-06T22:57:15.696Z"
+    },
+    {
+      "id": "trace-13",
+      "step": "turn_error",
+      "payload": {
+        "sessionId": "98be53e9-ca75-41b3-b58c-387784e3180a",
+        "mode": "generate",
+        "messageCount": 15,
+        "error": {
+          "code": "RUNTIME_API_MISMATCH",
+          "title": "Runtime API mismatch",
+          "userMessage": "The generated scene called an API that failed at runtime.",
+          "retryable": true,
+          "suggestedAction": "Retry generation or ask for a compatibility-safe version.",
+          "technicalDetail": "THREE.CanvasTexture is not a constructor | code:error",
+          "stage": "execution",
+          "diagnostics": {
+            "stage": "execution",
+            "requestId": "client-2d83e8b1-497e-43e1-a750-e326810aabcb",
+            "sessionId": "98be53e9-ca75-41b3-b58c-387784e3180a",
+            "messageId": "message-8",
+            "message": "THREE.CanvasTexture is not a constructor",
+            "name": null,
+            "code": "error",
+            "status": null,
+            "cause": null,
+            "stack": null,
+            "timestamp": "2026-04-06T22:57:15.733Z",
+            "runtime": {
+              "status": "error",
+              "warningCode": null,
+              "acquireDiagnostics": {
+                "skillId": "threejs",
+                "reason": "acquire",
+                "startedAt": "2026-04-06T22:57:12.303Z",
+                "startedAtMs": 1775516232303,
+                "initialRemainingBudgetMs": 12000,
+                "turnDeadlineAtMs": 1775516244303,
+                "retryAttempts": 0,
+                "retryDelaysMs": [],
+                "directAttemptedAny": false,
+                "prewarmHit": true,
+                "success": true,
+                "acquireDurationMs": 1578,
+                "completedAt": "2026-04-06T22:57:13.882Z",
+                "creationMode": "prewarm",
+                "source": "prewarm",
+                "direct": {
+                  "attempted": false,
+                  "skipped": false,
+                  "skipReason": null,
+                  "timeoutSec": null,
+                  "durationMs": null,
+                  "error": null,
+                  "circuitOpenAtStart": false,
+                  "circuitOpened": false,
+                  "circuitOpenUntil": null
+                },
+                "fallback": {
+                  "attempted": false,
+                  "skipped": false,
+                  "skipReason": null,
+                  "timeoutSec": null,
+                  "durationMs": null,
+                  "error": null
+                },
+                "livenessPingMs": 1578,
+                "internalFirstAttempt": true
+              }
+            }
+          }
+        }
+      },
+      "createdAt": "2026-04-06T22:57:15.743Z"
+    },
+    {
+      "id": "trace-14",
+      "step": "intent_parsed",
+      "payload": {
+        "sessionId": "98be53e9-ca75-41b3-b58c-387784e3180a",
+        "content": "show me a manim video explainig the concept"
+      },
+      "createdAt": "2026-04-06T22:58:26.602Z"
+    },
+    {
+      "id": "trace-15",
+      "step": "parse_intent",
+      "payload": {
+        "sessionId": "98be53e9-ca75-41b3-b58c-387784e3180a",
+        "status": "running"
+      },
+      "createdAt": "2026-04-06T22:58:26.680Z"
+    },
+    {
+      "id": "trace-16",
+      "step": "select_skill",
+      "payload": {
+        "sessionId": "98be53e9-ca75-41b3-b58c-387784e3180a",
+        "status": "running"
+      },
+      "createdAt": "2026-04-06T22:58:26.699Z"
+    },
+    {
+      "id": "trace-17",
+      "step": "build_prompt",
+      "payload": {
+        "sessionId": "98be53e9-ca75-41b3-b58c-387784e3180a",
+        "status": "running"
+      },
+      "createdAt": "2026-04-06T22:58:26.710Z"
+    },
+    {
+      "id": "trace-18",
+      "step": "generate_code",
+      "payload": {
+        "sessionId": "98be53e9-ca75-41b3-b58c-387784e3180a",
+        "status": "running"
+      },
+      "createdAt": "2026-04-06T22:58:26.723Z"
+    },
+    {
+      "id": "trace-19",
+      "step": "generate_code",
+      "payload": {
+        "sessionId": "98be53e9-ca75-41b3-b58c-387784e3180a",
+        "status": "completed",
+        "selectedSkill": "threejs",
+        "source": "moonshot",
+        "code": "const clock = new THREE.Clock();\nscene.background = new THREE.Color(0xf8f9fa);\nrenderer.toneMapping = THREE.ACESFilmicToneMapping;\nrenderer.toneMappingExposure = 1.08;\nrenderer.shadowMap.enabled = true;\nrenderer.shadowMap.type = THREE.PCFSoftShadowMap;\n\nconst keyLight = new THREE.DirectionalLight(0xffffff, 1.4);\nkeyLight.position.set(6, 12, 8);\nkeyLight.castShadow = true;\nkeyLight.shadow.mapSize.width = 2048;\nkeyLight.shadow.mapSize.height = 2048;\nkeyLight.shadow.camera.near = 0.1;\nkeyLight.shadow.camera.far = 50;\nkeyLight.shadow.bias = -0.001;\n\nconst fillLight = new THREE.DirectionalLight(0xdbeafe, 0.6);\nfillLight.position.set(-8, 6, 4);\n\nconst rimLight = new THREE.PointLight(0x60a5fa, 0.5, 25);\nrimLight.position.set(-5, 4, -6);\n\nscene.add(new THREE.AmbientLight(0x64748b, 0.35), keyLight, fillLight, rimLight);\n\nconst COLORS = {\n  curve: 0x3b82f6,\n  accent: 0xf59e0b,\n  highlight: 0x10b981,\n  text: 0x1e293b,\n  grid: 0xcbd5e1\n};\n\nconst gridGroup = new THREE.Group();\nconst gridHelper = new THREE.GridHelper(20, 20, COLORS.grid, COLORS.grid);\ngridHelper.position.y = -2;\ngridGroup.add(gridHelper);\n\nconst axesGroup = new THREE.Group();\nconst axisMaterial = new THREE.MeshStandardMaterial({ \n  color: 0x475569, \n  roughness: 0.4, \n  metalness: 0.1 \n});\n\nconst xAxis = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 12, 16), axisMaterial);\nxAxis.rotation.z = -Math.PI / 2;\nxAxis.position.y = -2;\naxesGroup.add(xAxis);\n\nconst yAxis = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 8, 16), axisMaterial);\nyAxis.position.set(-6, 0, 0);\naxesGroup.add(yAxis);\n\nscene.add(gridGroup);\nscene.add(axesGroup);\n\nconst curvePath = new THREE.CatmullRomCurve3(\n  Array.from({ length: 50 }, (_, i) => {\n    const x = -5 + (i / 49) * 10;\n    const y = 0.5 * Math.sin(x) + 0.2 * x;\n    return new THREE.Vector3(x, y, 0);\n  })\n);\n\nconst tubeGeometry = new THREE.TubeGeometry(curvePath, 64, 0.08, 16, false);\nconst curveMaterial = new THREE.MeshStandardMaterial({ \n  color: COLORS.curve, \n  roughness: 0.3, \n  metalness: 0.1,\n  emissive: COLORS.curve,\n  emissiveIntensity: 0.1\n});\nconst curveMesh = new THREE.Mesh(tubeGeometry, curveMaterial);\ncurveMesh.castShadow = true;\ncurveMesh.receiveShadow = true;\nscene.add(curveMesh);\n\nfunction getCurvePoint(t) {\n  const x = -5 + t * 10;\n  const y = 0.5 * Math.sin(x) + 0.2 * x;\n  return new THREE.Vector3(x, y, 0);\n}\n\nfunction getDerivative(t) {\n  const x = -5 + t * 10;\n  return 0.5 * Math.cos(x) + 0.2;\n}\n\nconst pointGeometry = new THREE.SphereGeometry(0.15, 32, 32);\nconst fixedPointMaterial = new THREE.MeshStandardMaterial({ \n  color: COLORS.highlight, \n  roughness: 0.2, \n  metalness: 0.3,\n  emissive: COLORS.highlight,\n  emissiveIntensity: 0.3\n});\nconst movingPointMaterial = new THREE.MeshStandardMaterial({ \n  color: COLORS.accent, \n  roughness: 0.2, \n  metalness: 0.3,\n  emissive: COLORS.accent,\n  emissiveIntensity: 0.3\n});\n\nconst fixedPoint = new THREE.Mesh(pointGeometry, fixedPointMaterial);\nconst movingPoint = new THREE.Mesh(pointGeometry, movingPointMaterial);\nfixedPoint.position.copy(getCurvePoint(0.6));\nfixedPoint.castShadow = true;\nmovingPoint.castShadow = true;\nscene.add(fixedPoint);\nscene.add(movingPoint);\n\nconst lineMaterial = new THREE.LineBasicMaterial({ \n  color: COLORS.accent, \n  linewidth: 3,\n  opacity: 0.8,\n  transparent: true\n});\n\nconst secantGeometry = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(0,0,0), new THREE.Vector3(1,1,0)]);\nconst secantLine = new THREE.Line(secantGeometry, lineMaterial);\nscene.add(secantLine);\n\nconst tangentMaterial = new THREE.LineBasicMaterial({ \n  color: COLORS.highlight, \n  linewidth: 4,\n  opacity: 0,\n  transparent: true\n});\nconst tangentGeometry = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(0,0,0), new THREE.Vector3(1,1,0)]);\nconst tangentLine = new THREE.Line(tangentGeometry, tangentMaterial);\nscene.add(tangentLine);\n\nfunction createLabel(text, color = '#1e293b') {\n  const canvas = document.createElement('canvas');\n  const ctx = canvas.getContext('2d');\n  canvas.width = 512;\n  canvas.height = 256;\n  ctx.fillStyle = 'rgba(255,255,255,0)';\n  ctx.fillRect(0, 0, canvas.width, canvas.height);\n  ctx.font = 'bold 64px \"Times New Roman\", serif';\n  ctx.fillStyle = color;\n  ctx.textAlign = 'center';\n  ctx.textBaseline = 'middle';\n  ctx.fillText(text, 256, 128);\n  const texture = new THREE.CanvasTexture(canvas);\n  texture.minFilter = THREE.LinearFilter;\n  const material = new THREE.MeshBasicMaterial({ \n    map: texture, \n    transparent: true, \n    side: THREE.DoubleSide,\n    opacity: 0\n  });\n  const geometry = new THREE.PlaneGeometry(3, 1.5);\n  const mesh = new THREE.Mesh(geometry, material);\n  return mesh;\n}\n\nconst labelP = createLabel(\"P\", \"#10b981\");\nlabelP.position.set(0.5, 0.5, 0);\nfixedPoint.add(labelP);\n\nconst labelQ = createLabel(\"Q\", \"#f59e0b\");\nlabelQ.position.set(0.5, 0.5, 0);\nmovingPoint.add(labelQ);\n\nconst secantLabel = createLabel(\"Secant\", \"#f59e0b\");\nsecantLabel.position.set(2, 3, 0);\nscene.add(secantLabel);\n\nconst tangentLabel = createLabel(\"Tangent\", \"#10b981\");\ntangentLabel.position.set(2, 3.5, 0);\nscene.add(tangentLabel);\n\ncamera.position.set(0, 2, 8);\ncamera.lookAt(0, 0, 0);\n\nconst controls = new OrbitControls(camera, renderer.domElement);\ncontrols.enableDamping = true;\ncontrols.dampingFactor = 0.05;\ncontrols.target.set(0, 0, 0);\n\nfunction animate() {\n  requestAnimationFrame(animate);\n  const t = clock.getElapsedTime();\n  const cycle = t % 12;\n  \n  camera.position.x = Math.sin(t * 0.1) * 0.5;\n  camera.lookAt(0, 0, 0);\n  \n  if (cycle < 2) {\n    const localTime = cycle / 2;\n    fixedPoint.scale.setScalar(0);\n    movingPoint.scale.setScalar(0);\n    secantLine.material.opacity = 0;\n    tangentLine.material.opacity = 0;\n    secantLabel.material.opacity = 0;\n    tangentLabel.material.opacity = 0;\n    labelP.material.opacity = 0;\n    labelQ.material.opacity = 0;\n  } else if (cycle < 3) {\n    const localTime = (cycle - 2);\n    fixedPoint.scale.setScalar(localTime);\n    movingPoint.scale.setScalar(0);\n    secantLine.material.opacity = 0;\n    tangentLine.material.opacity = 0;\n    secantLabel.material.opacity = 0;\n    tangentLabel.material.opacity = 0;\n    labelP.material.opacity = localTime;\n    labelQ.material.opacity = 0;\n  } else if (cycle < 7) {\n    const localTime = (cycle - 3) / 4;\n    fixedPoint.scale.setScalar(1);\n    movingPoint.scale.setScalar(1);\n    labelP.material.opacity = 1;\n    labelQ.material.opacity = 1;\n    \n    const startT = 0.9;\n    const endT = 0.61;\n    const easeT = 1 - Math.pow(1 - localTime, 3);\n    const actualT = startT - (startT - endT) * easeT;\n    \n    const pPos = getCurvePoint(0.6);\n    const qPos = getCurvePoint(actualT);\n    \n    fixedPoint.position.copy(pPos);\n    movingPoint.position.copy(qPos);\n    \n    const positions = new Float32Array([\n      pPos.x, pPos.y, pPos.z,\n      qPos.x, qPos.y, qPos.z\n    ]);\n    secantLine.geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));\n    secantLine.geometry.attributes.position.needsUpdate = true;\n    \n    secantLine.material.opacity = 0.8;\n    tangentLine.material.opacity = 0;\n    secantLabel.material.opacity = 1;\n    tangentLabel.material.opacity = 0;\n    secantLabel.position.set((pPos.x + qPos.x) / 2 + 0.5, (pPos.y + qPos.y) / 2 + 0.8, 0);\n  } else if (cycle < 9) {\n    const localTime = (cycle - 7) / 2;\n    const pPos = getCurvePoint(0.6);\n    fixedPoint.position.copy(pPos);\n    movingPoint.position.copy(pPos);\n    \n    fixedPoint.scale.setScalar(1);\n    movingPoint.scale.setScalar(1 - localTime * 0.5);\n    \n    secantLine.material.opacity = 0.8 * (1 - localTime);\n    secantLabel.material.opacity = 1 - localTime;\n    \n    const slope = getDerivative(0.6);\n    const length = 3;\n    const dx = length / Math.sqrt(1 + slope * slope);\n    const dy = slope * dx;\n    \n    const tangentPositions = new Float32Array([\n      pPos.x - dx, pPos.y - dy, pPos.z,\n      pPos.x + dx, pPos.y + dy, pPos.z\n    ]);\n    tangentLine.geometry.setAttribute('position', new THREE.BufferAttribute(tangentPositions, 3));\n    tangentLine.geometry.attributes.position.needsUpdate = true;\n    tangentLine.material.opacity = localTime;\n    tangentLabel.material.opacity = localTime;\n    tangentLabel.position.set(pPos.x + 1.5, pPos.y + slope * 1.5 + 0.5, 0);\n  } else {\n    const pPos = getCurvePoint(0.6);\n    fixedPoint.position.copy(pPos);\n    movingPoint.scale.setScalar(0.5);\n    \n    const slope = getDerivative(0.6);\n    const length = 3;\n    const dx = length / Math.sqrt(1 + slope * slope);\n    const dy = slope * dx;\n    \n    const tangentPositions = new Float32Array([\n      pPos.x - dx, pPos.y - dy, pPos.z,\n      pPos.x + dx, pPos.y + dy, pPos.z\n    ]);\n    tangentLine.geometry.setAttribute('position', new THREE.BufferAttribute(tangentPositions, 3));\n    tangentLine.geometry.attributes.position.needsUpdate = true;\n    \n    tangentLine.material.opacity = 1;\n    tangentLabel.material.opacity = 1;\n    secantLine.material.opacity = 0;\n    secantLabel.material.opacity = 0;\n  }\n  \n  controls.update();\n  renderer.render(scene, camera);\n}\nanimate();",
+        "stageDurationMs": 187021
+      },
+      "createdAt": "2026-04-06T23:01:33.803Z"
+    },
+    {
+      "id": "trace-20",
+      "step": "validate_code",
+      "payload": {
+        "sessionId": "98be53e9-ca75-41b3-b58c-387784e3180a",
+        "status": "running"
+      },
+      "createdAt": "2026-04-06T23:01:33.824Z"
+    },
+    {
+      "id": "trace-21",
+      "step": "validate_code",
+      "payload": {
+        "sessionId": "98be53e9-ca75-41b3-b58c-387784e3180a",
+        "status": "completed",
+        "valid": true,
+        "passable": true,
+        "stageDurationMs": 192
+      },
+      "createdAt": "2026-04-06T23:01:34.020Z"
+    },
+    {
+      "id": "trace-22",
+      "step": "execute_code",
+      "payload": {
+        "sessionId": "98be53e9-ca75-41b3-b58c-387784e3180a",
+        "status": "running"
+      },
+      "createdAt": "2026-04-06T23:01:34.137Z"
+    },
+    {
+      "id": "trace-23",
+      "step": "execute_code",
+      "payload": {
+        "sessionId": "98be53e9-ca75-41b3-b58c-387784e3180a",
+        "status": "degraded",
+        "error": null,
+        "runtimeRecoveryUsed": false,
+        "stageDurationMs": 3744
+      },
+      "createdAt": "2026-04-06T23:01:37.880Z"
+    },
+    {
+      "id": "trace-24",
+      "step": "sync_state",
+      "payload": {
+        "sessionId": "98be53e9-ca75-41b3-b58c-387784e3180a",
+        "status": "running"
+      },
+      "createdAt": "2026-04-06T23:01:37.913Z"
+    },
+    {
+      "id": "trace-25",
+      "step": "turn_complete",
+      "payload": {
+        "sessionId": "98be53e9-ca75-41b3-b58c-387784e3180a",
+        "mode": "generate",
+        "messageCount": 24,
+        "error": null
+      },
+      "createdAt": "2026-04-06T23:01:38.064Z"
+    }
+  ]
+}

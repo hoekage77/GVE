@@ -1,0 +1,113 @@
+{
+  "sessionId": "c6b52666-6749-42a1-ac73-ce99deffb8e2",
+  "createdAt": "2026-04-07T00:20:39.951Z",
+  "updatedAt": "2026-04-07T00:21:00.510Z",
+  "status": "idle",
+  "currentScene": null,
+  "artifacts": [],
+  "artifactPointer": -1,
+  "versions": [],
+  "sceneVersions": [],
+  "versionPointer": -1,
+  "revisionPointer": -1,
+  "messages": [
+    {
+      "id": "ws-runtime-1775521239956",
+      "role": "user",
+      "content": "Hello. Confirm websocket runtime event flow.",
+      "kind": "input",
+      "meta": [],
+      "error": null,
+      "createdAt": "2026-04-07T00:20:39.965Z",
+      "updatedAt": "2026-04-07T00:20:39.965Z"
+    },
+    {
+      "id": "message-2",
+      "role": "assistant",
+      "content": "Hello! \n\nIn a typical WebSocket runtime, the event flow goes like this:\n\n**Connection Phase**\n- Client sends an HTTP upgrade request with `Connection: Upgrade` and `Upgrade: websocket` headers\n- Server responds with `101 Switching Protocols` if accepted\n- TCP connection upgrades to WebSocket; both sides trigger an **open** event\n\n**Active Phase**\n- Bidirectional **message** events fire as data frames arrive (text or binary)\n- **Error** events trigger on protocol violations or network failures\n- Ping/pong frames handle keepalives automatically (usually hidden from application events)\n\n**Termination**\n- Either side sends a close frame with status code and optional reason\n- **Close** event fires on the peer, acknowledging shutdown\n- TCP connection closes\n\nIf you want me to map this out as a sequence diagram or architectural flowchart, just say the word!",
+      "kind": "chat",
+      "meta": [],
+      "error": null,
+      "createdAt": "2026-04-07T00:20:39.965Z",
+      "updatedAt": "2026-04-07T00:21:00.479Z"
+    },
+    {
+      "id": "thought-turn_started-1775521239970",
+      "role": "thought",
+      "content": "Interesting — let me process what you're looking for here.",
+      "kind": "thought",
+      "meta": [
+        "turn_started",
+        "requestId:ws-runtime-1775521239956",
+        "messageId:message-2"
+      ],
+      "error": null,
+      "createdAt": "2026-04-07T00:20:39.970Z",
+      "updatedAt": "2026-04-07T00:20:39.970Z"
+    },
+    {
+      "id": "thought-intent_parsed-1775521240012",
+      "role": "thought",
+      "content": "Clear — I need to build a visual visual from scratch. Checking available engines...",
+      "kind": "thought",
+      "meta": [
+        "intent_parsed",
+        "requestId:ws-runtime-1775521239956",
+        "messageId:message-2"
+      ],
+      "error": null,
+      "createdAt": "2026-04-07T00:20:40.012Z",
+      "updatedAt": "2026-04-07T00:20:40.012Z"
+    },
+    {
+      "id": "thought-plan_created-1775521240013",
+      "role": "thought",
+      "content": "I've mapped out 7 steps to build this. Starting the generation pipeline now.",
+      "kind": "thought",
+      "meta": [
+        "plan_created",
+        "requestId:ws-runtime-1775521239956",
+        "messageId:message-2"
+      ],
+      "error": null,
+      "createdAt": "2026-04-07T00:20:40.013Z",
+      "updatedAt": "2026-04-07T00:20:40.013Z"
+    },
+    {
+      "id": "thought-turn_complete-1775521260495",
+      "role": "thought",
+      "content": "Everything's finished. Take a look at the result!",
+      "kind": "thought",
+      "meta": [
+        "turn_complete",
+        "requestId:ws-runtime-1775521239956",
+        "messageId:message-2"
+      ],
+      "error": null,
+      "createdAt": "2026-04-07T00:21:00.496Z",
+      "updatedAt": "2026-04-07T00:21:00.496Z"
+    }
+  ],
+  "orchestrationTrace": [
+    {
+      "id": "trace-1",
+      "step": "intent_parsed",
+      "payload": {
+        "sessionId": "c6b52666-6749-42a1-ac73-ce99deffb8e2",
+        "content": "Hello. Confirm websocket runtime event flow."
+      },
+      "createdAt": "2026-04-07T00:20:39.977Z"
+    },
+    {
+      "id": "trace-2",
+      "step": "turn_complete",
+      "payload": {
+        "sessionId": "c6b52666-6749-42a1-ac73-ce99deffb8e2",
+        "mode": "chat",
+        "messageCount": 6,
+        "error": null
+      },
+      "createdAt": "2026-04-07T00:21:00.510Z"
+    }
+  ]
+}

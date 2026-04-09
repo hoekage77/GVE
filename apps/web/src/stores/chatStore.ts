@@ -2,12 +2,18 @@ import { create } from 'zustand';
 import { devtools, persist } from 'zustand/middleware';
 import {
   createSession as apiCreateSession,
+  type AgentActivityEvent,
+  type GveTask,
+  type GveTaskAction,
+  type GveTaskStatus,
+  listVersions,
   listSessionMessages,
   listSessions,
   nextArtifact,
   previousArtifact,
   redoScene,
   resolveWebSocketUrl,
+  selectVersion,
   sendSessionMessage,
   undoScene,
   type SessionMessage as ApiSessionMessage,
@@ -20,6 +26,597 @@ const WS_OPEN_WAIT_TIMEOUT_MS = 1200;
 let socket: WebSocket | null = null;
 let reconnectTimer: number | null = null;
 let lastSequence = 0;
+let shouldReplayOnReconnect = false;
+
+const MAX_ACTIVITY_ENTRIES = 120;
+const MAX_STAGE_EVENT_ENTRIES = 40;
+
+const PIPELINE_ACTION_ORDER: ReadonlyArray<GveTaskAction> = [
+  'parse_intent',
+  'select_skill',
+  'build_prompt',
+  'generate_code',
+  'validate_code',
+  'execute_code',
+  'sync_state'
+];
+
+const DEFAULT_TASK_DEFINITIONS: ReadonlyArray<{
+  id: string;
+  title: string;
+  description: string;
+  action: GveTaskAction;
+  command: string;
+  dependsOn: string[];
+}> = [
+  {
+    id: 'task-parse-intent',
+    title: 'Parse Intent',
+    description: 'Extract action, entities, and constraints from user prompt.',
+    action: 'parse_intent',
+    command: 'parse_intent',
+    dependsOn: []
+  },
+  {
+    id: 'task-select-skill',
+    title: 'Select Skill',
+    description: 'Rank and choose the best visual generation skill.',
+    action: 'select_skill',
+    command: 'select_skill',
+    dependsOn: ['task-parse-intent']
+  },
+  {
+    id: 'task-build-prompt',
+    title: 'Build Prompt',
+    description: 'Compose structured generation instructions for the model.',
+    action: 'build_prompt',
+    command: 'build_prompt',
+    dependsOn: ['task-select-skill']
+  },
+  {
+    id: 'task-generate-code',
+    title: 'Generate Code',
+    description: 'Generate executable scene or media source code.',
+    action: 'generate_code',
+    command: 'generate_code',
+    dependsOn: ['task-build-prompt']
+  },
+  {
+    id: 'task-validate-code',
+    title: 'Validate Code',
+    description: 'Run validation checks for syntax and safety boundaries.',
+    action: 'validate_code',
+    command: 'validate_code',
+    dependsOn: ['task-generate-code']
+  },
+  {
+    id: 'task-execute-code',
+    title: 'Execute',
+    description: 'Execute runtime workload in sandboxed environment.',
+    action: 'execute_code',
+    command: 'execute_code',
+    dependsOn: ['task-validate-code']
+  },
+  {
+    id: 'task-sync-state',
+    title: 'Sync State',
+    description: 'Persist runtime output and update session scene state.',
+    action: 'sync_state',
+    command: 'sync_state',
+    dependsOn: ['task-execute-code']
+  }
+];
+
+const ORCHESTRATION_STEP_TO_ACTION: Record<string, GveTaskAction> = {
+  turn_started: 'parse_intent',
+  parse_intent: 'parse_intent',
+  intent_parsed: 'parse_intent',
+  select_skill: 'select_skill',
+  skill_selected: 'select_skill',
+  plan_created: 'build_prompt',
+  build_prompt: 'build_prompt',
+  generate_code: 'generate_code',
+  code_generated: 'generate_code',
+  code_modified: 'generate_code',
+  validate_code: 'validate_code',
+  validation_failed: 'validate_code',
+  execute_code: 'execute_code',
+  executing: 'execute_code',
+  execution_skipped: 'execute_code',
+  sync_state: 'sync_state',
+  turn_complete: 'sync_state',
+  turn_error: 'sync_state'
+};
+
+function nowIso(): string {
+  return new Date().toISOString();
+}
+
+function cloneDefaultTasks(): GveTask[] {
+  return DEFAULT_TASK_DEFINITIONS.map((task) => ({
+    ...task,
+    dependsOn: [...task.dependsOn],
+    status: 'pending'
+  }));
+}
+
+function normalizeTaskStatus(value: unknown, fallback: GveTaskStatus = 'running'): GveTaskStatus {
+  if (value === 'pending' || value === 'running' || value === 'completed' || value === 'failed') {
+    return value;
+  }
+  return fallback;
+}
+
+function createEmptyStageEventMap(): StageEventMap {
+  const map = {} as StageEventMap;
+  for (const action of PIPELINE_ACTION_ORDER) {
+    map[action] = [];
+  }
+  return map;
+}
+
+function normalizeStageEventMap(value: unknown): StageEventMap {
+  const fallback = createEmptyStageEventMap();
+  if (!value || typeof value !== 'object') {
+    return fallback;
+  }
+
+  const map = value as Partial<Record<GveTaskAction, StageEventEntry[]>>;
+  return {
+    parse_intent: Array.isArray(map.parse_intent) ? map.parse_intent : fallback.parse_intent,
+    select_skill: Array.isArray(map.select_skill) ? map.select_skill : fallback.select_skill,
+    build_prompt: Array.isArray(map.build_prompt) ? map.build_prompt : fallback.build_prompt,
+    generate_code: Array.isArray(map.generate_code) ? map.generate_code : fallback.generate_code,
+    validate_code: Array.isArray(map.validate_code) ? map.validate_code : fallback.validate_code,
+    execute_code: Array.isArray(map.execute_code) ? map.execute_code : fallback.execute_code,
+    sync_state: Array.isArray(map.sync_state) ? map.sync_state : fallback.sync_state
+  };
+}
+
+function appendStageEvent(
+  map: StageEventMap,
+  action: GveTaskAction,
+  entry: StageEventEntry
+): StageEventMap {
+  const existing = map[action] ?? [];
+  const duplicate = existing.some((item) =>
+    item.source === entry.source
+    && item.step === entry.step
+    && item.status === entry.status
+    && item.text === entry.text
+    && item.detail === entry.detail
+  );
+
+  if (duplicate) {
+    return map;
+  }
+
+  return {
+    ...map,
+    [action]: [...existing, entry].slice(-MAX_STAGE_EVENT_ENTRIES)
+  };
+}
+
+function formatStepTitle(step: string | null | undefined): string {
+  if (!step) {
+    return 'Pipeline';
+  }
+
+  return step.replace(/_/g, ' ');
+}
+
+function formatOrchestrationEventText(step: string | null | undefined, status: GveTaskStatus): string {
+  const title = formatStepTitle(step);
+
+  if (status === 'completed') {
+    return `${title} completed`;
+  }
+  if (status === 'failed') {
+    return `${title} failed`;
+  }
+  if (status === 'pending') {
+    return `${title} pending`;
+  }
+
+  return `${title} running`;
+}
+
+function formatPayloadValue(value: unknown): string | null {
+  if (value === null || value === undefined) {
+    return null;
+  }
+
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+    return trimmed.length > 0 ? trimmed : null;
+  }
+
+  if (typeof value === 'number' || typeof value === 'boolean') {
+    return String(value);
+  }
+
+  if (Array.isArray(value)) {
+    const compact = value
+      .map((item) => formatPayloadValue(item))
+      .filter((item): item is string => Boolean(item))
+      .slice(0, 3);
+    if (compact.length === 0) {
+      return null;
+    }
+    return compact.join(', ');
+  }
+
+  if (typeof value === 'object') {
+    const serialized = JSON.stringify(value);
+    return serialized.length > 140 ? `${serialized.slice(0, 137)}...` : serialized;
+  }
+
+  return null;
+}
+
+function formatOrchestrationEventDetail(payload: Record<string, unknown> | null): string | null {
+  if (!payload) {
+    return null;
+  }
+
+  const detailKeys: ReadonlyArray<[string, string]> = [
+    ['selectedSkill', 'skill'],
+    ['source', 'source'],
+    ['mode', 'mode'],
+    ['status', 'status'],
+    ['stageDurationMs', 'duration'],
+    ['runtimeRecoveryUsed', 'recovery'],
+    ['retriedAfterNoop', 'retry'],
+    ['noopReason', 'noop'],
+    ['valid', 'valid'],
+    ['passable', 'passable'],
+    ['runtimeId', 'runtime'],
+    ['error', 'error'],
+    ['errors', 'errors']
+  ];
+
+  const parts: string[] = [];
+  for (const [key, label] of detailKeys) {
+    const raw = payload[key];
+    const formatted = formatPayloadValue(raw);
+    if (!formatted) {
+      continue;
+    }
+
+    if (label === 'duration' && /^\d+$/.test(formatted)) {
+      parts.push(`${label}:${formatted}ms`);
+      continue;
+    }
+
+    parts.push(`${label}:${formatted}`);
+  }
+
+  if (parts.length === 0) {
+    return null;
+  }
+
+  return parts.slice(0, 4).join(' • ');
+}
+
+function findRunningStageAction(tasks: GveTask[]): GveTaskAction | null {
+  const runningTask = tasks.find((task) => task.status === 'running');
+  return runningTask?.action ?? null;
+}
+
+function resolveActiveStageAction(
+  currentAction: GveTaskAction | null,
+  updatedTasks: GveTask[],
+  action: GveTaskAction | null,
+  status: GveTaskStatus
+): GveTaskAction | null {
+  if (!action) {
+    return findRunningStageAction(updatedTasks) ?? currentAction;
+  }
+
+  if (status === 'running' || status === 'failed') {
+    return action;
+  }
+
+  if (status === 'completed') {
+    return findRunningStageAction(updatedTasks);
+  }
+
+  return currentAction;
+}
+
+function mapStepToAction(step: string | null | undefined): GveTaskAction | null {
+  if (!step) {
+    return null;
+  }
+  return ORCHESTRATION_STEP_TO_ACTION[step] ?? null;
+}
+
+function applyStepStatusToTasks(tasks: GveTask[], step: string | null | undefined, status: GveTaskStatus): GveTask[] {
+  const action = mapStepToAction(step);
+  if (!action) {
+    return tasks;
+  }
+
+  const targetIndex = tasks.findIndex((task) => task.action === action);
+  if (targetIndex === -1) {
+    return tasks;
+  }
+
+  return tasks.map((task, index) => {
+    if (index < targetIndex && (task.status === 'pending' || task.status === 'running')) {
+      return { ...task, status: 'completed' };
+    }
+
+    if (index === targetIndex) {
+      return { ...task, status };
+    }
+
+    return task;
+  });
+}
+
+function statusToStep(status: Session['status'] | undefined): string | null {
+  switch (status) {
+    case 'parsing':
+      return 'parse_intent';
+    case 'selecting':
+      return 'select_skill';
+    case 'generating':
+      return 'generate_code';
+    case 'executing':
+      return 'execute_code';
+    default:
+      return null;
+  }
+}
+
+function isMediaScene(scene: Session['currentScene'] | null | undefined): boolean {
+  if (!scene) {
+    return false;
+  }
+
+  return scene.outputKind === 'media'
+    || (typeof scene.mediaType === 'string' && scene.mediaType.startsWith('video/'))
+    || scene.skill === 'manim';
+}
+
+function hasMediaUrl(scene: Session['currentScene'] | null | undefined): boolean {
+  const mediaUrl = typeof scene?.mediaUrl === 'string' ? scene.mediaUrl.trim() : '';
+  return mediaUrl.length > 0 && mediaUrl !== 'about:blank';
+}
+
+function normalizeTaskList(tasks: unknown): GveTask[] {
+  if (!Array.isArray(tasks)) {
+    return cloneDefaultTasks();
+  }
+
+  const normalized = tasks
+    .filter((task): task is GveTask => Boolean(task && typeof task === 'object'))
+    .map((task) => ({
+      ...task,
+      status: normalizeTaskStatus(task.status, 'pending')
+    }));
+
+  return normalized.length > 0 ? normalized : cloneDefaultTasks();
+}
+
+export type Session = SessionSceneState;
+export type LiveConnectionState = 'connecting' | 'open' | 'closed' | 'error';
+export type SceneHistoryCommand = 'undo' | 'redo' | 'artifact.previous' | 'artifact.next' | 'version.previous' | 'version.next';
+export type WorkspacePanelView = 'preview' | 'code';
+export type TurnLifecycleStatus = 'idle' | 'running' | 'completed' | 'failed';
+export type MediaLifecycleStage = 'idle' | 'queued' | 'generating' | 'executing' | 'syncing' | 'ready' | 'error';
+
+const PANEL_WIDTH_RATIO_BY_VIEW: Record<WorkspacePanelView, number> = {
+  preview: 0.6,
+  code: 0.6,
+};
+
+function getPanelWidthPreset(view: WorkspacePanelView): number {
+  const fallbackByView: Record<WorkspacePanelView, number> = {
+    preview: 840,
+    code: 840,
+  };
+
+  if (typeof window === 'undefined') {
+    return fallbackByView[view];
+  }
+
+  const viewportWidth = window.innerWidth;
+  const minimumWidthByView: Record<WorkspacePanelView, number> = {
+    preview: 360,
+    code: 360,
+  };
+  const minimumWidth = minimumWidthByView[view] ?? 360;
+  const preservedChatWidth = viewportWidth < 980 ? 280 : 360;
+  // was view tasks
+  const maxWidth = Math.max(minimumWidth, viewportWidth - preservedChatWidth);
+  const ratio = PANEL_WIDTH_RATIO_BY_VIEW[view] ?? 0.42;
+  const proposed = Math.round(viewportWidth * ratio);
+
+  return Math.max(minimumWidth, Math.min(proposed, maxWidth));
+}
+
+export interface LiveThoughtState {
+  text: string;
+  step: string;
+  updatedAt: string;
+  requestId?: string | null;
+  messageId?: string | null;
+}
+
+export interface StageEventEntry {
+  id: string;
+  source: 'orchestration' | 'activity';
+  step: string;
+  status: GveTaskStatus;
+  text: string;
+  detail: string | null;
+  createdAt: string;
+}
+
+export type StageEventMap = Record<GveTaskAction, StageEventEntry[]>;
+
+export interface SessionTaskProgress {
+  sessionId: string;
+  planId: string | null;
+  tasks: GveTask[];
+  activities: AgentActivityEvent[];
+  stageEventsByAction: StageEventMap;
+  activeStageAction: GveTaskAction | null;
+  currentStep: string | null;
+  currentStepStatus: GveTaskStatus | null;
+  liveThought: LiveThoughtState | null;
+  turnStatus: TurnLifecycleStatus;
+  activeRequestId: string | null;
+  mediaStage: MediaLifecycleStage;
+  mediaStatusText: string | null;
+  mediaType: string | null;
+  mediaUrl: string | null;
+  lastUpdatedAt: string;
+  lastTerminalAt: string | null;
+}
+
+function createDefaultTaskProgress(sessionId: string): SessionTaskProgress {
+  const timestamp = nowIso();
+  return {
+    sessionId,
+    planId: null,
+    tasks: cloneDefaultTasks(),
+    activities: [],
+    stageEventsByAction: createEmptyStageEventMap(),
+    activeStageAction: null,
+    currentStep: null,
+    currentStepStatus: null,
+    liveThought: null,
+    turnStatus: 'idle',
+    activeRequestId: null,
+    mediaStage: 'idle',
+    mediaStatusText: null,
+    mediaType: null,
+    mediaUrl: null,
+    lastUpdatedAt: timestamp,
+    lastTerminalAt: null
+  };
+}
+
+function updateTaskProgressMap(
+  map: Record<string, SessionTaskProgress>,
+  sessionId: string,
+  updater: (current: SessionTaskProgress) => SessionTaskProgress
+): Record<string, SessionTaskProgress> {
+  const fallback = createDefaultTaskProgress(sessionId);
+  const currentRaw = map[sessionId];
+  const current = currentRaw
+    ? {
+        ...fallback,
+        ...currentRaw,
+        tasks: Array.isArray(currentRaw.tasks) ? currentRaw.tasks : fallback.tasks,
+        activities: Array.isArray(currentRaw.activities) ? currentRaw.activities : fallback.activities,
+        stageEventsByAction: normalizeStageEventMap(currentRaw.stageEventsByAction)
+      }
+    : fallback;
+  const next = updater(current);
+
+  return {
+    ...map,
+    [sessionId]: {
+      ...next,
+      sessionId,
+      lastUpdatedAt: nowIso()
+    }
+  };
+}
+
+function patchTaskProgressFromScene(
+  current: SessionTaskProgress,
+  session: Session
+): SessionTaskProgress {
+  const next = {
+    ...current,
+    stageEventsByAction: normalizeStageEventMap(current.stageEventsByAction)
+  };
+  const scene = session.currentScene;
+
+  if (isMediaScene(scene)) {
+    next.mediaType = scene?.mediaType ?? next.mediaType;
+    next.mediaUrl = hasMediaUrl(scene) ? scene?.mediaUrl ?? null : null;
+    if (hasMediaUrl(scene)) {
+      next.mediaStage = 'ready';
+      next.mediaStatusText = 'Video artifact is ready to preview.';
+    } else if (next.turnStatus === 'running') {
+      next.mediaStage = next.mediaStage === 'idle' ? 'syncing' : next.mediaStage;
+      if (!next.mediaStatusText) {
+        next.mediaStatusText = 'Runtime output is syncing.';
+      }
+    } else {
+      next.mediaStage = 'error';
+      next.mediaStatusText = 'Video artifact is unavailable for this run.';
+    }
+  } else if (next.turnStatus === 'idle') {
+    next.mediaStage = 'idle';
+    next.mediaStatusText = null;
+    next.mediaType = null;
+    next.mediaUrl = null;
+  }
+
+  if (session.status && session.status !== 'idle' && next.turnStatus === 'idle') {
+    const derivedStep = statusToStep(session.status);
+    next.turnStatus = 'running';
+    next.currentStep = derivedStep ?? next.currentStep;
+    next.currentStepStatus = next.currentStepStatus ?? 'running';
+    if (derivedStep) {
+      next.tasks = applyStepStatusToTasks(next.tasks, derivedStep, 'running');
+      next.activeStageAction = mapStepToAction(derivedStep);
+    }
+  }
+
+  if (Array.isArray(session.orchestrationTrace) && session.orchestrationTrace.length > 0) {
+    for (const trace of session.orchestrationTrace) {
+      const step = typeof trace.step === 'string' ? trace.step : null;
+      const tracePayload = trace.payload && typeof trace.payload === 'object'
+        ? (trace.payload as { status?: unknown })
+        : null;
+      const status = normalizeTaskStatus(tracePayload?.status, 'running');
+
+      next.tasks = applyStepStatusToTasks(next.tasks, step, status);
+      if (step) {
+        next.currentStep = step;
+        next.currentStepStatus = status;
+      }
+
+      if (step === 'turn_error') {
+        next.turnStatus = 'failed';
+      } else if (step === 'turn_complete') {
+        next.turnStatus = 'completed';
+      }
+    }
+  }
+
+  if (next.turnStatus === 'running') {
+    next.activeStageAction = mapStepToAction(next.currentStep) ?? findRunningStageAction(next.tasks);
+  } else if (next.turnStatus === 'failed') {
+    next.activeStageAction = mapStepToAction(next.currentStep) ?? next.activeStageAction;
+  } else {
+    next.activeStageAction = null;
+  }
+
+  return next;
+}
+
+function reconcileTaskProgressMap(
+  existing: Record<string, SessionTaskProgress>,
+  sessions: Session[]
+): Record<string, SessionTaskProgress> {
+  const next: Record<string, SessionTaskProgress> = {};
+
+  for (const session of sessions) {
+    const baseline = existing[session.sessionId] ?? createDefaultTaskProgress(session.sessionId);
+    next[session.sessionId] = patchTaskProgressFromScene(baseline, session);
+  }
+
+  return next;
+}
 
 function sortSessionsByUpdatedAt(sessions: Session[]): Session[] {
   return [...sessions].sort((left, right) => {
@@ -84,12 +681,15 @@ function isThoughtMessage(message: SessionMessage): boolean {
   return message.role === 'thought' || message.kind === 'thought';
 }
 
-// Types
-export type Session = SessionSceneState;
-export type LiveConnectionState = 'connecting' | 'open' | 'closed' | 'error';
-export type SceneHistoryCommand = 'undo' | 'redo' | 'artifact.previous' | 'artifact.next';
-
 export type SessionMessage = ApiSessionMessage;
+
+export interface ComposerImageAttachment {
+  name: string;
+  mimeType: string;
+  sizeBytes: number;
+  dataBase64: string;
+  previewUrl: string;
+}
 
 interface ChatState {
   // Sessions
@@ -101,6 +701,9 @@ interface ChatState {
   
   // Messages by session
   messages: Record<string, SessionMessage[]>;
+
+  // Session task progress
+  taskProgressBySession: Record<string, SessionTaskProgress>;
   
   // UI State
   connectionState: LiveConnectionState;
@@ -112,11 +715,12 @@ interface ChatState {
   
   // Workspace Panel State (new simplified system)
   panelOpen: boolean;
-  panelView: 'preview' | 'code' | null;
+  panelView: WorkspacePanelView | null;
   panelWidth: number;
   
   // Composer
   composerValue: string;
+  composerImage: ComposerImageAttachment | null;
   isSlashMenuOpen: boolean;
   
   // Actions
@@ -127,19 +731,23 @@ interface ChatState {
   loadSessionMessages: (sessionId: string) => Promise<void>;
   sendMessage: (content?: string, options?: { mode?: 'modify' | 'generate' }) => Promise<void>;
   sendSceneCommand: (command: SceneHistoryCommand) => Promise<void>;
+  selectSceneVersion: (versionId: string) => Promise<void>;
   stopTurn: () => void;
   connectWebSocket: () => void;
+  startDraftSession: () => void;
   setActiveSession: (sessionId: string | null) => void;
   addSession: (session: Session) => void;
   addMessage: (sessionId: string, message: SessionMessage) => void;
   setIsSending: (value: boolean) => void;
   setThinking: (text: string | null, step?: string) => void;
   setComposerValue: (value: string) => void;
+  setComposerImage: (image: ComposerImageAttachment | null) => void;
+  clearComposerImage: () => void;
   
   // Panel Actions (new)
-  openPanel: (view: 'preview' | 'code') => void;
+  openPanel: (view: WorkspacePanelView) => void;
   closePanel: () => void;
-  togglePanel: (view: 'preview' | 'code') => void;
+  togglePanel: (view: WorkspacePanelView) => void;
   setPanelWidth: (width: number) => void;
   
   clearSession: (sessionId: string) => void;
@@ -181,11 +789,12 @@ export const useChatStore = create<ChatState>()(
               ? currentActiveSessionId
               : sessions[0]?.sessionId ?? null;
 
-            set({
+            set((state) => ({
               sessions,
               activeSessionId: nextActiveSessionId,
-              sessionsError: null
-            });
+              sessionsError: null,
+              taskProgressBySession: reconcileTaskProgressMap(state.taskProgressBySession, sessions)
+            }));
 
             if (nextActiveSessionId) {
               const hasMessages = (get().messages[nextActiveSessionId] ?? []).length > 0;
@@ -210,6 +819,10 @@ export const useChatStore = create<ChatState>()(
               sessions: upsertSession(state.sessions, session),
               activeSessionId: response.sessionId,
               sessionsError: null,
+              taskProgressBySession: {
+                ...state.taskProgressBySession,
+                [response.sessionId]: createDefaultTaskProgress(response.sessionId)
+              },
               messages: {
                 ...state.messages,
                 [response.sessionId]: state.messages[response.sessionId] ?? []
@@ -227,24 +840,21 @@ export const useChatStore = create<ChatState>()(
         },
 
         selectSession: async (sessionId) => {
-          set({ activeSessionId: sessionId, sessionsError: null });
+          const nextProgress = get().taskProgressBySession[sessionId] ?? null;
+
+          set({
+            activeSessionId: sessionId,
+            sessionsError: null,
+            isSending: nextProgress?.turnStatus === 'running',
+            activeRequestId: nextProgress?.activeRequestId ?? null,
+            thinkingText: nextProgress?.liveThought?.text ?? null,
+            thinkingStep: nextProgress?.liveThought?.step ?? nextProgress?.currentStep ?? 'turn_started',
+            composerImage: null
+          });
 
           const hasMessages = (get().messages[sessionId] ?? []).length > 0;
           if (!hasMessages) {
             await get().loadSessionMessages(sessionId);
-          }
-
-          const activeSocket = socket;
-          if (activeSocket && activeSocket.readyState === WebSocket.OPEN) {
-            activeSocket.send(
-              JSON.stringify({
-                type: 'session.resume',
-                payload: {
-                  sessionId,
-                  lastSeq: lastSequence
-                }
-              })
-            );
           }
         },
 
@@ -256,7 +866,13 @@ export const useChatStore = create<ChatState>()(
               messages: {
                 ...state.messages,
                 [sessionId]: normalizedMessages
-              }
+              },
+              taskProgressBySession: state.taskProgressBySession[sessionId]
+                ? state.taskProgressBySession
+                : {
+                    ...state.taskProgressBySession,
+                    [sessionId]: createDefaultTaskProgress(sessionId)
+                  }
             }));
           } catch (error) {
             set({
@@ -266,8 +882,13 @@ export const useChatStore = create<ChatState>()(
         },
 
         sendMessage: async (content, options) => {
-          const input = (content ?? get().composerValue).trim();
-          if (!input || get().isSending) {
+          const currentState = get();
+          const input = (content ?? currentState.composerValue).trim();
+          const attachedImage = currentState.composerImage;
+          const imageData = attachedImage?.dataBase64 ?? null;
+          const hasImage = Boolean(imageData);
+
+          if ((!input && !hasImage) || currentState.isSending) {
             return;
           }
           const requestedMode = options?.mode;
@@ -288,16 +909,25 @@ export const useChatStore = create<ChatState>()(
           const optimisticUserMessage: SessionMessage = {
             id: requestId,
             role: 'user',
-            content: input,
+            content: input || 'Attached an image.',
             kind: 'input',
-            meta: [`clientMessageId:${requestId}`, `requestId:${requestId}`],
+            meta: [
+              `clientMessageId:${requestId}`,
+              `requestId:${requestId}`,
+              ...(hasImage ? ['attachment:image'] : [])
+            ],
             error: null,
             createdAt: now,
             updatedAt: now
           };
 
+          const initialMediaStatusText = hasImage
+            ? 'Preparing image analysis pipeline...'
+            : 'Preparing runtime pipeline...';
+
           set((state) => ({
             composerValue: '',
+            composerImage: null,
             isSending: true,
             activeRequestId: requestId,
             thinkingText: 'Analyzing your request...',
@@ -306,7 +936,42 @@ export const useChatStore = create<ChatState>()(
             messages: {
               ...state.messages,
               [sessionId!]: upsertMessage(state.messages[sessionId!] ?? [], optimisticUserMessage)
-            }
+            },
+            taskProgressBySession: updateTaskProgressMap(state.taskProgressBySession, sessionId!, (current) => ({
+              ...current,
+              planId: null,
+              tasks: applyStepStatusToTasks(cloneDefaultTasks(), 'parse_intent', 'running'),
+              activities: [],
+              stageEventsByAction: appendStageEvent(
+                createEmptyStageEventMap(),
+                'parse_intent',
+                {
+                  id: createClientMessageId('stage-parse'),
+                  source: 'activity',
+                  step: 'parse_intent',
+                  status: 'running',
+                  text: 'Analyzing your request...',
+                  detail: hasImage ? 'mode:image-input' : 'mode:text-input',
+                  createdAt: now
+                }
+              ),
+              activeStageAction: 'parse_intent',
+              currentStep: 'parse_intent',
+              currentStepStatus: 'running',
+              liveThought: {
+                text: 'Analyzing your request...',
+                step: 'parse_intent',
+                updatedAt: now,
+                requestId
+              },
+              turnStatus: 'running',
+              activeRequestId: requestId,
+              mediaStage: 'queued',
+              mediaStatusText: initialMediaStatusText,
+              mediaType: null,
+              mediaUrl: null,
+              lastTerminalAt: null
+            }))
           }));
 
           const ensureSocketOpen = async (): Promise<WebSocket | null> => {
@@ -375,6 +1040,10 @@ export const useChatStore = create<ChatState>()(
               payload.mode = requestedMode;
             }
 
+            if (imageData) {
+              payload.imageData = imageData;
+            }
+
             activeSocket.send(
               JSON.stringify({
                 type: 'message.send',
@@ -385,8 +1054,14 @@ export const useChatStore = create<ChatState>()(
           }
 
           try {
-            const response = await sendSessionMessage(sessionId, { content: input });
+            const response = await sendSessionMessage(sessionId, {
+              content: input,
+              imageData: imageData ?? undefined
+            });
             const incomingMessages = (response.messages ?? []).map(normalizeMessage);
+            const mediaReady = isMediaScene(response.sceneState.currentScene) && hasMediaUrl(response.sceneState.currentScene);
+            const mediaPending = isMediaScene(response.sceneState.currentScene) && !mediaReady;
+            const completionTimestamp = nowIso();
 
             set((state) => ({
               sessions: upsertSession(state.sessions, response.sceneState),
@@ -397,7 +1072,24 @@ export const useChatStore = create<ChatState>()(
               isSending: false,
               activeRequestId: null,
               thinkingText: null,
-              thinkingStep: 'turn_complete'
+              thinkingStep: 'turn_complete',
+              taskProgressBySession: updateTaskProgressMap(state.taskProgressBySession, sessionId!, (current) => ({
+                ...patchTaskProgressFromScene(current, response.sceneState),
+                tasks: applyStepStatusToTasks(current.tasks, 'turn_complete', 'completed'),
+                activeStageAction: null,
+                currentStep: 'turn_complete',
+                currentStepStatus: 'completed',
+                turnStatus: 'completed',
+                activeRequestId: null,
+                liveThought: null,
+                mediaStage: mediaReady ? 'ready' : mediaPending ? 'syncing' : 'idle',
+                mediaStatusText: mediaReady
+                  ? 'Video artifact is ready to preview.'
+                  : mediaPending
+                    ? 'Runtime output is syncing.'
+                    : null,
+                lastTerminalAt: completionTimestamp
+              }))
             }));
           } catch (error) {
             const errorMessage = error instanceof Error ? error.message : 'Unable to send message.';
@@ -422,7 +1114,24 @@ export const useChatStore = create<ChatState>()(
               messages: {
                 ...state.messages,
                 [sessionId!]: upsertMessage(state.messages[sessionId!] ?? [], assistantError)
-              }
+              },
+              taskProgressBySession: updateTaskProgressMap(state.taskProgressBySession, sessionId!, (current) => ({
+                ...current,
+                tasks: applyStepStatusToTasks(current.tasks, 'turn_error', 'failed'),
+                activeStageAction: mapStepToAction(current.currentStep) ?? mapStepToAction('turn_error'),
+                currentStep: 'turn_error',
+                currentStepStatus: 'failed',
+                turnStatus: 'failed',
+                activeRequestId: null,
+                liveThought: {
+                  text: errorMessage,
+                  step: 'turn_error',
+                  updatedAt: errorTimestamp
+                },
+                mediaStage: current.mediaStage === 'ready' ? 'ready' : 'error',
+                mediaStatusText: errorMessage,
+                lastTerminalAt: errorTimestamp
+              }))
             }));
           }
         },
@@ -444,6 +1153,78 @@ export const useChatStore = create<ChatState>()(
               response = await previousArtifact(sessionId);
             } else if (command === 'artifact.next') {
               response = await nextArtifact(sessionId);
+            } else if (command === 'version.previous' || command === 'version.next') {
+              const selectedSession = get().sessions.find((session) => session.sessionId === sessionId) ?? null;
+
+              if (!selectedSession) {
+                return;
+              }
+
+              let versions = Array.isArray(selectedSession.versions) ? selectedSession.versions : [];
+              let versionPointer = typeof selectedSession.versionPointer === 'number' ? selectedSession.versionPointer : -1;
+
+              if (versions.length === 0) {
+                const versionList = await listVersions(sessionId);
+                const currentVersionId = selectedSession.currentScene?.versionId ?? null;
+                const listedCurrentIndex = versionList.versions.findIndex((version) =>
+                  version.isCurrent
+                  || (currentVersionId ? version.versionId === currentVersionId : false)
+                );
+
+                const mergedSession: Session = {
+                  ...selectedSession,
+                  versionCount: versionList.versionCount,
+                  versionPointer: versionList.versionPointer,
+                  revisionCount: versionList.revisionCount,
+                  revisionPointer: versionList.revisionPointer,
+                  artifactCount: versionList.artifactCount,
+                  artifactPointer: versionList.artifactPointer,
+                  currentArtifactId: versionList.currentArtifactId,
+                  versions: versionList.versions,
+                  sceneVersions: versionList.versions,
+                  artifacts: versionList.artifacts ?? selectedSession.artifacts,
+                  currentScene: listedCurrentIndex >= 0
+                    ? versionList.versions[listedCurrentIndex]
+                    : selectedSession.currentScene
+                };
+
+                set((state) => ({
+                  sessions: upsertSession(state.sessions, mergedSession),
+                  sessionsError: null,
+                  taskProgressBySession: updateTaskProgressMap(state.taskProgressBySession, mergedSession.sessionId, (current) =>
+                    patchTaskProgressFromScene(current, mergedSession)
+                  )
+                }));
+
+                versions = versionList.versions;
+                versionPointer = versionList.versionPointer;
+              }
+
+              if (versions.length <= 1) {
+                return;
+              }
+
+              if (versionPointer < 0 || versionPointer >= versions.length) {
+                const selectedSessionLatest = get().sessions.find((session) => session.sessionId === sessionId) ?? selectedSession;
+                const currentVersionId = selectedSessionLatest.currentScene?.versionId ?? null;
+                versionPointer = versions.findIndex((version) =>
+                  currentVersionId
+                    ? version.versionId === currentVersionId
+                    : (version as { isCurrent?: boolean }).isCurrent === true
+                );
+              }
+
+              if (versionPointer < 0) {
+                return;
+              }
+
+              const nextPointer = command === 'version.previous' ? versionPointer - 1 : versionPointer + 1;
+              if (nextPointer < 0 || nextPointer >= versions.length) {
+                return;
+              }
+
+              const targetVersion = versions[nextPointer];
+              response = await selectVersion(sessionId, targetVersion.versionId);
             }
 
             const nextSceneState = response?.sceneState;
@@ -453,7 +1234,10 @@ export const useChatStore = create<ChatState>()(
 
             set((state) => ({
               sessions: upsertSession(state.sessions, nextSceneState),
-              sessionsError: null
+              sessionsError: null,
+              taskProgressBySession: updateTaskProgressMap(state.taskProgressBySession, nextSceneState.sessionId, (current) =>
+                patchTaskProgressFromScene(current, nextSceneState)
+              )
             }));
           } catch (error) {
             set({
@@ -462,10 +1246,40 @@ export const useChatStore = create<ChatState>()(
           }
         },
 
+        selectSceneVersion: async (versionId) => {
+          const sessionId = get().activeSessionId;
+          const normalizedVersionId = String(versionId ?? '').trim();
+
+          if (!sessionId || !normalizedVersionId) {
+            return;
+          }
+
+          try {
+            const response = await selectVersion(sessionId, normalizedVersionId);
+            const nextSceneState = response?.sceneState;
+            if (!nextSceneState) {
+              return;
+            }
+
+            set((state) => ({
+              sessions: upsertSession(state.sessions, nextSceneState),
+              sessionsError: null,
+              taskProgressBySession: updateTaskProgressMap(state.taskProgressBySession, nextSceneState.sessionId, (current) =>
+                patchTaskProgressFromScene(current, nextSceneState)
+              )
+            }));
+          } catch (error) {
+            set({
+              sessionsError: error instanceof Error ? error.message : 'Version selection failed.'
+            });
+          }
+        },
+
         stopTurn: () => {
           const requestId = get().activeRequestId;
           const sessionId = get().activeSessionId;
           const activeSocket = socket;
+          const abortedAt = nowIso();
 
           if (requestId && sessionId && activeSocket && activeSocket.readyState === WebSocket.OPEN) {
             activeSocket.send(
@@ -479,12 +1293,31 @@ export const useChatStore = create<ChatState>()(
             );
           }
 
-          set({
+          set((state) => ({
             isSending: false,
             activeRequestId: null,
             thinkingText: null,
-            thinkingStep: 'turn_aborted'
-          });
+            thinkingStep: 'turn_aborted',
+            taskProgressBySession: sessionId
+              ? updateTaskProgressMap(state.taskProgressBySession, sessionId, (current) => ({
+                  ...current,
+                  tasks: applyStepStatusToTasks(current.tasks, current.currentStep ?? 'sync_state', 'failed'),
+                  activeStageAction: mapStepToAction(current.currentStep) ?? mapStepToAction('turn_error'),
+                  currentStep: 'turn_error',
+                  currentStepStatus: 'failed',
+                  turnStatus: 'failed',
+                  activeRequestId: null,
+                  liveThought: {
+                    text: 'Turn was stopped by user.',
+                    step: 'turn_error',
+                    updatedAt: abortedAt
+                  },
+                  mediaStage: current.mediaStage === 'ready' ? 'ready' : 'error',
+                  mediaStatusText: 'Turn was stopped by user.',
+                  lastTerminalAt: abortedAt
+                }))
+              : state.taskProgressBySession
+          }));
         },
 
         connectWebSocket: () => {
@@ -501,19 +1334,27 @@ export const useChatStore = create<ChatState>()(
 
           const nextSocket = new WebSocket(websocketUrl);
           socket = nextSocket;
+          let resumeRequestedOnOpen = false;
 
           nextSocket.addEventListener('open', () => {
             set({ connectionState: 'open' });
 
-            nextSocket.send(
-              JSON.stringify({
-                type: 'session.resume',
-                payload: {
-                  sessionId: get().activeSessionId,
-                  lastSeq: lastSequence
-                }
-              })
-            );
+            const activeSessionId = get().activeSessionId;
+            resumeRequestedOnOpen = shouldReplayOnReconnect && Boolean(activeSessionId) && lastSequence > 0;
+
+            if (resumeRequestedOnOpen) {
+              nextSocket.send(
+                JSON.stringify({
+                  type: 'session.resume',
+                  payload: {
+                    sessionId: activeSessionId,
+                    lastSeq: lastSequence
+                  }
+                })
+              );
+            }
+
+            shouldReplayOnReconnect = false;
           });
 
           nextSocket.addEventListener('message', (event) => {
@@ -536,9 +1377,32 @@ export const useChatStore = create<ChatState>()(
               }
 
               const payload = parsed.payload ?? {};
-              const sessionId = typeof payload.sessionId === 'string' ? payload.sessionId : null;
+              const nestedPayload = payload.payload && typeof payload.payload === 'object'
+                ? payload.payload as Record<string, unknown>
+                : null;
+              const sessionId = typeof payload.sessionId === 'string'
+                ? payload.sessionId
+                : (typeof nestedPayload?.sessionId === 'string' ? nestedPayload.sessionId : null);
+              const activeSessionId = get().activeSessionId;
+              const eventTargetsActiveSession = !sessionId || !activeSessionId || activeSessionId === sessionId;
+              const payloadRequestId = typeof payload.requestId === 'string' && payload.requestId.trim()
+                ? payload.requestId.trim()
+                : null;
+              const activeRequestId = get().activeRequestId;
+              const eventTargetsActiveRequest = Boolean(
+                payloadRequestId && activeRequestId && payloadRequestId === activeRequestId
+              );
 
-              if (parsed.type === 'connection:ready' || parsed.type === 'session:resumed') {
+              if (parsed.type === 'connection:ready') {
+                const latestSeq = typeof payload.latestSeq === 'number' ? payload.latestSeq : null;
+                if (!resumeRequestedOnOpen && latestSeq !== null) {
+                  lastSequence = Math.max(lastSequence, latestSeq);
+                }
+                set({ connectionState: 'open' });
+                return;
+              }
+
+              if (parsed.type === 'session:resumed') {
                 set({ connectionState: 'open' });
                 return;
               }
@@ -571,7 +1435,408 @@ export const useChatStore = create<ChatState>()(
                 return;
               }
 
+              if (parsed.type === 'message:ack') {
+                const status = typeof payload.status === 'string' ? payload.status : null;
+
+                // Fallback completion signal for websocket turns when terminal turn events are delayed or dropped.
+                if ((status === 'accepted' || status === 'duplicate') && (eventTargetsActiveSession || eventTargetsActiveRequest)) {
+                  const ackSessionId = sessionId ?? activeSessionId;
+                  const completedAt = nowIso();
+
+                  set((state) => {
+                    const ackProgress = ackSessionId ? state.taskProgressBySession[ackSessionId] ?? null : null;
+                    const shouldFinalizeFallback = Boolean(ackProgress && ackProgress.turnStatus === 'running');
+
+                    return {
+                      isSending: shouldFinalizeFallback ? false : state.isSending,
+                      activeRequestId: shouldFinalizeFallback ? null : state.activeRequestId,
+                      thinkingText: shouldFinalizeFallback ? null : state.thinkingText,
+                      thinkingStep: shouldFinalizeFallback ? 'turn_complete' : state.thinkingStep,
+                      taskProgressBySession: shouldFinalizeFallback && ackSessionId
+                        ? updateTaskProgressMap(state.taskProgressBySession, ackSessionId, (current) => ({
+                            ...current,
+                            tasks: applyStepStatusToTasks(current.tasks, 'turn_complete', 'completed'),
+                            activeStageAction: null,
+                            currentStep: 'turn_complete',
+                            currentStepStatus: 'completed',
+                            turnStatus: 'completed',
+                            activeRequestId: null,
+                            liveThought: null,
+                            mediaStage: current.mediaStage === 'ready'
+                              ? 'ready'
+                              : current.mediaStage === 'error'
+                                ? 'error'
+                                : current.mediaStage === 'idle'
+                                  ? 'idle'
+                                  : 'syncing',
+                            mediaStatusText: current.mediaStage === 'ready' || current.mediaStage === 'error'
+                              ? current.mediaStatusText
+                              : current.mediaStage === 'idle'
+                                ? null
+                                : 'Runtime output is syncing.',
+                            lastTerminalAt: completedAt
+                          }))
+                        : state.taskProgressBySession
+                    };
+                  });
+                }
+
+                return;
+              }
+
+              if (parsed.type === 'message:accepted') {
+                if (!eventTargetsActiveSession && !eventTargetsActiveRequest) {
+                  return;
+                }
+
+                const acceptedAt = nowIso();
+                const acceptedSessionId = sessionId ?? activeSessionId;
+
+                set((state) => {
+                  const acceptedProgress = acceptedSessionId ? state.taskProgressBySession[acceptedSessionId] ?? null : null;
+                  const shouldFinalizeFallback = Boolean(acceptedProgress && acceptedProgress.turnStatus === 'running');
+
+                  return {
+                    isSending: shouldFinalizeFallback ? false : state.isSending,
+                    activeRequestId: shouldFinalizeFallback ? null : state.activeRequestId,
+                    thinkingText: shouldFinalizeFallback ? null : state.thinkingText,
+                    thinkingStep: shouldFinalizeFallback ? 'turn_complete' : state.thinkingStep,
+                    taskProgressBySession: shouldFinalizeFallback && acceptedSessionId
+                      ? updateTaskProgressMap(state.taskProgressBySession, acceptedSessionId, (current) => ({
+                          ...current,
+                          tasks: applyStepStatusToTasks(current.tasks, 'turn_complete', 'completed'),
+                          activeStageAction: null,
+                          currentStep: 'turn_complete',
+                          currentStepStatus: 'completed',
+                          turnStatus: 'completed',
+                          activeRequestId: null,
+                          liveThought: null,
+                          mediaStage: current.mediaStage === 'ready'
+                            ? 'ready'
+                            : current.mediaStage === 'error'
+                              ? 'error'
+                              : current.mediaStage === 'idle'
+                                ? 'idle'
+                                : 'syncing',
+                          mediaStatusText: current.mediaStage === 'ready' || current.mediaStage === 'error'
+                            ? current.mediaStatusText
+                            : current.mediaStage === 'idle'
+                              ? null
+                              : 'Runtime output is syncing.',
+                          lastTerminalAt: acceptedAt
+                        }))
+                      : state.taskProgressBySession
+                  };
+                });
+                return;
+              }
+
+              if (parsed.type === 'orchestration:plan') {
+                if (!sessionId) {
+                  return;
+                }
+
+                const planId = typeof payload.planId === 'string' ? payload.planId : null;
+                const tasks = normalizeTaskList(payload.tasks);
+
+                set((state) => ({
+                  taskProgressBySession: updateTaskProgressMap(state.taskProgressBySession, sessionId, (current) => ({
+                    ...current,
+                    planId,
+                    tasks,
+                    turnStatus: current.turnStatus === 'idle' ? 'running' : current.turnStatus,
+                    activeStageAction: current.activeStageAction ?? findRunningStageAction(tasks)
+                  }))
+                }));
+                return;
+              }
+
+              if (parsed.type === 'orchestration:step') {
+                if (!sessionId) {
+                  return;
+                }
+
+                const step = typeof payload.step === 'string' ? payload.step : null;
+                const stepStatus = normalizeTaskStatus(payload.status, 'running');
+                const stepText = typeof nestedPayload?.message === 'string'
+                  ? nestedPayload.message
+                  : null;
+                const stepAction = mapStepToAction(step);
+                const stepDetail = formatOrchestrationEventDetail(nestedPayload);
+                const stepCreatedAt = nowIso();
+
+                set((state) => {
+                  let nextThinkingStep = state.thinkingStep;
+                  let nextIsSending = state.isSending;
+
+                  const nextTaskProgress = updateTaskProgressMap(state.taskProgressBySession, sessionId, (current) => {
+                    const nextTasks = applyStepStatusToTasks(current.tasks, step, stepStatus);
+                    const next = {
+                      ...current,
+                      tasks: nextTasks,
+                      currentStep: step,
+                      currentStepStatus: stepStatus,
+                      turnStatus: current.turnStatus,
+                      mediaStage: current.mediaStage,
+                      mediaStatusText: current.mediaStatusText,
+                      stageEventsByAction: current.stageEventsByAction,
+                      activeStageAction: current.activeStageAction
+                    };
+
+                    if (stepAction && step) {
+                      next.stageEventsByAction = appendStageEvent(
+                        next.stageEventsByAction,
+                        stepAction,
+                        {
+                          id: createClientMessageId(`stage-${stepAction}`),
+                          source: 'orchestration',
+                          step,
+                          status: stepStatus,
+                          text: stepText ?? formatOrchestrationEventText(step, stepStatus),
+                          detail: stepDetail,
+                          createdAt: stepCreatedAt
+                        }
+                      );
+                    }
+
+                    if (step === 'turn_error' || stepStatus === 'failed') {
+                      next.turnStatus = 'failed';
+                      if (next.mediaStage !== 'ready') {
+                        next.mediaStage = 'error';
+                        next.mediaStatusText = stepText ?? 'Turn failed while processing runtime output.';
+                      }
+                    } else if (step === 'turn_complete') {
+                      next.turnStatus = 'completed';
+                    } else {
+                      if (next.turnStatus !== 'completed' && next.turnStatus !== 'failed') {
+                        next.turnStatus = 'running';
+                      }
+                    }
+
+                    if (next.turnStatus === 'running' && (step === 'generate_code' || step === 'code_generated' || step === 'code_modified')) {
+                      next.mediaStage = 'generating';
+                      next.mediaStatusText = 'Generating runtime output...';
+                    }
+
+                    if (next.turnStatus === 'running' && (step === 'execute_code' || step === 'executing')) {
+                      next.mediaStage = 'executing';
+                      next.mediaStatusText = 'Executing runtime workload...';
+                    }
+
+                    if (next.turnStatus === 'running' && step === 'sync_state') {
+                      next.mediaStage = 'syncing';
+                      next.mediaStatusText = 'Syncing runtime output...';
+                    }
+
+                    next.activeStageAction = resolveActiveStageAction(
+                      current.activeStageAction,
+                      nextTasks,
+                      stepAction,
+                      stepStatus
+                    );
+
+                    return next;
+                  });
+
+                  if (eventTargetsActiveSession && step) {
+                    nextThinkingStep = step;
+                    nextIsSending = step !== 'turn_complete' && step !== 'turn_error';
+                  }
+
+                  return {
+                    taskProgressBySession: nextTaskProgress,
+                    thinkingStep: nextThinkingStep,
+                    isSending: nextIsSending
+                  };
+                });
+                return;
+              }
+
+              if (parsed.type === 'agent:activity') {
+                if (!sessionId) {
+                  return;
+                }
+
+                const incomingStatus = normalizeTaskStatus(payload.status, 'running');
+                const step = typeof payload.step === 'string' ? payload.step : 'turn_started';
+                const createdAt = typeof payload.createdAt === 'string' ? payload.createdAt : nowIso();
+                const activityAction = mapStepToAction(step);
+                const activity: AgentActivityEvent = {
+                  id: typeof payload.id === 'string' ? payload.id : createClientMessageId('activity'),
+                  sessionId,
+                  messageId: typeof payload.messageId === 'string' ? payload.messageId : null,
+                  step,
+                  status: incomingStatus,
+                  tone: payload.tone === 'progress' || payload.tone === 'success' || payload.tone === 'error'
+                    ? payload.tone
+                    : undefined,
+                  text: typeof payload.text === 'string' && payload.text.trim()
+                    ? payload.text
+                    : 'Processing step...',
+                  technicalDetail: typeof payload.technicalDetail === 'string' ? payload.technicalDetail : null,
+                  createdAt
+                };
+
+                set((state) => {
+                  let nextThinkingText = state.thinkingText;
+                  let nextThinkingStep = state.thinkingStep;
+                  let nextIsSending = state.isSending;
+
+                  const nextTaskProgress = updateTaskProgressMap(state.taskProgressBySession, sessionId, (current) => {
+                    const existingActivities = current.activities;
+                    const duplicate = existingActivities.some((entry) => entry.id === activity.id);
+                    const activities = duplicate
+                      ? existingActivities
+                      : [...existingActivities, activity].slice(-MAX_ACTIVITY_ENTRIES);
+                    const nextTasks = applyStepStatusToTasks(current.tasks, step, incomingStatus);
+
+                    const next = {
+                      ...current,
+                      activities,
+                      tasks: nextTasks,
+                      currentStep: step,
+                      currentStepStatus: incomingStatus,
+                      turnStatus: current.turnStatus,
+                      mediaStage: current.mediaStage,
+                      mediaStatusText: current.mediaStatusText,
+                      stageEventsByAction: current.stageEventsByAction,
+                      activeStageAction: current.activeStageAction
+                    };
+
+                    if (activityAction) {
+                      next.stageEventsByAction = appendStageEvent(
+                        next.stageEventsByAction,
+                        activityAction,
+                        {
+                          id: activity.id,
+                          source: 'activity',
+                          step,
+                          status: incomingStatus,
+                          text: activity.text,
+                          detail: activity.technicalDetail ?? null,
+                          createdAt
+                        }
+                      );
+                    }
+
+                    if (incomingStatus === 'failed' || step === 'turn_error' || activity.tone === 'error') {
+                      next.turnStatus = 'failed';
+                      if (next.mediaStage !== 'ready') {
+                        next.mediaStage = 'error';
+                        next.mediaStatusText = activity.text;
+                      }
+                    } else if (step === 'turn_complete') {
+                      next.turnStatus = 'completed';
+                    } else if (next.turnStatus !== 'completed' && next.turnStatus !== 'failed') {
+                      next.turnStatus = 'running';
+                    }
+
+                    if (next.turnStatus === 'running' && (step === 'generate_code' || step === 'code_generated' || step === 'code_modified')) {
+                      next.mediaStage = 'generating';
+                      next.mediaStatusText = activity.text;
+                    } else if (next.turnStatus === 'running' && (step === 'execute_code' || step === 'executing')) {
+                      next.mediaStage = 'executing';
+                      next.mediaStatusText = activity.text;
+                    } else if (next.turnStatus === 'running' && step === 'sync_state') {
+                      next.mediaStage = 'syncing';
+                      next.mediaStatusText = activity.text;
+                    }
+
+                    next.activeStageAction = resolveActiveStageAction(
+                      current.activeStageAction,
+                      nextTasks,
+                      activityAction,
+                      incomingStatus
+                    );
+
+                    return next;
+                  });
+
+                  if (eventTargetsActiveSession) {
+                    nextThinkingText = activity.text;
+                    nextThinkingStep = step;
+                    nextIsSending = incomingStatus === 'running' || step === 'turn_started';
+                  }
+
+                  return {
+                    taskProgressBySession: nextTaskProgress,
+                    thinkingText: nextThinkingText,
+                    thinkingStep: nextThinkingStep,
+                    isSending: nextIsSending
+                  };
+                });
+                return;
+              }
+
+              if (parsed.type === 'generation:started' || parsed.type === 'code:started') {
+                if (!sessionId) {
+                  return;
+                }
+
+                set((state) => ({
+                  taskProgressBySession: updateTaskProgressMap(state.taskProgressBySession, sessionId, (current) => ({
+                    ...current,
+                    mediaStage: current.turnStatus === 'running' ? 'generating' : current.mediaStage,
+                    mediaStatusText: current.turnStatus === 'running' ? 'Generating runtime output...' : current.mediaStatusText
+                  }))
+                }));
+                return;
+              }
+
+              if (parsed.type === 'generation:complete' || parsed.type === 'code:update') {
+                if (!sessionId) {
+                  return;
+                }
+
+                const outputKind = typeof payload.outputKind === 'string' ? payload.outputKind : null;
+                const mediaType = typeof payload.mediaType === 'string' ? payload.mediaType : null;
+                const mediaUrl = typeof payload.mediaUrl === 'string' ? payload.mediaUrl : null;
+                const runtimeStatus = typeof payload.runtimeStatus === 'string' ? payload.runtimeStatus : null;
+                const runtimeWarning = typeof payload.runtimeWarning === 'string' ? payload.runtimeWarning.trim() : '';
+                const generationWarning = typeof payload.generationWarning === 'string' ? payload.generationWarning.trim() : '';
+                const mediaExpected = outputKind === 'media' || (typeof mediaType === 'string' && mediaType.startsWith('video/'));
+                const mediaReady = Boolean(mediaUrl && mediaUrl !== 'about:blank');
+                const mediaUnavailable = mediaExpected && !mediaReady && (
+                  runtimeStatus === 'degraded'
+                  || runtimeStatus === 'skipped'
+                  || runtimeStatus === 'error'
+                  || runtimeWarning.length > 0
+                  || generationWarning.length > 0
+                );
+
+                set((state) => ({
+                  taskProgressBySession: updateTaskProgressMap(state.taskProgressBySession, sessionId, (current) => ({
+                    ...current,
+                    mediaStage: mediaExpected
+                      ? (mediaReady
+                        ? 'ready'
+                        : mediaUnavailable
+                          ? 'error'
+                          : current.turnStatus === 'running'
+                            ? 'syncing'
+                            : 'error')
+                      : current.mediaStage,
+                    mediaStatusText: mediaExpected
+                      ? (mediaReady
+                        ? 'Video artifact is ready to preview.'
+                        : mediaUnavailable
+                          ? runtimeWarning || generationWarning || 'Video artifact is unavailable for this run.'
+                          : current.turnStatus === 'running'
+                            ? 'Video artifact is still syncing.'
+                            : 'Video artifact is unavailable for this run.')
+                      : current.mediaStatusText,
+                    mediaType: mediaType ?? current.mediaType,
+                    mediaUrl: mediaReady ? mediaUrl : current.mediaUrl
+                  }))
+                }));
+                return;
+              }
+
               if (parsed.type === 'thought:stream') {
+                if (!sessionId) {
+                  return;
+                }
+
                 const thought = typeof payload.thought === 'string' ? payload.thought : null;
                 const thoughtStep = typeof payload.step === 'string' ? payload.step : 'thought';
                 const isFinal = payload.isFinal === true;
@@ -583,10 +1848,25 @@ export const useChatStore = create<ChatState>()(
                   : null;
 
                 if (thought) {
-                  set({
-                    thinkingText: thought,
-                    thinkingStep: thoughtStep
-                  });
+                  const thoughtUpdatedAt = nowIso();
+                  set((state) => ({
+                    thinkingText: eventTargetsActiveSession ? thought : state.thinkingText,
+                    thinkingStep: eventTargetsActiveSession ? thoughtStep : state.thinkingStep,
+                    taskProgressBySession: updateTaskProgressMap(state.taskProgressBySession, sessionId, (current) => ({
+                      ...current,
+                      currentStep: thoughtStep,
+                      currentStepStatus: current.currentStepStatus ?? 'running',
+                      liveThought: {
+                        text: thought,
+                        step: thoughtStep,
+                        updatedAt: thoughtUpdatedAt,
+                        requestId: thoughtRequestId,
+                        messageId: thoughtMessageId
+                      },
+                      turnStatus: current.turnStatus === 'idle' ? 'running' : current.turnStatus,
+                      tasks: applyStepStatusToTasks(current.tasks, thoughtStep, 'running')
+                    }))
+                  }));
                 }
 
                 if (sessionId && thought && isFinal) {
@@ -651,27 +1931,116 @@ export const useChatStore = create<ChatState>()(
                 }
 
                 set((state) => ({
-                  sessions: upsertSession(state.sessions, sceneState)
+                  sessions: upsertSession(state.sessions, sceneState),
+                  taskProgressBySession: updateTaskProgressMap(state.taskProgressBySession, sceneState.sessionId, (current) =>
+                    patchTaskProgressFromScene(current, sceneState)
+                  )
                 }));
                 return;
               }
 
               if (parsed.type === 'turn:started') {
-                set({ isSending: true });
+                if (!eventTargetsActiveSession) {
+                  return;
+                }
+
+                const startedAt = nowIso();
+                set((state) => ({
+                  isSending: true,
+                  taskProgressBySession: sessionId
+                    ? updateTaskProgressMap(state.taskProgressBySession, sessionId, (current) => ({
+                        ...current,
+                        tasks: applyStepStatusToTasks(current.tasks, 'turn_started', 'running'),
+                        activeStageAction: 'parse_intent',
+                        currentStep: 'turn_started',
+                        currentStepStatus: 'running',
+                        turnStatus: 'running',
+                        activeRequestId: payloadRequestId ?? current.activeRequestId,
+                        lastTerminalAt: null,
+                        mediaStage: current.mediaStage === 'ready' ? 'ready' : 'queued',
+                        mediaStatusText: current.mediaStage === 'ready'
+                          ? current.mediaStatusText
+                          : 'Preparing runtime pipeline...',
+                        liveThought: current.liveThought ?? {
+                          text: 'Analyzing your request...',
+                          step: 'turn_started',
+                          updatedAt: startedAt,
+                          requestId: payloadRequestId
+                        }
+                      }))
+                    : state.taskProgressBySession
+                }));
                 return;
               }
 
               if (parsed.type === 'turn:complete') {
-                set({
+                if (!eventTargetsActiveSession && !eventTargetsActiveRequest) {
+                  return;
+                }
+
+                const completedAt = nowIso();
+                const completedSessionId = sessionId ?? activeSessionId;
+                const runtimeStatus = typeof payload.runtimeStatus === 'string' ? payload.runtimeStatus : null;
+                const runtimeWarning = typeof payload.runtimeWarning === 'string' ? payload.runtimeWarning : null;
+                const generationWarning = typeof payload.generationWarning === 'string' ? payload.generationWarning : null;
+                const outputKind = typeof payload.outputKind === 'string' ? payload.outputKind : null;
+                const mediaType = typeof payload.mediaType === 'string' ? payload.mediaType : null;
+                const mediaUrl = typeof payload.mediaUrl === 'string' ? payload.mediaUrl : null;
+                const mediaExpected = outputKind === 'media' || (typeof mediaType === 'string' && mediaType.startsWith('video/'));
+                const mediaReady = Boolean(mediaUrl && mediaUrl !== 'about:blank');
+                const runtimeWarningText = typeof runtimeWarning === 'string' ? runtimeWarning.trim() : '';
+                const generationWarningText = typeof generationWarning === 'string' ? generationWarning.trim() : '';
+                const mediaUnavailable = mediaExpected && !mediaReady && (
+                  runtimeStatus === 'degraded'
+                  || runtimeStatus === 'skipped'
+                  || runtimeStatus === 'error'
+                  || runtimeWarningText.length > 0
+                  || generationWarningText.length > 0
+                );
+
+                set((state) => ({
                   isSending: false,
                   activeRequestId: null,
                   thinkingText: null,
-                  thinkingStep: 'turn_complete'
-                });
+                  thinkingStep: 'turn_complete',
+                  taskProgressBySession: completedSessionId
+                    ? updateTaskProgressMap(state.taskProgressBySession, completedSessionId, (current) => ({
+                        ...current,
+                        tasks: applyStepStatusToTasks(current.tasks, 'turn_complete', 'completed'),
+                        activeStageAction: null,
+                        currentStep: 'turn_complete',
+                        currentStepStatus: 'completed',
+                        turnStatus: 'completed',
+                        activeRequestId: null,
+                        liveThought: null,
+                        mediaStage: mediaExpected
+                          ? (mediaReady ? 'ready' : 'error')
+                          : current.mediaStage === 'ready'
+                            ? 'ready'
+                            : current.mediaStage === 'error'
+                              ? 'error'
+                              : 'idle',
+                        mediaStatusText: mediaExpected
+                          ? (mediaReady
+                            ? 'Video artifact is ready to preview.'
+                            : mediaUnavailable
+                              ? runtimeWarningText || generationWarningText || 'Video artifact is unavailable for this run.'
+                              : 'Video artifact is unavailable for this run.')
+                          : null,
+                        mediaType: mediaType ?? current.mediaType,
+                        mediaUrl: mediaReady ? mediaUrl : null,
+                        lastTerminalAt: completedAt
+                      }))
+                    : state.taskProgressBySession
+                }));
                 return;
               }
 
               if (parsed.type === 'turn:error') {
+                if (!eventTargetsActiveSession && !eventTargetsActiveRequest) {
+                  return;
+                }
+
                 const errorMessage =
                   (typeof payload.message === 'string' && payload.message.trim()) ||
                   (payload.error && typeof payload.error === 'object' && typeof (payload.error as { userMessage?: string }).userMessage === 'string'
@@ -699,22 +2068,69 @@ export const useChatStore = create<ChatState>()(
                   }));
                 }
 
-                set({
+                const failedAt = nowIso();
+                const failedSessionId = sessionId ?? activeSessionId;
+
+                set((state) => ({
                   isSending: false,
                   activeRequestId: null,
                   thinkingText: null,
-                  thinkingStep: 'turn_error'
-                });
+                  thinkingStep: 'turn_error',
+                  taskProgressBySession: failedSessionId
+                    ? updateTaskProgressMap(state.taskProgressBySession, failedSessionId, (current) => ({
+                        ...current,
+                        tasks: applyStepStatusToTasks(current.tasks, 'turn_error', 'failed'),
+                        activeStageAction: mapStepToAction(current.currentStep) ?? mapStepToAction('turn_error'),
+                        currentStep: 'turn_error',
+                        currentStepStatus: 'failed',
+                        turnStatus: 'failed',
+                        activeRequestId: null,
+                        liveThought: {
+                          text: errorMessage,
+                          step: 'turn_error',
+                          updatedAt: failedAt
+                        },
+                        mediaStage: current.mediaStage === 'ready' ? 'ready' : 'error',
+                        mediaStatusText: errorMessage,
+                        lastTerminalAt: failedAt
+                      }))
+                    : state.taskProgressBySession
+                }));
                 return;
               }
 
               if (parsed.type === 'message:error') {
-                set({
+                const messageError = typeof payload.message === 'string' && payload.message.trim()
+                  ? payload.message
+                  : 'Turn failed';
+                const failedAt = nowIso();
+                const erroredSessionId = sessionId ?? activeSessionId;
+
+                set((state) => ({
                   isSending: false,
                   activeRequestId: null,
                   thinkingText: null,
-                  thinkingStep: 'turn_error'
-                });
+                  thinkingStep: 'turn_error',
+                  taskProgressBySession: erroredSessionId
+                    ? updateTaskProgressMap(state.taskProgressBySession, erroredSessionId, (current) => ({
+                        ...current,
+                        tasks: applyStepStatusToTasks(current.tasks, 'turn_error', 'failed'),
+                        activeStageAction: mapStepToAction(current.currentStep) ?? mapStepToAction('turn_error'),
+                        currentStep: 'turn_error',
+                        currentStepStatus: 'failed',
+                        turnStatus: 'failed',
+                        activeRequestId: null,
+                        liveThought: {
+                          text: messageError,
+                          step: 'turn_error',
+                          updatedAt: failedAt
+                        },
+                        mediaStage: current.mediaStage === 'ready' ? 'ready' : 'error',
+                        mediaStatusText: messageError,
+                        lastTerminalAt: failedAt
+                      }))
+                    : state.taskProgressBySession
+                }));
               }
             } catch {
               // Ignore malformed websocket payloads.
@@ -728,6 +2144,10 @@ export const useChatStore = create<ChatState>()(
           nextSocket.addEventListener('close', () => {
             if (socket === nextSocket) {
               socket = null;
+            }
+
+            if (lastSequence > 0) {
+              shouldReplayOnReconnect = true;
             }
 
             set({ connectionState: 'closed' });
@@ -750,6 +2170,7 @@ export const useChatStore = create<ChatState>()(
         isBootstrapping: false,
         sessionsError: null,
         messages: {},
+        taskProgressBySession: {},
         connectionState: 'connecting',
         isSending: false,
         activeRequestId: null,
@@ -760,12 +2181,28 @@ export const useChatStore = create<ChatState>()(
         panelView: null,
         panelWidth: 600,
         composerValue: '',
+        composerImage: null,
         isSlashMenuOpen: false,
         
         // Actions
+        startDraftSession: () => {
+          set({
+            activeSessionId: null,
+            sessionsError: null,
+            isSending: false,
+            activeRequestId: null,
+            thinkingText: null,
+            thinkingStep: 'turn_started',
+            composerValue: '',
+            composerImage: null,
+            panelOpen: false,
+            panelView: null
+          });
+        },
+
         setActiveSession: (sessionId) => {
           if (!sessionId) {
-            set({ activeSessionId: null });
+            get().startDraftSession();
             return;
           }
 
@@ -776,6 +2213,10 @@ export const useChatStore = create<ChatState>()(
           set((state) => ({
             sessions: upsertSession(state.sessions, session),
             activeSessionId: session.sessionId,
+            taskProgressBySession: {
+              ...state.taskProgressBySession,
+              [session.sessionId]: state.taskProgressBySession[session.sessionId] ?? createDefaultTaskProgress(session.sessionId)
+            }
           }));
         },
         
@@ -793,31 +2234,63 @@ export const useChatStore = create<ChatState>()(
         },
         
         setThinking: (text, step = 'turn_started') => {
-          set({ 
+          const activeSessionId = get().activeSessionId;
+
+          set((state) => ({
             thinkingText: text,
             thinkingStep: step,
-          });
+            taskProgressBySession: activeSessionId
+              ? updateTaskProgressMap(state.taskProgressBySession, activeSessionId, (current) => ({
+                  ...current,
+                  currentStep: step,
+                  currentStepStatus: current.currentStepStatus ?? 'running',
+                  liveThought: text
+                    ? {
+                        text,
+                        step,
+                        updatedAt: nowIso()
+                      }
+                    : current.liveThought
+                }))
+              : state.taskProgressBySession
+          }));
         },
         
         setComposerValue: (value: string) => {
           set({ composerValue: value });
         },
+
+        setComposerImage: (image: ComposerImageAttachment | null) => {
+          set({ composerImage: image });
+        },
+
+        clearComposerImage: () => {
+          set({ composerImage: null });
+        },
         
         // Panel Actions (new)
-        openPanel: (view: 'preview' | 'code') => {
-          set({ panelOpen: true, panelView: view });
+        openPanel: (view: WorkspacePanelView) => {
+          set({
+            panelOpen: true,
+            panelView: view,
+            panelWidth: getPanelWidthPreset(view)
+          });
         },
         
         closePanel: () => {
           set({ panelOpen: false });
         },
         
-        togglePanel: (view: 'preview' | 'code') => {
+        togglePanel: (view: WorkspacePanelView) => {
           const state = get();
           if (state.panelOpen && state.panelView === view) {
             set({ panelOpen: false });
           } else {
-            set({ panelOpen: true, panelView: view });
+            set({
+              panelOpen: true,
+              panelView: view,
+              panelWidth: getPanelWidthPreset(view)
+            });
           }
         },
         
@@ -827,9 +2300,11 @@ export const useChatStore = create<ChatState>()(
         
         clearSession: (sessionId: string) => {
           const { [sessionId]: _, ...remainingMessages } = get().messages;
+          const { [sessionId]: __, ...remainingTaskProgress } = get().taskProgressBySession;
           set((state) => ({
             sessions: state.sessions.filter(s => s.sessionId !== sessionId),
             messages: remainingMessages,
+            taskProgressBySession: remainingTaskProgress,
             activeSessionId: state.activeSessionId === sessionId 
               ? null 
               : state.activeSessionId,
@@ -842,6 +2317,7 @@ export const useChatStore = create<ChatState>()(
           sessions: state.sessions,
           messages: state.messages,
           activeSessionId: state.activeSessionId,
+          taskProgressBySession: state.taskProgressBySession,
         }),
       }
     ),

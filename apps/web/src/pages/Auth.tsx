@@ -1,7 +1,7 @@
 import { SignIn, SignUp } from '@clerk/clerk-react';
 import { useState } from 'react';
 import { Link } from '@tanstack/react-router';
-import { Sparkles } from 'lucide-react';
+import { Sparkles, ShieldCheck, TimerReset, GalleryHorizontalEnd } from 'lucide-react';
 import '../styles/auth.css';
 
 export default function AuthPage() {
@@ -9,16 +9,54 @@ export default function AuthPage() {
 
   return (
     <div className="auth-page">
-      <div className="auth-container">
-        <div className="auth-brand">
-          <Link to="/">
-            <Sparkles className="h-8 w-8" />
+      <section className="auth-stage">
+        <div className="auth-stage-header">
+          <Link to="/" className="auth-brand-link">
+            <Sparkles className="h-5 w-5" />
             <span>Terranet</span>
           </Link>
-          <p>Generative Visual Intelligence</p>
+          <p>Generative Visual Engine</p>
         </div>
 
+        <div className="auth-stage-copy">
+          <h1>Sign in to keep your visual workflow in motion.</h1>
+          <p>
+            Continue from where you left off with session history, live preview state, and artifact revisions in one place.
+          </p>
+        </div>
+
+        <div className="auth-stage-pillars">
+          <article>
+            <ShieldCheck className="h-4 w-4" />
+            <div>
+              <h3>Safe runtime boundaries</h3>
+              <p>Validated generation and sandbox execution by default.</p>
+            </div>
+          </article>
+          <article>
+            <TimerReset className="h-4 w-4" />
+            <div>
+              <h3>Fast iteration loop</h3>
+              <p>Prompt, preview, and modify without leaving chat context.</p>
+            </div>
+          </article>
+          <article>
+            <GalleryHorizontalEnd className="h-4 w-4" />
+            <div>
+              <h3>Revision-native history</h3>
+              <p>Navigate scene and artifact versions with full traceability.</p>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <section className="auth-container">
         <div className="auth-card">
+          <header className="auth-card-header">
+            <h2>{isSignUp ? 'Create your workspace' : 'Welcome back'}</h2>
+            <p>{isSignUp ? 'Start building visuals in minutes.' : 'Sign in to continue your active sessions.'}</p>
+          </header>
+
           <div className="auth-tabs">
             <button
               type="button"
@@ -58,22 +96,7 @@ export default function AuthPage() {
         <p className="auth-footer">
           By continuing, you agree to Terranet's Terms of Service and Privacy Policy.
         </p>
-      </div>
-
-      <div className="auth-hero">
-        <div className="auth-hero-content">
-          <h2>Create with AI</h2>
-          <p>
-            Join thousands of developers and designers using Terranet to 
-            generate interactive visual experiences.
-          </p>
-          <div className="auth-hero-features">
-            <span>🎨 Visual Creation</span>
-            <span>⚡ Real-time Preview</span>
-            <span>🚀 One-click Deploy</span>
-          </div>
-        </div>
-      </div>
+      </section>
     </div>
   );
 }

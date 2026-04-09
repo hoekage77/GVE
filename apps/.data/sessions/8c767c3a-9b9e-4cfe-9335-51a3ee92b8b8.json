@@ -1,22 +1,22 @@
 {
   "sessionId": "8c767c3a-9b9e-4cfe-9335-51a3ee92b8b8",
   "createdAt": "2026-04-05T01:56:12.294Z",
-  "updatedAt": "2026-04-05T07:10:46.535Z",
+  "updatedAt": "2026-04-08T20:21:12.070Z",
   "status": "idle",
   "currentScene": {
     "sessionId": "8c767c3a-9b9e-4cfe-9335-51a3ee92b8b8",
-    "sceneId": "scene-1775354256119",
+    "sceneId": "scene-1775354314664",
     "code": "// Local fallback output\nconst geometry = new THREE.BoxGeometry(1, 1, 1);\nconst material = new THREE.MeshStandardMaterial({ color: 0x1d8cf8, metalness: 0.8, roughness: 0.2 });\nconst mesh = new THREE.Mesh(geometry, material);\nscene.add(mesh);\nfunction animate() {\n  requestAnimationFrame(animate);\n  mesh.rotation.x += 0.01;\n  mesh.rotation.y += 0.01;\n  renderer.render(scene, camera);\n}\nanimate();",
     "previewUrl": "about:blank",
     "skill": "threejs",
-    "explanation": "Generated through LangGraph orchestration pipeline. Generated via local fallback pipeline. Warning: Generation timed out after 79974ms while preserving runtime reserve. Runtime recovery skipped because immutable-generate mode is enabled. Runtime: degraded with 0 renders and 0 frames. Runtime degraded due to sandbox provisioning constraints: Runtime execution timed out after 3700ms.",
-    "messageId": "message-2",
+    "explanation": "Generated through LangGraph orchestration pipeline. Generated via local fallback pipeline. Warning: Generation timed out after 79969ms while preserving runtime reserve. Runtime: completed with 49 renders and 48 frames.",
+    "messageId": "message-7",
     "source": "generate",
-    "createdAt": "2026-04-05T01:57:36.133Z",
-    "updatedAt": "2026-04-05T01:57:36.133Z",
-    "versionId": "version-1",
-    "version": 1,
-    "artifactId": "artifact-1775354256133-4e06db",
+    "createdAt": "2026-04-05T01:58:34.673Z",
+    "updatedAt": "2026-04-05T01:58:34.673Z",
+    "versionId": "version-2",
+    "version": 2,
+    "artifactId": "artifact-1775354314673-43b718",
     "artifactVersion": 1
   },
   "artifacts": [
@@ -146,22 +146,22 @@
       "revisionPointer": 0
     }
   ],
-  "artifactPointer": 0,
+  "artifactPointer": 1,
   "versions": [
     {
       "sessionId": "8c767c3a-9b9e-4cfe-9335-51a3ee92b8b8",
-      "sceneId": "scene-1775354256119",
+      "sceneId": "scene-1775354314664",
       "code": "// Local fallback output\nconst geometry = new THREE.BoxGeometry(1, 1, 1);\nconst material = new THREE.MeshStandardMaterial({ color: 0x1d8cf8, metalness: 0.8, roughness: 0.2 });\nconst mesh = new THREE.Mesh(geometry, material);\nscene.add(mesh);\nfunction animate() {\n  requestAnimationFrame(animate);\n  mesh.rotation.x += 0.01;\n  mesh.rotation.y += 0.01;\n  renderer.render(scene, camera);\n}\nanimate();",
       "previewUrl": "about:blank",
       "skill": "threejs",
-      "explanation": "Generated through LangGraph orchestration pipeline. Generated via local fallback pipeline. Warning: Generation timed out after 79974ms while preserving runtime reserve. Runtime recovery skipped because immutable-generate mode is enabled. Runtime: degraded with 0 renders and 0 frames. Runtime degraded due to sandbox provisioning constraints: Runtime execution timed out after 3700ms.",
-      "messageId": "message-2",
+      "explanation": "Generated through LangGraph orchestration pipeline. Generated via local fallback pipeline. Warning: Generation timed out after 79969ms while preserving runtime reserve. Runtime: completed with 49 renders and 48 frames.",
+      "messageId": "message-7",
       "source": "generate",
-      "createdAt": "2026-04-05T01:57:36.133Z",
-      "updatedAt": "2026-04-05T01:57:36.133Z",
-      "versionId": "version-1",
-      "version": 1,
-      "artifactId": "artifact-1775354256133-4e06db",
+      "createdAt": "2026-04-05T01:58:34.673Z",
+      "updatedAt": "2026-04-05T01:58:34.673Z",
+      "versionId": "version-2",
+      "version": 2,
+      "artifactId": "artifact-1775354314673-43b718",
       "artifactVersion": 1
     }
   ],

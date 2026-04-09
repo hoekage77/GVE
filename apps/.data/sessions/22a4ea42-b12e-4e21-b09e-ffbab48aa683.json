@@ -1,0 +1,136 @@
+{
+  "sessionId": "22a4ea42-b12e-4e21-b09e-ffbab48aa683",
+  "createdAt": "2026-04-07T01:01:46.816Z",
+  "updatedAt": "2026-04-07T01:01:57.286Z",
+  "status": "idle",
+  "currentScene": null,
+  "artifacts": [],
+  "artifactPointer": -1,
+  "versions": [],
+  "sceneVersions": [],
+  "versionPointer": -1,
+  "revisionPointer": -1,
+  "messages": [
+    {
+      "id": "ws-runtime-1775523706822",
+      "role": "user",
+      "content": "Hello. Confirm websocket runtime event flow.",
+      "kind": "input",
+      "meta": [],
+      "error": null,
+      "createdAt": "2026-04-07T01:01:46.833Z",
+      "updatedAt": "2026-04-07T01:01:46.833Z"
+    },
+    {
+      "id": "message-2",
+      "role": "assistant",
+      "content": "Hi. I can generate a new visual, modify the current one, or explain no scene yet. Try asking me to make something, change a detail, or explain what you already have for “Hello. Confirm websocket runtime event flow.”. If you do not have a scene yet, I can start one from scratch.",
+      "kind": "chat",
+      "meta": [],
+      "error": null,
+      "createdAt": "2026-04-07T01:01:46.834Z",
+      "updatedAt": "2026-04-07T01:01:57.280Z"
+    },
+    {
+      "id": "thought-turn_started-1775523706847",
+      "role": "thought",
+      "content": "Okay, let me dive into this. I'll start by understanding what kind of visual you want.",
+      "kind": "thought",
+      "meta": [
+        "turn_started",
+        "requestId:ws-runtime-1775523706822",
+        "messageId:message-2"
+      ],
+      "error": null,
+      "createdAt": "2026-04-07T01:01:46.847Z",
+      "updatedAt": "2026-04-07T01:01:46.847Z"
+    },
+    {
+      "id": "thought-intent_parsed-1775523706936",
+      "role": "thought",
+      "content": "I understand — this is a visual creation task. Let me pick the most suitable skill.",
+      "kind": "thought",
+      "meta": [
+        "intent_parsed",
+        "requestId:ws-runtime-1775523706822",
+        "messageId:message-2"
+      ],
+      "error": null,
+      "createdAt": "2026-04-07T01:01:46.936Z",
+      "updatedAt": "2026-04-07T01:01:46.936Z"
+    },
+    {
+      "id": "thought-plan_created-1775523706936",
+      "role": "thought",
+      "content": "My plan has 7 stages. Let me run through them systematically.",
+      "kind": "thought",
+      "meta": [
+        "plan_created",
+        "requestId:ws-runtime-1775523706822",
+        "messageId:message-2"
+      ],
+      "error": null,
+      "createdAt": "2026-04-07T01:01:46.936Z",
+      "updatedAt": "2026-04-07T01:01:46.936Z"
+    },
+    {
+      "id": "thought-turn_complete-1775523717283",
+      "role": "thought",
+      "content": "That's a wrap — your visualization should be live now.",
+      "kind": "thought",
+      "meta": [
+        "turn_complete",
+        "requestId:ws-runtime-1775523706822",
+        "messageId:message-2"
+      ],
+      "error": null,
+      "createdAt": "2026-04-07T01:01:57.283Z",
+      "updatedAt": "2026-04-07T01:01:57.283Z"
+    }
+  ],
+  "orchestrationTrace": [
+    {
+      "id": "trace-1",
+      "step": "intent_parsed",
+      "payload": {
+        "sessionId": "22a4ea42-b12e-4e21-b09e-ffbab48aa683",
+        "content": "Hello. Confirm websocket runtime event flow."
+      },
+      "createdAt": "2026-04-07T01:01:46.849Z"
+    },
+    {
+      "id": "trace-2",
+      "step": "thinking_analysis_failed",
+      "payload": {
+        "sessionId": "22a4ea42-b12e-4e21-b09e-ffbab48aa683",
+        "requestId": "ws-runtime-1775523706822",
+        "diagnostics": {
+          "stage": "thinking_analysis",
+          "context": {
+            "stage": "thinking_analysis",
+            "queryPreview": "Hello. Confirm websocket runtime event flow.",
+            "hasScene": false
+          },
+          "message": "Moonshot request failed (429): {\"error\":{\"message\":\"The engine is currently overloaded, please try again later\",\"type\":\"engine_overloaded_error\"}}",
+          "code": null,
+          "status": null,
+          "cause": null,
+          "stack": "Error: Moonshot request failed (429): {\"error\":{\"message\":\"The engine is currently overloaded, please try again later\",\"type\":\"engine_overloaded_error\"}} |     at fetchMoonshotChatCompletion (file:///home/kage/visualruntime/apps/server/server/orchestrator.js:936:21) |     at process.processTicksAndRejections (node:internal/process/task_queues:95:5)",
+          "timestamp": "2026-04-07T01:01:57.028Z"
+        }
+      },
+      "createdAt": "2026-04-07T01:01:57.032Z"
+    },
+    {
+      "id": "trace-3",
+      "step": "turn_complete",
+      "payload": {
+        "sessionId": "22a4ea42-b12e-4e21-b09e-ffbab48aa683",
+        "mode": "chat",
+        "messageCount": 6,
+        "error": null
+      },
+      "createdAt": "2026-04-07T01:01:57.286Z"
+    }
+  ]
+}

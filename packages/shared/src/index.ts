@@ -1,8 +1,11 @@
+export type SkillId = "threejs" | "p5js" | "d3js" | "animejs" | "manim";
+export type SkillPreference = SkillId | "auto";
+
 export interface GenerateRequest {
   query: string;
   sessionId?: string;
   preferences?: {
-    skill?: "threejs" | "p5js" | "d3js" | "animejs" | "auto";
+    skill?: SkillPreference;
     quality?: "draft" | "standard" | "high";
   };
 }
@@ -16,6 +19,14 @@ export interface SceneVersion {
   code: string | null;
   previewUrl: string | null;
   skill: string | null;
+  outputKind?: "code" | "media";
+  mediaType?: string | null;
+  mediaUrl?: string | null;
+  mediaArtifactId?: string | null;
+  mediaDurationMs?: number | null;
+  mediaFps?: number | null;
+  mediaResolution?: string | null;
+  mediaBytes?: number | null;
   explanation: string | null;
   messageId?: string | null;
   source: string;
@@ -97,11 +108,29 @@ export interface CreateSessionResponse {
 }
 
 export interface ChatTurnRequest {
-  content: string;
+  content?: string;
+  imageUrl?: string;
+  imageData?: string;
   preferences?: {
-    skill?: "threejs" | "p5js" | "d3js" | "animejs" | "auto";
+    skill?: SkillPreference;
     quality?: "draft" | "standard" | "high";
   };
+}
+
+export interface LlmProviderAttempt {
+  providerId: string;
+  model: string;
+  status: "success" | "failed";
+  reason?: string | null;
+  retryable?: boolean;
+}
+
+export interface LlmSourceMetadata {
+  providerId: string | null;
+  model: string | null;
+  fallbackUsed: boolean;
+  attemptCount: number;
+  attempts?: LlmProviderAttempt[];
 }
 
 export interface ChatTurnResponse {
@@ -119,6 +148,9 @@ export interface ChatTurnResponse {
   };
   userMessage: SessionMessage;
   assistantMessage: SessionMessage;
+  assistantSource?: string | null;
+  assistantWarning?: string | null;
+  assistantLlm?: LlmSourceMetadata | null;
   sceneState: SessionSceneState;
   messages: SessionMessage[];
   result: GenerateResponse | ModifyResponse | null;
@@ -207,6 +239,17 @@ export interface GenerateResponse {
   previewUrl: string;
   code: string;
   skill: string;
+  generationSource?: string | null;
+  generationWarning?: string | null;
+  llmTrace?: LlmSourceMetadata | null;
+  outputKind?: "code" | "media";
+  mediaType?: string | null;
+  mediaUrl?: string | null;
+  mediaArtifactId?: string | null;
+  mediaDurationMs?: number | null;
+  mediaFps?: number | null;
+  mediaResolution?: string | null;
+  mediaBytes?: number | null;
   explanation: string;
   sessionId: string;
   sceneVersion: number;
@@ -217,10 +260,18 @@ export interface GenerateResponse {
   retriedAfterNoop?: boolean;
   runtime?: {
     success: boolean;
-    status: "completed" | "timeout" | "error" | "skipped";
+    status: "completed" | "timeout" | "error" | "skipped" | "degraded";
     previewUrl: string | null;
     skillId: string;
     skillName: string;
+    outputKind?: "code" | "media";
+    mediaType?: string | null;
+    mediaUrl?: string | null;
+    mediaArtifactId?: string | null;
+    mediaDurationMs?: number | null;
+    mediaFps?: number | null;
+    mediaResolution?: string | null;
+    mediaBytes?: number | null;
     dependencyCount: number;
     durationMs: number;
     renderCount: number;
@@ -248,7 +299,7 @@ export interface ModifyRequest {
   sessionId: string;
   instruction: string;
   preferences?: {
-    skill?: "threejs" | "p5js" | "d3js" | "animejs" | "auto";
+    skill?: SkillPreference;
     quality?: "draft" | "standard" | "high";
   };
 }
@@ -262,6 +313,13 @@ export interface UndoRedoResponse {
   message?: string;
 }
 
+export interface ArtifactTimelineEntry {
+  artifactId: string;
+  title: string;
+  isCurrent: boolean;
+  revisions: Array<SceneVersion & { isCurrent: boolean }>;
+}
+
 export interface VersionListResponse {
   sessionId: string;
   artifactCount?: number;
@@ -273,11 +331,12 @@ export interface VersionListResponse {
   revisionPointer?: number;
   versions: Array<SceneVersion & { isCurrent: boolean }>;
   artifacts?: ArtifactSummary[];
+  artifactTimeline?: ArtifactTimelineEntry[];
 }
 
 const USE_DEV_MOCKS = import.meta.env.DEV && import.meta.env.VITE_USE_API_MOCK === "1";
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? (import.meta.env.DEV ? "http://localhost:8000" : "");
-const WS_BASE_URL = import.meta.env.VITE_WS_BASE_URL ?? (import.meta.env.DEV ? "ws://localhost:8000" : "");
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "";
+const WS_BASE_URL = import.meta.env.VITE_WS_BASE_URL ?? "";
 
 export function resolveApiUrl(path: string): string {
   if (/^https?:\/\//.test(path)) {
@@ -301,7 +360,7 @@ export function resolveWebSocketUrl(path = "/ws"): string {
     return `${protocol}//${window.location.host}${path}`;
   }
 
-  return `ws://localhost:8000${path}`;
+  return `ws://127.0.0.1:8000${path}`;
 }
 
 function sleep(ms: number): Promise<void> {
@@ -416,6 +475,17 @@ export async function listSkills(): Promise<SkillCatalogResponse> {
             executionReliability: 0.9,
             warmPoolAvailability: 0.74,
             safeDefault: true
+          },
+          {
+            id: "manim",
+            name: "Manim Video Composer",
+            version: "0.18.1",
+            description: "Python-based cinematic animation rendering for rich educational and narrative videos.",
+            domainFocus: ["animation", "2d", "motion-graphics"],
+            capabilities: ["video", "timeline", "easing", "typography", "camera"],
+            executionReliability: 0.86,
+            warmPoolAvailability: 0.62,
+            safeDefault: false
           }
         ]
       };
@@ -431,7 +501,7 @@ function buildDevSession(sessionId?: string): CreateSessionResponse {
 
   return {
     sessionId: resolvedSessionId,
-    websocketUrl: "ws://localhost:8000/ws",
+    websocketUrl: resolveWebSocketUrl("/ws"),
     sceneState: {
       sessionId: resolvedSessionId,
       sceneId: null,
@@ -503,6 +573,11 @@ function buildDevMock(input: GenerateRequest): GenerateResponse {
   const selectedSkill = input.preferences?.skill && input.preferences.skill !== "auto"
     ? input.preferences.skill
     : "threejs";
+  const isManim = selectedSkill === "manim";
+  const previewUrl = isManim
+    ? "https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.mp4"
+    : "about:blank";
+  const outputKind: "code" | "media" = isManim ? "media" : "code";
 
   const codeBySkill: Record<string, string> = {
     threejs: [
@@ -546,13 +621,34 @@ function buildDevMock(input: GenerateRequest): GenerateResponse {
       "dot.style.margin = '120px auto';",
       "stage.appendChild(dot);",
       "anime({ targets: dot, scale: [0.9, 1.12], duration: 1400, direction: 'alternate', loop: true, easing: 'easeInOutSine' });"
+    ].join("\n"),
+    manim: [
+      "from manim import *",
+      "",
+      "class GVERichScene(Scene):",
+      "    def construct(self):",
+      "        title = Text(\"Terranet Rich Video\", weight=BOLD).scale(0.9)",
+      "        subtitle = Text(\"Manim animation preview\", font_size=32).next_to(title, DOWN)",
+      "        ring = Circle(radius=1.6, stroke_color=BLUE_E, stroke_width=10)",
+      "        core = Dot(radius=0.22, color=TEAL_A)",
+      "        pulse = always_redraw(lambda: Circle(radius=1.6 + 0.08 * np.sin(self.time * 2), stroke_color=BLUE_C, stroke_opacity=0.4))",
+      "",
+      "        self.play(FadeIn(title, shift=UP * 0.3), FadeIn(subtitle, shift=DOWN * 0.2), run_time=1.1)",
+      "        self.play(Create(ring), FadeIn(core), run_time=1.2)",
+      "        self.add(pulse)",
+      "        self.play(Rotate(ring, angle=TAU, run_time=2.4, rate_func=smooth), core.animate.scale(1.4), run_time=2.4)",
+      "        self.wait(0.6)"
     ].join("\n")
   };
+  const selectedCode = codeBySkill[selectedSkill] ?? codeBySkill.threejs;
 
   return {
     sceneId,
-    previewUrl: "about:blank",
+    previewUrl,
     skill: selectedSkill,
+    outputKind,
+    mediaType: isManim ? "video/mp4" : null,
+    mediaUrl: isManim ? previewUrl : null,
     explanation: "Dev fallback response: connect a backend endpoint to replace this mock output.",
     sessionId,
     sceneVersion: 1,
@@ -577,9 +673,12 @@ function buildDevMock(input: GenerateRequest): GenerateResponse {
         artifactId: "artifact-1",
         artifactVersion: 1,
         sceneId,
-        code: "// Dev fallback generated code",
-        previewUrl: "about:blank",
+        code: selectedCode,
+        previewUrl,
         skill: selectedSkill,
+        outputKind,
+        mediaType: isManim ? "video/mp4" : null,
+        mediaUrl: isManim ? previewUrl : null,
         explanation: "Dev fallback response: connect a backend endpoint to replace this mock output.",
         source: "fallback",
         createdAt: new Date().toISOString(),
@@ -592,9 +691,12 @@ function buildDevMock(input: GenerateRequest): GenerateResponse {
           artifactId: "artifact-1",
           artifactVersion: 1,
           sceneId,
-          code: "// Dev fallback generated code",
-          previewUrl: "about:blank",
+          code: selectedCode,
+          previewUrl,
           skill: selectedSkill,
+          outputKind,
+          mediaType: isManim ? "video/mp4" : null,
+          mediaUrl: isManim ? previewUrl : null,
           explanation: "Dev fallback response: connect a backend endpoint to replace this mock output.",
           source: "fallback",
           createdAt: new Date().toISOString(),
@@ -617,7 +719,7 @@ function buildDevMock(input: GenerateRequest): GenerateResponse {
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
     },
-    code: `${codeBySkill[selectedSkill] ?? codeBySkill.threejs}\n// Original prompt: ${input.query}`
+    code: `${selectedCode}\n${isManim ? "#" : "//"} Original prompt: ${input.query}`
   };
 }
 
@@ -640,7 +742,7 @@ function buildDevMock(input: GenerateRequest): GenerateResponse {
       return true;
     }
 
-    return !/\b(create|make|build|generate|design|draw|sketch|render|animate|modify|change|update|edit|explain|describe|walkthrough|scene|visual|image|3d|2d|canvas|diagram|chart|graph|data|cube|sphere|particle|color|rotation|spin|orbit|layout|lighting|material|shader|threejs|p5js|d3js|animejs|anime|timeline|tween|easing|mermaid)\b/.test(
+    return !/\b(create|make|build|generate|design|draw|sketch|render|animate|modify|change|update|edit|explain|describe|walkthrough|scene|visual|image|3d|2d|canvas|diagram|chart|graph|data|cube|sphere|particle|color|rotation|spin|orbit|layout|lighting|material|shader|threejs|p5js|d3js|animejs|anime|manim|video|timeline|tween|easing|mermaid)\b/.test(
       normalized
     );
   }
@@ -863,18 +965,22 @@ export async function sendSessionMessage(
     }, "Chat turn request failed", 0);
   } catch (error) {
     if (USE_DEV_MOCKS) {
-      if (isConversationOnlyQuery(input.content)) {
-        return buildDevChatMock(sessionId, input.content);
+      const normalizedPrompt = String(input.content ?? "").trim();
+      const fallbackPrompt = normalizedPrompt || "Generate a scene from the attached image.";
+      const userContent = normalizedPrompt || "Attached an image.";
+
+      if (normalizedPrompt && isConversationOnlyQuery(normalizedPrompt)) {
+        return buildDevChatMock(sessionId, normalizedPrompt);
       }
 
       const now = new Date().toISOString();
-      const sessionResponse = buildDevMock({ query: input.content, sessionId, preferences: input.preferences });
+      const sessionResponse = buildDevMock({ query: fallbackPrompt, sessionId, preferences: input.preferences });
 
       return {
         sessionId,
         mode: "generate",
         intent: {
-          rawQuery: input.content,
+          rawQuery: fallbackPrompt,
           intentType: "create",
           targetDomain: "3d",
           entities: [],
@@ -886,7 +992,7 @@ export async function sendSessionMessage(
         userMessage: {
           id: `message-user-${Date.now()}`,
           role: "user",
-          content: input.content,
+          content: userContent,
           kind: "input",
           meta: [],
           createdAt: now,
@@ -978,4 +1084,12 @@ export async function listVersions(sessionId: string): Promise<VersionListRespon
   return requestJson<VersionListResponse>(`/api/v1/sessions/${sessionId}/versions`, {
     method: "GET"
   }, "Version list request failed");
+}
+
+export async function selectVersion(sessionId: string, versionId: string): Promise<UndoRedoResponse> {
+  return requestJson<UndoRedoResponse>(`/api/v1/sessions/${sessionId}/versions/select`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ versionId })
+  }, "Version selection request failed", 0);
 }
