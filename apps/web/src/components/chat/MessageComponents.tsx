@@ -183,8 +183,8 @@ function ThoughtProcess({ thoughts, duration }: ThoughtProcessProps) {
 
   // Format duration text
   const durationText = duration && duration > 0
-    ? `Thought for ${(duration / 1000).toFixed(1)} seconds`
-    : "Thought process";
+    ? `Thoughts ${(duration / 1000).toFixed(1)}s`
+    : "Thoughts";
 
   return (
     <div className="thought-process">
@@ -202,7 +202,7 @@ function ThoughtProcess({ thoughts, duration }: ThoughtProcessProps) {
         <div className="thought-process-content">
           {thoughts.map((thought, index) => (
             <div key={index} className="thought-item">
-              <span className="thought-step">{thought.step.toUpperCase()}</span>
+              <span className="thought-step">{thought.step.replace(/_/g, ' ')}</span>
               <p className="thought-text">{thought.text}</p>
             </div>
           ))}

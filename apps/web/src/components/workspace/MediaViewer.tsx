@@ -1,4 +1,4 @@
-import { AlertCircle, Expand, Film, Pause, Play, Volume2, VolumeX } from 'lucide-react';
+import { AlertCircle, Expand, Film, Heart, MessageCircle, Pause, Play, Share2, Volume2, VolumeX } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 interface MediaViewerProps {
@@ -36,6 +36,7 @@ export default function MediaViewer({ src, mediaType, sceneId, statusStage = 'id
   const containerRef = useRef<HTMLDivElement | null>(null);
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const hideChromeTimerRef = useRef<number | null>(null);
+  const sharePulseTimerRef = useRef<number | null>(null);
 
   const [loadFailed, setLoadFailed] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -44,6 +45,9 @@ export default function MediaViewer({ src, mediaType, sceneId, statusStage = 'id
   const [currentTimeSec, setCurrentTimeSec] = useState(0);
   const [isSeeking, setIsSeeking] = useState(false);
   const [chromeVisible, setChromeVisible] = useState(true);
+  const [isLiked, setIsLiked] = useState(false);
+  const [isDetailExpanded, setIsDetailExpanded] = useState(false);
+  const [isSharePulsing, setIsSharePulsing] = useState(false);
 
   const videoKey = useMemo(
     () => `${src ?? 'empty'}|${mediaType ?? ''}`,
@@ -53,11 +57,19 @@ export default function MediaViewer({ src, mediaType, sceneId, statusStage = 'id
   const statusLabel = MEDIA_STAGE_TITLES[statusStage] ?? MEDIA_STAGE_TITLES.idle;
   const progress = durationSec > 0 ? Math.min(100, Math.max(0, (currentTimeSec / durationSec) * 100)) : 0;
   const canPlay = Boolean(src && src !== 'about:blank' && !loadFailed);
+  const shouldShowStatusCopy = Boolean(statusText && (isDetailExpanded || statusStage !== 'ready' || !isPlaying));
 
   const clearHideTimer = useCallback(() => {
     if (hideChromeTimerRef.current !== null) {
       window.clearTimeout(hideChromeTimerRef.current);
       hideChromeTimerRef.current = null;
+    }
+  }, []);
+
+  const clearSharePulseTimer = useCallback(() => {
+    if (sharePulseTimerRef.current !== null) {
+      window.clearTimeout(sharePulseTimerRef.current);
+      sharePulseTimerRef.current = null;
     }
   }, []);
 
@@ -83,8 +95,12 @@ export default function MediaViewer({ src, mediaType, sceneId, statusStage = 'id
     setDurationSec(0);
     setLoadFailed(false);
     setChromeVisible(true);
+    setIsLiked(false);
+    setIsDetailExpanded(false);
+    setIsSharePulsing(false);
     clearHideTimer();
-  }, [videoKey, clearHideTimer]);
+    clearSharePulseTimer();
+  }, [videoKey, clearHideTimer, clearSharePulseTimer]);
 
   useEffect(() => {
     if (!isPlaying) {
@@ -100,8 +116,9 @@ export default function MediaViewer({ src, mediaType, sceneId, statusStage = 'id
   useEffect(() => {
     return () => {
       clearHideTimer();
+      clearSharePulseTimer();
     };
-  }, [clearHideTimer]);
+  }, [clearHideTimer, clearSharePulseTimer]);
 
   const togglePlayback = useCallback(async () => {
     const video = videoRef.current;
@@ -188,6 +205,44 @@ export default function MediaViewer({ src, mediaType, sceneId, statusStage = 'id
     scheduleChromeHide();
   }, [currentTimeSec, scheduleChromeHide]);
 
+  const toggleLike = useCallback(() => {
+    setIsLiked((previous) => !previous);
+    revealChrome();
+  }, [revealChrome]);
+
+  const toggleDetail = useCallback(() => {
+    setIsDetailExpanded((previous) => !previous);
+    revealChrome();
+  }, [revealChrome]);
+
+  const handleShare = useCallback(async () => {
+    if (!src) {
+      return;
+    }
+
+    revealChrome();
+
+    try {
+      if (typeof navigator.share === 'function') {
+        await navigator.share({
+          title: sceneId ? `Scene ${sceneId}` : 'Visual preview',
+          text: sceneId ? `Check this scene: ${sceneId}` : 'Check this generated visual preview.',
+          url: src
+        });
+      } else if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(src);
+      }
+
+      setIsSharePulsing(true);
+      clearSharePulseTimer();
+      sharePulseTimerRef.current = window.setTimeout(() => {
+        setIsSharePulsing(false);
+      }, 950);
+    } catch {
+      setIsSharePulsing(false);
+    }
+  }, [clearSharePulseTimer, revealChrome, sceneId, src]);
+
   if (!src || src === 'about:blank') {
     const title = statusLabel;
     const detail = statusText
@@ -267,7 +322,7 @@ export default function MediaViewer({ src, mediaType, sceneId, statusStage = 'id
         </div>
 
         <div className="terranet-media-viewer__bottombar">
-          {statusText ? <p className="terranet-media-viewer__status-copy">{statusText}</p> : null}
+          {shouldShowStatusCopy ? <p className="terranet-media-viewer__status-copy">{statusText}</p> : null}
 
           <div className="terranet-media-viewer__timeline-row">
             <span>{formatDuration(currentTimeSec)}</span>
@@ -322,6 +377,38 @@ export default function MediaViewer({ src, mediaType, sceneId, statusStage = 'id
             </button>
           </div>
         </div>
+      </div>
+
+      <div className={`terranet-media-viewer__rail ${chromeVisible ? 'is-visible' : ''}`}>
+        <button
+          type="button"
+          className={`terranet-media-viewer__rail-btn ${isLiked ? 'is-active' : ''}`}
+          aria-label={isLiked ? 'Unlike scene' : 'Like scene'}
+          onClick={toggleLike}
+        >
+          <Heart className="h-4 w-4" />
+          <span>{isLiked ? 'Liked' : 'Like'}</span>
+        </button>
+        <button
+          type="button"
+          className={`terranet-media-viewer__rail-btn ${isDetailExpanded ? 'is-active' : ''}`}
+          aria-label={isDetailExpanded ? 'Hide details' : 'Show details'}
+          onClick={toggleDetail}
+        >
+          <MessageCircle className="h-4 w-4" />
+          <span>{isDetailExpanded ? 'Details on' : 'Details'}</span>
+        </button>
+        <button
+          type="button"
+          className={`terranet-media-viewer__rail-btn ${isSharePulsing ? 'is-active is-pulsing' : ''}`}
+          aria-label="Share scene"
+          onClick={() => {
+            void handleShare();
+          }}
+        >
+          <Share2 className="h-4 w-4" />
+          <span>Share</span>
+        </button>
       </div>
 
       {loadFailed && (

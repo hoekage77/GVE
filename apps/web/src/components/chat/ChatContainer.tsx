@@ -307,7 +307,6 @@ export function ChatContainer() {
     activeSessionId,
     messages,
     taskProgressBySession,
-    connectionState,
     sessionsError,
     isBootstrapping,
     isSending,
@@ -329,6 +328,7 @@ export function ChatContainer() {
   const activeSession = sessions.find(s => s.sessionId === activeSessionId);
   const activeMessages = activeSessionId ? messages[activeSessionId] || [] : [];
   const activeTaskProgress = activeSessionId ? taskProgressBySession[activeSessionId] ?? null : null;
+  const isTaskOperationActive = activeTaskProgress?.turnStatus === "running";
   const activeStatusStep = activeTaskProgress?.liveThought?.step ?? activeTaskProgress?.currentStep ?? thinkingStep;
   const activeStatusText = activeTaskProgress?.liveThought?.text ?? thinkingText ?? null;
 
@@ -417,10 +417,10 @@ export function ChatContainer() {
   };
 
   useEffect(() => {
-    if (!activeTaskProgress && isTasksExpanded) {
+    if (!isTaskOperationActive && isTasksExpanded) {
       setIsTasksExpanded(false);
     }
-  }, [activeTaskProgress, isTasksExpanded]);
+  }, [isTaskOperationActive, isTasksExpanded]);
 
   if (!activeSession) {
     return (
@@ -443,14 +443,6 @@ export function ChatContainer() {
     >
       {/* Chat Area */}
       <div className="terranet-chat-main">
-        {/* Chat Header */}
-        <header className="chat-header">
-
-          <span className={`chat-connection chat-connection--${connectionState}`}>
-            {connectionState}
-          </span>
-        </header>
-
         {/* Messages */}
         <div className="terranet-chat-scroll" ref={chatRef}>
           <div className="chat-messages">
@@ -521,7 +513,7 @@ export function ChatContainer() {
 
         {sessionsError && <div className="chat-error-banner">{sessionsError}</div>}
 
-        {activeTaskProgress && (
+        {isTaskOperationActive && activeTaskProgress && (
           <div className="chat-task-status-container">
             <TaskStatusBar
               taskProgress={activeTaskProgress}

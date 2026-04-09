@@ -447,29 +447,33 @@
 
 /* Thought Process Component (DeepSeek-style) */
 .thought-process {
-  margin-bottom: 0.35rem;
+  margin-bottom: 0.24rem;
 }
 
 .thought-process-toggle {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
-  padding: 0.34rem 0.62rem;
+  gap: 0.34rem;
+  padding: 0.2rem 0.48rem;
   background: #f8fafc;
-  border: 1px solid #e2e8f0;
-  border-radius: 0.5rem;
-  font-size: 0.76rem;
+  border: 1px solid #e7edf5;
+  border-radius: 999px;
+  font-size: 0.69rem;
   color: #64748b;
   cursor: pointer;
-  transition: all 0.2s;
+  line-height: 1.15;
+  transition: background 0.18s, border-color 0.18s, color 0.18s;
 }
 
 .thought-process-toggle:hover {
-  background: #f1f5f9;
-  border-color: #cbd5e1;
+  background: #f4f8fc;
+  border-color: #d3deeb;
+  color: #475569;
 }
 
 .thought-process-toggle svg {
+  width: 0.75rem;
+  height: 0.75rem;
   transition: transform 0.2s;
 }
 
@@ -478,15 +482,15 @@
 }
 
 .thought-process-content {
-  margin-top: 0.5rem;
-  padding: 0.75rem;
+  margin-top: 0.3rem;
+  padding: 0.44rem 0.56rem;
   background: #f8fafc;
-  border-radius: 0.5rem;
-  border: 1px solid #e2e8f0;
+  border-radius: 0.46rem;
+  border: 1px solid #edf2f7;
 }
 
 .thought-item {
-  padding: 0.5rem 0;
+  padding: 0.28rem 0;
   border-bottom: 1px solid #e2e8f0;
 }
 
@@ -495,20 +499,20 @@
 }
 
 .thought-step {
-  font-size: 0.75rem;
+  font-size: 0.62rem;
   font-weight: 600;
-  color: #3b82f6;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  margin-bottom: 0.25rem;
+  color: #64748b;
+  text-transform: none;
+  letter-spacing: 0.02em;
+  margin-bottom: 0.14rem;
   display: block;
 }
 
 .thought-text {
-  font-size: 0.85rem;
-  color: #475569;
+  font-size: 0.74rem;
+  color: #64748b;
   margin: 0;
-  line-height: 1.4;
+  line-height: 1.3;
 }
 
 /* ── Composer (DeepSeek-style) ── */
@@ -762,31 +766,32 @@
   }
 
   .thought-process-toggle {
-    background: #1e293b;
-    border-color: #334155;
-    color: #94a3b8;
+    background: #0f172a;
+    border-color: #243449;
+    color: #90a2b7;
   }
 
   .thought-process-toggle:hover {
-    background: #334155;
-    border-color: #475569;
+    background: #1a2536;
+    border-color: #334155;
+    color: #c5d2df;
   }
 
   .thought-process-content {
-    background: #1e293b;
-    border-color: #334155;
+    background: #111a29;
+    border-color: #253447;
   }
 
   .thought-step {
-    color: #60a5fa;
+    color: #94a3b8;
   }
 
   .thought-text {
-    color: #cbd5e1;
+    color: #c1ceda;
   }
 
   .thought-item {
-    border-color: #334155;
+    border-color: #253447;
   }
 
   .composer-container {
