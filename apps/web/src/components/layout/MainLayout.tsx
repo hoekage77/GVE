@@ -13,7 +13,7 @@ export function MainLayout({ children }: MainLayoutProps) {
   const pathname = useRouterState({
     select: (state) => state.location.pathname
   });
-  const isChatRoute = pathname === '/' || pathname.startsWith('/chat');
+  const isChatRoute = pathname.startsWith('/chat');
 
   useEffect(() => {
     void initialize();

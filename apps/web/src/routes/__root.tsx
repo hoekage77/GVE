@@ -32,18 +32,31 @@ function ProtectedAppShell() {
   );
 }
 
-// App home (protected)
+function AuthEntryShell() {
+  return (
+    <>
+      <SignedIn>
+        <RedirectToChat />
+      </SignedIn>
+      <SignedOut>
+        <AuthPage />
+      </SignedOut>
+    </>
+  );
+}
+
+// App home (auth entry)
 const homeRoute = new Route({
   getParentRoute: () => rootRoute,
   path: '/',
-  component: ProtectedAppShell,
+  component: AuthEntryShell,
 });
 
 // Auth page (public)
 const authRoute = new Route({
   getParentRoute: () => rootRoute,
   path: '/auth',
-  component: AuthPage,
+  component: AuthEntryShell,
 });
 
 // Chat page (protected)
@@ -73,6 +86,11 @@ const profileRoute = new Route({
 
 function RedirectToAuth() {
   window.location.href = '/auth';
+  return null;
+}
+
+function RedirectToChat() {
+  window.location.href = '/chat';
   return null;
 }
 
