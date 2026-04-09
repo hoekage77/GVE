@@ -2,7 +2,7 @@ import { useRef, useLayoutEffect } from 'react';
 import { gsap } from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import { ArrowRight, Calendar } from 'lucide-react';
-import { WEB_APP_URL } from '../lib/urls';
+import { getWebAppUrl } from '../lib/urls';
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -80,7 +80,7 @@ export default function CTAFooterSection() {
           No credit card. No setup time. Just make something.
         </p>
         <div className="flex items-center justify-center gap-4">
-          <a className="btn-primary flex items-center gap-2" href={WEB_APP_URL}>
+          <a className="btn-primary flex items-center gap-2" href={getWebAppUrl()}>
             Get Started Free
             <ArrowRight className="w-4 h-4" />
           </a>

@@ -2,7 +2,7 @@ import { useRef, useLayoutEffect } from 'react';
 import { gsap } from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import { ArrowRight, Images } from 'lucide-react';
-import { WEB_APP_URL } from '../lib/urls';
+import { getWebAppUrl } from '../lib/urls';
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -163,7 +163,7 @@ export default function PortraitSection() {
 
           {/* CTA Row */}
           <div ref={ctaRef} className="flex items-center gap-4">
-            <a className="btn-primary flex items-center gap-2" href={WEB_APP_URL}>
+            <a className="btn-primary flex items-center gap-2" href={getWebAppUrl()}>
               Start Creating
               <ArrowRight className="w-4 h-4" />
             </a>

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Menu, X } from 'lucide-react';
-import { WEB_APP_URL } from '../lib/urls';
+import { getWebAppUrl } from '../lib/urls';
 
 const navLinks = [
   { label: 'Features', href: '#features' },
@@ -53,12 +53,12 @@ export default function Navigation() {
             {/* Desktop CTA */}
             <div className="hidden md:flex items-center gap-4">
               <a 
-                href={WEB_APP_URL}
+                href={getWebAppUrl()}
                 className="text-secondary-light text-sm hover:text-primary-light transition-colors"
               >
                 Sign In
               </a>
-              <a className="btn-primary text-sm py-2 px-4" href={WEB_APP_URL}>
+              <a className="btn-primary text-sm py-2 px-4" href={getWebAppUrl()}>
                 Get Started
               </a>
             </div>
@@ -89,7 +89,7 @@ export default function Navigation() {
               </a>
             ))}
             <a 
-              href={WEB_APP_URL}
+              href={getWebAppUrl()}
               className="text-secondary-light text-xl"
               onClick={() => setIsMobileMenuOpen(false)}
             >
@@ -97,7 +97,7 @@ export default function Navigation() {
             </a>
             <a
               className="btn-primary mt-4"
-              href={WEB_APP_URL}
+              href={getWebAppUrl()}
               onClick={() => setIsMobileMenuOpen(false)}
             >
               Get Started

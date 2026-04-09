@@ -2,7 +2,7 @@ import { useRef, useLayoutEffect } from 'react';
 import { gsap } from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import { Sparkles, Play } from 'lucide-react';
-import { WEB_APP_URL } from '../lib/urls';
+import { getWebAppUrl } from '../lib/urls';
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -173,7 +173,7 @@ export default function ParticleSection() {
         className="absolute flex items-center gap-4"
         style={{ left: '50%', top: '76%', transform: 'translateX(-50%)' }}
       >
-        <a className="btn-primary flex items-center gap-2" href={WEB_APP_URL}>
+        <a className="btn-primary flex items-center gap-2" href={getWebAppUrl()}>
           <Sparkles className="w-4 h-4" />
           See Effects
         </a>
