@@ -338,21 +338,45 @@ const USE_DEV_MOCKS = import.meta.env.DEV && import.meta.env.VITE_USE_API_MOCK =
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "";
 const WS_BASE_URL = import.meta.env.VITE_WS_BASE_URL ?? "";
 
+function inferRuntimeApiBaseUrl(): string {
+  if (typeof window === "undefined") {
+    return "";
+  }
+
+  const hostname = window.location.hostname.toLowerCase();
+
+  if (hostname === "app.dosco.live") {
+    return "https://api.dosco.live";
+  }
+
+  return "";
+}
+
 export function resolveApiUrl(path: string): string {
   if (/^https?:\/\//.test(path)) {
     return path;
   }
 
-  if (!API_BASE_URL) {
+  const runtimeApiBaseUrl = inferRuntimeApiBaseUrl();
+  const effectiveApiBaseUrl = (API_BASE_URL || runtimeApiBaseUrl).replace(/\/$/, "");
+
+  if (!effectiveApiBaseUrl) {
     return path;
   }
 
-  return `${API_BASE_URL.replace(/\/$/, "")}${path}`;
+  return `${effectiveApiBaseUrl}${path}`;
 }
 
 export function resolveWebSocketUrl(path = "/ws"): string {
   if (WS_BASE_URL) {
     return `${WS_BASE_URL.replace(/\/$/, "")}${path}`;
+  }
+
+  const runtimeApiBaseUrl = inferRuntimeApiBaseUrl();
+  if (runtimeApiBaseUrl) {
+    const apiBaseUrl = new URL(runtimeApiBaseUrl);
+    const protocol = apiBaseUrl.protocol === "https:" ? "wss:" : "ws:";
+    return `${protocol}//${apiBaseUrl.host}${path}`;
   }
 
   if (typeof window !== "undefined") {
