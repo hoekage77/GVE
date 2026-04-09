@@ -1,11 +1,32 @@
 import { SignIn, SignUp } from '@clerk/clerk-react';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Link } from '@tanstack/react-router';
 import { Sparkles, ShieldCheck, TimerReset, GalleryHorizontalEnd } from 'lucide-react';
 import '../styles/auth.css';
 
 export default function AuthPage() {
   const [isSignUp, setIsSignUp] = useState(false);
+  const clerkAppearance = useMemo(
+    () => ({
+      elements: {
+        rootBox: 'auth-clerk-root',
+        cardBox: 'auth-clerk-card-box',
+        card: 'auth-clerk-card',
+        header: 'auth-clerk-header',
+        socialButtonsBlockButton: 'auth-clerk-social-button',
+        socialButtonsBlockButtonText: 'auth-clerk-social-button-text',
+        dividerLine: 'auth-clerk-divider-line',
+        dividerText: 'auth-clerk-divider-text',
+        formFieldLabel: 'auth-clerk-label',
+        formFieldInput: 'auth-clerk-input',
+        formButtonPrimary: 'auth-clerk-primary-button',
+        footerAction: 'auth-clerk-footer-action',
+        footerActionText: 'auth-clerk-footer-text',
+        footerActionLink: 'auth-clerk-footer-link',
+      },
+    }),
+    [],
+  );
 
   return (
     <div className="auth-page">
@@ -77,17 +98,21 @@ export default function AuthPage() {
           <div className="auth-form">
             {isSignUp ? (
               <SignUp 
+                key="auth-sign-up"
                 routing="path"
                 path="/auth"
                 signInUrl="/auth"
                 redirectUrl="/chat"
+                appearance={clerkAppearance}
               />
             ) : (
               <SignIn 
+                key="auth-sign-in"
                 routing="path"
                 path="/auth"
                 signUpUrl="/auth"
                 redirectUrl="/chat"
+                appearance={clerkAppearance}
               />
             )}
           </div>

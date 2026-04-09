@@ -6,7 +6,6 @@ import "./index.css";
 import "./styles/layout.css";
 import "./styles/chat.css";
 import "./styles/auth.css";
-import "./styles/landing.css";
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>

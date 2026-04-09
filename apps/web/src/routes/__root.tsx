@@ -1,6 +1,5 @@
 import { createRouter, RootRoute, Route, Outlet } from '@tanstack/react-router';
 import { ClerkProvider, SignedIn, SignedOut } from '@clerk/clerk-react';
-import LandingPage from '../pages/Landing';
 import AuthPage from '../pages/Auth';
 import ChatPage from '../pages/Chat';
 import ProfilePage from '../pages/Profile';
@@ -18,11 +17,26 @@ const rootRoute = new RootRoute({
   ),
 });
 
-// Landing page (public)
-const landingRoute = new Route({
+function ProtectedAppShell() {
+  return (
+    <>
+      <SignedIn>
+        <MainLayout>
+          <ChatPage />
+        </MainLayout>
+      </SignedIn>
+      <SignedOut>
+        <RedirectToAuth />
+      </SignedOut>
+    </>
+  );
+}
+
+// App home (protected)
+const homeRoute = new Route({
   getParentRoute: () => rootRoute,
   path: '/',
-  component: LandingPage,
+  component: ProtectedAppShell,
 });
 
 // Auth page (public)
@@ -36,18 +50,7 @@ const authRoute = new Route({
 const chatRoute = new Route({
   getParentRoute: () => rootRoute,
   path: '/chat',
-  component: () => (
-    <>
-      <SignedIn>
-        <MainLayout>
-          <ChatPage />
-        </MainLayout>
-      </SignedIn>
-      <SignedOut>
-        <RedirectToAuth />
-      </SignedOut>
-    </>
-  ),
+  component: ProtectedAppShell,
 });
 
 // Profile page (protected)
@@ -75,7 +78,7 @@ function RedirectToAuth() {
 
 // Create the route tree
 const routeTree = rootRoute.addChildren([
-  landingRoute,
+  homeRoute,
   authRoute,
   chatRoute,
   profileRoute,

@@ -9,8 +9,10 @@
   --auth-warm: #f97316;
 
   min-height: 100vh;
+  padding: clamp(0.8rem, 2.2vw, 1.5rem);
   display: grid;
-  grid-template-columns: 1.06fr 0.94fr;
+  grid-template-columns: minmax(0, 1.04fr) minmax(360px, 0.96fr);
+  gap: clamp(0.9rem, 2vw, 1.6rem);
   background:
     radial-gradient(circle at 15% 15%, rgba(15, 118, 110, 0.15), transparent 38%),
     radial-gradient(circle at 82% 10%, rgba(249, 115, 22, 0.14), transparent 34%),
@@ -20,10 +22,10 @@
 }
 
 .auth-stage {
-  padding: clamp(1.3rem, 3vw, 2.4rem);
+  padding: clamp(1.1rem, 2.3vw, 1.9rem);
   display: grid;
   align-content: center;
-  gap: 1.2rem;
+  gap: 1.1rem;
 }
 
 .auth-stage-header {
@@ -105,6 +107,7 @@
   padding: clamp(1.1rem, 2.3vw, 2rem);
   display: grid;
   align-content: center;
+  justify-items: center;
 }
 
 .auth-card {
@@ -114,6 +117,7 @@
   padding: clamp(1rem, 2vw, 1.4rem);
   box-shadow: 0 28px 54px -42px rgba(15, 23, 42, 0.95);
   backdrop-filter: blur(10px);
+  width: min(100%, 34rem);
 }
 
 .auth-card-header {
@@ -169,6 +173,107 @@
   color: #eafffc;
 }
 
+.auth-form {
+  margin-top: 0.3rem;
+  border-top: 1px solid rgba(15, 34, 63, 0.08);
+  padding-top: 0.85rem;
+}
+
+.auth-form .auth-clerk-root,
+.auth-form .auth-clerk-card-box,
+.auth-form .auth-clerk-card,
+.auth-form .cl-rootBox,
+.auth-form .cl-cardBox,
+.auth-form .cl-card {
+  width: 100% !important;
+  min-width: 0 !important;
+}
+
+.auth-form .auth-clerk-card-box,
+.auth-form .cl-cardBox {
+  box-shadow: none !important;
+}
+
+.auth-form .auth-clerk-card,
+.auth-form .cl-card {
+  border: none !important;
+  box-shadow: none !important;
+  background: transparent !important;
+  padding: 0 !important;
+}
+
+.auth-form .auth-clerk-header,
+.auth-form .cl-header {
+  display: none !important;
+}
+
+.auth-form .auth-clerk-social-button,
+.auth-form .cl-socialButtonsBlockButton {
+  border-radius: 0.58rem !important;
+  min-height: 2.55rem !important;
+}
+
+.auth-form .auth-clerk-label,
+.auth-form .cl-formFieldLabel {
+  color: #334155 !important;
+  font-size: 0.84rem !important;
+  font-weight: 600 !important;
+}
+
+.auth-form .auth-clerk-input,
+.auth-form .cl-input {
+  border-radius: 0.58rem !important;
+  border-color: rgba(15, 34, 63, 0.18) !important;
+  min-height: 2.55rem !important;
+  box-shadow: none !important;
+}
+
+.auth-form .auth-clerk-input:focus,
+.auth-form .cl-input:focus {
+  border-color: rgba(15, 118, 110, 0.56) !important;
+  box-shadow: 0 0 0 3px rgba(15, 118, 110, 0.14) !important;
+}
+
+.auth-form .auth-clerk-primary-button,
+.auth-form .cl-formButtonPrimary {
+  border-radius: 0.68rem !important;
+  background: linear-gradient(135deg, var(--auth-accent) 0%, var(--auth-accent-strong) 100%) !important;
+  font-weight: 600 !important;
+  min-height: 2.55rem !important;
+}
+
+.auth-form .auth-clerk-primary-button:hover,
+.auth-form .cl-formButtonPrimary:hover {
+  filter: brightness(1.04);
+}
+
+.auth-form .auth-clerk-divider-line,
+.auth-form .cl-dividerLine {
+  background: rgba(15, 34, 63, 0.14) !important;
+}
+
+.auth-form .auth-clerk-divider-text,
+.auth-form .cl-dividerText {
+  color: #64748b !important;
+  font-size: 0.78rem !important;
+}
+
+.auth-form .auth-clerk-footer-text,
+.auth-form .cl-footerActionText {
+  color: #64748b !important;
+}
+
+.auth-form .auth-clerk-footer-link,
+.auth-form .cl-footerActionLink {
+  color: #0f766e !important;
+  font-weight: 600 !important;
+}
+
+.auth-form .auth-clerk-footer-link:hover,
+.auth-form .cl-footerActionLink:hover {
+  color: #115e59 !important;
+}
+
 .auth-footer {
   margin: 0.9rem 0 0;
   font-size: 0.76rem;
@@ -176,46 +281,8 @@
   text-align: center;
 }
 
-.cl-card {
-  box-shadow: none !important;
-  border: none !important;
-  background: transparent !important;
-  padding: 0 !important;
-}
-
-.cl-header {
-  display: none !important;
-}
-
-.cl-footer {
+.auth-form .cl-footer {
   margin-top: 0.4rem !important;
-}
-
-.cl-formButtonPrimary {
-  border-radius: 0.68rem !important;
-  background: linear-gradient(135deg, var(--auth-accent) 0%, var(--auth-accent-strong) 100%) !important;
-  font-weight: 600 !important;
-  min-height: 2.55rem !important;
-}
-
-.cl-formButtonPrimary:hover {
-  filter: brightness(1.04);
-}
-
-.cl-input {
-  border-radius: 0.58rem !important;
-  border-color: rgba(15, 34, 63, 0.18) !important;
-  min-height: 2.55rem !important;
-  box-shadow: none !important;
-}
-
-.cl-input:focus {
-  border-color: rgba(15, 118, 110, 0.56) !important;
-  box-shadow: 0 0 0 3px rgba(15, 118, 110, 0.14) !important;
-}
-
-.cl-socialButtonsBlockButton {
-  border-radius: 0.58rem !important;
 }
 
 @media (max-width: 980px) {
