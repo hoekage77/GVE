@@ -35,3 +35,6 @@ __pycache__/
 Thumbs.db
 .vscode/
 .idea/
+patch_chat_container.py
+apps/.data/media
+patch_workspace_panel.py
