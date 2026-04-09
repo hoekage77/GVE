@@ -1,10 +1,8 @@
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
-import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
+import { Highlight, themes } from 'prism-react-renderer';
 import { Copy, Check } from 'lucide-react';
 import { useState } from 'react';
-import type { ComponentPropsWithoutRef } from 'react';
 
 interface MarkdownRendererProps {
   content: string;
@@ -88,13 +86,33 @@ function CodeBlock({ inline, className, children }: CodeBlockProps) {
           {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
         </button>
       </div>
-      <SyntaxHighlighter
-        style={vscDarkPlus}
-        language={language}
-        PreTag="div"
+      <Highlight
+        theme={themes.vsDark}
+        code={code}
+        language={language as any}
       >
-        {code}
-      </SyntaxHighlighter>
+        {({ className, style, tokens, getLineProps, getTokenProps }) => (
+          <pre
+            className={className}
+            style={{
+              ...style,
+              margin: 0,
+              padding: '0.85rem',
+              borderRadius: '0 0 0.5rem 0.5rem',
+              fontSize: '0.85rem',
+              overflowX: 'auto'
+            }}
+          >
+            {tokens.map((line, lineIndex) => (
+              <div key={lineIndex} {...getLineProps({ line })}>
+                {line.map((token, tokenIndex) => (
+                  <span key={tokenIndex} {...getTokenProps({ token })} />
+                ))}
+              </div>
+            ))}
+          </pre>
+        )}
+      </Highlight>
     </div>
   );
 }
