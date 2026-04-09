@@ -7,7 +7,6 @@ module.exports = {
       cwd: path.join(__dirname, ".."),
       script: "server/index.js",
       interpreter: "node",
-      node_args: "--env-file=server/.env",
       exec_mode: "fork",
       instances: 1,
       autorestart: true,

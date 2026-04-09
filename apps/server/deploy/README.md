@@ -18,7 +18,7 @@ cd /home/kage/visualruntime
 npm install
 ```
 
-Copy the example env file and fill in the secrets:
+Copy the example env file and fill in the secrets. The backend loader reads `apps/server/server/.env` automatically:
 
 ```bash
 cp apps/server/deploy/droplet.env.example apps/server/server/.env

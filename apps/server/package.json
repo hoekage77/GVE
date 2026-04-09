@@ -4,8 +4,8 @@
   "type": "module",
   "main": "server/index.js",
   "scripts": {
-    "dev": "node --env-file=server/.env --watch server/index.js",
-    "start": "node --env-file=server/.env server/index.js",
+    "dev": "node --watch server/index.js",
+    "start": "node server/index.js",
     "test:sandbox:direct": "node ./scripts/sandbox-direct-test.mjs",
     "test:sandbox:runtime": "node ./scripts/sandbox-runtime-test.mjs",
     "test:sandbox:soak": "node ./scripts/sandbox-soak-test.mjs",
