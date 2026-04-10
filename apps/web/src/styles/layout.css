@@ -501,6 +501,7 @@
   min-width: 0;
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 0.55rem;
 }
 
@@ -544,16 +545,19 @@
 
 .terranet-workspace-dock__version-select-wrap {
   min-width: 0;
-  display: grid;
-  gap: 0.18rem;
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.42rem;
 }
 
 .terranet-workspace-dock__version-label {
-  font-size: 0.62rem;
-  letter-spacing: 0.05em;
+  font-size: 0.64rem;
+  letter-spacing: 0.03em;
   text-transform: uppercase;
   color: #64748b;
   font-weight: 700;
+  white-space: nowrap;
 }
 
 .terranet-workspace-dock__version-select-shell {
@@ -2276,7 +2280,7 @@
   .terranet-workspace-dock__history-controls {
     width: 100%;
     display: grid;
-    grid-template-columns: repeat(6, minmax(0, 1fr));
+    grid-template-columns: repeat(4, minmax(0, 1fr));
     gap: 0.24rem;
   }
 
@@ -2294,6 +2298,8 @@
 
   .terranet-workspace-dock__version-select-wrap {
     width: 100%;
+    margin-left: 0;
+    justify-content: space-between;
   }
 
   .terranet-workspace-dock__version-label {

@@ -171,7 +171,7 @@ export default function ParticleSection() {
       <div 
         ref={ctaRef}
         className="landing-section-cta landing-section-cta--particle absolute flex items-center gap-4"
-        style={{ left: '50%', top: '76%', transform: 'translateX(-50%)' }}
+        style={{ left: '50%', top: '72%', transform: 'translateX(-50%)' }}
       >
         <a className="btn-primary flex items-center gap-2" href={getWebAppUrl()}>
           <Sparkles className="w-4 h-4" />

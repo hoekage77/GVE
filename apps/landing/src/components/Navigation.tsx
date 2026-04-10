@@ -3,8 +3,8 @@ import { Menu, X } from 'lucide-react';
 import { getWebAppUrl } from '../lib/urls';
 
 const navLinks = [
-  { label: 'Features', href: '#features' },
-  { label: 'Pricing', href: '#pricing' },
+  { label: 'Workflow', href: '#workflow' },
+  { label: 'Capabilities', href: '#features' },
   { label: 'Docs', href: '#docs' },
 ];
 
@@ -56,10 +56,10 @@ export default function Navigation() {
                 href={getWebAppUrl()}
                 className="text-secondary-light text-sm hover:text-primary-light transition-colors"
               >
-                Sign In
+                Open App
               </a>
               <a className="btn-primary text-sm py-2 px-4" href={getWebAppUrl()}>
-                Get Started
+                Open Workspace
               </a>
             </div>
 
@@ -93,14 +93,14 @@ export default function Navigation() {
               className="text-secondary-light text-xl"
               onClick={() => setIsMobileMenuOpen(false)}
             >
-              Sign In
+              Open App
             </a>
             <a
               className="btn-primary mt-4"
               href={getWebAppUrl()}
               onClick={() => setIsMobileMenuOpen(false)}
             >
-              Get Started
+              Open Workspace
             </a>
           </div>
         </div>

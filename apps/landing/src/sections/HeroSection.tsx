@@ -1,7 +1,7 @@
 import { useRef, useLayoutEffect } from 'react';
 import { gsap } from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
-import { ArrowRight, Play } from 'lucide-react';
+import { ArrowRight, BookOpen } from 'lucide-react';
 import { getWebAppUrl } from '../lib/urls';
 
 gsap.registerPlugin(ScrollTrigger);
@@ -112,24 +112,26 @@ export default function HeroSection() {
         className="micro-label text-secondary-light absolute"
         style={{ left: '50%', top: '10%', transform: 'translateX(-50%)' }}
       >
-        GenVis
+        Visual Runtime Platform
       </span>
 
       {/* Orb - center */}
-      <img 
-        ref={orbRef}
-        src="/hero_orb.jpg" 
-        alt="Generative Orb"
-        className="absolute animate-float"
-        style={{ 
-          left: '50%', 
-          top: '52%', 
-          transform: 'translate(-50%, -50%)',
-          width: 'min(56vw, 72vh)',
-          maxWidth: '700px',
-          borderRadius: '50%'
-        }}
-      />
+      <div
+        className="absolute inset-0 flex items-center justify-center pointer-events-none"
+        aria-hidden="true"
+      >
+        <img 
+          ref={orbRef}
+          src="/hero_orb.jpg" 
+          alt="Generative Orb"
+          className="hero-orb-image"
+          style={{
+            width: 'min(56vw, 72vh)',
+            maxWidth: '700px',
+            borderRadius: '50%'
+          }}
+        />
+      </div>
 
       {/* Headline - center over orb */}
       <h1 
@@ -137,37 +139,37 @@ export default function HeroSection() {
         className="font-display font-bold text-primary-light headline-hero uppercase absolute text-center"
         style={{ 
           left: '50%', 
-          top: '52%', 
+          top: '38%', 
           transform: 'translate(-50%, -50%)',
           textShadow: '0 4px 30px rgba(0,0,0,0.5)'
         }}
       >
-        Design the<br />Impossible
+        Prompt to<br />Runtime Visuals
       </h1>
 
       {/* Subheadline */}
       <p 
         ref={subheadlineRef}
         className="body-text text-secondary-light absolute text-center max-w-xl"
-        style={{ left: '50%', top: '68%', transform: 'translateX(-50%)' }}
+        style={{ left: '50%', top: '62%', transform: 'translateX(-50%)' }}
       >
-        A real-time creative system for 3D worlds, motion, and interactive media.
+        Turn chat instructions into executable Three.js, p5.js, D3, Anime.js, and Manim outputs with live preview, rerun, and version history.
       </p>
 
       {/* CTA Row */}
       <div 
         ref={ctaRef}
         className="landing-section-cta landing-section-cta--hero absolute flex items-center gap-4"
-        style={{ left: '50%', top: '78%', transform: 'translateX(-50%)' }}
+        style={{ left: '50%', top: '72%', transform: 'translateX(-50%)' }}
       >
         <a className="btn-primary flex items-center gap-2" href={getWebAppUrl()}>
-          Start Building
+          Open Workspace
           <ArrowRight className="w-4 h-4" />
         </a>
-        <button className="btn-secondary flex items-center gap-2">
-          <Play className="w-4 h-4" />
-          View Demo
-        </button>
+        <a className="btn-secondary flex items-center gap-2" href="#docs">
+          <BookOpen className="w-4 h-4" />
+          Platform Docs
+        </a>
       </div>
 
       {/* Bottom left paragraph */}
@@ -176,7 +178,7 @@ export default function HeroSection() {
         className="landing-edge-note text-sm text-secondary-light absolute"
         style={{ left: '6vw', top: '82%', maxWidth: '28vw' }}
       >
-        Build scenes, materials, and motion logic—then publish anywhere.
+        One flow: parse intent, select skill, generate code, validate, execute, and sync scene state.
       </p>
 
       {/* Bottom right paragraph */}
@@ -185,7 +187,7 @@ export default function HeroSection() {
         className="landing-edge-note text-sm text-secondary-light absolute"
         style={{ left: '72vw', top: '82%', maxWidth: '22vw' }}
       >
-        Used by teams who ship campaigns, products, and experiences.
+        Built for interactive tutoring visuals, product storytelling, and rapid concept demos.
       </p>
     </section>
   );

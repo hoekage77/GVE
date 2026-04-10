@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Play, Copy, Check, RotateCcw, FileCode } from "lucide-react";
+import { Play, Copy, Check, RotateCcw, FileCode, Loader2 } from "lucide-react";
 import { Highlight, themes } from "prism-react-renderer";
 import { cn } from "../lib/utils";
 
@@ -9,9 +9,10 @@ interface CodeEditorProps {
   readOnly?: boolean;
   onChange?: (code: string) => void;
   onRun?: (code: string) => void;
+  runPending?: boolean;
 }
 
-export default function CodeEditor({ code, skill, readOnly, onChange, onRun }: CodeEditorProps) {
+export default function CodeEditor({ code, skill, readOnly, onChange, onRun, runPending = false }: CodeEditorProps) {
   const [localCode, setLocalCode] = useState(code ?? "");
   const [copied, setCopied] = useState(false);
   const [isDirty, setIsDirty] = useState(false);
@@ -46,6 +47,10 @@ export default function CodeEditor({ code, skill, readOnly, onChange, onRun }: C
   };
 
   const handleRun = () => {
+    if (runPending) {
+      return;
+    }
+
     onRun?.(localCode);
   };
 
@@ -87,10 +92,10 @@ export default function CodeEditor({ code, skill, readOnly, onChange, onRun }: C
             type="button"
             className="code-editor-btn code-editor-btn--primary"
             onClick={handleRun}
-            disabled={!localCode.trim()}
+            disabled={runPending || !localCode.trim()}
           >
-            <Play className="h-4 w-4" />
-            Run
+            {runPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Play className="h-4 w-4" />}
+            {runPending ? "Running..." : "Run"}
           </button>
         </div>
       </div>

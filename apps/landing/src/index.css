@@ -261,6 +261,11 @@
   overflow: hidden;
 }
 
+.hero-orb-image {
+  display: block;
+  object-fit: cover;
+}
+
 /* Scrollbar styling */
 ::-webkit-scrollbar {
   width: 8px;

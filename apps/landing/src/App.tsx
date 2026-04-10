@@ -29,7 +29,9 @@ function App() {
         <HeroSection />
 
         {/* Section 2: Wireframe World - pin: true */}
-        <WireframeSection />
+        <div id="workflow">
+          <WireframeSection />
+        </div>
 
         {/* Section 3: Particle Field - pin: true */}
         <ParticleSection />
@@ -54,7 +56,9 @@ function App() {
         <TestimonialsSection />
 
         {/* Section 9: CTA + Footer - pin: false */}
-        <CTAFooterSection />
+        <div id="docs">
+          <CTAFooterSection />
+        </div>
       </main>
     </div>
   );

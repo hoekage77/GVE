@@ -1,4 +1,4 @@
-import { Eye, Code, X, Undo2, Redo2, SkipBack, SkipForward, ChevronsLeft, ChevronsRight } from 'lucide-react';
+import { Eye, Code, X, Undo2, Redo2, SkipBack, SkipForward } from 'lucide-react';
 import SceneViewer from '../SceneViewer';
 import CodeEditor from '../CodeEditor';
 import MediaViewer from './MediaViewer';
@@ -21,6 +21,7 @@ export default function WorkspacePanel() {
   } = useChatStore();
 
   const [versionError, setVersionError] = useState<string | null>(null);
+  const [isRerunning, setIsRerunning] = useState(false);
 
   const currentSession = useMemo(() =>
     sessions.find(s => s.sessionId === activeSessionId),
@@ -56,9 +57,6 @@ export default function WorkspacePanel() {
     return versions.findIndex((version) => (version as { isCurrent?: boolean }).isCurrent);
   }, [currentSession, versions]);
 
-  const hasVersionHistory = (currentSession?.versionCount ?? versions.length) > 1;
-  const canPreviousVersion = computedVersionPointer > 0;
-  const canNextVersion = computedVersionPointer >= 0 && computedVersionPointer < versions.length - 1;
   const isMediaScene = currentOutputKind === 'media'
     || (typeof currentMediaType === 'string' && currentMediaType.startsWith('video/'))
     || currentSkill === 'manim';
@@ -80,15 +78,24 @@ export default function WorkspacePanel() {
   };
 
   const handleRunScene = async (code: string) => {
-    setVersionError(null);
-
-    const rerunSucceeded = await rerunScene({ codeOverride: code });
-    if (!rerunSucceeded) {
-      setVersionError('Unable to rerun the selected scene.');
+    if (isRerunning) {
       return;
     }
 
-    openPanel('preview');
+    setVersionError(null);
+    setIsRerunning(true);
+
+    try {
+      const rerunSucceeded = await rerunScene({ codeOverride: code });
+      if (!rerunSucceeded) {
+        setVersionError('Unable to rerun the selected scene.');
+        return;
+      }
+
+      openPanel('preview');
+    } finally {
+      setIsRerunning(false);
+    }
   };
 
   if (!panelOpen || !panelView) return null;
@@ -133,16 +140,6 @@ export default function WorkspacePanel() {
             <button
               type="button"
               className="terranet-workspace-dock__history-btn"
-              onClick={() => void sendSceneCommand('version.previous')}
-              disabled={!hasVersionHistory || !canPreviousVersion}
-              title="Previous version"
-              aria-label="Previous version"
-            >
-              <ChevronsLeft className="h-4 w-4" />
-            </button>
-            <button
-              type="button"
-              className="terranet-workspace-dock__history-btn"
               onClick={() => void sendSceneCommand('artifact.previous')}
               disabled={!currentSession?.canPreviousArtifact}
               title="Previous artifact"
@@ -179,16 +176,6 @@ export default function WorkspacePanel() {
               aria-label="Next artifact"
             >
               <SkipForward className="h-4 w-4" />
-            </button>
-            <button
-              type="button"
-              className="terranet-workspace-dock__history-btn"
-              onClick={() => void sendSceneCommand('version.next')}
-              disabled={!hasVersionHistory || !canNextVersion}
-              title="Next version"
-              aria-label="Next version"
-            >
-              <ChevronsRight className="h-4 w-4" />
             </button>
           </div>
 
@@ -244,6 +231,7 @@ export default function WorkspacePanel() {
             code={currentCode}
             skill={currentSkill}
             readOnly={true}
+            runPending={isRerunning}
             onRun={(code) => {
               void handleRunScene(code);
             }}

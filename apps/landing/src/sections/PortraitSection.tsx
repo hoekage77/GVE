@@ -160,19 +160,23 @@ export default function PortraitSection() {
           >
             Great work needs a great stage. Publish scenes as links, embeds, or high-res exports—and let your audience step inside.
           </p>
-
-          {/* CTA Row */}
-          <div ref={ctaRef} className="landing-inline-cta flex items-center gap-4">
-            <a className="btn-primary flex items-center gap-2" href={getWebAppUrl()}>
-              Start Creating
-              <ArrowRight className="w-4 h-4" />
-            </a>
-            <button className="btn-secondary flex items-center gap-2">
-              <Images className="w-4 h-4" />
-              View Gallery
-            </button>
-          </div>
         </div>
+      </div>
+
+      {/* CTA Row */}
+      <div
+        ref={ctaRef}
+        className="landing-section-cta absolute z-10 flex items-center gap-4"
+        style={{ left: '50%', top: '72%', transform: 'translateX(-50%)' }}
+      >
+        <a className="btn-primary flex items-center gap-2" href={getWebAppUrl()}>
+          Start Creating
+          <ArrowRight className="w-4 h-4" />
+        </a>
+        <button className="btn-secondary flex items-center gap-2">
+          <Images className="w-4 h-4" />
+          View Gallery
+        </button>
       </div>
     </section>
   );
