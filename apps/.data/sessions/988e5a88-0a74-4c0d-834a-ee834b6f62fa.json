@@ -1,7 +1,7 @@
 {
   "sessionId": "988e5a88-0a74-4c0d-834a-ee834b6f62fa",
   "createdAt": "2026-04-09T01:04:58.359Z",
-  "updatedAt": "2026-04-09T01:05:25.487Z",
+  "updatedAt": "2026-04-12T04:57:48.929Z",
   "status": "idle",
   "currentScene": {
     "sessionId": "988e5a88-0a74-4c0d-834a-ee834b6f62fa",
@@ -32,7 +32,7 @@
       "artifactId": "artifact-1775696725474-16f10f",
       "title": "scene-failed-1775696725467",
       "createdAt": "2026-04-09T01:05:25.474Z",
-      "updatedAt": "2026-04-09T01:05:25.474Z",
+      "updatedAt": "2026-04-12T04:47:47.386Z",
       "revisions": [
         {
           "sessionId": "988e5a88-0a74-4c0d-834a-ee834b6f62fa",
@@ -57,6 +57,30 @@
           "version": 1,
           "artifactId": "artifact-1775696725474-16f10f",
           "artifactVersion": 1
+        },
+        {
+          "sessionId": "988e5a88-0a74-4c0d-834a-ee834b6f62fa",
+          "sceneId": "scene-failed-1775696725467",
+          "code": "from manim import *\n\nclass GVERichScene(MovingCameraScene):\n    def construct(self):\n        self.camera.frame.set_height(8)\n        title = Title(\"Activation Functions\")\n        self.play(Write(title))\n        self.wait()\n\n        sigmoid_text = Text(\"Sigmoid Function\")\n        sigmoid_graph = FunctionGraph(\n            lambda x: 1 / (1 + np.exp(-x)),\n            x_min=-10,\n            x_max=10,\n            color=BLUE,\n        )\n        self.play(\n            title.animate.shift(UP * 2),\n            FadeIn(sigmoid_text, shift=UP),\n            Create(sigmoid_graph),\n        )\n        self.wait()\n        self.play(\n            self.camera.frame.animate.shift(DOWN * 2).set_width(10),\n            run_time=2,\n        )\n        self.wait()\n\n        relu_text = Text(\"ReLU Function\")\n        relu_graph = FunctionGraph(\n            lambda x: np.maximum(0, x),\n            x_min=-10,\n            x_max=10,\n            color=GREEN,\n        )\n        self.play(\n            sigmoid_text.animate.shift(LEFT * 3),\n            sigmoid_graph.animate.shift(LEFT * 3),\n            FadeIn(relu_text, shift=RIGHT * 2),\n            Create(relu_graph, run_time=2),\n        )\n        self.wait()\n\n        tanh_text = Text(\"Tanh Function\")\n        tanh_graph = FunctionGraph(\n            lambda x: np.tanh(x),\n            x_min=-10,\n            x_max=10,\n            color=RED,\n        )\n        self.play(\n            sigmoid_text.animate.shift(UP * 2 + LEFT * 3),\n            sigmoid_graph.animate.shift(UP * 2 + LEFT * 3),\n            relu_text.animate.shift(UP * 2 + RIGHT * 2),\n            relu_graph.animate.shift(UP * 2 + RIGHT * 2),\n            FadeIn(tanh_text, shift=DOWN * 2),\n            Create(tanh_graph, run_time=2),\n        )\n        self.wait()\n        self.play(\n            self.camera.frame.animate.set_height(6).set_width(12),\n            run_time=2,\n        )\n        self.wait()\n\n        softmax_text = Text(\"Softmax Function\")\n        softmax_graph = FunctionGraph(\n            lambda x: np.exp(x) / np.sum(np.exp(x)),\n            x_min=-10,\n            x_max=10,\n            color=YELLOW,\n        )\n        self.play(\n            sigmoid_text.animate.shift(LEFT * 4 + UP * 2),\n            sigmoid_graph.animate.shift(LEFT * 4 + UP * 2),\n            relu_text.animate.shift(LEFT * 2 + UP * 2),\n            relu_graph.animate.shift(LEFT * 2 + UP * 2),\n            tanh_text.animate.shift(RIGHT * 2 + UP * 2),\n            tanh_graph.animate.shift(RIGHT * 2 + UP * 2),\n            FadeIn(softmax_text, shift=DOWN * 2 + RIGHT * 3),\n            Create(softmax_graph, run_time=2),\n        )\n        self.wait()\n\n        self.play(\n            self.camera.frame.animate.set_height(8),\n            run_time=2,\n        )\n        self.wait(2)",
+          "previewUrl": "about:blank",
+          "skill": "manim",
+          "outputKind": "media",
+          "mediaType": "video/mp4",
+          "mediaUrl": null,
+          "mediaArtifactId": null,
+          "mediaDurationMs": null,
+          "mediaFps": 60,
+          "mediaResolution": "1920x1080",
+          "mediaBytes": null,
+          "explanation": "Reran current scene. Reran current scene without modifying code. Runtime failed: Mobject.__init__() got an unexpected keyword argument 'x_min' Re-executed existing scene code.",
+          "messageId": null,
+          "source": "modify",
+          "createdAt": "2026-04-09T01:05:25.474Z",
+          "updatedAt": "2026-04-12T04:47:47.386Z",
+          "versionId": "version-2",
+          "version": 2,
+          "artifactId": "artifact-1775696725474-16f10f",
+          "artifactVersion": 2
         }
       ],
       "revisionPointer": 0
@@ -87,6 +111,30 @@
       "version": 1,
       "artifactId": "artifact-1775696725474-16f10f",
       "artifactVersion": 1
+    },
+    {
+      "sessionId": "988e5a88-0a74-4c0d-834a-ee834b6f62fa",
+      "sceneId": "scene-failed-1775696725467",
+      "code": "from manim import *\n\nclass GVERichScene(MovingCameraScene):\n    def construct(self):\n        self.camera.frame.set_height(8)\n        title = Title(\"Activation Functions\")\n        self.play(Write(title))\n        self.wait()\n\n        sigmoid_text = Text(\"Sigmoid Function\")\n        sigmoid_graph = FunctionGraph(\n            lambda x: 1 / (1 + np.exp(-x)),\n            x_min=-10,\n            x_max=10,\n            color=BLUE,\n        )\n        self.play(\n            title.animate.shift(UP * 2),\n            FadeIn(sigmoid_text, shift=UP),\n            Create(sigmoid_graph),\n        )\n        self.wait()\n        self.play(\n            self.camera.frame.animate.shift(DOWN * 2).set_width(10),\n            run_time=2,\n        )\n        self.wait()\n\n        relu_text = Text(\"ReLU Function\")\n        relu_graph = FunctionGraph(\n            lambda x: np.maximum(0, x),\n            x_min=-10,\n            x_max=10,\n            color=GREEN,\n        )\n        self.play(\n            sigmoid_text.animate.shift(LEFT * 3),\n            sigmoid_graph.animate.shift(LEFT * 3),\n            FadeIn(relu_text, shift=RIGHT * 2),\n            Create(relu_graph, run_time=2),\n        )\n        self.wait()\n\n        tanh_text = Text(\"Tanh Function\")\n        tanh_graph = FunctionGraph(\n            lambda x: np.tanh(x),\n            x_min=-10,\n            x_max=10,\n            color=RED,\n        )\n        self.play(\n            sigmoid_text.animate.shift(UP * 2 + LEFT * 3),\n            sigmoid_graph.animate.shift(UP * 2 + LEFT * 3),\n            relu_text.animate.shift(UP * 2 + RIGHT * 2),\n            relu_graph.animate.shift(UP * 2 + RIGHT * 2),\n            FadeIn(tanh_text, shift=DOWN * 2),\n            Create(tanh_graph, run_time=2),\n        )\n        self.wait()\n        self.play(\n            self.camera.frame.animate.set_height(6).set_width(12),\n            run_time=2,\n        )\n        self.wait()\n\n        softmax_text = Text(\"Softmax Function\")\n        softmax_graph = FunctionGraph(\n            lambda x: np.exp(x) / np.sum(np.exp(x)),\n            x_min=-10,\n            x_max=10,\n            color=YELLOW,\n        )\n        self.play(\n            sigmoid_text.animate.shift(LEFT * 4 + UP * 2),\n            sigmoid_graph.animate.shift(LEFT * 4 + UP * 2),\n            relu_text.animate.shift(LEFT * 2 + UP * 2),\n            relu_graph.animate.shift(LEFT * 2 + UP * 2),\n            tanh_text.animate.shift(RIGHT * 2 + UP * 2),\n            tanh_graph.animate.shift(RIGHT * 2 + UP * 2),\n            FadeIn(softmax_text, shift=DOWN * 2 + RIGHT * 3),\n            Create(softmax_graph, run_time=2),\n        )\n        self.wait()\n\n        self.play(\n            self.camera.frame.animate.set_height(8),\n            run_time=2,\n        )\n        self.wait(2)",
+      "previewUrl": "about:blank",
+      "skill": "manim",
+      "outputKind": "media",
+      "mediaType": "video/mp4",
+      "mediaUrl": null,
+      "mediaArtifactId": null,
+      "mediaDurationMs": null,
+      "mediaFps": 60,
+      "mediaResolution": "1920x1080",
+      "mediaBytes": null,
+      "explanation": "Reran current scene. Reran current scene without modifying code. Runtime failed: Mobject.__init__() got an unexpected keyword argument 'x_min' Re-executed existing scene code.",
+      "messageId": null,
+      "source": "modify",
+      "createdAt": "2026-04-09T01:05:25.474Z",
+      "updatedAt": "2026-04-12T04:47:47.386Z",
+      "versionId": "version-2",
+      "version": 2,
+      "artifactId": "artifact-1775696725474-16f10f",
+      "artifactVersion": 2
     }
   ],
   "sceneVersions": [
@@ -113,6 +161,30 @@
       "version": 1,
       "artifactId": "artifact-1775696725474-16f10f",
       "artifactVersion": 1
+    },
+    {
+      "sessionId": "988e5a88-0a74-4c0d-834a-ee834b6f62fa",
+      "sceneId": "scene-failed-1775696725467",
+      "code": "from manim import *\n\nclass GVERichScene(MovingCameraScene):\n    def construct(self):\n        self.camera.frame.set_height(8)\n        title = Title(\"Activation Functions\")\n        self.play(Write(title))\n        self.wait()\n\n        sigmoid_text = Text(\"Sigmoid Function\")\n        sigmoid_graph = FunctionGraph(\n            lambda x: 1 / (1 + np.exp(-x)),\n            x_min=-10,\n            x_max=10,\n            color=BLUE,\n        )\n        self.play(\n            title.animate.shift(UP * 2),\n            FadeIn(sigmoid_text, shift=UP),\n            Create(sigmoid_graph),\n        )\n        self.wait()\n        self.play(\n            self.camera.frame.animate.shift(DOWN * 2).set_width(10),\n            run_time=2,\n        )\n        self.wait()\n\n        relu_text = Text(\"ReLU Function\")\n        relu_graph = FunctionGraph(\n            lambda x: np.maximum(0, x),\n            x_min=-10,\n            x_max=10,\n            color=GREEN,\n        )\n        self.play(\n            sigmoid_text.animate.shift(LEFT * 3),\n            sigmoid_graph.animate.shift(LEFT * 3),\n            FadeIn(relu_text, shift=RIGHT * 2),\n            Create(relu_graph, run_time=2),\n        )\n        self.wait()\n\n        tanh_text = Text(\"Tanh Function\")\n        tanh_graph = FunctionGraph(\n            lambda x: np.tanh(x),\n            x_min=-10,\n            x_max=10,\n            color=RED,\n        )\n        self.play(\n            sigmoid_text.animate.shift(UP * 2 + LEFT * 3),\n            sigmoid_graph.animate.shift(UP * 2 + LEFT * 3),\n            relu_text.animate.shift(UP * 2 + RIGHT * 2),\n            relu_graph.animate.shift(UP * 2 + RIGHT * 2),\n            FadeIn(tanh_text, shift=DOWN * 2),\n            Create(tanh_graph, run_time=2),\n        )\n        self.wait()\n        self.play(\n            self.camera.frame.animate.set_height(6).set_width(12),\n            run_time=2,\n        )\n        self.wait()\n\n        softmax_text = Text(\"Softmax Function\")\n        softmax_graph = FunctionGraph(\n            lambda x: np.exp(x) / np.sum(np.exp(x)),\n            x_min=-10,\n            x_max=10,\n            color=YELLOW,\n        )\n        self.play(\n            sigmoid_text.animate.shift(LEFT * 4 + UP * 2),\n            sigmoid_graph.animate.shift(LEFT * 4 + UP * 2),\n            relu_text.animate.shift(LEFT * 2 + UP * 2),\n            relu_graph.animate.shift(LEFT * 2 + UP * 2),\n            tanh_text.animate.shift(RIGHT * 2 + UP * 2),\n            tanh_graph.animate.shift(RIGHT * 2 + UP * 2),\n            FadeIn(softmax_text, shift=DOWN * 2 + RIGHT * 3),\n            Create(softmax_graph, run_time=2),\n        )\n        self.wait()\n\n        self.play(\n            self.camera.frame.animate.set_height(8),\n            run_time=2,\n        )\n        self.wait(2)",
+      "previewUrl": "about:blank",
+      "skill": "manim",
+      "outputKind": "media",
+      "mediaType": "video/mp4",
+      "mediaUrl": null,
+      "mediaArtifactId": null,
+      "mediaDurationMs": null,
+      "mediaFps": 60,
+      "mediaResolution": "1920x1080",
+      "mediaBytes": null,
+      "explanation": "Reran current scene. Reran current scene without modifying code. Runtime failed: Mobject.__init__() got an unexpected keyword argument 'x_min' Re-executed existing scene code.",
+      "messageId": null,
+      "source": "modify",
+      "createdAt": "2026-04-09T01:05:25.474Z",
+      "updatedAt": "2026-04-12T04:47:47.386Z",
+      "versionId": "version-2",
+      "version": 2,
+      "artifactId": "artifact-1775696725474-16f10f",
+      "artifactVersion": 2
     }
   ],
   "versionPointer": 0,

@@ -93,6 +93,7 @@
 
 .app-body--chat {
   position: relative;
+  isolation: isolate;
 }
 
 .app-body--chat .app-main {
@@ -101,6 +102,69 @@
   max-width: none;
   margin: 0;
   padding: 0;
+}
+
+.chat-sidebar-launcher {
+  appearance: none;
+  position: fixed;
+  top: calc(env(safe-area-inset-top) + 0.62rem);
+  left: 0.62rem;
+  width: 2.1rem;
+  height: 2.1rem;
+  border: 1px solid #dbe3ef;
+  border-radius: 0.62rem;
+  background: rgba(255, 255, 255, 0.92);
+  color: #475569;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  z-index: 160;
+  backdrop-filter: blur(8px);
+  box-shadow: 0 10px 22px -16px rgba(15, 23, 42, 0.55);
+  transition: background 0.2s, border-color 0.2s, color 0.2s;
+}
+
+.chat-sidebar-launcher:hover {
+  background: #ffffff;
+  border-color: #cbd5e1;
+  color: #334155;
+}
+
+.chat-sidebar-overlay {
+  appearance: none;
+  position: fixed;
+  inset: 0;
+  border: none;
+  background: rgba(2, 6, 23, 0.46);
+  backdrop-filter: blur(2px);
+  z-index: 161;
+}
+
+.chat-sidebar-sheet {
+  position: fixed;
+  inset: 0 auto 0 0;
+  width: min(82vw, 320px);
+  z-index: 162;
+  animation: terranet-chat-sidebar-in 220ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.app-body--chat .chat-sidebar-sheet .app-sidebar {
+  width: 100%;
+  height: 100%;
+  border-right: 1px solid #e2e8f0;
+  box-shadow: 0 28px 56px -36px rgba(15, 23, 42, 0.72);
+}
+
+@keyframes terranet-chat-sidebar-in {
+  from {
+    transform: translateX(-16px);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
 }
 
 /* Sidebar */
@@ -458,8 +522,10 @@
   flex-direction: column;
   overflow: hidden;
   border-left: 1px solid #e2e8f0;
-  background: #f8fafc;
-  animation: terranet-workspace-slide-in 300ms cubic-bezier(0.4, 0, 0.2, 1);
+  background:
+    radial-gradient(120% 100% at 100% 0%, rgba(219, 234, 254, 0.8) 0%, rgba(241, 245, 249, 0) 55%),
+    linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%);
+  animation: terranet-workspace-slide-in 320ms cubic-bezier(0.24, 0.8, 0.22, 1);
 }
 
 .terranet-workspace-backdrop {
@@ -473,6 +539,26 @@
   background: linear-gradient(180deg, #f8fbff 0%, #f3f7fd 100%);
   box-shadow: 0 14px 30px -26px rgba(15, 23, 42, 0.28);
   margin: clamp(0.2rem, 0.55vw, 0.45rem) 0;
+}
+
+.terranet-workspace-dock--preview {
+  border-left: 1px solid #2f2f35;
+  background: linear-gradient(180deg, #18181b 0%, #202024 100%);
+}
+
+.terranet-workspace-dock--preview .terranet-workspace-dock__header {
+  border-bottom-color: #2f2f35;
+  background: color-mix(in srgb, #18181b 92%, #0f0f12 8%);
+}
+
+.terranet-workspace-dock--preview .terranet-workspace-dock__body {
+  background: #18181b;
+}
+
+.terranet-workspace-dock--preview .terranet-workspace-dock__presentation-surface {
+  border-color: #3f3f46;
+  background: linear-gradient(180deg, #111113 0%, #18181b 100%);
+  box-shadow: none;
 }
 
 @keyframes terranet-workspace-slide-in {
@@ -489,32 +575,102 @@
 .terranet-workspace-dock__header {
   flex-shrink: 0;
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
-  gap: 0.6rem;
-  padding: 0.7rem 0.75rem;
+  gap: 0.8rem;
+  padding: 0.78rem 0.82rem;
   border-bottom: 1px solid #e2e8f0;
-  background: #ffffff;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.96) 0%, rgba(248, 250, 252, 0.92) 100%);
+  backdrop-filter: blur(10px);
 }
 
 .terranet-workspace-dock__header-left {
   min-width: 0;
   display: flex;
+  align-items: flex-start;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.terranet-workspace-dock__header--minimal {
+  align-items: center;
+  gap: 0.72rem;
+  padding-top: 0.62rem;
+  padding-bottom: 0.62rem;
+}
+
+.terranet-workspace-dock__header-left--minimal {
+  align-items: center;
+  flex-direction: row;
+  gap: 0;
+}
+
+.terranet-workspace-dock__header-right {
+  min-width: 0;
+  margin-left: auto;
+  display: inline-flex;
   align-items: center;
   flex-wrap: wrap;
-  gap: 0.55rem;
+  justify-content: flex-end;
+  gap: 0.48rem;
+}
+
+.terranet-workspace-dock__header-right--minimal {
+  flex-wrap: nowrap;
+  gap: 0.18rem;
+}
+
+.terranet-workspace-dock__title-cluster {
+  min-width: 0;
+  display: grid;
+  gap: 0.22rem;
+}
+
+.terranet-workspace-dock__title {
+  margin: 0;
+  color: #0f172a;
+  font-size: 0.84rem;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+}
+
+.terranet-workspace-dock__subtitle {
+  margin: 0;
+  max-width: 34ch;
+  color: #64748b;
+  font-size: 0.69rem;
+  font-weight: 600;
+  line-height: 1.25;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.34rem;
 }
 
 .terranet-workspace-dock__tabs {
   display: inline-flex;
   align-items: center;
-  gap: 0.35rem;
+  gap: 0.3rem;
+  padding: 0.22rem;
+  border: 1px solid #dbe3ef;
+  border-radius: 999px;
+  background: #ffffff;
+}
+
+.terranet-workspace-dock__tabs--minimal {
+  gap: 0.16rem;
+  border: none;
+  padding: 0.16rem;
+  background: #e5e7eb;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.75);
 }
 
 .terranet-workspace-dock__history-controls {
   display: inline-flex;
   align-items: center;
-  gap: 0.32rem;
+  gap: 0.28rem;
 }
 
 .terranet-workspace-dock__history-btn {
@@ -522,9 +678,9 @@
   border: 1px solid #dbe3ef;
   background: #ffffff;
   color: #64748b;
-  width: 1.95rem;
-  height: 1.95rem;
-  border-radius: 0.55rem;
+  width: 1.86rem;
+  height: 1.86rem;
+  border-radius: 0.58rem;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -543,12 +699,37 @@
   cursor: not-allowed;
 }
 
+.terranet-workspace-dock__history-controls--minimal {
+  flex-wrap: nowrap;
+  gap: 0.08rem;
+  margin-right: 0.08rem;
+}
+
+.terranet-workspace-dock__history-btn--minimal {
+  border: none;
+  background: transparent;
+  width: 1.82rem;
+  height: 1.82rem;
+  border-radius: 0.52rem;
+  color: inherit;
+}
+
+.terranet-workspace-dock__history-btn--minimal:hover {
+  background: rgba(39, 39, 42, 0.9);
+  border-color: transparent;
+  color: #f4f4f5;
+}
+
+.terranet-workspace-dock__history-btn--minimal:disabled {
+  opacity: 0.42;
+  cursor: not-allowed;
+}
+
 .terranet-workspace-dock__version-select-wrap {
   min-width: 0;
-  margin-left: auto;
   display: inline-flex;
   align-items: center;
-  gap: 0.42rem;
+  gap: 0.34rem;
 }
 
 .terranet-workspace-dock__version-label {
@@ -561,10 +742,10 @@
 }
 
 .terranet-workspace-dock__version-select-shell {
-  min-width: 13rem;
-  max-width: 17rem;
+  min-width: 12.2rem;
+  max-width: 16rem;
   border: 1px solid #dbe3ef;
-  border-radius: 0.6rem;
+  border-radius: 0.7rem;
   background: #ffffff;
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
@@ -578,9 +759,9 @@
   border: none;
   background: transparent;
   color: #1e293b;
-  font-size: 0.74rem;
+  font-size: 0.73rem;
   font-weight: 600;
-  padding: 0.34rem 0;
+  padding: 0.36rem 0;
   min-width: 0;
   cursor: pointer;
 }
@@ -607,7 +788,7 @@
   border: 1px solid #dbe3ef;
   background: #ffffff;
   color: #64748b;
-  border-radius: 0.55rem;
+  border-radius: 999px;
   display: inline-flex;
   align-items: center;
   gap: 0.3rem;
@@ -616,9 +797,25 @@
 }
 
 .terranet-workspace-dock__tabs button {
-  padding: 0.36rem 0.58rem;
-  font-size: 0.75rem;
+  padding: 0.33rem 0.68rem;
+  font-size: 0.71rem;
+  font-weight: 700;
+}
+
+.terranet-workspace-dock__tabs--minimal button {
+  border: none;
+  border-radius: 999px;
+  background: transparent;
+  color: #111827;
+  padding: 0.34rem 1.02rem;
+  font-size: 0.72rem;
   font-weight: 600;
+}
+
+.terranet-workspace-dock__tabs--minimal button:hover {
+  background: rgba(255, 255, 255, 0.55);
+  border-color: transparent;
+  color: #0f172a;
 }
 
 .terranet-workspace-dock__tabs button:hover,
@@ -629,15 +826,97 @@
 }
 
 .terranet-workspace-dock__tabs button.active {
-  background: #eff6ff;
-  border-color: #bfdbfe;
-  color: #1d4ed8;
+  background: linear-gradient(180deg, #1d4ed8 0%, #1e40af 100%);
+  border-color: #1d4ed8;
+  color: #dbeafe;
+  box-shadow: 0 8px 16px -12px rgba(29, 78, 216, 0.8);
+}
+
+.terranet-workspace-dock__tabs--minimal button.active {
+  background: #ffffff;
+  border-color: transparent;
+  color: #111827;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.16);
 }
 
 .terranet-workspace-dock__close {
-  width: 2rem;
-  height: 2rem;
+  width: 1.92rem;
+  height: 1.92rem;
   justify-content: center;
+}
+
+.terranet-workspace-dock__icon-action,
+.terranet-workspace-dock__close--minimal {
+  appearance: none;
+  border: none;
+  background: transparent;
+  color: #111827;
+  width: 1.92rem;
+  height: 1.92rem;
+  border-radius: 0.56rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background 0.2s, color 0.2s, opacity 0.2s;
+}
+
+.terranet-workspace-dock__icon-action:hover,
+.terranet-workspace-dock__close--minimal:hover {
+  background: #edf2f8;
+  border-color: transparent;
+  color: #0f172a;
+}
+
+.terranet-workspace-dock__icon-action:disabled {
+  opacity: 0.46;
+  cursor: not-allowed;
+}
+
+.terranet-workspace-dock__icon-action .is-spinning {
+  animation: terranet-dock-icon-spin 0.9s linear infinite;
+}
+
+.terranet-workspace-dock--preview .terranet-workspace-dock__tabs--minimal {
+  background: #27272a;
+  box-shadow: inset 0 0 0 1px #3f3f46;
+}
+
+.terranet-workspace-dock--preview .terranet-workspace-dock__tabs--minimal button {
+  color: #d4d4d8;
+}
+
+.terranet-workspace-dock--preview .terranet-workspace-dock__tabs--minimal button:hover {
+  background: #323237;
+  color: #f4f4f5;
+}
+
+.terranet-workspace-dock--preview .terranet-workspace-dock__tabs--minimal button.active {
+  background: #f4f4f5;
+  color: #18181b;
+  box-shadow: none;
+}
+
+.terranet-workspace-dock--preview .terranet-workspace-dock__history-btn--minimal,
+.terranet-workspace-dock--preview .terranet-workspace-dock__icon-action,
+.terranet-workspace-dock--preview .terranet-workspace-dock__close--minimal {
+  color: #a1a1aa;
+}
+
+.terranet-workspace-dock--preview .terranet-workspace-dock__history-btn--minimal:hover,
+.terranet-workspace-dock--preview .terranet-workspace-dock__icon-action:hover,
+.terranet-workspace-dock--preview .terranet-workspace-dock__close--minimal:hover {
+  background: #27272a;
+  color: #f4f4f5;
+}
+
+@keyframes terranet-dock-icon-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 @media (max-width: 1180px) {
@@ -651,7 +930,7 @@
   flex: 1;
   min-height: 0;
   overflow: hidden;
-  padding: 0.45rem;
+  padding: 0.48rem;
 }
 
 .terranet-workspace-dock--tasks .terranet-workspace-dock__header {
@@ -1020,16 +1299,26 @@
 .terranet-workspace-dock__preview-stack {
   height: 100%;
   min-height: 0;
-  display: grid;
-  grid-template-rows: minmax(0, 1fr) auto;
-  gap: 0.65rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.52rem;
+}
+
+.terranet-workspace-dock__presentation-surface {
+  flex: 1;
+  min-height: 0;
+  border-radius: 1.05rem;
+  border: 1px solid #dbe3ef;
+  background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+  box-shadow: 0 18px 44px -36px rgba(15, 23, 42, 0.58);
+  overflow: hidden;
 }
 
 .terranet-media-viewer {
   min-height: 0;
   height: 100%;
-  border: 1px solid #dbe3ef;
-  border-radius: 1rem;
+  border: none;
+  border-radius: 0;
   background: radial-gradient(circle at top, #111827 0%, #0f172a 62%, #020617 100%);
   overflow: hidden;
   display: flex;
@@ -1096,7 +1385,7 @@
 .terranet-media-viewer__topbar,
 .terranet-media-viewer__bottombar {
   pointer-events: auto;
-  padding: 0.78rem;
+  padding: 0.84rem;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -1182,7 +1471,7 @@
 .terranet-media-viewer__status-copy {
   margin: 0;
   color: #cbd5e1;
-  font-size: 0.72rem;
+  font-size: 0.7rem;
   line-height: 1.35;
 }
 
@@ -1231,7 +1520,7 @@
   display: flex;
   justify-content: flex-end;
   gap: 0.4rem;
-  margin-top: 0.42rem;
+  margin-top: 0.5rem;
 }
 
 .terranet-media-viewer__action {
@@ -1616,60 +1905,273 @@
 
 /* Welcome Screen */
 .chat-welcome {
+  --welcome-bg: linear-gradient(180deg, #f8fafc 0%, #eef4ff 100%);
+  --welcome-border: #cfdcf0;
+  --welcome-text: #0f172a;
+  --welcome-muted: #475569;
+  --welcome-card-bg: rgba(255, 255, 255, 0.74);
+  --welcome-card-shadow: 0 36px 72px -56px rgba(15, 23, 42, 0.7);
+  --welcome-glow-a: rgba(37, 99, 235, 0.25);
+  --welcome-glow-b: rgba(14, 165, 233, 0.2);
+  --welcome-accent: #2563eb;
+  --welcome-accent-strong: #0284c7;
+  --welcome-chip-bg: #eff6ff;
+  --welcome-chip-border: #bfdbfe;
+  --welcome-tile-bg: rgba(255, 255, 255, 0.9);
+  --welcome-tile-border: #d7e1f0;
+
   flex: 1;
+  min-height: 0;
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 2rem;
+  padding: clamp(1rem, 3.4vw, 2.6rem);
   position: relative;
+  overflow: hidden;
+  isolation: isolate;
+  background: var(--welcome-bg);
+}
+
+.chat-welcome::before,
+.chat-welcome::after {
+  content: "";
+  position: absolute;
+  pointer-events: none;
+  border-radius: 999px;
+  filter: blur(6px);
+  z-index: 0;
+}
+
+.chat-welcome::before {
+  width: min(58vw, 580px);
+  height: min(58vw, 580px);
+  top: -22%;
+  left: -14%;
+  background: radial-gradient(circle, var(--welcome-glow-a) 0%, rgba(37, 99, 235, 0) 72%);
+}
+
+.chat-welcome::after {
+  width: min(52vw, 520px);
+  height: min(52vw, 520px);
+  right: -14%;
+  bottom: -28%;
+  background: radial-gradient(circle, var(--welcome-glow-b) 0%, rgba(14, 165, 233, 0) 72%);
 }
 
 .chat-welcome-content {
-  text-align: center;
-  max-width: 400px;
+  width: min(100%, 940px);
   position: relative;
   z-index: 2;
+  display: grid;
+  gap: 1rem;
+  padding: clamp(1.1rem, 2.8vw, 2rem);
+  border-radius: 1.45rem;
+  border: 1px solid var(--welcome-border);
+  background: var(--welcome-card-bg);
+  box-shadow: var(--welcome-card-shadow);
+  backdrop-filter: blur(16px);
+}
+
+.chat-welcome-eyebrow {
+  width: fit-content;
+  border-radius: 999px;
+  border: 1px solid var(--welcome-chip-border);
+  background: var(--welcome-chip-bg);
+  color: var(--welcome-accent);
+  font-size: 0.71rem;
+  line-height: 1;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 0.36rem 0.66rem;
 }
 
 .chat-welcome-content h1 {
-  font-size: 2.5rem;
+  margin: 0;
+  color: var(--welcome-text);
+  font-size: clamp(1.8rem, 4.2vw, 3rem);
+  line-height: 1.06;
+  letter-spacing: -0.02em;
   font-weight: 800;
-  margin: 0 0 0.5rem 0;
-  background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
 }
 
 .chat-welcome-content p {
-  font-size: 1.1rem;
-  color: #64748b;
-  margin: 0 0 2rem 0;
+  margin: 0;
+  max-width: 66ch;
+  font-size: clamp(0.92rem, 1.5vw, 1.03rem);
+  line-height: 1.55;
+  color: var(--welcome-muted);
 }
 
 .chat-welcome-error {
-  margin: -0.5rem 0 1.2rem;
+  margin: -0.25rem 0 0;
   color: #b91c1c;
-  font-size: 0.88rem;
+  font-size: 0.84rem;
+  font-weight: 600;
+}
+
+.chat-welcome-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.58rem;
 }
 
 .chat-welcome-button {
   display: inline-flex;
   align-items: center;
   gap: 0.5rem;
-  padding: 0.875rem 1.5rem;
-  background: #3b82f6;
+  border: 1px solid transparent;
+  padding: 0.76rem 1.18rem;
+  border-radius: 0.78rem;
+  background: linear-gradient(135deg, var(--welcome-accent) 0%, var(--welcome-accent-strong) 100%);
   color: white;
-  border: none;
-  border-radius: 0.75rem;
-  font-weight: 600;
+  font-size: 0.86rem;
+  font-weight: 700;
   cursor: pointer;
-  transition: all 0.2s;
+  box-shadow: 0 16px 28px -22px rgba(14, 116, 144, 0.9);
+  transition: transform 180ms ease, filter 180ms ease, box-shadow 180ms ease;
+}
+
+.chat-welcome-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.64;
+  box-shadow: none;
 }
 
 .chat-welcome-button:hover {
-  background: #2563eb;
   transform: translateY(-1px);
+  filter: brightness(1.03);
+}
+
+.chat-welcome-button--ghost {
+  border-color: var(--welcome-chip-border);
+  background: var(--welcome-chip-bg);
+  color: var(--welcome-text);
+  box-shadow: none;
+}
+
+.chat-welcome-button--ghost:hover {
+  filter: none;
+  background: color-mix(in srgb, var(--welcome-chip-bg) 72%, #ffffff 28%);
+}
+
+.chat-welcome-capabilities {
+  margin-top: 0.3rem;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.55rem;
+}
+
+.chat-welcome-capability {
+  border: 1px solid var(--welcome-tile-border);
+  background: var(--welcome-tile-bg);
+  border-radius: 0.85rem;
+  padding: 0.7rem 0.76rem;
+  display: grid;
+  gap: 0.24rem;
+}
+
+.chat-welcome-capability h3 {
+  margin: 0;
+  color: var(--welcome-text);
+  font-size: 0.79rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+}
+
+.chat-welcome-capability p {
+  margin: 0;
+  color: var(--welcome-muted);
+  font-size: 0.73rem;
+  line-height: 1.35;
+}
+
+.chat-welcome-starters {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.55rem;
+}
+
+.chat-welcome-starter {
+  text-align: left;
+  appearance: none;
+  border: 1px solid var(--welcome-tile-border);
+  background: var(--welcome-tile-bg);
+  border-radius: 0.85rem;
+  padding: 0.72rem 0.76rem;
+  display: grid;
+  gap: 0.24rem;
+  cursor: pointer;
+  transition: border-color 160ms ease, transform 160ms ease, background 160ms ease;
+}
+
+.chat-welcome-starter:hover {
+  border-color: color-mix(in srgb, var(--welcome-accent) 54%, var(--welcome-tile-border) 46%);
+  transform: translateY(-1px);
+  background: color-mix(in srgb, var(--welcome-tile-bg) 78%, var(--welcome-chip-bg) 22%);
+}
+
+.chat-welcome-starter:disabled {
+  cursor: not-allowed;
+  opacity: 0.65;
+}
+
+.chat-welcome-starter__title {
+  color: var(--welcome-text);
+  font-size: 0.79rem;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.chat-welcome-starter__description {
+  color: var(--welcome-muted);
+  font-size: 0.72rem;
+  line-height: 1.32;
+}
+
+.chat-welcome--meta {
+  --welcome-bg: radial-gradient(circle at 15% 10%, rgba(14, 165, 233, 0.13), rgba(15, 23, 42, 0) 42%),
+    radial-gradient(circle at 85% 80%, rgba(56, 189, 248, 0.12), rgba(24, 24, 27, 0) 46%),
+    linear-gradient(180deg, #111318 0%, #161a22 100%);
+  --welcome-border: #2f3746;
+  --welcome-text: #edf3ff;
+  --welcome-muted: #a6b4cb;
+  --welcome-card-bg: rgba(18, 22, 30, 0.78);
+  --welcome-card-shadow: 0 40px 76px -58px rgba(2, 6, 23, 0.95);
+  --welcome-glow-a: rgba(56, 189, 248, 0.22);
+  --welcome-glow-b: rgba(14, 165, 233, 0.18);
+  --welcome-accent: #38bdf8;
+  --welcome-accent-strong: #0ea5e9;
+  --welcome-chip-bg: rgba(14, 165, 233, 0.12);
+  --welcome-chip-border: rgba(125, 211, 252, 0.34);
+  --welcome-tile-bg: rgba(17, 24, 39, 0.76);
+  --welcome-tile-border: #2e3a4d;
+}
+
+.chat-welcome--meta .chat-welcome-button {
+  color: #041021;
+}
+
+.chat-welcome--meta .chat-welcome-button--ghost {
+  color: #dbeafe;
+}
+
+@media (max-width: 980px) {
+  .chat-welcome-capabilities {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 780px) {
+  .chat-welcome-content {
+    padding: 1rem 0.92rem;
+  }
+
+  .chat-welcome-capabilities,
+  .chat-welcome-starters {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
 
 /* Profile Page */
@@ -1835,6 +2337,28 @@
     box-shadow: 0 24px 48px -34px rgba(2, 6, 23, 0.92);
   }
 
+  .chat-sidebar-launcher {
+    background: rgba(30, 41, 59, 0.94);
+    border-color: #334155;
+    color: #cbd5e1;
+  }
+
+  .chat-sidebar-launcher:hover {
+    background: #334155;
+    border-color: #475569;
+    color: #e2e8f0;
+  }
+
+  .chat-sidebar-overlay {
+    background: rgba(2, 6, 23, 0.68);
+  }
+
+  .app-body--chat .chat-sidebar-sheet .app-sidebar {
+    background: #1e293b;
+    border-color: #334155;
+    box-shadow: 0 28px 56px -34px rgba(2, 6, 23, 0.92);
+  }
+
   .app-sidebar-backdrop {
     background: rgba(2, 6, 23, 0.62);
   }
@@ -1936,7 +2460,20 @@
 
   .terranet-workspace-dock__header {
     border-color: #334155;
-    background: #1e293b;
+    background: linear-gradient(180deg, rgba(30, 41, 59, 0.96) 0%, rgba(15, 23, 42, 0.94) 100%);
+  }
+
+  .terranet-workspace-dock__title {
+    color: #e2e8f0;
+  }
+
+  .terranet-workspace-dock__subtitle {
+    color: #94a3b8;
+  }
+
+  .terranet-workspace-dock__tabs {
+    border-color: #334155;
+    background: #0f172a;
   }
 
   .terranet-workspace-dock__tabs button,
@@ -1972,13 +2509,57 @@
   }
 
   .terranet-workspace-dock__tabs button.active {
-    background: #1e3a8a;
+    background: linear-gradient(180deg, #1d4ed8 0%, #1e3a8a 100%);
     border-color: #1d4ed8;
-    color: #bfdbfe;
+    color: #dbeafe;
+  }
+
+  .terranet-workspace-dock__tabs--minimal {
+    background: #334155;
+    box-shadow: none;
+  }
+
+  .terranet-workspace-dock__tabs--minimal button {
+    border: none;
+    background: transparent;
+    color: #cbd5e1;
+  }
+
+  .terranet-workspace-dock__tabs--minimal button:hover {
+    background: rgba(148, 163, 184, 0.2);
+    border-color: transparent;
+    color: #e2e8f0;
+  }
+
+  .terranet-workspace-dock__tabs--minimal button.active {
+    background: #0f172a;
+    border-color: transparent;
+    color: #e2e8f0;
+    box-shadow: inset 0 0 0 1px #475569;
+  }
+
+  .terranet-workspace-dock__icon-action,
+  .terranet-workspace-dock__close--minimal {
+    border: none;
+    background: transparent;
+    color: #cbd5e1;
+  }
+
+  .terranet-workspace-dock__icon-action:hover,
+  .terranet-workspace-dock__close--minimal:hover {
+    background: #334155;
+    border-color: transparent;
+    color: #e2e8f0;
   }
 
   .terranet-workspace-dock__body {
     background: #0f172a;
+  }
+
+  .terranet-workspace-dock__presentation-surface {
+    border-color: #334155;
+    background: linear-gradient(180deg, #111827 0%, #0f172a 100%);
+    box-shadow: none;
   }
 
   .terranet-workspace-dock--tasks {
@@ -2181,6 +2762,30 @@
     z-index: 156;
   }
 
+  .app-body--chat .chat-sidebar-sheet {
+    width: min(84vw, 300px);
+  }
+
+  .app-body--chat .chat-sidebar-sheet .app-sidebar {
+    position: relative;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    width: 100%;
+    transform: none;
+    opacity: 1;
+    pointer-events: auto;
+    border-right: 1px solid #e2e8f0;
+    background: #ffffff;
+  }
+
+  .chat-sidebar-launcher {
+    top: calc(env(safe-area-inset-top) + 0.52rem);
+    left: 0.52rem;
+    width: 1.96rem;
+    height: 1.96rem;
+  }
+
   .app-body--chat .app-sidebar.app-sidebar--collapsed .app-sidebar-header {
     padding: 0;
     border-bottom: none;
@@ -2257,19 +2862,73 @@
     gap: 0.45rem;
   }
 
+  .terranet-workspace-dock__header-right {
+    width: 100%;
+    justify-content: flex-start;
+    gap: 0.42rem;
+  }
+
+  .terranet-workspace-dock__header--minimal {
+    align-items: center;
+    gap: 0.38rem;
+    padding: 0.42rem 0.52rem;
+  }
+
+  .terranet-workspace-dock__header-left--minimal {
+    width: auto;
+    flex: 1 1 auto;
+    flex-direction: row;
+    align-items: center;
+  }
+
+  .terranet-workspace-dock__header-right--minimal {
+    width: auto;
+    margin-left: auto;
+    justify-content: flex-end;
+    gap: 0.14rem;
+  }
+
+  .terranet-workspace-dock__title-cluster {
+    width: 100%;
+  }
+
+  .terranet-workspace-dock__subtitle {
+    max-width: none;
+  }
+
   .terranet-workspace-dock__tabs {
     width: 100%;
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 0.35rem;
+    border-radius: 0.72rem;
+    border: 1px solid #dbe3ef;
+    padding: 0.24rem;
+  }
+
+  .terranet-workspace-dock__tabs--minimal {
+    width: auto;
+    display: inline-flex;
+    grid-template-columns: none;
+    gap: 0.16rem;
+    padding: 0.16rem;
+    border-radius: 999px;
   }
 
   .terranet-workspace-dock__tabs button {
     width: 100%;
     justify-content: center;
-    padding: 0.34rem 0.38rem;
+    padding: 0.36rem 0.42rem;
     font-size: 0.69rem;
     gap: 0.22rem;
+    border-radius: 0.56rem;
+  }
+
+  .terranet-workspace-dock__tabs--minimal button {
+    width: auto;
+    padding: 0.3rem 0.72rem;
+    font-size: 0.67rem;
+    border-radius: 999px;
   }
 
   .terranet-workspace-dock__tabs button svg {
@@ -2284,11 +2943,25 @@
     gap: 0.24rem;
   }
 
+  .terranet-workspace-dock__history-controls--minimal {
+    width: auto;
+    display: inline-flex;
+    grid-template-columns: none;
+    gap: 0.08rem;
+  }
+
   .terranet-workspace-dock__history-btn {
     width: min(100%, 1.66rem);
     height: 1.66rem;
     justify-self: center;
     border-radius: 0.44rem;
+  }
+
+  .terranet-workspace-dock__history-btn--minimal {
+    width: 1.62rem;
+    height: 1.62rem;
+    justify-self: auto;
+    border-radius: 0.5rem;
   }
 
   .terranet-workspace-dock__history-btn svg {
@@ -2319,8 +2992,17 @@
 
   .terranet-workspace-dock__close {
     flex-shrink: 0;
+    margin-left: auto;
     width: 1.78rem;
     height: 1.78rem;
+    border-radius: 0.5rem;
+  }
+
+  .terranet-workspace-dock__icon-action,
+  .terranet-workspace-dock__close--minimal {
+    width: 1.74rem;
+    height: 1.74rem;
+    border-radius: 0.5rem;
   }
 
   .terranet-workspace-dock__close svg {

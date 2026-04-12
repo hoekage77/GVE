@@ -6,6 +6,25 @@ import { Send } from "lucide-react";
 import WorkspacePanel from "../workspace/WorkspacePanel";
 import TaskStatusBar from "./TaskStatusBar";
 
+const WELCOME_STARTERS = [
+  {
+    title: "Cinematic Intro Scene",
+    description: "Craft a moody camera fly-through with dramatic lighting and slow motion particles."
+  },
+  {
+    title: "Data Storyboard",
+    description: "Build a visual narrative that animates trends and annotations across a timeline."
+  },
+  {
+    title: "Interactive Geometry",
+    description: "Generate a responsive shape system with controls for scale, color, and movement."
+  },
+  {
+    title: "Brand Motion Loop",
+    description: "Design a short seamless loop with polished easing and layered depth."
+  }
+] as const;
+
 // Types for message grouping
 type ThoughtItem = {
   text: string;
@@ -18,9 +37,18 @@ type DisplayMessage = {
   thoughts: ThoughtItem[];
   sceneId?: string;
   promptContext?: string;
+  skill?: string;
+  assistantSource?: string;
+  assistantWarning?: boolean;
+  errorCode?: string;
 };
 
 type SceneVersionRecord = NonNullable<Session["currentScene"]>;
+type ChatContainerVariant = "legacy" | "meta";
+
+interface ChatContainerProps {
+  variant?: ChatContainerVariant;
+}
 
 const RUNTIME_DIAGNOSTIC_PATTERNS = [
   "Generated through LangGraph",
@@ -81,6 +109,10 @@ function getMetaValue(meta: string[] | undefined, prefix: string): string | null
 
   const parsed = matched.slice(prefix.length).trim();
   return parsed || null;
+}
+
+function hasMetaFlag(meta: string[] | undefined, value: string): boolean {
+  return Array.isArray(meta) && meta.includes(value);
 }
 
 function compactSceneName(sceneId: string | null | undefined): string {
@@ -192,6 +224,14 @@ function buildDisplayMessages(messages: SessionMessage[]): DisplayMessage[] {
 
     const sceneId = getMetaValue(message.meta, "scene:") ?? undefined;
     const requestId = getMetaValue(message.meta, "requestId:");
+    const skill = getMetaValue(message.meta, "skill:") ?? undefined;
+    const assistantSource = (
+      getMetaValue(message.meta, "assistantSource:")
+      ?? getMetaValue(message.meta, "source:")
+      ?? undefined
+    );
+    const assistantWarning = hasMetaFlag(message.meta, "assistantWarning:true");
+    const errorCode = getMetaValue(message.meta, "error:") ?? undefined;
 
     if (message.role === "user") {
       const prompt = String(message.content ?? "").trim();
@@ -204,7 +244,11 @@ function buildDisplayMessages(messages: SessionMessage[]): DisplayMessage[] {
       message,
       thoughts: [],
       sceneId,
-      promptContext: message.role === "assistant" ? latestUserPrompt : undefined
+      promptContext: message.role === "assistant" ? latestUserPrompt : undefined,
+      skill,
+      assistantSource,
+      assistantWarning,
+      errorCode
     });
 
     const currentIndex = displayMessages.length - 1;
@@ -299,7 +343,7 @@ function buildUniqueSceneIdVersionMap(sceneVersions: SceneVersionRecord[]): Map<
   return uniqueBySceneId;
 }
 
-export function ChatContainer() {
+export function ChatContainer({ variant = "legacy" }: ChatContainerProps) {
   const [isTasksExpanded, setIsTasksExpanded] = useState(false);
   const chatRef = useRef<HTMLDivElement>(null);
   const {
@@ -313,10 +357,13 @@ export function ChatContainer() {
     thinkingText,
     thinkingStep,
     composerValue,
+    composerImage,
     panelOpen,
     panelView,
     panelWidth,
     setComposerValue,
+    setComposerImage,
+    clearComposerImage,
     createNewSession,
     sendMessage,
     stopTurn,
@@ -428,6 +475,7 @@ export function ChatContainer() {
         isBootstrapping={isBootstrapping}
         error={sessionsError}
         onCreate={createNewSession}
+        variant={variant}
       />
     );
   }
@@ -438,7 +486,7 @@ export function ChatContainer() {
 
   return (
     <div
-      className={`chat-page-container terranet-chat-shell ${panelOpen ? "terranet-chat-shell--panel-open" : "terranet-chat-shell--panel-closed"}`}
+      className={`chat-page-container terranet-chat-shell ${variant === "meta" ? "terranet-chat-shell--meta" : ""} ${panelOpen ? "terranet-chat-shell--panel-open" : "terranet-chat-shell--panel-closed"}`}
       style={shellStyle}
     >
       {/* Chat Area */}
@@ -447,7 +495,7 @@ export function ChatContainer() {
         <div className="terranet-chat-scroll" ref={chatRef}>
           <div className="chat-messages">
             <div className="chat-container">
-              {displayMessages.map(({ message, thoughts, sceneId, promptContext }, index) => {
+              {displayMessages.map(({ message, thoughts, sceneId, promptContext, skill, assistantSource, assistantWarning, errorCode }, index) => {
                 const isLast = index === displayMessages.length - 1;
                 const thinkingDuration = getThinkingDuration(thoughts);
                 const matchedVersion = message.role === 'assistant'
@@ -463,6 +511,12 @@ export function ChatContainer() {
                   && resolvedVersionId
                   && activeSession?.currentScene?.versionId === resolvedVersionId
                 );
+                const isCodeActive = Boolean(
+                  panelOpen
+                  && panelView === 'code'
+                  && resolvedVersionId
+                  && activeSession?.currentScene?.versionId === resolvedVersionId
+                );
                 const displayContent = message.role === "assistant"
                   ? getAssistantDisplayContent(message.content, promptContext, resolvedSceneId)
                   : message.content;
@@ -473,6 +527,7 @@ export function ChatContainer() {
                       key={message.id}
                       content={message.content}
                       timestamp={Date.parse(message.createdAt)}
+                      variant={variant}
                     />
                   );
                 }
@@ -488,7 +543,19 @@ export function ChatContainer() {
                     thoughts={thoughts}
                     thinkingDuration={thinkingDuration}
                     sceneId={resolvedSceneId}
+                    skill={skill}
+                    assistantSource={assistantSource}
+                    assistantWarning={assistantWarning}
+                    errorCode={errorCode}
+                    meta={message.meta}
                     isPreviewActive={isPreviewActive}
+                    isCodeActive={isCodeActive}
+                    variant={variant}
+                    onSceneCode={resolvedVersionId
+                      ? () => {
+                          void handleMessageSceneAction('code', resolvedVersionId);
+                        }
+                      : undefined}
                     onScenePreview={resolvedVersionId
                       ? () => {
                           void handleMessageSceneAction('preview', resolvedVersionId);
@@ -505,6 +572,7 @@ export function ChatContainer() {
                   thinkingText={thinkingText}
                   thinkingStep={thinkingStep}
                   thoughts={[{ text: thinkingText ?? "", step: thinkingStep, timestamp: Date.now() }]}
+                  variant={variant}
                 />
               )}
             </div>
@@ -530,9 +598,13 @@ export function ChatContainer() {
           value={composerValue}
           onChange={setComposerValue}
           onSubmit={handleSend}
+          attachedImage={composerImage}
+          onImageSelected={setComposerImage}
+          onRemoveImage={clearComposerImage}
           isSending={isSending}
           onStop={handleStop}
-          placeholder="Message GenVis..."
+          variant={variant}
+          placeholder={variant === "meta" ? "Ask Meta AI..." : "Message GenVis..."}
         />
       </div>
 
@@ -545,11 +617,13 @@ export function ChatContainer() {
 function WelcomeScreen({
   onCreate,
   error,
-  isBootstrapping
+  isBootstrapping,
+  variant
 }: {
   onCreate: () => Promise<unknown>;
   error: string | null;
   isBootstrapping: boolean;
+  variant: ChatContainerVariant;
 }) {
   const [isCreating, setIsCreating] = useState(false);
 
@@ -567,16 +641,57 @@ function WelcomeScreen({
   };
 
   return (
-    <div className="chat-welcome">
+    <div className={`chat-welcome ${variant === "meta" ? "chat-welcome--meta" : ""}`}>
       <div className="chat-welcome-content">
-        <h1>GenVis</h1>
-        <p>Generative Visual Engine</p>
+        <div className="chat-welcome-eyebrow">GenVis Workspace</div>
+        <h1>Build visual ideas that feel production-ready</h1>
+        <p>
+          Move from prompt to polished output with live preview, editable code, and turn-by-turn progress in one focused canvas.
+        </p>
         {error && <p className="chat-welcome-error">{error}</p>}
         <div className="chat-welcome-actions">
           <button type="button" className="chat-welcome-button" onClick={() => void createNewChat()}>
             <Send className="h-4 w-4" />
             {isCreating || isBootstrapping ? "Preparing..." : "Start New Chat"}
           </button>
+          <button
+            type="button"
+            className="chat-welcome-button chat-welcome-button--ghost"
+            onClick={() => void createNewChat()}
+            disabled={isCreating || isBootstrapping}
+          >
+            Explore Templates
+          </button>
+        </div>
+
+        <div className="chat-welcome-capabilities" aria-label="Core capabilities">
+          <div className="chat-welcome-capability">
+            <h3>Live Preview</h3>
+            <p>See scene updates immediately while iterating.</p>
+          </div>
+          <div className="chat-welcome-capability">
+            <h3>Code + Prompt</h3>
+            <p>Refine visuals from both natural language and code edits.</p>
+          </div>
+          <div className="chat-welcome-capability">
+            <h3>Task Trace</h3>
+            <p>Track parse, build, generate, and sync steps in real time.</p>
+          </div>
+        </div>
+
+        <div className="chat-welcome-starters" aria-label="Starter ideas">
+          {WELCOME_STARTERS.map((starter) => (
+            <button
+              key={starter.title}
+              type="button"
+              className="chat-welcome-starter"
+              onClick={() => void createNewChat()}
+              disabled={isCreating || isBootstrapping}
+            >
+              <span className="chat-welcome-starter__title">{starter.title}</span>
+              <span className="chat-welcome-starter__description">{starter.description}</span>
+            </button>
+          ))}
         </div>
       </div>
     </div>

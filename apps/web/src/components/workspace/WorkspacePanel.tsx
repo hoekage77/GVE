@@ -1,4 +1,4 @@
-import { Eye, Code, X, Undo2, Redo2, SkipBack, SkipForward } from 'lucide-react';
+import { X, RotateCcw, SkipBack, SkipForward, Redo2, Undo2 } from 'lucide-react';
 import SceneViewer from '../SceneViewer';
 import CodeEditor from '../CodeEditor';
 import MediaViewer from './MediaViewer';
@@ -14,13 +14,12 @@ export default function WorkspacePanel() {
     closePanel,
     openPanel,
     sendSceneCommand,
-    selectSceneVersion,
     rerunScene,
     taskProgressBySession,
     isSending
   } = useChatStore();
 
-  const [versionError, setVersionError] = useState<string | null>(null);
+  const [panelError, setPanelError] = useState<string | null>(null);
   const [isRerunning, setIsRerunning] = useState(false);
 
   const currentSession = useMemo(() =>
@@ -36,44 +35,25 @@ export default function WorkspacePanel() {
   const currentMediaUrl = currentScene?.mediaUrl ?? currentScene?.previewUrl ?? null;
   const taskProgress = activeSessionId ? taskProgressBySession[activeSessionId] ?? null : null;
 
-  const versions = currentSession?.versions ?? [];
-  const computedVersionPointer = useMemo(() => {
-    if (!currentSession) {
-      return -1;
-    }
-
-    if (typeof currentSession.versionPointer === 'number') {
-      return currentSession.versionPointer;
-    }
-
-    const currentVersionId = currentSession.currentScene?.versionId ?? null;
-    if (currentVersionId) {
-      const byIdIndex = versions.findIndex((version) => version.versionId === currentVersionId);
-      if (byIdIndex >= 0) {
-        return byIdIndex;
-      }
-    }
-
-    return versions.findIndex((version) => (version as { isCurrent?: boolean }).isCurrent);
-  }, [currentSession, versions]);
-
   const isMediaScene = currentOutputKind === 'media'
     || (typeof currentMediaType === 'string' && currentMediaType.startsWith('video/'))
     || currentSkill === 'manim';
 
-  const activeVersionId = currentScene?.versionId
-    ?? (computedVersionPointer >= 0 ? versions[computedVersionPointer]?.versionId ?? '' : '');
-
-  const handleVersionSelect = async (nextVersionId: string) => {
-    if (!nextVersionId || nextVersionId === activeVersionId) {
+  const handleRefreshPreview = async () => {
+    if (isRerunning) {
       return;
     }
 
-    setVersionError(null);
+    setPanelError(null);
+    setIsRerunning(true);
 
-    const selected = await selectSceneVersion(nextVersionId);
-    if (!selected) {
-      setVersionError('Unable to load the selected visual version.');
+    try {
+      const rerunSucceeded = await rerunScene();
+      if (!rerunSucceeded) {
+        setPanelError('Unable to refresh the selected scene.');
+      }
+    } finally {
+      setIsRerunning(false);
     }
   };
 
@@ -82,13 +62,13 @@ export default function WorkspacePanel() {
       return;
     }
 
-    setVersionError(null);
+    setPanelError(null);
     setIsRerunning(true);
 
     try {
       const rerunSucceeded = await rerunScene({ codeOverride: code });
       if (!rerunSucceeded) {
-        setVersionError('Unable to rerun the selected scene.');
+        setPanelError('Unable to rerun the selected scene.');
         return;
       }
 
@@ -114,16 +94,15 @@ export default function WorkspacePanel() {
         onClick={closePanel}
       />
       <aside className={dockClassName}>
-      <div className="terranet-workspace-dock__header">
-        <div className="terranet-workspace-dock__header-left">
-          <div className="terranet-workspace-dock__tabs">
+      <div className="terranet-workspace-dock__header terranet-workspace-dock__header--minimal">
+        <div className="terranet-workspace-dock__header-left terranet-workspace-dock__header-left--minimal">
+          <div className="terranet-workspace-dock__tabs terranet-workspace-dock__tabs--minimal">
             <button
               type="button"
               className={panelView === 'preview' ? 'active' : ''}
               onClick={() => openPanel('preview')}
               aria-label="Show preview"
             >
-              <Eye className="h-4 w-4" />
               Preview
             </button>
             <button
@@ -132,99 +111,99 @@ export default function WorkspacePanel() {
               onClick={() => openPanel('code')}
               aria-label="Show code"
             >
-              <Code className="h-4 w-4" />
               Code
             </button>
           </div>
-          <div className="terranet-workspace-dock__history-controls">
-            <button
-              type="button"
-              className="terranet-workspace-dock__history-btn"
-              onClick={() => void sendSceneCommand('artifact.previous')}
-              disabled={!currentSession?.canPreviousArtifact}
-              title="Previous artifact"
-              aria-label="Previous artifact"
-            >
-              <SkipBack className="h-4 w-4" />
-            </button>
-            <button
-              type="button"
-              className="terranet-workspace-dock__history-btn"
-              onClick={() => void sendSceneCommand('undo')}
-              disabled={!currentSession?.canUndo}
-              title="Undo"
-              aria-label="Undo"
-            >
-              <Undo2 className="h-4 w-4" />
-            </button>
-            <button
-              type="button"
-              className="terranet-workspace-dock__history-btn"
-              onClick={() => void sendSceneCommand('redo')}
-              disabled={!currentSession?.canRedo}
-              title="Redo"
-              aria-label="Redo"
-            >
-              <Redo2 className="h-4 w-4" />
-            </button>
-            <button
-              type="button"
-              className="terranet-workspace-dock__history-btn"
-              onClick={() => void sendSceneCommand('artifact.next')}
-              disabled={!currentSession?.canNextArtifact}
-              title="Next artifact"
-              aria-label="Next artifact"
-            >
-              <SkipForward className="h-4 w-4" />
-            </button>
-          </div>
-
-          <div className="terranet-workspace-dock__version-select-wrap">
-            <span className="terranet-workspace-dock__version-label">
-              Visual Version
-            </span>
-            <div className="terranet-workspace-dock__version-select-shell">
-              <select
-                value={activeVersionId}
-                onChange={(event) => {
-                  void handleVersionSelect(event.target.value);
-                }}
-                disabled={versions.length <= 1 || isSending}
-                aria-label="Select visual version"
-              >
-                {versions.map((version) => (
-                  <option key={version.versionId} value={version.versionId}>
-                    {`v${version.version}${version.artifactVersion ? ` · r${version.artifactVersion}` : ''} · ${version.skill ?? 'scene'}`}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
         </div>
-        <button
-          type="button"
-          className="terranet-workspace-dock__close"
-          onClick={closePanel}
-          aria-label="Close panel"
-        >
-          <X className="h-4 w-4" />
-        </button>
+
+        <div className="terranet-workspace-dock__header-right terranet-workspace-dock__header-right--minimal">
+          {panelView === 'preview' && (
+            <>
+              <div className="terranet-workspace-dock__history-controls terranet-workspace-dock__history-controls--minimal">
+                <button
+                  type="button"
+                  className="terranet-workspace-dock__history-btn terranet-workspace-dock__history-btn--minimal"
+                  onClick={() => void sendSceneCommand('artifact.previous')}
+                  disabled={!currentSession?.canPreviousArtifact}
+                  title="Previous artifact"
+                  aria-label="Previous artifact"
+                >
+                  <SkipBack className="h-4 w-4" />
+                </button>
+                <button
+                  type="button"
+                  className="terranet-workspace-dock__history-btn terranet-workspace-dock__history-btn--minimal"
+                  onClick={() => void sendSceneCommand('artifact.next')}
+                  disabled={!currentSession?.canNextArtifact}
+                  title="Next artifact"
+                  aria-label="Next artifact"
+                >
+                  <SkipForward className="h-4 w-4" />
+                </button>
+                <button
+                  type="button"
+                  className="terranet-workspace-dock__history-btn terranet-workspace-dock__history-btn--minimal"
+                  onClick={() => void sendSceneCommand('redo')}
+                  disabled={!currentSession?.canRedo}
+                  title="Redo"
+                  aria-label="Redo"
+                >
+                  <Redo2 className="h-4 w-4" />
+                </button>
+                <button
+                  type="button"
+                  className="terranet-workspace-dock__history-btn terranet-workspace-dock__history-btn--minimal"
+                  onClick={() => void sendSceneCommand('undo')}
+                  disabled={!currentSession?.canUndo}
+                  title="Undo"
+                  aria-label="Undo"
+                >
+                  <Undo2 className="h-4 w-4" />
+                </button>
+              </div>
+
+              <button
+                type="button"
+                className="terranet-workspace-dock__icon-action"
+                onClick={() => {
+                  void handleRefreshPreview();
+                }}
+                disabled={isSending || isRerunning}
+                title="Refresh preview"
+                aria-label="Refresh preview"
+              >
+                <RotateCcw className={`h-4 w-4 ${isRerunning ? 'is-spinning' : ''}`} />
+              </button>
+            </>
+          )}
+
+          <button
+            type="button"
+            className="terranet-workspace-dock__close terranet-workspace-dock__close--minimal"
+            onClick={closePanel}
+            aria-label="Close panel"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
       </div>
 
       <div className={bodyClassName}>
         {panelView === 'preview' ? (
           <div className="terranet-workspace-dock__preview-stack">
-            {isMediaScene ? (
-              <MediaViewer
-                src={currentMediaUrl}
-                mediaType={currentMediaType}
-                sceneId={currentScene?.sceneId ?? null}
-                statusStage={taskProgress?.mediaStage ?? 'idle'}
-                statusText={taskProgress?.mediaStatusText ?? null}
-              />
-            ) : (
-              <SceneViewer code={currentCode} skill={currentSkill} />
-            )}
+            <div className="terranet-workspace-dock__presentation-surface">
+              {isMediaScene ? (
+                <MediaViewer
+                  src={currentMediaUrl}
+                  mediaType={currentMediaType}
+                  sceneId={currentScene?.sceneId ?? null}
+                  statusStage={taskProgress?.mediaStage ?? 'idle'}
+                  statusText={taskProgress?.mediaStatusText ?? null}
+                />
+              ) : (
+                <SceneViewer code={currentCode} skill={currentSkill} />
+              )}
+            </div>
           </div>
         ) : (
           <CodeEditor
@@ -239,9 +218,9 @@ export default function WorkspacePanel() {
         )}
       </div>
 
-      {versionError && (
+      {panelError && (
         <p className="terranet-workspace-dock__version-error" role="alert">
-          {versionError}
+          {panelError}
         </p>
       )}
       </aside>

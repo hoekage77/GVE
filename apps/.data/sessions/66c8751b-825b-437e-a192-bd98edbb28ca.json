@@ -1,0 +1,115 @@
+{
+  "sessionId": "66c8751b-825b-437e-a192-bd98edbb28ca",
+  "createdAt": "2026-04-12T04:51:34.950Z",
+  "updatedAt": "2026-04-12T04:51:50.563Z",
+  "status": "idle",
+  "currentScene": null,
+  "artifacts": [],
+  "artifactPointer": -1,
+  "versions": [],
+  "sceneVersions": [],
+  "versionPointer": -1,
+  "revisionPointer": -1,
+  "messages": [
+    {
+      "id": "ws-runtime-1775969494958",
+      "role": "user",
+      "content": "Hello. Confirm websocket runtime event flow.",
+      "kind": "input",
+      "meta": [],
+      "error": null,
+      "createdAt": "2026-04-12T04:51:34.968Z",
+      "updatedAt": "2026-04-12T04:51:34.968Z"
+    },
+    {
+      "id": "message-2",
+      "role": "assistant",
+      "content": "Hey! A typical WebSocket runtime event flow looks like this:\n\n1. **Handshake** – Client sends an HTTP upgrade request; server responds with 101 Switching Protocols to establish the persistent connection.\n\n2. **Open** – Once upgraded, the connection fires an \"open\" event on both sides, signaling the socket is ready for bidirectional communication.\n\n3. **Message exchange** – Either side can now push data frames. Each incoming message triggers a \"message\" event on the recipient, containing the payload (text or binary).\n\n4. **Error handling** – If the connection drops unexpectedly, a protocol error occurs, or frame parsing fails, an \"error\" event fires.\n\n5. **Close** – When either peer calls close (or the connection times out), a \"close\" event fires with a status code and reason, followed by the TCP teardown.\n\nThe whole sequence is full-duplex—messages can flow independently in both directions while the connection stays open, unlike request/response patterns.\n\nWant me to sketch out a sequence diagram of this flow so you can see the handshake and message timing visually?",
+      "kind": "chat",
+      "meta": [
+        "assistantSource:moonshot"
+      ],
+      "error": null,
+      "createdAt": "2026-04-12T04:51:34.968Z",
+      "updatedAt": "2026-04-12T04:51:50.557Z"
+    },
+    {
+      "id": "thought-turn_started-1775969494975",
+      "role": "thought",
+      "content": "Okay, let me dive into this. I'll start by understanding what kind of visual you want.",
+      "kind": "thought",
+      "meta": [
+        "turn_started",
+        "requestId:ws-runtime-1775969494958",
+        "messageId:message-2"
+      ],
+      "error": null,
+      "createdAt": "2026-04-12T04:51:34.975Z",
+      "updatedAt": "2026-04-12T04:51:34.975Z"
+    },
+    {
+      "id": "thought-intent_parsed-1775969495038",
+      "role": "thought",
+      "content": "I see — you want me to create a visual visualization. Let me figure out the best tool for this.",
+      "kind": "thought",
+      "meta": [
+        "intent_parsed",
+        "requestId:ws-runtime-1775969494958",
+        "messageId:message-2"
+      ],
+      "error": null,
+      "createdAt": "2026-04-12T04:51:35.038Z",
+      "updatedAt": "2026-04-12T04:51:35.038Z"
+    },
+    {
+      "id": "thought-plan_created-1775969495039",
+      "role": "thought",
+      "content": "I've mapped out 7 steps to build this. Starting the generation pipeline now.",
+      "kind": "thought",
+      "meta": [
+        "plan_created",
+        "requestId:ws-runtime-1775969494958",
+        "messageId:message-2"
+      ],
+      "error": null,
+      "createdAt": "2026-04-12T04:51:35.039Z",
+      "updatedAt": "2026-04-12T04:51:35.039Z"
+    },
+    {
+      "id": "thought-turn_complete-1775969510560",
+      "role": "thought",
+      "content": "That's a wrap — your visualization should be live now.",
+      "kind": "thought",
+      "meta": [
+        "turn_complete",
+        "requestId:ws-runtime-1775969494958",
+        "messageId:message-2"
+      ],
+      "error": null,
+      "createdAt": "2026-04-12T04:51:50.560Z",
+      "updatedAt": "2026-04-12T04:51:50.560Z"
+    }
+  ],
+  "orchestrationTrace": [
+    {
+      "id": "trace-1",
+      "step": "intent_parsed",
+      "payload": {
+        "sessionId": "66c8751b-825b-437e-a192-bd98edbb28ca",
+        "content": "Hello. Confirm websocket runtime event flow."
+      },
+      "createdAt": "2026-04-12T04:51:34.976Z"
+    },
+    {
+      "id": "trace-2",
+      "step": "turn_complete",
+      "payload": {
+        "sessionId": "66c8751b-825b-437e-a192-bd98edbb28ca",
+        "mode": "chat",
+        "messageCount": 6,
+        "error": null
+      },
+      "createdAt": "2026-04-12T04:51:50.562Z"
+    }
+  ]
+}

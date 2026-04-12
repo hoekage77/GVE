@@ -2099,25 +2099,66 @@ export const useChatStore = create<ChatState>()(
                   (payload.error && typeof payload.error === 'object' && typeof (payload.error as { userMessage?: string }).userMessage === 'string'
                     ? (payload.error as { userMessage: string }).userMessage
                     : 'Turn failed');
+                const errorCode =
+                  payload.error
+                  && typeof payload.error === 'object'
+                  && typeof (payload.error as { code?: string }).code === 'string'
+                    ? (payload.error as { code: string }).code
+                    : null;
 
                 if (sessionId) {
                   const timestamp = new Date().toISOString();
-                  const assistantError: SessionMessage = {
-                    id: createClientMessageId('turn-error'),
-                    role: 'assistant',
-                    content: errorMessage,
-                    kind: 'error',
-                    meta: [`error:${errorMessage}`],
-                    error: (payload.error as SessionMessage['error']) ?? null,
-                    createdAt: timestamp,
-                    updatedAt: timestamp
-                  };
-
                   set((state) => ({
-                    messages: {
-                      ...state.messages,
-                      [sessionId]: upsertMessage(state.messages[sessionId] ?? [], assistantError)
-                    }
+                    messages: (() => {
+                      const existingMessages = state.messages[sessionId] ?? [];
+                      const requestMeta = payloadRequestId ? `requestId:${payloadRequestId}` : null;
+                      const hasRequestLinkedAssistant = Boolean(
+                        requestMeta
+                        && existingMessages.some((message) =>
+                          message.role === 'assistant'
+                          && Array.isArray(message.meta)
+                          && message.meta.includes(requestMeta)
+                        )
+                      );
+                      const hasEquivalentAssistantError = existingMessages.some((message) => {
+                        if (message.role !== 'assistant') {
+                          return false;
+                        }
+
+                        const normalizedContent = String(message.content ?? '').trim();
+                        if (normalizedContent !== errorMessage) {
+                          return false;
+                        }
+
+                        const hasErrorMeta = Array.isArray(message.meta)
+                          && message.meta.some((entry) => entry.startsWith('error:'));
+
+                        return message.kind === 'error' || Boolean(message.error) || hasErrorMeta;
+                      });
+
+                      if (hasRequestLinkedAssistant || hasEquivalentAssistantError) {
+                        return state.messages;
+                      }
+
+                      const assistantError: SessionMessage = {
+                        id: createClientMessageId('turn-error'),
+                        role: 'assistant',
+                        content: errorMessage,
+                        kind: 'error',
+                        meta: [
+                          `error:${errorCode ?? errorMessage}`,
+                          requestMeta
+                        ].filter(Boolean) as string[],
+                        error: (payload.error as SessionMessage['error']) ?? null,
+                        createdAt: timestamp,
+                        updatedAt: timestamp
+                      };
+
+                      return {
+                        ...state.messages,
+                        [sessionId]: upsertMessage(existingMessages, assistantError)
+                      };
+                    })()
                   }));
                 }
 

@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { Plus, Send, Paperclip, X } from "lucide-react";
+import { Plus, Send, Paperclip, X, Mic, Sparkles } from "lucide-react";
 
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
 
@@ -21,6 +21,9 @@ interface ComposerProps {
   isSending?: boolean;
   onStop?: () => void;
   placeholder?: string;
+  variant?: "legacy" | "meta";
+  participantLabel?: string;
+  modelLabel?: string;
 }
 
 export function Composer({ 
@@ -32,7 +35,10 @@ export function Composer({
   onRemoveImage,
   isSending, 
   onStop,
-  placeholder = "Message GenVis..."
+  placeholder = "Message GenVis...",
+  variant = "legacy",
+  participantLabel = "You",
+  modelLabel = "Meta AI"
 }: ComposerProps) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -49,6 +55,7 @@ export function Composer({
   }, [value]);
 
   const canSubmit = value.trim().length > 0 || Boolean(attachedImage);
+  const isMeta = variant === "meta";
 
   const formatBytes = (valueInBytes: number) => {
     if (valueInBytes < 1024) {
@@ -132,8 +139,8 @@ export function Composer({
   };
 
   return (
-    <div className="composer">
-      <div className="composer-container">
+    <div className={`composer ${isMeta ? "composer--meta" : ""}`}>
+      <div className={`composer-container ${isMeta ? "composer-container--meta" : ""}`}>
         <input
           ref={fileInputRef}
           className="composer-file-input"
@@ -164,9 +171,21 @@ export function Composer({
 
         {attachmentError && <p className="composer-attachment-error">{attachmentError}</p>}
 
+        {isMeta && (
+          <div className="composer-meta-head" aria-label="Composer context">
+            <div className="composer-meta-chips">
+              <span className="composer-meta-chip composer-meta-chip--participant">{participantLabel}</span>
+              <span className="composer-meta-chip composer-meta-chip--model">
+                <Sparkles className="h-3.5 w-3.5" aria-hidden="true" />
+                <span>{modelLabel}</span>
+              </span>
+            </div>
+          </div>
+        )}
+
         {/* Attachment menu */}
         {showAttachments && (
-          <div className="composer-attachments">
+          <div className={`composer-attachments ${isMeta ? "composer-attachments--meta" : ""}`}>
             <button
               type="button"
               className="composer-attachment-item"
@@ -185,7 +204,7 @@ export function Composer({
           </div>
         )}
 
-        <div className="composer-input-row">
+        <div className={`composer-input-row ${isMeta ? "composer-input-row--meta" : ""}`}>
           {/* Plus button for attachments */}
           <button
             type="button"
@@ -199,7 +218,7 @@ export function Composer({
           {/* Text input */}
           <textarea
             ref={textareaRef}
-            className="composer-textarea"
+            className={`composer-textarea ${isMeta ? "composer-textarea--meta" : ""}`}
             value={value}
             onChange={(e) => onChange(e.target.value)}
             onKeyDown={handleKeyDown}
@@ -207,6 +226,18 @@ export function Composer({
             rows={1}
             disabled={isSending}
           />
+
+          {isMeta && (
+            <button
+              type="button"
+              className="composer-button composer-button--mic"
+              aria-label="Voice input (planned)"
+              title="Voice input (planned)"
+              disabled={isSending}
+            >
+              <Mic className="h-4 w-4" />
+            </button>
+          )}
 
           {/* Send/Stop button */}
           {isSending ? (
@@ -232,8 +263,16 @@ export function Composer({
             </button>
           )}
         </div>
+
+        {isMeta && (
+          <div className="composer-meta-toolbar" aria-hidden="true">
+            <span className="composer-meta-tool">Search</span>
+            <span className="composer-meta-tool">Reason</span>
+            <span className="composer-meta-tool">Canvas</span>
+          </div>
+        )}
       </div>
-      <div className="composer-footer">
+      <div className={`composer-footer ${isMeta ? "composer-footer--meta" : ""}`}>
         <span>AI-generated content. Verify important information.</span>
       </div>
     </div>
