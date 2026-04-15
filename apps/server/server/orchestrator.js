@@ -4,12 +4,15 @@ import { z } from "zod";
 import "./env.js";
 import { buildConversationPromptBundle, buildGenerationPromptBundle, buildModificationPromptBundle, buildImageToCodePromptBundle } from "./prompt-manager.js";
 import { executeSkillRuntime, warmupSandboxForSkill } from "./skill-runtime.js";
+import { executeWithQualityLoop, getSandboxWorkspaceFiles } from "./sandbox-execution.js";
 import { selectSkillForIntent } from "./skill-registry.js";
 import { validateCode } from "./code-validator.js";
+import { determineModeFromQuality, buildModeConfig } from "./mode-decision-engine.js";
 import { getGenerationCacheKey, getCachedGeneration, setCachedGeneration } from "./cache-manager.js";
 import { runSelfDebugSession, runRuntimeDebugSession } from "./agent-runner.js";
 import { getDebugTools, getRuntimeDebugTools, setErrorContext, clearErrorContext } from "./agent-tools.js";
 import { getPool } from "./llm-pool.js";
+import { resolveAssetPlan } from "./asset-resolver.js";
 
 const skillValues = ["threejs", "p5js", "d3js", "animejs", "manim", "auto"];
 const qualityValues = ["draft", "standard", "high"];
@@ -17,6 +20,22 @@ const moonshotBaseUrl = process.env.MOONSHOT_BASE_URL ?? "https://api.moonshot.a
 const moonshotModel = process.env.MOONSHOT_MODEL ?? "kimi-k2.5";
 const moonshotApiKey = process.env.MOONSHOT_API_KEY;
 const moonshotOverloadedMessage = "Moonshot temporarily overloaded; used local fallback.";
+
+// Quality loop iteration config mapping
+const ITERATION_CONFIG_BY_QUALITY = {
+  draft: { maxIterations: 1, qualityThreshold: 50, enableAutoPatch: false },
+  standard: { maxIterations: 2, qualityThreshold: 75, enableAutoPatch: true },
+  high: { maxIterations: 3, qualityThreshold: 85, enableAutoPatch: true }
+};
+
+/**
+ * Resolve iteration configuration based on quality preference
+ * @param {string} quality - 'draft', 'standard', or 'high'
+ * @returns {object} Iteration config
+ */
+function resolveIterationConfig(quality) {
+  return ITERATION_CONFIG_BY_QUALITY[quality] ?? ITERATION_CONFIG_BY_QUALITY.standard;
+}
 
 function parseBooleanEnv(rawValue, fallbackValue) {
   if (rawValue === undefined || rawValue === null || rawValue === "") {
@@ -253,6 +272,112 @@ function hasOrbitControlsInCode(code) {
   return hasCtor && hasControlUsage;
 }
 
+/**
+ * Detect required npm tools from generated code
+ * @param {string} generatedCode
+ * @returns {Array} Array of { name, version } objects
+ */
+function detectRequiredTools(generatedCode) {
+  const toolMap = {
+    // Three.js ecosystem
+    'three': { name: 'three', version: 'latest' },
+    'three-fiber': { name: 'three-fiber', version: 'latest' },
+    '@react-three/drei': { name: '@react-three/drei', version: 'latest' },
+    '@react-three/postprocessing': { name: '@react-three/postprocessing', version: 'latest' },
+    
+    // Animation
+    'gsap': { name: 'gsap', version: 'latest' },
+    'animejs': { name: 'animejs', version: 'latest' },
+    'motion': { name: 'motion', version: 'latest' },
+    
+    // Data viz
+    'd3': { name: 'd3', version: 'latest' },
+    'plotly.js': { name: 'plotly.js', version: 'latest' },
+    'chart.js': { name: 'chart.js', version: 'latest' },
+    
+    // Utilities
+    'lodash': { name: 'lodash', version: 'latest' },
+    'lodash-es': { name: 'lodash-es', version: 'latest' }
+  };
+  
+  const detectedTools = new Map();
+  const codeStr = String(generatedCode ?? '');
+  
+  if (!codeStr.trim()) {
+    return [];
+  }
+  
+  // Look for import/require statements
+  const importRegex = /(?:import|require)\s*\(\s*['"]([^'"]+)['"]\s*\)|import\s+.*\s+from\s+['"]([^'"]+)['"]/g;
+  let match;
+  
+  while ((match = importRegex.exec(codeStr)) !== null) {
+    const moduleName = match[1] || match[2];
+    if (!moduleName) continue;
+    
+    // Check if it's a known tool
+    for (const [key, toolInfo] of Object.entries(toolMap)) {
+      if (moduleName === key || moduleName.includes(key)) {
+        // Avoid duplicates
+        if (!detectedTools.has(toolInfo.name)) {
+          detectedTools.set(toolInfo.name, toolInfo);
+        }
+        break;
+      }
+    }
+  }
+  
+  return Array.from(detectedTools.values());
+}
+
+/**
+ * Check if code is a multi-file project
+ * @param {any} code - Code string or project object
+ * @returns {boolean}
+ */
+function isMultiFileProject(code) {
+  return code && typeof code === 'object' && 
+         Array.isArray(code.files) && 
+         code.entryPoint && 
+         code.files.length > 0;
+}
+
+/**
+ * Validate a GeneratedProject structure
+ * @param {any} project
+ * @returns {{valid: boolean, errors: string[]}}
+ */
+function validateProject(project) {
+  const errors = [];
+
+  if (!project || typeof project !== 'object') {
+    errors.push('Project must be an object');
+    return { valid: false, errors };
+  }
+
+  if (!Array.isArray(project.files)) {
+    errors.push('Project must have files array');
+  } else if (project.files.length === 0) {
+    errors.push('Project must have at least one file');
+  }
+
+  if (!project.entryPoint) {
+    errors.push('Project must have entryPoint');
+  } else if (project.files && !project.files.some(f => f.path === project.entryPoint)) {
+    errors.push(`Entry point "${project.entryPoint}" not found in files`);
+  }
+
+  const invalidFiles = project.files?.filter(f => !f.path || typeof f.content !== 'string') || [];
+  if (invalidFiles.length > 0) {
+    errors.push(`Files must have path and string content. Found ${invalidFiles.length} invalid files.`);
+  }
+
+  return {
+    valid: errors.length === 0,
+    errors
+  };
+}
+
 async function withTimeout(promise, timeoutMs, timeoutMessage) {
   if (!Number.isFinite(timeoutMs) || timeoutMs <= 0) {
     throw new Error(timeoutMessage);
@@ -303,7 +428,7 @@ function buildRuntimeFailureResult({ skillId, errorMessage, errorCode = "RUNTIME
   };
 }
 
-async function executeSkillRuntimeBounded({ skillId, code, timeoutMs, maxFrames, turnDeadlineAtMs, sessionId = null }) {
+async function executeSkillRuntimeBounded({ skillId, code, timeoutMs, maxFrames, turnDeadlineAtMs, sessionId = null, tools = [] }) {
   if (!Number.isFinite(timeoutMs) || timeoutMs <= 0) {
     return buildRuntimeFailureResult({
       skillId,
@@ -321,7 +446,8 @@ async function executeSkillRuntimeBounded({ skillId, code, timeoutMs, maxFrames,
         timeoutMs,
         maxFrames,
         turnDeadlineAtMs,
-        sessionId
+        sessionId,
+        tools
       }),
       envelopeTimeoutMs,
       `Runtime execution timed out after ${envelopeTimeoutMs}ms.`
@@ -331,6 +457,164 @@ async function executeSkillRuntimeBounded({ skillId, code, timeoutMs, maxFrames,
       skillId,
       errorMessage: error instanceof Error ? error.message : "Unknown runtime execution timeout",
       errorCode: error?.code ? String(error.code) : "RUNTIME_EXEC_TIMEOUT"
+    });
+  }
+}
+
+/**
+ * Execute skill with quality loop decision logic.
+ * Routes to sandbox quality loop for "standard"/"high" quality, or one-shot for "draft".
+ * @param {object} params
+ * @param {string} params.skillId
+ * @param {string} params.code
+ * @param {number} params.timeoutMs
+ * @param {number} params.maxFrames
+ * @param {number} params.turnDeadlineAtMs
+ * @param {string} [params.sessionId]
+ * @param {string} [params.quality] - 'draft', 'standard', or 'high'
+ * @param {string} [params.originalQuery] - For quality loop feedback
+ * @param {Function} [params.onProgress] - Progress callback
+ * @returns {Promise<object>} Runtime result with iterations array if quality loop was used
+ */
+async function executeSkillRuntimeWithQualityDecision({
+  skillId,
+  code,
+  timeoutMs,
+  maxFrames,
+  turnDeadlineAtMs,
+  sessionId = null,
+  quality = "standard",
+  originalQuery = null,
+  onProgress = null,
+  tools = []
+}) {
+  // Determine if quality loop should be enabled
+  const shouldUseQualityLoop = quality !== "draft" && sessionId && originalQuery;
+
+  if (!shouldUseQualityLoop) {
+    // Use traditional one-shot execution
+    return executeSkillRuntimeBounded({
+      skillId,
+      code,
+      timeoutMs,
+      maxFrames,
+      turnDeadlineAtMs,
+      sessionId,
+      tools
+    });
+  }
+
+  // Use quality loop
+  try {
+    const iterationConfig = resolveIterationConfig(quality);
+    
+    // PHASE 3: Determine execution mode from quality tier and add to config
+    const executionMode = determineModeFromQuality(quality);
+    
+    const sandboxExecutionRequest = {
+      sessionId,
+      code,
+      skill: skillId,
+      prompt: originalQuery,
+      tools,
+      mode: executionMode,  // NEW: Add execution mode
+      config: {
+        ...iterationConfig,
+        timeoutPerIterationMs: timeoutMs
+      }
+    };
+
+    console.log(
+      `[Orchestrator] Quality loop enabled for ${quality} (mode=${executionMode}, maxIterations=${iterationConfig.maxIterations}, threshold=${iterationConfig.qualityThreshold}).`
+    );
+
+    const qualityLoopResult = await executeWithQualityLoop(sandboxExecutionRequest, onProgress);
+
+    if (!qualityLoopResult.success) {
+      console.warn(
+        `[Orchestrator] Quality loop failed: ${qualityLoopResult.error}`
+      );
+      return {
+        success: false,
+        status: "error",
+        previewUrl: null,
+        outputKind: skillId === "manim" ? "media" : "code",
+        mediaType: null,
+        mediaUrl: null,
+        mediaArtifactId: null,
+        mediaDurationMs: null,
+        mediaFps: null,
+        mediaResolution: null,
+        mediaBytes: null,
+        skillId,
+        skillName: skillId,
+        dependencyCount: 0,
+        durationMs: qualityLoopResult.error ? 0 : (qualityLoopResult.iterations?.[0]?.durationMs ?? 0),
+        renderCount: 0,
+        frameCount: 0,
+        logs: [],
+        summary: { childCount: 0, types: [] },
+        warning: `Quality loop encountered error: ${qualityLoopResult.error}`,
+        warningCode: "QUALITY_LOOP_ERROR",
+        error: qualityLoopResult.error,
+        errorCode: "QUALITY_LOOP_FAILED",
+        iterations: qualityLoopResult.iterations ?? [],
+        qualityReport: qualityLoopResult.qualityReport ?? null
+      };
+    }
+
+    // Success - convert quality loop result to orchestrator format
+    const finalIteration = qualityLoopResult.iterations?.[qualityLoopResult.finalIteration - 1];
+    console.log(
+      `[Orchestrator] Quality loop completed: ${qualityLoopResult.finalIteration} iterations, final score ${qualityLoopResult.finalScore}/100 (${qualityLoopResult.stopReason}).`
+    );
+
+    return {
+      success: true,
+      status: "quality-loop",
+      previewUrl: qualityLoopResult.previewUrl,
+      outputKind: skillId === "manim" ? "media" : "code",
+      mediaType: skillId === "manim" ? "video/mp4" : null,
+      mediaUrl: qualityLoopResult.previewUrl,
+      mediaArtifactId: null,
+      mediaDurationMs: null,
+      mediaFps: null,
+      mediaResolution: null,
+      mediaBytes: null,
+      skillId,
+      skillName: skillId,
+      dependencyCount: 0,
+      durationMs: finalIteration?.durationMs ?? 0,
+      renderCount: 1,
+      frameCount: 1,
+      logs: [],
+      summary: { childCount: 0, types: [] },
+      warning: null,
+      warningCode: null,
+      error: null,
+      errorCode: null,
+      acquireDiagnostics: null,
+      // Quality loop specific
+      iterations: qualityLoopResult.iterations ?? [],
+      qualityReport: qualityLoopResult.qualityReport ?? {
+        finalScore: qualityLoopResult.finalScore,
+        finalIteration: qualityLoopResult.finalIteration,
+        stopReason: qualityLoopResult.stopReason
+      }
+    };
+  } catch (error) {
+    console.error(
+      `[Orchestrator] Quality loop threw: ${error instanceof Error ? error.message : String(error)}`
+    );
+
+    // Fall back to one-shot if quality loop fails
+    return executeSkillRuntimeBounded({
+      skillId,
+      code,
+      timeoutMs,
+      maxFrames,
+      turnDeadlineAtMs,
+      sessionId
     });
   }
 }
@@ -358,6 +642,30 @@ function resolveRequestedQuality(request, selectedSkill) {
   return selectedSkill === "threejs" || selectedSkill === "animejs" || selectedSkill === "manim"
     ? "high"
     : "standard";
+}
+
+function buildValidationOptions({
+  skillId,
+  request = null,
+  requestedQuality = null,
+  userQuery = "",
+  parsedIntent = null
+}) {
+  const resolvedSkill = skillId ?? "threejs";
+  const queryFromRequest = request?.query;
+  const resolvedQuery = typeof userQuery === "string" && userQuery.trim()
+    ? userQuery
+    : typeof queryFromRequest === "string"
+      ? queryFromRequest
+      : "";
+  const quality = requestedQuality ?? resolveRequestedQuality(request ?? {}, resolvedSkill);
+
+  return {
+    requestedQuality: quality,
+    userQuery: resolvedQuery,
+    parsedIntent,
+    enforceQuality: resolvedSkill === "threejs" && quality !== "draft"
+  };
 }
 
 const moonshotModeProfiles = Object.freeze({
@@ -2638,6 +2946,7 @@ const generateState = Annotation.Root({
   request: Annotation,
   parsedIntent: Annotation,
   selectedSkill: Annotation,
+  assetPlan: Annotation,
   skillFallback: Annotation,
   prompt: Annotation,
   generatedCode: Annotation,
@@ -2657,7 +2966,18 @@ const generateState = Annotation.Root({
 
 const buildPromptNode = (state) => {
   emitPipelineProgress(state.progress, "build_prompt", "running");
+  const selectedSkill = state.selectedSkill ?? "threejs";
+  const requestedQuality = resolveRequestedQuality(state.request, selectedSkill);
+  const assetPlan = resolveAssetPlan({
+    selectedSkill,
+    sourceText: [state.request?.query ?? "", JSON.stringify(state.parsedIntent ?? {})].join(" "),
+    parsedIntent: state.parsedIntent,
+    requestedQuality,
+    allowInternetFallback: true
+  });
+
   return {
+    assetPlan,
     prompt: {
       system: "You are a visual generation assistant. Produce safe, valid JavaScript scene code.",
       user: state.request.query,
@@ -2759,29 +3079,43 @@ const generateCodeNode = async (state) => {
 const validateCodeNode = (state) => {
   console.log(`[Graph] [TRACE] validateCodeNode started for skill ${state.selectedSkill}.`);
   emitPipelineProgress(state.progress, "validate_code", "running");
-  const result = validateCode(state.generatedCode, state.selectedSkill ?? "threejs");
+  const selectedSkill = state.selectedSkill ?? "threejs";
+  const requestedQuality = resolveRequestedQuality(state.request, selectedSkill);
+  const validationOptions = buildValidationOptions({
+    skillId: selectedSkill,
+    request: state.request,
+    requestedQuality,
+    parsedIntent: state.parsedIntent
+  });
+  const result = validateCode(state.generatedCode, selectedSkill, validationOptions);
 
   if (!result.passable) {
-    emitPipelineProgress(state.progress, "validate_code", "failed", { errors: result.errors });
+    emitPipelineProgress(state.progress, "validate_code", "failed", {
+      errors: result.errors,
+      warnings: result.warnings ?? []
+    });
     return {
       validation: {
         valid: false,
         passable: false,
-        errors: result.errors
+        errors: result.errors,
+        warnings: result.warnings ?? []
       }
     };
   }
 
   emitPipelineProgress(state.progress, "validate_code", "completed", {
     valid: result.valid,
-    passable: result.passable
+    passable: result.passable,
+    warnings: result.warnings ?? []
   });
 
   return {
     validation: {
       valid: result.valid,
       passable: result.passable,
-      errors: result.errors
+      errors: result.errors,
+      warnings: result.warnings ?? []
     }
   };
 };
@@ -2926,12 +3260,26 @@ async function attemptRuntimeAgentRecovery({
   skill,
   maxIterations = runtimeDebugMaxIterations,
   turnDeadlineAtMs,
-  sessionId = null
+  sessionId = null,
+  requestedQuality = "standard",
+  parsedIntent = null
 }) {
   let workingCode = failedCode;
   let workingRuntime = runtimeResult;
   let deterministicFixApplied = false;
   let deterministicFixes = [];
+  const validationOptions = buildValidationOptions({
+    skillId: skill ?? "threejs",
+    request: {
+      query: originalQuery,
+      preferences: {
+        quality: requestedQuality
+      }
+    },
+    requestedQuality,
+    userQuery: originalQuery,
+    parsedIntent
+  });
 
   const MAX_DETERMINISTIC_RUNTIME_PASSES = 3;
   const seenMismatchSignatures = new Set();
@@ -2961,7 +3309,7 @@ async function attemptRuntimeAgentRecovery({
 
     seenMismatchSignatures.add(mismatchSignature);
 
-    const patchValidation = validateCode(deterministicPatch.patchedCode, skill ?? "threejs");
+    const patchValidation = validateCode(deterministicPatch.patchedCode, skill ?? "threejs", validationOptions);
     if (!patchValidation.passable) {
       break;
     }
@@ -3098,7 +3446,7 @@ async function attemptRuntimeAgentRecovery({
     };
   }
 
-  const revalidated = validateCode(debugResult.fixedCode, skill ?? "threejs");
+  const revalidated = validateCode(debugResult.fixedCode, skill ?? "threejs", validationOptions);
   if (!revalidated.passable) {
     return {
       recovered: false,
@@ -3230,13 +3578,70 @@ const executeCodeNode = async (state) => {
     state.turnDeadlineAtMs,
     resolveRuntimeExecutionTimeoutMs(state.selectedSkill)
   );
-  const initialRuntimeResult = await executeSkillRuntimeBounded({
+  const requestedQuality = resolveRequestedQuality(state.request, state.selectedSkill);
+  
+  // Check if generated code is a multi-file project
+  const isMultiFile = isMultiFileProject(state.generatedCode);
+  
+  // For multi-file projects, validate structure
+  let detectedTools = [];
+  if (isMultiFile) {
+    const projectValidation = validateProject(state.generatedCode);
+    if (!projectValidation.valid) {
+      console.warn(`[Graph] Multi-file project validation failed:`, projectValidation.errors);
+      return {
+        execution: {
+          success: false,
+          previewUrl: null,
+          message: "Multi-file project validation failed: " + projectValidation.errors.join('; ')
+        },
+        runtime: buildRuntimeFailureResult({
+          skillId: state.selectedSkill,
+          errorMessage: "Multi-file project validation failed: " + projectValidation.errors.join('; '),
+          errorCode: "PROJECT_VALIDATION_FAILED"
+        })
+      };
+    }
+    
+    // For multi-file projects, detect tools from all files
+    const allCode = state.generatedCode.files.map(f => f.content).join('\n');
+    detectedTools = detectRequiredTools(allCode);
+    console.log(`[Graph] [TRACE] Multi-file project with ${state.generatedCode.files.length} files, detected tools: ${detectedTools.map(t => t.name).join(', ') || 'none'}`);
+  } else {
+    // Detect required tools from single-file generated code
+    detectedTools = detectRequiredTools(state.generatedCode);
+  }
+  
+  if (detectedTools.length > 0) {
+    console.log(
+      `[Graph] [TRACE] Detected required tools: ${detectedTools.map(t => t.name).join(', ')}`
+    );
+  }
+  
+  const initialRuntimeResult = await executeSkillRuntimeWithQualityDecision({
     skillId: state.selectedSkill,
     code: state.generatedCode,
     timeoutMs: initialRuntimeTimeoutMs,
     maxFrames: runtimeExecutionMaxFrames,
     turnDeadlineAtMs: state.turnDeadlineAtMs,
-    sessionId: state.request?.sessionId ?? null
+    tools: detectedTools,
+    sessionId: state.request?.sessionId ?? null,
+    quality: requestedQuality,
+    originalQuery: state.request?.query ?? null,
+    onProgress: (progressEvent) => {
+      // Emit iteration progress via WebSocket if available
+      if (typeof state.progress === "function") {
+        try {
+          state.progress({
+            step: "execute_code",
+            status: progressEvent.type,
+            payload: progressEvent
+          });
+        } catch (err) {
+          // Progress callbacks are best-effort
+        }
+      }
+    }
   });
 
   let finalRuntimeResult = initialRuntimeResult;
@@ -3259,7 +3664,9 @@ const executeCodeNode = async (state) => {
       skill: state.selectedSkill,
       maxIterations: runtimeDebugMaxIterations,
       turnDeadlineAtMs: state.turnDeadlineAtMs,
-      sessionId: state.request?.sessionId ?? null
+      sessionId: state.request?.sessionId ?? null,
+      requestedQuality: resolveRequestedQuality(state.request, state.selectedSkill),
+      parsedIntent: state.parsedIntent
     });
 
     if (recovery.recovered) {
@@ -3565,17 +3972,68 @@ function routeAfterExecution(state) {
   return state.execution?.success ? "sync_state" : "build_response";
 }
 
-const buildResponseNode = (state) => {
-  const rawQuery = String(state.request?.query ?? "").trim().replace(/\s+/g, " ");
-  const normalizedQuery = rawQuery.replace(/[.?!]+$/, "");
-  const skillLabel = String(state.selectedSkill ?? "visual").toUpperCase();
-  const animationDescription = normalizedQuery
-    ? `${normalizedQuery.charAt(0).toUpperCase()}${normalizedQuery.slice(1)}.`
-    : `Generate an expressive ${skillLabel} animation scene.`;
+function stripDegradedRuntimePrefix(warning) {
+  if (typeof warning !== "string") {
+    return "";
+  }
 
-  const executionNote = state.execution.success
-    ? (state.runtime?.status === "degraded" ? " Live preview may be limited, but the animation concept is ready." : "")
-    : " Live preview is currently unavailable, but the animation concept has been prepared.";
+  return warning
+    .replace(/^Runtime degraded due to sandbox provisioning constraints:\s*/i, "")
+    .trim();
+}
+
+function buildResponseExplanation(state) {
+  const runtime = state.runtime ?? null;
+  const outputKind = runtime?.outputKind ?? (state.selectedSkill === "manim" ? "media" : "code");
+  const source = String(state.generationSource ?? "").trim().toLowerCase();
+  const generationWarning = typeof state.generationWarning === "string"
+    ? state.generationWarning.trim()
+    : "";
+
+  const summary = [
+    outputKind === "media"
+      ? "Generated scene code and media output."
+      : "Generated scene code for live preview."
+  ];
+
+  if (state.execution?.success) {
+    if (runtime?.status === "degraded") {
+      const degradedReason = stripDegradedRuntimePrefix(runtime?.warning);
+      summary.push(
+        `Preview is running in degraded mode${degradedReason ? ` (${degradedReason})` : " due to sandbox constraints"}.`
+      );
+      summary.push("Re-run this scene to attempt a full live preview.");
+    } else if (runtime?.status === "skipped") {
+      summary.push("Preview execution was skipped for this turn.");
+    } else if (outputKind === "media" && runtime?.mediaUrl) {
+      summary.push("Media preview is ready.");
+    } else {
+      summary.push("Live preview executed successfully.");
+    }
+  } else {
+    const runtimeError = typeof runtime?.error === "string" && runtime.error.trim()
+      ? runtime.error.trim()
+      : "";
+    summary.push(`Live preview is currently unavailable${runtimeError ? ` (${runtimeError})` : ""}.`);
+    summary.push("The generated code is saved and can be re-run.");
+  }
+
+  if (state.runtimeRecoveryUsed) {
+    summary.push("Runtime recovery was applied.");
+  }
+
+  if ((source === "fallback" || source === "static-fallback" || source === "cache") && !generationWarning) {
+    summary.push(describeGenerationSource(state.generationSource));
+  }
+
+  if (generationWarning) {
+    summary.push(generationWarning);
+  }
+
+  return summary.filter(Boolean).join(" ");
+}
+
+const buildResponseNode = (state) => {
   const outputKind = state.runtime?.outputKind ?? (state.selectedSkill === "manim" ? "media" : "code");
   const mediaType = state.runtime?.mediaType ?? (outputKind === "media" ? "video/mp4" : null);
   const mediaUrl = state.runtime?.mediaUrl ?? (outputKind === "media" ? state.execution.previewUrl ?? null : null);
@@ -3592,7 +4050,8 @@ const buildResponseNode = (state) => {
     mediaFps: state.runtime?.mediaFps ?? null,
     mediaResolution: state.runtime?.mediaResolution ?? null,
     mediaBytes: state.runtime?.mediaBytes ?? null,
-    explanation: `${animationDescription}${executionNote}`,
+    assetPlan: state.assetPlan ?? null,
+    explanation: buildResponseExplanation(state),
     code: state.generatedCode,
     generationSource: state.generationSource ?? null,
     generationWarning: state.generationWarning ?? null,
@@ -3713,12 +4172,22 @@ export async function modifyVisual(input, options = {}) {
   emitPipelineProgress(onProgress, "generate_code", "running", { selectedSkill, mode: runMode });
 
   const requestedQuality = resolveRequestedQuality(request, selectedSkill);
+  const modificationParsedIntent = parseIntentFromQuery(normalizedInstruction);
+  const assetPlan = resolveAssetPlan({
+    selectedSkill,
+    sourceText: normalizedInstruction,
+    parsedIntent: modificationParsedIntent,
+    requestedQuality,
+    allowInternetFallback: true
+  });
   const modificationState = {
     sessionId: request.sessionId,
     instruction: normalizedInstruction,
     currentCode: baseSceneCode,
     selectedSkill,
-    quality: requestedQuality
+    quality: requestedQuality,
+    parsedIntent: modificationParsedIntent,
+    assetPlan
   };
 
   let modificationResult;
@@ -3893,6 +4362,7 @@ export async function modifyVisual(input, options = {}) {
       mediaFps: skippedRuntime.mediaFps,
       mediaResolution: skippedRuntime.mediaResolution,
       mediaBytes: skippedRuntime.mediaBytes,
+      assetPlan,
       code: sessionState.currentScene.code,
       explanation,
       diff: {
@@ -3927,13 +4397,28 @@ export async function modifyVisual(input, options = {}) {
     turnDeadlineAtMs,
     resolveRuntimeExecutionTimeoutMs(selectedSkill)
   );
-  const runtimeResult = await executeSkillRuntimeBounded({
+  const runtimeResult = await executeSkillRuntimeWithQualityDecision({
     skillId: selectedSkill,
     code: modificationResult.generatedCode,
     timeoutMs: modifyRuntimeTimeoutMs,
     maxFrames: runtimeExecutionMaxFrames,
     turnDeadlineAtMs,
-    sessionId: request.sessionId
+    sessionId: request.sessionId,
+    quality: requestedQuality,
+    originalQuery: normalizedInstruction,
+    onProgress: (progressEvent) => {
+      if (typeof onProgress === "function") {
+        try {
+          onProgress({
+            step: "execute_code",
+            status: progressEvent.type,
+            payload: progressEvent
+          });
+        } catch (err) {
+          // Progress callbacks are best-effort
+        }
+      }
+    }
   });
 
   let finalRuntimeResult = runtimeResult;
@@ -3952,7 +4437,9 @@ export async function modifyVisual(input, options = {}) {
       skill: selectedSkill,
       maxIterations: runtimeDebugMaxIterations,
       turnDeadlineAtMs,
-      sessionId: request.sessionId
+      sessionId: request.sessionId,
+      requestedQuality,
+      parsedIntent: modificationParsedIntent
     });
 
     if (recovery.recovered) {
@@ -4025,6 +4512,7 @@ export async function modifyVisual(input, options = {}) {
     mediaFps: finalRuntimeResult.mediaFps ?? null,
     mediaResolution: finalRuntimeResult.mediaResolution ?? null,
     mediaBytes: finalRuntimeResult.mediaBytes ?? null,
+    assetPlan,
     code: finalCode,
     explanation,
     diff: {
@@ -4092,6 +4580,16 @@ export async function generateFromImage(input) {
     }
   }
 
+  const parsedIntent = query ? parseIntentFromQuery(query) : null;
+  const requestedQuality = resolveRequestedQuality({ preferences: input.preferences }, selectedSkill);
+  const assetPlan = resolveAssetPlan({
+    selectedSkill,
+    sourceText: query,
+    parsedIntent,
+    requestedQuality,
+    allowInternetFallback: true
+  });
+
   console.log(`[ImageToCode] Generating from image for skill=${selectedSkill}, query="${query.slice(0, 60)}"`);
 
   // Build the multimodal prompt
@@ -4099,7 +4597,8 @@ export async function generateFromImage(input) {
     imageUrl,
     query,
     selectedSkill,
-    parsedIntent: query ? parseIntentFromQuery(query) : null
+    parsedIntent,
+    assetPlan
   });
 
   let generatedCode = "";
@@ -4153,7 +4652,19 @@ export async function generateFromImage(input) {
   }
 
   // Validate the generated code
-  const validation = validateCode(generatedCode, selectedSkill);
+  const imageValidationOptions = buildValidationOptions({
+    skillId: selectedSkill,
+    request: {
+      query,
+      preferences: {
+        quality: requestedQuality
+      }
+    },
+    requestedQuality,
+    userQuery: query || "Generate scene from reference image",
+    parsedIntent
+  });
+  const validation = validateCode(generatedCode, selectedSkill, imageValidationOptions);
 
   if (!validation.passable) {
     console.log(`[ImageToCode] Code failed validation. Attempting agent self-debug...`);
@@ -4184,14 +4695,20 @@ export async function generateFromImage(input) {
       clearErrorContext();
 
       if (debugResult.fixedCode) {
-        generatedCode = debugResult.fixedCode;
-        generationSource = "image-to-code-debugged";
-        agentDebugInfo = {
-          used: true,
-          iterations: debugResult.iterations,
-          success: debugResult.success
-        };
-        console.log(`[ImageToCode] Agent debug resolved code in ${debugResult.iterations} iteration(s).`);
+        const debugValidation = validateCode(debugResult.fixedCode, selectedSkill, imageValidationOptions);
+
+        if (debugValidation.passable) {
+          generatedCode = debugResult.fixedCode;
+          generationSource = "image-to-code-debugged";
+          agentDebugInfo = {
+            used: true,
+            iterations: debugResult.iterations,
+            success: debugResult.success
+          };
+          console.log(`[ImageToCode] Agent debug resolved code in ${debugResult.iterations} iteration(s).`);
+        } else {
+          generationWarning = "Code failed validation and agent debug output remained non-passable.";
+        }
       } else {
         generationWarning = "Code failed validation and agent debug could not fix it.";
       }
@@ -4206,13 +4723,15 @@ export async function generateFromImage(input) {
     turnDeadlineAtMs,
     resolveRuntimeExecutionTimeoutMs(selectedSkill)
   );
-  const runtimeResult = await executeSkillRuntimeBounded({
+  const runtimeResult = await executeSkillRuntimeWithQualityDecision({
     skillId: selectedSkill,
     code: generatedCode,
     timeoutMs: imageRuntimeTimeoutMs,
     maxFrames: runtimeExecutionMaxFrames,
     turnDeadlineAtMs,
-    sessionId
+    sessionId,
+    quality: requestedQuality,
+    originalQuery: query || imageUrl
   });
 
   let finalRuntimeResult = runtimeResult;
@@ -4226,7 +4745,9 @@ export async function generateFromImage(input) {
       skill: selectedSkill,
       maxIterations: runtimeDebugMaxIterations,
       turnDeadlineAtMs,
-      sessionId
+      sessionId,
+      requestedQuality,
+      parsedIntent
     });
 
     if (recovery.recovered) {
@@ -4287,6 +4808,7 @@ export async function generateFromImage(input) {
     mediaFps: finalRuntimeResult.mediaFps ?? null,
     mediaResolution: finalRuntimeResult.mediaResolution ?? null,
     mediaBytes: finalRuntimeResult.mediaBytes ?? null,
+    assetPlan,
     code: generatedCode,
     explanation,
     runtime: finalRuntimeResult,

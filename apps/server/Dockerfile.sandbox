@@ -1,0 +1,114 @@
+# Terranet Agentic Sandbox
+# Container image for executing visual generation code with full Linux environment
+
+FROM node:20-slim
+
+# Set environment variables
+ENV NODE_ENV=production
+ENV DISPLAY=:99
+ENV DEBIAN_FRONTEND=noninteractive
+ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
+ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium
+
+# Create non-root user for security
+RUN groupadd -r terranet && useradd -r -g terranet -m -s /bin/bash terranet
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    # Core utilities
+    git \
+    curl \
+    wget \
+    ca-certificates \
+    # Build tools
+    build-essential \
+    python3 \
+    python3-pip \
+    # Graphics libraries for headless Chrome/WebGL
+    libgl1-mesa-glx \
+    libgl1-mesa-dri \
+    libgles2-mesa \
+    libosmesa6 \
+    libx11-6 \
+    libx11-xcb1 \
+    libxcomposite1 \
+    libxcursor1 \
+    libxdamage1 \
+    libxext6 \
+    libxfixes3 \
+    libxi6 \
+    libxrandr2 \
+    libxrender1 \
+    libxss1 \
+    libxtst6 \
+    libnss3 \
+    libgbm1 \
+    libasound2 \
+    libatk-bridge2.0-0 \
+    libgtk-3-0 \
+    # Fonts
+    fonts-liberation \
+    fonts-noto-color-emoji \
+    # Video/GL support
+    xvfb \
+    mesa-utils \
+    # Chromium for headless rendering
+    chromium \
+    # Cleanup
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install global npm packages for build tooling
+RUN npm install -g \
+    vite@^5.0.0 \
+    rollup@^4.9.0 \
+    typescript@^5.3.0 \
+    ts-node@^10.9.0 \
+    esbuild@^0.19.0 \
+    http-server@^14.1.0
+
+# Create workspace directory
+RUN mkdir -p /workspace && chown -R terranet:terranet /workspace
+
+# Set working directory
+WORKDIR /workspace
+
+# Copy entrypoint script
+COPY --chown=terranet:terranet apps/server/docker/sandbox-entrypoint.sh /usr/local/bin/entrypoint.sh
+RUN chmod +x /usr/local/bin/entrypoint.sh
+
+# Switch to non-root user
+USER terranet
+
+# Pre-install common packages to speed up scene generation and prevent EROFS issues
+# These are cached in the image to avoid re-downloading during container execution
+RUN mkdir -p /tmp/.npm-cache && \
+    npm config set cache /tmp/.npm-cache --global && \
+    cd /tmp && \
+    npm install --no-save \
+    three@0.160.0 \
+    @react-three/fiber@8.15.0 \
+    @react-three/drei@9.92.0 \
+    p5@1.9.0 \
+    d3@7.8.5 \
+    animejs@3.2.2 \
+    gsap@3.12.5 \
+    && npm cache clean --force \
+    && rm -rf /tmp/node_modules /tmp/package*.json \
+    && mkdir -p /home/terranet/.npm && chown -R terranet:terranet /home/terranet/.npm
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+    CMD node --version || exit 1
+
+# Expose port for preview server
+EXPOSE 3000
+
+# Set entrypoint
+ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
+CMD ["sleep", "infinity"]
+
+# Labels
+LABEL maintainer="Terranet Team" \
+      description="Terranet Agentic Sandbox for visual generation" \
+      version="1.0.0"

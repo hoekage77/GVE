@@ -506,6 +506,7 @@ export function recordSceneVersion(sessionId, sceneSnapshot) {
       mediaFps: Number.isFinite(sceneSnapshot.mediaFps) ? sceneSnapshot.mediaFps : null,
       mediaResolution: sceneSnapshot.mediaResolution ?? null,
       mediaBytes: Number.isFinite(sceneSnapshot.mediaBytes) ? sceneSnapshot.mediaBytes : null,
+      assetPlan: sceneSnapshot.assetPlan ?? null,
       explanation: sceneSnapshot.explanation ?? null,
       messageId: sceneSnapshot.messageId ?? null,
       source,

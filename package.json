@@ -10,6 +10,7 @@
     "dev:web": "npm run dev --workspace=@visual-runtime/web",
     "dev:server": "npm run dev --workspace=@visual-runtime/server",
     "build": "npm run build --workspaces --if-present",
+    "build:sandbox": "docker build -f apps/server/Dockerfile.sandbox -t terranet/sandbox:latest .",
     "start:server": "npm run start --workspace=@visual-runtime/server",
     "start:web": "npm run start --workspace=@visual-runtime/web"
   },

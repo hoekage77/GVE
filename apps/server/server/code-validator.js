@@ -42,6 +42,152 @@ const SKILL_API_WHITELIST = {
   }
 };
 
+const HIGH_FIDELITY_SUBJECT_PATTERN = /\b(human|person|man|woman|character|avatar|bird|animal|creature|fox|wolf|cat|dog|eagle|owl|parrot|flamingo|stork)\b/i;
+const DYNAMIC_SCENE_PATTERN = /\b(animate|animation|motion|move|moving|fly|flying|spin|spinning|rotate|rotation|orbit|dance|walk|run|loop|timeline)\b/i;
+const STATIC_SCENE_PATTERN = /\b(static|still|poster|logo|icon|infographic|chart|graph|diagram)\b/i;
+
+function normalizeRequestedQuality(value) {
+  if (!value) {
+    return "standard";
+  }
+
+  const normalized = String(value).trim().toLowerCase();
+  if (normalized === "draft" || normalized === "standard" || normalized === "high") {
+    return normalized;
+  }
+
+  return "standard";
+}
+
+function countRegexMatches(input, regex) {
+  if (!input) {
+    return 0;
+  }
+
+  const matches = String(input).match(regex);
+  return matches ? matches.length : 0;
+}
+
+function extractValidationSourceText(options = {}) {
+  const parts = [];
+
+  if (typeof options.sourceText === "string" && options.sourceText.trim()) {
+    parts.push(options.sourceText);
+  }
+
+  if (typeof options.userQuery === "string" && options.userQuery.trim()) {
+    parts.push(options.userQuery);
+  }
+
+  if (typeof options.parsedIntent?.rawQuery === "string" && options.parsedIntent.rawQuery.trim()) {
+    parts.push(options.parsedIntent.rawQuery);
+  }
+
+  return parts.join(" ").toLowerCase();
+}
+
+function checkThreejsQuality(code, options = {}) {
+  const quality = normalizeRequestedQuality(options.requestedQuality);
+  const enforceQuality = options.enforceQuality !== false;
+
+  if (!enforceQuality || quality === "draft") {
+    return { errors: [], warnings: [] };
+  }
+
+  const normalizedCode = String(code ?? "");
+  const sourceText = extractValidationSourceText(options);
+  const parsedIntentType = String(options.parsedIntent?.intentType ?? "").toLowerCase();
+  const expectsModelSubject = HIGH_FIDELITY_SUBJECT_PATTERN.test(sourceText);
+  const expectsDynamicMotion = STATIC_SCENE_PATTERN.test(sourceText)
+    ? false
+    : DYNAMIC_SCENE_PATTERN.test(sourceText) || parsedIntentType === "animate";
+
+  const hasModelLoader = /\b(GLTFLoader|createGveGltfLoader|resolveGveModelCandidates|DRACOLoader)\b/.test(normalizedCode);
+  const hasModelUrl = /\.(?:glb|gltf)(?:[?#][^\s"'`)]*)?/i.test(normalizedCode);
+  const boxGeometryCount = countRegexMatches(normalizedCode, /\bBoxGeometry\b/g);
+  const hasHighQualityMaterial = /\bMesh(?:Standard|Physical)Material\b/.test(normalizedCode);
+  const ambientLightCount = countRegexMatches(normalizedCode, /\bAmbientLight\b/g);
+  const keyLightCount = countRegexMatches(normalizedCode, /\b(?:DirectionalLight|SpotLight|PointLight|HemisphereLight|RectAreaLight)\b/g);
+  const hasAnimationLoop = /\brequestAnimationFrame\b|\bsetAnimationLoop\b|\bTHREE\.Clock\b|\.getElapsedTime\s*\(/.test(normalizedCode);
+  const hasRendererQualityPipeline = /\b(?:renderer|__renderer)\s*\.\s*(?:toneMapping|toneMappingExposure|outputEncoding|outputColorSpace)\b/.test(normalizedCode);
+
+  const errors = [];
+  const warnings = [];
+
+  if (expectsModelSubject && !hasModelLoader && !hasModelUrl) {
+    errors.push({
+      code: "QUALITY_MODEL_SUBJECT_MISSING",
+      message:
+        "High-fidelity Three.js scenes for humans/animals/birds must load at least one GLTF/GLB model via GLTFLoader or createGveGltfLoader()."
+    });
+  }
+
+  if (expectsModelSubject && boxGeometryCount >= 3 && !hasModelLoader && !hasModelUrl) {
+    errors.push({
+      code: "QUALITY_PRIMITIVE_SUBJECT_FALLBACK",
+      message:
+        "Detected primitive-heavy subject construction. Avoid multi-BoxGeometry stand-ins when the subject requires model fidelity."
+    });
+  }
+
+  const hasLayeredLighting = ambientLightCount >= 1 && keyLightCount >= 1;
+
+  if (quality === "high") {
+    if (!hasHighQualityMaterial) {
+      errors.push({
+        code: "QUALITY_MATERIAL_FIDELITY_LOW",
+        message: "High quality Three.js scenes should use MeshStandardMaterial or MeshPhysicalMaterial for hero assets."
+      });
+    }
+
+    if (!hasLayeredLighting) {
+      errors.push({
+        code: "QUALITY_LIGHTING_INSUFFICIENT",
+        message: "High quality Three.js scenes require layered lighting (ambient + key/fill/rim-capable light)."
+      });
+    }
+
+    if (expectsDynamicMotion && !hasAnimationLoop) {
+      errors.push({
+        code: "QUALITY_MOTION_MISSING",
+        message: "Dynamic/animated requests should include an explicit animation loop (requestAnimationFrame or setAnimationLoop)."
+      });
+    }
+
+    if (!hasRendererQualityPipeline) {
+      warnings.push({
+        code: "QUALITY_RENDERER_PIPELINE_HINT",
+        message: "Consider explicit renderer tone mapping/exposure settings for cinematic contrast."
+      });
+    }
+  }
+
+  if (quality === "standard") {
+    if (!hasHighQualityMaterial && !hasModelLoader && !hasModelUrl) {
+      warnings.push({
+        code: "QUALITY_MATERIAL_RECOMMENDED",
+        message: "Use MeshStandardMaterial or MeshPhysicalMaterial for better visual fidelity."
+      });
+    }
+
+    if (!hasLayeredLighting) {
+      warnings.push({
+        code: "QUALITY_LIGHTING_RECOMMENDED",
+        message: "Add layered lighting (ambient plus key/fill/rim style light) for stronger depth."
+      });
+    }
+
+    if (expectsDynamicMotion && !hasAnimationLoop) {
+      warnings.push({
+        code: "QUALITY_MOTION_RECOMMENDED",
+        message: "Animated prompts should include requestAnimationFrame/setAnimationLoop for motion continuity."
+      });
+    }
+  }
+
+  return { errors, warnings };
+}
+
 function checkSyntax(code) {
   const errors = [];
 
@@ -310,7 +456,7 @@ function checkSchema(code, skillId) {
   return errors;
 }
 
-export function validateCode(code, skillId = "threejs") {
+export function validateCode(code, skillId = "threejs", options = {}) {
   if (skillId === "manim") {
     const syntaxErrors = checkManimSyntax(code);
     const securityErrors = checkManimSecurity(code);
@@ -322,10 +468,12 @@ export function validateCode(code, skillId = "threejs") {
       valid: allErrors.length === 0,
       passable: !hasCritical,
       errors: allErrors,
+      warnings: [],
       checks: {
         syntax: { passed: syntaxErrors.length === 0, errors: syntaxErrors },
         security: { passed: securityErrors.length === 0, errors: securityErrors },
-        schema: { passed: schemaErrors.length === 0, errors: schemaErrors }
+        schema: { passed: schemaErrors.length === 0, errors: schemaErrors },
+        quality: { passed: true, errors: [], warnings: [] }
       }
     };
   }
@@ -333,29 +481,36 @@ export function validateCode(code, skillId = "threejs") {
   const syntaxErrors = checkSyntax(code);
   const securityErrors = checkSecurity(code);
   const schemaErrors = checkSchema(code, skillId);
+  const qualityResult = skillId === "threejs" ? checkThreejsQuality(code, options) : { errors: [], warnings: [] };
 
-  const allErrors = [...syntaxErrors, ...securityErrors, ...schemaErrors];
+  const allErrors = [...syntaxErrors, ...securityErrors, ...schemaErrors, ...qualityResult.errors];
 
-  const hasCritical = syntaxErrors.length > 0 || securityErrors.length > 0;
+  const hasCritical = syntaxErrors.length > 0 || securityErrors.length > 0 || qualityResult.errors.length > 0;
 
   return {
     valid: allErrors.length === 0,
     passable: !hasCritical,
     errors: allErrors,
+    warnings: qualityResult.warnings,
     checks: {
       syntax: { passed: syntaxErrors.length === 0, errors: syntaxErrors },
       security: { passed: securityErrors.length === 0, errors: securityErrors },
-      schema: { passed: schemaErrors.length === 0, errors: schemaErrors }
+      schema: { passed: schemaErrors.length === 0, errors: schemaErrors },
+      quality: {
+        passed: qualityResult.errors.length === 0,
+        errors: qualityResult.errors,
+        warnings: qualityResult.warnings
+      }
     }
   };
 }
 
-export function validateCodeStrict(code, skillId = "threejs") {
+export function validateCodeStrict(code, skillId = "threejs", options = {}) {
   if (skillId === "manim") {
-    return validateCode(code, skillId);
+    return validateCode(code, skillId, options);
   }
 
-  const base = validateCode(code, skillId);
+  const base = validateCode(code, skillId, options);
   const apiErrors = checkApiUsage(code, skillId);
 
   const allErrors = [...base.errors, ...apiErrors];

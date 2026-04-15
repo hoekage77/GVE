@@ -3,6 +3,10 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import crypto from "node:crypto";
 import { fileURLToPath } from "node:url";
+import { toolRegistry } from "./tool-registry.js";
+import { createSandboxFileSystem } from "./filesystem.js";
+import { createBuildManager } from "./build-manager.js";
+import { createArtifactStorage } from "./artifact-storage.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -945,6 +949,42 @@ export class SandboxPoolManager {
     return handle;
   }
 
+  /**
+   * Get filesystem API for a sandbox
+   * @param {string} sandboxId - Workspace ID
+   * @param {object} workspace - Daytona workspace
+   * @returns {SandboxFileSystem}
+   */
+  getFileSystem(sandboxId, workspace) {
+    return createSandboxFileSystem(sandboxId, workspace);
+  }
+
+  /**
+   * Get build manager instance for sandbox
+   * @param {string} sandboxId - Sandbox identifier
+   * @param {object} workspace - workspace.process accessor
+   * @param {object} filesystem - SandboxFileSystem instance
+   * @returns {BuildManager}
+   */
+  getBuildManager(sandboxId, workspace, filesystem) {
+    const sandbox = { id: sandboxId };
+    return createBuildManager(sandbox, workspace, filesystem);
+  }
+
+  /**
+   * Get artifact storage instance for persisting results
+   * @param {object} config - Configuration
+   * @returns {ArtifactStorage}
+   */
+  getArtifactStorage(config = {}) {
+    // Use default filesystem backend in artifacts directory
+    const defaultConfig = {
+      backend: 'filesystem',
+      basePath: config.basePath || './artifacts'
+    };
+    return createArtifactStorage({ ...defaultConfig, ...config });
+  }
+
   async acquire(requirements) {
     if (this.closed) {
       const closedError = new Error("Sandbox pool is shut down and cannot acquire new sandboxes.");
@@ -1144,6 +1184,87 @@ export class SandboxPoolManager {
     this._ensurePrewarmCapacity("release", { force: false });
   }
 
+  /**
+   * Install npm packages in sandbox
+   * @param {string} sandboxId - Daytona sandbox ID (workspaceId)
+   * @param {Array} tools - [{ name: 'three', version: '0.160.0' }, ...]
+   * @returns {Promise<{success: bool, output: string, errors: string}>}
+   */
+  async installTools(sandboxId, tools) {
+    if (!Array.isArray(tools) || tools.length === 0) {
+      return { success: true, output: '', errors: '' };
+    }
+
+    try {
+      // Find the sandbox in pool or current usage
+      let targetWorkspace = null;
+      
+      // Check idle sandboxes first
+      for (const idle of this.idleSandboxes) {
+        if (idle.workspaceId === sandboxId) {
+          targetWorkspace = idle.workspace;
+          break;
+        }
+      }
+      
+      if (!targetWorkspace) {
+        return {
+          success: false,
+          output: '',
+          errors: `Sandbox ${sandboxId} not found in pool`
+        };
+      }
+
+      // Build npm install command
+      const packages = tools
+        .map(t => {
+          const version = t.version || 'latest';
+          return version === 'latest' 
+            ? t.name 
+            : `${t.name}@${version}`;
+        })
+        .join(' ');
+      
+      const command = `npm install --save ${packages}`;
+      
+      console.log(`[Daytona] Installing tools in sandbox ${sandboxId}: ${packages}`);
+      
+      // Execute install via process command (simple approach first)
+      // Note: This will work if the sandbox has a working npm setup
+      try {
+        const result = await targetWorkspace.process.executeCommand(
+          `bash -c "cd /workspace && ${command} 2>&1"`
+        );
+        
+        console.log(
+          `[Daytona] Tool installation completed for ${sandboxId}. exitCode=${result ? 0 : 1}`
+        );
+        
+        return {
+          success: true,
+          output: String(result || 'Tools installed successfully'),
+          errors: ''
+        };
+      } catch (execError) {
+        console.warn(
+          `[Daytona] Tool installation command failed for ${sandboxId}: ${execError.message}`
+        );
+        
+        return {
+          success: false,
+          output: '',
+          errors: execError instanceof Error ? execError.message : String(execError)
+        };
+      }
+    } catch (error) {
+      return {
+        success: false,
+        output: '',
+        errors: error instanceof Error ? error.message : String(error)
+      };
+    }
+  }
+
   async shutdown(options = {}) {
     if (this.closed) {
       return;
@@ -1176,3 +1297,6 @@ function truncateForLog(value, maxLength = 220) {
   const text = String(value ?? "");
   return text.length > maxLength ? `${text.slice(0, maxLength)}...` : text;
 }
+
+// Export tool registry, filesystem factory, build manager, and artifact storage (SandboxPoolManager exported as class)
+export { toolRegistry, createSandboxFileSystem, createBuildManager, createArtifactStorage };

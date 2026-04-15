@@ -3,7 +3,9 @@ import SceneViewer from '../SceneViewer';
 import CodeEditor from '../CodeEditor';
 import MediaViewer from './MediaViewer';
 import { useChatStore } from '../../stores';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+
+const PANEL_EXIT_MS = 260;
 
 export default function WorkspacePanel() {
   const {
@@ -15,12 +17,16 @@ export default function WorkspacePanel() {
     openPanel,
     sendSceneCommand,
     rerunScene,
-    taskProgressBySession,
-    isSending
+    taskProgressBySession
   } = useChatStore();
+
+  const isPanelVisible = panelOpen && Boolean(panelView);
 
   const [panelError, setPanelError] = useState<string | null>(null);
   const [isRerunning, setIsRerunning] = useState(false);
+  const [isMounted, setIsMounted] = useState(isPanelVisible);
+  const [isVisible, setIsVisible] = useState(isPanelVisible);
+  const [displayedView, setDisplayedView] = useState<'preview' | 'code' | 'files'>(() => panelView ?? 'preview');
 
   const currentSession = useMemo(() =>
     sessions.find(s => s.sessionId === activeSessionId),
@@ -34,6 +40,30 @@ export default function WorkspacePanel() {
   const currentMediaType = currentScene?.mediaType ?? null;
   const currentMediaUrl = currentScene?.mediaUrl ?? currentScene?.previewUrl ?? null;
   const taskProgress = activeSessionId ? taskProgressBySession[activeSessionId] ?? null : null;
+
+  useEffect(() => {
+    if (!panelView) {
+      return;
+    }
+
+    setDisplayedView(panelView);
+  }, [panelView]);
+
+  useEffect(() => {
+    if (isPanelVisible) {
+      setIsMounted(true);
+      const enterTimer = setTimeout(() => setIsVisible(true), 16);
+      return () => {
+        clearTimeout(enterTimer);
+      };
+    }
+
+    setIsVisible(false);
+    const exitTimer = setTimeout(() => setIsMounted(false), PANEL_EXIT_MS);
+    return () => {
+      clearTimeout(exitTimer);
+    };
+  }, [isPanelVisible]);
 
   const isMediaScene = currentOutputKind === 'media'
     || (typeof currentMediaType === 'string' && currentMediaType.startsWith('video/'))
@@ -78,151 +108,115 @@ export default function WorkspacePanel() {
     }
   };
 
-  if (!panelOpen || !panelView) return null;
+  if (!isMounted) {
+    return null;
+  }
 
-  const dockClassName = `terranet-workspace-dock terranet-workspace-dock--${panelView}`;
-  const bodyClassName = panelView === 'preview'
-    ? 'terranet-workspace-dock__body terranet-workspace-dock__body--preview'
-    : 'terranet-workspace-dock__body';
+  const activeView = panelView ?? displayedView;
 
   return (
     <>
       <button
         type="button"
-        className="terranet-workspace-backdrop"
+        className={`fixed inset-0 z-40 bg-black/50 transition-opacity duration-200 ease-out lg:hidden ${isVisible ? 'opacity-100' : 'pointer-events-none opacity-0'}`}
         aria-label="Close workspace panel"
         onClick={closePanel}
       />
-      <aside className={dockClassName}>
-      <div className="terranet-workspace-dock__header terranet-workspace-dock__header--minimal">
-        <div className="terranet-workspace-dock__header-left terranet-workspace-dock__header-left--minimal">
-          <div className="terranet-workspace-dock__tabs terranet-workspace-dock__tabs--minimal">
-            <button
-              type="button"
-              className={panelView === 'preview' ? 'active' : ''}
-              onClick={() => openPanel('preview')}
-              aria-label="Show preview"
-            >
-              Preview
-            </button>
-            <button
-              type="button"
-              className={panelView === 'code' ? 'active' : ''}
-              onClick={() => openPanel('code')}
-              aria-label="Show code"
-            >
-              Code
-            </button>
-          </div>
-        </div>
-
-        <div className="terranet-workspace-dock__header-right terranet-workspace-dock__header-right--minimal">
-          {panelView === 'preview' && (
-            <>
-              <div className="terranet-workspace-dock__history-controls terranet-workspace-dock__history-controls--minimal">
+      <aside className={`fixed inset-y-0 right-0 z-50 h-full w-full border-l border-white/10 bg-[#0a0a0a] shadow-2xl transition-[transform,opacity] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none lg:static lg:flex-1 ${isVisible ? 'translate-x-0 opacity-100' : 'pointer-events-none translate-x-6 opacity-0'} flex flex-col`}>
+        
+        {/* Scene Workspace */}
+        <div className="flex-1 overflow-hidden flex flex-col">
+          <div className="flex-1 flex flex-col overflow-hidden">
+            
+            {/* Card Header (Tabs + Playback) */}
+            <div className="px-4 py-3 shrink-0 flex items-center justify-between border-b border-white/5">
+              <div className="flex items-center gap-2">
                 <button
-                  type="button"
-                  className="terranet-workspace-dock__history-btn terranet-workspace-dock__history-btn--minimal"
-                  onClick={() => void sendSceneCommand('artifact.previous')}
-                  disabled={!currentSession?.canPreviousArtifact}
-                  title="Previous artifact"
-                  aria-label="Previous artifact"
+                  onClick={() => openPanel('preview')}
+                  className={`rounded-full px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] transition ${activeView === 'preview' ? 'bg-white/12 text-white' : 'text-white/50 hover:bg-white/5 hover:text-white/90'}`}
                 >
-                  <SkipBack className="h-4 w-4" />
+                  Preview
                 </button>
                 <button
-                  type="button"
-                  className="terranet-workspace-dock__history-btn terranet-workspace-dock__history-btn--minimal"
-                  onClick={() => void sendSceneCommand('artifact.next')}
-                  disabled={!currentSession?.canNextArtifact}
-                  title="Next artifact"
-                  aria-label="Next artifact"
+                  onClick={() => openPanel('code')}
+                  className={`rounded-full px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] transition ${activeView === 'code' ? 'bg-white/12 text-white' : 'text-white/50 hover:bg-white/5 hover:text-white/90'}`}
                 >
-                  <SkipForward className="h-4 w-4" />
-                </button>
-                <button
-                  type="button"
-                  className="terranet-workspace-dock__history-btn terranet-workspace-dock__history-btn--minimal"
-                  onClick={() => void sendSceneCommand('redo')}
-                  disabled={!currentSession?.canRedo}
-                  title="Redo"
-                  aria-label="Redo"
-                >
-                  <Redo2 className="h-4 w-4" />
-                </button>
-                <button
-                  type="button"
-                  className="terranet-workspace-dock__history-btn terranet-workspace-dock__history-btn--minimal"
-                  onClick={() => void sendSceneCommand('undo')}
-                  disabled={!currentSession?.canUndo}
-                  title="Undo"
-                  aria-label="Undo"
-                >
-                  <Undo2 className="h-4 w-4" />
+                  Code
                 </button>
               </div>
 
-              <button
-                type="button"
-                className="terranet-workspace-dock__icon-action"
-                onClick={() => {
-                  void handleRefreshPreview();
-                }}
-                disabled={isSending || isRerunning}
-                title="Refresh preview"
-                aria-label="Refresh preview"
-              >
-                <RotateCcw className={`h-4 w-4 ${isRerunning ? 'is-spinning' : ''}`} />
-              </button>
-            </>
-          )}
+              <div className="flex items-center gap-1">
+                {[
+                  { icon: SkipBack, action: 'artifact.previous', disabled: !currentSession?.canPreviousArtifact },
+                  { icon: SkipForward, action: 'artifact.next', disabled: !currentSession?.canNextArtifact },
+                  { icon: Redo2, action: 'redo', disabled: !currentSession?.canRedo },
+                  { icon: Undo2, action: 'undo', disabled: !currentSession?.canUndo },
+                  { icon: RotateCcw, action: 'refresh', isRefresh: true }
+                ].map((btn, i) => (
+                  <button
+                    key={i}
+                    onClick={() => {
+                      if (btn.isRefresh) handleRefreshPreview();
+                      else sendSceneCommand(btn.action as any);
+                    }}
+                    disabled={btn.disabled || (btn.isRefresh && isRerunning)}
+                    className="flex h-8 w-8 items-center justify-center rounded-lg border border-white/5 bg-white/5 text-white/50 transition-all duration-150 hover:border-white/10 hover:bg-white/10 hover:text-white/90 disabled:opacity-30"
+                  >
+                    <btn.icon className={`w-4 h-4 ${btn.isRefresh && isRerunning ? 'animate-spin' : ''}`} />
+                  </button>
+                ))}
+                <div className="w-px h-6 bg-white/10 mx-1"></div>
+                <button onClick={closePanel} className="flex h-8 w-8 items-center justify-center rounded-lg border border-white/5 bg-white/5 text-white/50 transition-all duration-150 hover:border-white/10 hover:bg-white/10 hover:text-white/90">
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
 
-          <button
-            type="button"
-            className="terranet-workspace-dock__close terranet-workspace-dock__close--minimal"
-            onClick={closePanel}
-            aria-label="Close panel"
-          >
-            <X className="h-4 w-4" />
-          </button>
-        </div>
-      </div>
-
-      <div className={bodyClassName}>
-        {panelView === 'preview' ? (
-          <div className="terranet-workspace-dock__preview-stack">
-            <div className="terranet-workspace-dock__presentation-surface">
-              {isMediaScene ? (
-                <MediaViewer
-                  src={currentMediaUrl}
-                  mediaType={currentMediaType}
-                  sceneId={currentScene?.sceneId ?? null}
-                  statusStage={taskProgress?.mediaStage ?? 'idle'}
-                  statusText={taskProgress?.mediaStatusText ?? null}
-                />
-              ) : (
-                <SceneViewer code={currentCode} skill={currentSkill} />
-              )}
             </div>
-          </div>
-        ) : (
-          <CodeEditor
-            code={currentCode}
-            skill={currentSkill}
-            readOnly={true}
-            runPending={isRerunning}
-            onRun={(code) => {
-              void handleRunScene(code);
-            }}
-          />
-        )}
-      </div>
 
-      {panelError && (
-        <p className="terranet-workspace-dock__version-error" role="alert">
-          {panelError}
-        </p>
-      )}
+            {/* Viewport Area */}
+            <div className="flex-1 relative min-h-0 overflow-hidden flex flex-col">
+              <div className={`group relative h-full w-full overflow-hidden transition-opacity duration-200 ${isVisible ? 'opacity-100' : 'opacity-0'}`}>
+                
+                {activeView === 'preview' ? (
+                  <div className="absolute inset-0 z-20">
+                    {isMediaScene ? (
+                      <MediaViewer
+                        src={currentMediaUrl}
+                        mediaType={currentMediaType}
+                        sceneId={currentScene?.sceneId ?? null}
+                        statusStage={taskProgress?.mediaStage ?? 'idle'}
+                        statusText={taskProgress?.mediaStatusText ?? null}
+                      />
+                    ) : (
+                      <SceneViewer code={currentCode} skill={currentSkill} />
+                    )}
+                  </div>
+                ) : (
+                  <div className="absolute inset-0 z-20 bg-[#111]">
+                    <CodeEditor
+                      code={currentCode}
+                      skill={currentSkill}
+                      readOnly={true}
+                      runPending={isRerunning}
+                      onRun={(code) => { void handleRunScene(code); }}
+                    />
+                  </div>
+                )}
+
+
+                
+              </div>
+            </div>
+            
+            {panelError && (
+              <div className="border-t border-red-500/20 bg-red-500/10 p-3 text-[13px] font-medium text-red-400">
+                {panelError}
+              </div>
+            )}
+            
+          </div>
+        </div>
+
       </aside>
     </>
   );

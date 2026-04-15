@@ -40,22 +40,11 @@ export function Composer({
   participantLabel = "You",
   modelLabel = "Meta AI"
 }: ComposerProps) {
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [showAttachments, setShowAttachments] = useState(false);
   const [attachmentError, setAttachmentError] = useState<string | null>(null);
 
-  // Auto-resize textarea
-  useEffect(() => {
-    const textarea = textareaRef.current;
-    if (!textarea) return;
-    
-    textarea.style.height = "auto";
-    textarea.style.height = `${Math.min(textarea.scrollHeight, 200)}px`;
-  }, [value]);
-
   const canSubmit = value.trim().length > 0 || Boolean(attachedImage);
-  const isMeta = variant === "meta";
 
   const formatBytes = (valueInBytes: number) => {
     if (valueInBytes < 1024) {
@@ -139,142 +128,49 @@ export function Composer({
   };
 
   return (
-    <div className={`composer ${isMeta ? "composer--meta" : ""}`}>
-      <div className={`composer-container ${isMeta ? "composer-container--meta" : ""}`}>
+    <div className="relative">
+      <div className="h-[42px] flex items-center gap-2 px-3 bg-[#0a0a0a] border border-white/10 rounded-xl focus-within:border-white/20 transition">
         <input
           ref={fileInputRef}
-          className="composer-file-input"
           type="file"
           accept="image/*"
+          className="hidden"
           onChange={handleImageInputChange}
-          tabIndex={-1}
-          aria-hidden="true"
         />
-
-        {attachedImage && (
-          <div className="composer-image-chip" role="status" aria-live="polite">
-            <img src={attachedImage.previewUrl} alt={attachedImage.name} />
-            <div className="composer-image-chip__meta">
-              <span className="composer-image-chip__name">{attachedImage.name}</span>
-              <span className="composer-image-chip__size">{formatBytes(attachedImage.sizeBytes)}</span>
-            </div>
-            <button
-              type="button"
-              className="composer-image-chip__remove"
-              onClick={onRemoveImage}
-              aria-label="Remove attached image"
-            >
-              <X className="h-3.5 w-3.5" />
-            </button>
-          </div>
-        )}
-
-        {attachmentError && <p className="composer-attachment-error">{attachmentError}</p>}
-
-        {isMeta && (
-          <div className="composer-meta-head" aria-label="Composer context">
-            <div className="composer-meta-chips">
-              <span className="composer-meta-chip composer-meta-chip--participant">{participantLabel}</span>
-              <span className="composer-meta-chip composer-meta-chip--model">
-                <Sparkles className="h-3.5 w-3.5" aria-hidden="true" />
-                <span>{modelLabel}</span>
-              </span>
-            </div>
-          </div>
-        )}
-
-        {/* Attachment menu */}
-        {showAttachments && (
-          <div className={`composer-attachments ${isMeta ? "composer-attachments--meta" : ""}`}>
-            <button
-              type="button"
-              className="composer-attachment-item"
-              onClick={() => fileInputRef.current?.click()}
-            >
-              <Paperclip className="h-4 w-4" />
-              <span>Upload image</span>
-            </button>
-            <button type="button" className="composer-attachment-item" disabled>
-              <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <rect x="3" y="3" width="18" height="18" rx="2" />
-                <path d="M3 9h18" />
-              </svg>
-              <span>Connect repo</span>
-            </button>
-          </div>
-        )}
-
-        <div className={`composer-input-row ${isMeta ? "composer-input-row--meta" : ""}`}>
-          {/* Plus button for attachments */}
+        <input
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          onKeyDown={handleKeyDown}
+          placeholder={placeholder}
+          className="flex-1 bg-transparent outline-none text-[13.5px] placeholder:text-white/30"
+          disabled={isSending}
+        />
+        <button
+          type="button"
+          className="text-white/40 hover:text-white/70 p-1 transition"
+        >
+          <Mic className="w-[18px] h-[18px]" />
+        </button>
+        {isSending ? (
           <button
+            onClick={onStop}
             type="button"
-            className={`composer-button composer-button--plus ${showAttachments ? 'active' : ''}`}
-            onClick={() => setShowAttachments(!showAttachments)}
-            aria-label="Add attachment"
+            className="w-7 h-7 grid place-items-center rounded-lg bg-white/10 hover:bg-white/15 text-white/80 transition"
           >
-            {showAttachments ? <X className="h-5 w-5" /> : <Plus className="h-5 w-5" />}
+            <X className="w-[14px] h-[14px] stroke-[2.5]" />
           </button>
-
-          {/* Text input */}
-          <textarea
-            ref={textareaRef}
-            className={`composer-textarea ${isMeta ? "composer-textarea--meta" : ""}`}
-            value={value}
-            onChange={(e) => onChange(e.target.value)}
-            onKeyDown={handleKeyDown}
-            placeholder={placeholder}
-            rows={1}
-            disabled={isSending}
-          />
-
-          {isMeta && (
-            <button
-              type="button"
-              className="composer-button composer-button--mic"
-              aria-label="Voice input (planned)"
-              title="Voice input (planned)"
-              disabled={isSending}
-            >
-              <Mic className="h-4 w-4" />
-            </button>
-          )}
-
-          {/* Send/Stop button */}
-          {isSending ? (
-            <button
-              type="button"
-              className="composer-button composer-button--stop"
-              onClick={onStop}
-              aria-label="Stop generation"
-            >
-              <svg viewBox="0 0 24 24" className="h-5 w-5">
-                <rect x="6" y="6" width="12" height="12" rx="2" fill="currentColor" />
-              </svg>
-            </button>
-          ) : (
-            <button
-              type="button"
-              className="composer-button composer-button--send"
-              onClick={onSubmit}
-              disabled={!canSubmit}
-              aria-label="Send message"
-            >
-              <Send className="h-5 w-5" />
-            </button>
-          )}
-        </div>
-
-        {isMeta && (
-          <div className="composer-meta-toolbar" aria-hidden="true">
-            <span className="composer-meta-tool">Search</span>
-            <span className="composer-meta-tool">Reason</span>
-            <span className="composer-meta-tool">Canvas</span>
-          </div>
+        ) : (
+          <button
+            onClick={() => { if (canSubmit) onSubmit(); }}
+            disabled={!canSubmit}
+            type="button"
+            className={`w-7 h-7 grid place-items-center rounded-lg transition ${canSubmit ? 'bg-white/10 hover:bg-white/15 text-white/80' : 'text-white/20'}`}
+          >
+            <Send className="w-[14px] h-[14px] stroke-[2]" />
+          </button>
         )}
       </div>
-      <div className={`composer-footer ${isMeta ? "composer-footer--meta" : ""}`}>
-        <span>AI-generated content. Verify important information.</span>
-      </div>
+      {attachmentError && <div className="absolute -top-10 left-0 text-red-400 text-xs px-3 py-1.5 bg-red-950/50 rounded-lg">{attachmentError}</div>}
     </div>
   );
 }

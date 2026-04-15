@@ -234,6 +234,8 @@
 }
 
 .meta-message--assistant {
+  width: 100%;
+  margin: 0 auto;
   justify-content: flex-start;
 }
 
@@ -260,12 +262,16 @@
   min-width: 0;
   display: grid;
   gap: 0.45rem;
-  max-width: min(100%, 44rem);
+  width: 100%;
+  max-width: 100%;
+  margin: 0 auto;
 }
 
 .meta-message__content--user {
   justify-items: end;
+  width: auto;
   max-width: min(85%, 40rem);
+  margin: 0 0 0 auto;
 }
 
 .meta-message__user-bubble {
@@ -350,10 +356,9 @@
 
 .meta-message__status-stack {
   display: grid;
-  gap: 0.28rem;
-  padding: 0.5rem 0 0.45rem 0.6rem;
-  border-left: 1px solid #3f3f46;
-  margin-left: 0.2rem;
+  gap: 0.35rem;
+  padding: 0.15rem 0 0;
+  margin-left: 0;
 }
 
 .meta-message__status-main {
@@ -367,6 +372,46 @@
 .meta-message__status-sub {
   color: #a1a1aa;
   font-size: 0.74rem;
+}
+
+.meta-message .chat-task-status-chip {
+  border-color: #334155;
+  background: linear-gradient(180deg, rgba(30, 41, 59, 0.78) 0%, rgba(15, 23, 42, 0.88) 100%);
+  box-shadow: none;
+}
+
+.meta-message .chat-task-status-chip__icon {
+  border-color: #334155;
+  background: rgba(37, 99, 235, 0.18);
+  color: #93c5fd;
+}
+
+.meta-message .chat-task-status-chip__title {
+  color: #e2e8f0;
+}
+
+.meta-message .chat-task-status-chip__detail {
+  color: #94a3b8;
+}
+
+.meta-message .chat-task-status-chip__track {
+  background: #334155;
+}
+
+.meta-message .chat-task-status-chip__status-icon--running {
+  color: #60a5fa;
+}
+
+.meta-message .chat-task-status-chip__status-icon--completed {
+  color: #4ade80;
+}
+
+.meta-message .chat-task-status-chip__status-icon--failed {
+  color: #f87171;
+}
+
+.meta-message .chat-task-status-chip__status-icon--idle {
+  color: #94a3b8;
 }
 
 .meta-thought {
@@ -966,6 +1011,130 @@
   color: #991b1b;
 }
 
+.chat-task-status-chip {
+  width: 100%;
+  margin: 0;
+  border: 1px solid #dbe3ef;
+  border-radius: 1rem;
+  background: linear-gradient(180deg, #f8fbff 0%, #f8fafc 100%);
+  padding: 0.55rem 0.65rem;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.55rem;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.05);
+}
+
+.chat-task-status-chip--running {
+  border-color: #bfdbfe;
+}
+
+.chat-task-status-chip--completed {
+  border-color: #bbf7d0;
+}
+
+.chat-task-status-chip--failed {
+  border-color: #fecaca;
+}
+
+.chat-task-status-chip__icon {
+  width: 1.5rem;
+  height: 1.5rem;
+  border-radius: 0.5rem;
+  border: 1px solid #bfdbfe;
+  background: #eff6ff;
+  color: #2563eb;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.chat-task-status-chip--completed .chat-task-status-chip__icon {
+  border-color: #bbf7d0;
+  background: #f0fdf4;
+  color: #166534;
+}
+
+.chat-task-status-chip--failed .chat-task-status-chip__icon {
+  border-color: #fecaca;
+  background: #fef2f2;
+  color: #991b1b;
+}
+
+.chat-task-status-chip__copy {
+  min-width: 0;
+  display: grid;
+  gap: 0.14rem;
+}
+
+.chat-task-status-chip__title {
+  color: #1f2937;
+  font-size: 0.82rem;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.chat-task-status-chip__detail {
+  min-width: 0;
+  color: #64748b;
+  font-size: 0.74rem;
+  line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.chat-task-status-chip__track {
+  position: relative;
+  display: block;
+  width: min(15rem, 100%);
+  height: 0.16rem;
+  margin-top: 0.08rem;
+  border-radius: 999px;
+  background: #e2e8f0;
+  overflow: hidden;
+}
+
+.chat-task-status-chip__track-fill {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #60a5fa, #2563eb);
+}
+
+.chat-task-status-chip__track-fill.is-indeterminate {
+  width: 38%;
+  animation: terranet-task-chip-slide 1.25s ease-in-out infinite;
+}
+
+.chat-task-status-chip__status {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.chat-task-status-chip__status-icon {
+  width: 0.95rem;
+  height: 0.95rem;
+}
+
+.chat-task-status-chip__status-icon--running {
+  color: #2563eb;
+  animation: terranet-task-strip-spin 1.1s linear infinite;
+}
+
+.chat-task-status-chip__status-icon--completed {
+  color: #16a34a;
+}
+
+.chat-task-status-chip__status-icon--failed {
+  color: #dc2626;
+}
+
+.chat-task-status-chip__status-icon--idle {
+  color: #94a3b8;
+}
+
 @keyframes terranet-task-strip-spin {
   from {
     transform: rotate(0deg);
@@ -975,12 +1144,32 @@
   }
 }
 
+@keyframes terranet-task-chip-slide {
+  0% {
+    transform: translateX(-120%);
+  }
+  50% {
+    transform: translateX(0%);
+  }
+  100% {
+    transform: translateX(180%);
+  }
+}
+
 @media (max-width: 860px) {
   .chat-task-status-strip__trigger {
     grid-template-columns: auto auto auto auto;
   }
 
   .chat-task-status-strip__stage {
+    display: none;
+  }
+
+  .chat-task-status-chip {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .chat-task-status-chip__status {
     display: none;
   }
 }
@@ -1010,6 +1199,8 @@
 }
 
 .message-row--user .message-content {
+  width: auto;
+  max-width: 85%;
   align-items: flex-end;
 }
 
@@ -1027,7 +1218,15 @@
 
 /* AI Message - Left aligned, plain text */
 .message-row--ai {
+  width: 100%;
+  margin: 0 auto;
+  justify-content: flex-start;
   flex-direction: row;
+}
+
+.message-row--ai .message-content {
+  width: 100%;
+  max-width: 100%;
 }
 
 .message-text--ai {
@@ -1680,6 +1879,46 @@
 
   .message-thinking__track-fill {
     background: linear-gradient(90deg, #60a5fa, #3b82f6);
+  }
+
+  .chat-task-status-chip {
+    border-color: #334155;
+    background: linear-gradient(180deg, #1e293b 0%, #0f172a 100%);
+    box-shadow: none;
+  }
+
+  .chat-task-status-chip__icon {
+    border-color: #334155;
+    background: rgba(37, 99, 235, 0.18);
+    color: #93c5fd;
+  }
+
+  .chat-task-status-chip__title {
+    color: #e2e8f0;
+  }
+
+  .chat-task-status-chip__detail {
+    color: #94a3b8;
+  }
+
+  .chat-task-status-chip__track {
+    background: #334155;
+  }
+
+  .chat-task-status-chip__status-icon--running {
+    color: #60a5fa;
+  }
+
+  .chat-task-status-chip__status-icon--completed {
+    color: #4ade80;
+  }
+
+  .chat-task-status-chip__status-icon--failed {
+    color: #f87171;
+  }
+
+  .chat-task-status-chip__status-icon--idle {
+    color: #94a3b8;
   }
 }
 
@@ -2723,4 +2962,532 @@
 .chat-task-inline-panel__content .terranet-task-view {
   max-height: 400px;
   border-color: #dbe3ef;
+}
+
+.terranet-chat-shell--legacy {
+  display: flex;
+  flex-direction: row-reverse;
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  background:
+    radial-gradient(circle at top left, rgba(56, 189, 248, 0.1), transparent 28%),
+    radial-gradient(circle at bottom right, rgba(233, 74, 154, 0.08), transparent 26%),
+    linear-gradient(180deg, #050507 0%, #09090c 44%, #0b0b10 100%);
+}
+
+.terranet-chat-shell--legacy .terranet-chat-main {
+  display: flex;
+  flex-direction: column;
+  flex: 0 0 clamp(350px, 33vw, 420px);
+  width: clamp(350px, 33vw, 420px);
+  min-width: 320px;
+  min-height: 0;
+  background: rgba(8, 8, 12, 0.94);
+  border-left: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: -42px 0 88px -48px rgba(0, 0, 0, 0.8);
+}
+
+.terranet-chat-shell--legacy .terranet-chat-main__chrome {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.9rem 1rem 0.7rem;
+}
+
+.terranet-chat-shell--legacy .terranet-chat-main__control {
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.9) 0%, rgba(226, 232, 240, 0.88) 100%);
+  color: #09090c;
+  border-radius: 0.95rem;
+  min-height: 2.7rem;
+  padding: 0 0.95rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: pointer;
+  font-size: 0.82rem;
+  font-weight: 700;
+  box-shadow: 0 18px 34px -24px rgba(255, 255, 255, 0.38);
+}
+
+.terranet-chat-shell--legacy .terranet-chat-main__control:hover {
+  filter: brightness(1.03);
+}
+
+.terranet-chat-shell--legacy .terranet-chat-main__status {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  min-width: 0;
+  margin-left: auto;
+  padding: 0.42rem 0.7rem;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.04);
+  color: #cbd5e1;
+}
+
+.terranet-chat-shell--legacy .terranet-chat-main__status-dot {
+  width: 0.46rem;
+  height: 0.46rem;
+  border-radius: 999px;
+  background: #64748b;
+  box-shadow: 0 0 0 4px rgba(100, 116, 139, 0.12);
+  flex-shrink: 0;
+}
+
+.terranet-chat-shell--legacy .terranet-chat-main__status-dot--open {
+  background: #22c55e;
+  box-shadow: 0 0 0 4px rgba(34, 197, 94, 0.12);
+}
+
+.terranet-chat-shell--legacy .terranet-chat-main__status-dot--connecting {
+  background: #f59e0b;
+  box-shadow: 0 0 0 4px rgba(245, 158, 11, 0.12);
+}
+
+.terranet-chat-shell--legacy .terranet-chat-main__status-dot--error,
+.terranet-chat-shell--legacy .terranet-chat-main__status-dot--closed {
+  background: #f87171;
+  box-shadow: 0 0 0 4px rgba(248, 113, 113, 0.12);
+}
+
+.terranet-chat-shell--legacy .terranet-chat-main__status-label {
+  min-width: 0;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: #e2e8f0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.terranet-chat-shell--legacy .terranet-chat-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 0.25rem 1rem 0.5rem;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(148, 163, 184, 0.34) transparent;
+}
+
+.terranet-chat-shell--legacy .terranet-chat-scroll::-webkit-scrollbar {
+  width: 0.56rem;
+}
+
+.terranet-chat-shell--legacy .terranet-chat-scroll::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.26);
+  border-radius: 999px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+
+.terranet-chat-shell--legacy .chat-container {
+  max-width: none;
+  margin: 0;
+  padding: 0.35rem 0 0.75rem;
+  display: grid;
+  gap: 0.12rem;
+}
+
+.terranet-chat-shell--legacy .chat-task-status-container {
+  --chat-task-strip-max-width: none;
+  width: 100%;
+  margin: 0.15rem 0 0.65rem;
+}
+
+.terranet-chat-shell--legacy .chat-task-status-strip,
+.terranet-chat-shell--legacy .chat-task-status-chip {
+  background: rgba(255, 255, 255, 0.04);
+  border-color: rgba(255, 255, 255, 0.08);
+  box-shadow: 0 16px 28px -24px rgba(0, 0, 0, 0.55);
+}
+
+.terranet-chat-shell--legacy .chat-task-status-strip__progress,
+.terranet-chat-shell--legacy .chat-task-status-chip__title,
+.terranet-chat-shell--legacy .chat-task-status-chip__detail,
+.terranet-chat-shell--legacy .chat-task-status-strip__stage {
+  color: #e2e8f0;
+}
+
+.terranet-chat-shell--legacy .chat-task-status-chip__track {
+  background: rgba(148, 163, 184, 0.12);
+}
+
+.terranet-chat-shell--legacy .chat-task-status-strip__task-icon,
+.terranet-chat-shell--legacy .chat-task-status-chip__icon {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.08);
+  color: #cbd5e1;
+}
+
+.terranet-chat-shell--legacy .message-row {
+  gap: 0.68rem;
+  padding: 0.82rem 0;
+}
+
+.terranet-chat-shell--legacy .message-row--user {
+  justify-content: flex-end;
+}
+
+.terranet-chat-shell--legacy .message-row--user .message-content {
+  width: auto;
+  max-width: min(82%, 36rem);
+}
+
+.terranet-chat-shell--legacy .message-bubble--user {
+  background: linear-gradient(180deg, #38bdf8 0%, #2563eb 100%);
+  color: #ffffff;
+  padding: 0.82rem 1rem;
+  border-radius: 1.15rem 1.15rem 0.35rem 1.15rem;
+  box-shadow: 0 16px 36px -24px rgba(37, 99, 235, 0.9);
+}
+
+.terranet-chat-shell--legacy .message-row--ai {
+  width: 100%;
+  justify-content: flex-start;
+  align-items: flex-start;
+}
+
+.terranet-chat-shell--legacy .message-avatar {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: #cbd5e1;
+}
+
+.terranet-chat-shell--legacy .message-avatar--ai {
+  background: rgba(255, 255, 255, 0.08);
+  color: #93c5fd;
+}
+
+.terranet-chat-shell--legacy .message-avatar--thinking {
+  background: rgba(37, 99, 235, 0.18);
+  border-color: rgba(59, 130, 246, 0.28);
+}
+
+.terranet-chat-shell--legacy .message-content {
+  gap: 0.48rem;
+}
+
+.terranet-chat-shell--legacy .message-text--ai {
+  color: #e2e8f0;
+  font-size: 0.93rem;
+  line-height: 1.65;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 1.08rem;
+  padding: 0.95rem 1rem;
+  box-shadow: 0 18px 34px -28px rgba(0, 0, 0, 0.58);
+}
+
+.terranet-chat-shell--legacy .message-text--ai p,
+.terranet-chat-shell--legacy .message-text--ai li {
+  color: inherit;
+}
+
+.terranet-chat-shell--legacy .message-meta {
+  color: #94a3b8;
+  padding: 0 0.2rem;
+}
+
+.terranet-chat-shell--legacy .ai-message-artifact__button {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(255, 255, 255, 0.08);
+  color: #cbd5e1;
+}
+
+.terranet-chat-shell--legacy .ai-message-artifact__button:hover {
+  background: rgba(255, 255, 255, 0.09);
+  color: #ffffff;
+}
+
+.terranet-chat-shell--legacy .ai-message-artifact__button.is-active {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.92) 0%, rgba(226, 232, 240, 0.9) 100%);
+  color: #09090c;
+}
+
+.terranet-chat-shell--legacy .meta-thought {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.terranet-chat-shell--legacy .meta-thought__toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  width: fit-content;
+  padding: 0.34rem 0.68rem;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.04);
+  color: #cbd5e1;
+}
+
+.terranet-chat-shell--legacy .meta-thought__toggle:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: #ffffff;
+}
+
+.terranet-chat-shell--legacy .meta-thought__panel {
+  margin-left: 0.24rem;
+  padding: 0.12rem 0 0.12rem 0.7rem;
+  border-left: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.terranet-chat-shell--legacy .meta-thought__step {
+  color: #f8fafc;
+  letter-spacing: 0.12em;
+}
+
+.terranet-chat-shell--legacy .meta-thought__text {
+  color: #94a3b8;
+}
+
+.terranet-chat-shell--legacy .composer {
+  max-width: none;
+  margin: 0;
+  padding: 1rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  background: linear-gradient(180deg, rgba(8, 8, 10, 0), rgba(8, 8, 10, 0.96));
+}
+
+.terranet-chat-shell--legacy .composer-container {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 1.1rem;
+  box-shadow: 0 18px 38px -28px rgba(0, 0, 0, 0.55);
+  backdrop-filter: blur(18px);
+}
+
+.terranet-chat-shell--legacy .composer-attachments {
+  border-bottom-color: rgba(255, 255, 255, 0.06);
+}
+
+.terranet-chat-shell--legacy .composer-attachment-item {
+  background: rgba(255, 255, 255, 0.04);
+  border-color: rgba(255, 255, 255, 0.08);
+  color: #cbd5e1;
+}
+
+.terranet-chat-shell--legacy .composer-attachment-item:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: #ffffff;
+}
+
+.terranet-chat-shell--legacy .composer-textarea {
+  color: #e2e8f0;
+}
+
+.terranet-chat-shell--legacy .composer-textarea::placeholder {
+  color: #64748b;
+}
+
+.terranet-chat-shell--legacy .composer-button {
+  color: #cbd5e1;
+}
+
+.terranet-chat-shell--legacy .composer-button:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: #ffffff;
+}
+
+.terranet-chat-shell--legacy .composer-button.active {
+  background: rgba(255, 255, 255, 0.08);
+  color: #60a5fa;
+}
+
+.terranet-chat-shell--legacy .composer-button--send {
+  background: linear-gradient(180deg, #ffffff 0%, #e2e8f0 100%);
+  color: #09090c;
+}
+
+.terranet-chat-shell--legacy .composer-button--send:hover {
+  filter: brightness(1.02);
+}
+
+.terranet-chat-shell--legacy .composer-button--send:disabled {
+  background: rgba(255, 255, 255, 0.08);
+  color: #64748b;
+}
+
+.terranet-chat-shell--legacy .composer-button--stop {
+  background: linear-gradient(180deg, #fb7185 0%, #ef4444 100%);
+  color: #ffffff;
+}
+
+.terranet-chat-shell--legacy .composer-button--stop:hover {
+  background: linear-gradient(180deg, #fda4af 0%, #f43f5e 100%);
+}
+
+.terranet-chat-shell--legacy .chat-error-banner {
+  margin: 0 1rem 0.8rem;
+  border-radius: 0.95rem;
+  border: 1px solid rgba(248, 113, 113, 0.16);
+  background: rgba(69, 10, 10, 0.82);
+  color: #fecaca;
+}
+
+.terranet-chat-shell--legacy .chat-welcome {
+  width: 100%;
+  min-height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: clamp(1rem, 3vw, 2rem);
+  background:
+    radial-gradient(circle at top left, rgba(56, 189, 248, 0.08), transparent 28%),
+    radial-gradient(circle at bottom right, rgba(233, 74, 154, 0.08), transparent 26%),
+    linear-gradient(180deg, #050507 0%, #09090c 100%);
+  color: #e2e8f0;
+}
+
+.terranet-chat-shell--legacy .chat-welcome-content {
+  width: min(100%, 64rem);
+  display: grid;
+  gap: 1rem;
+  padding: clamp(1.2rem, 3vw, 2rem);
+  border-radius: 1.5rem;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.04);
+  box-shadow: 0 28px 60px -36px rgba(0, 0, 0, 0.8);
+}
+
+.terranet-chat-shell--legacy .chat-welcome-eyebrow {
+  color: #60a5fa;
+}
+
+.terranet-chat-shell--legacy .chat-welcome-content h1,
+.terranet-chat-shell--legacy .chat-welcome-capability h3,
+.terranet-chat-shell--legacy .chat-welcome-starter__title {
+  color: #f8fafc;
+}
+
+.terranet-chat-shell--legacy .chat-welcome-content p,
+.terranet-chat-shell--legacy .chat-welcome-capability p,
+.terranet-chat-shell--legacy .chat-welcome-starter__description {
+  color: #94a3b8;
+}
+
+.terranet-chat-shell--legacy .chat-welcome-button {
+  background: linear-gradient(180deg, #ffffff 0%, #e2e8f0 100%);
+  color: #09090c;
+}
+
+.terranet-chat-shell--legacy .chat-welcome-button--ghost {
+  background: rgba(255, 255, 255, 0.04);
+  color: #e2e8f0;
+}
+
+.terranet-chat-shell--legacy .chat-welcome-button--ghost:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.terranet-chat-shell--legacy .chat-welcome-capability,
+.terranet-chat-shell--legacy .chat-welcome-starter {
+  background: rgba(255, 255, 255, 0.04);
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
+.terranet-chat-shell--legacy .chat-welcome-starter:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.14);
+}
+
+.terranet-chat-shell--legacy .markdown-content {
+  color: #e2e8f0;
+}
+
+.terranet-chat-shell--legacy .markdown-content .markdown-h1,
+.terranet-chat-shell--legacy .markdown-content .markdown-h2,
+.terranet-chat-shell--legacy .markdown-content .markdown-h3,
+.terranet-chat-shell--legacy .markdown-content .markdown-h4 {
+  color: #f8fafc;
+}
+
+.terranet-chat-shell--legacy .markdown-content .markdown-p,
+.terranet-chat-shell--legacy .markdown-content .markdown-li {
+  color: #e2e8f0;
+}
+
+.terranet-chat-shell--legacy .markdown-content .markdown-inline-code {
+  background: rgba(255, 255, 255, 0.08);
+  color: #f8fafc;
+}
+
+.terranet-chat-shell--legacy .markdown-content .markdown-code-block {
+  border-color: rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.terranet-chat-shell--legacy .markdown-content .markdown-code-header {
+  border-bottom-color: rgba(255, 255, 255, 0.06);
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.terranet-chat-shell--legacy .markdown-content .markdown-code-lang,
+.terranet-chat-shell--legacy .markdown-content .markdown-code-copy,
+.terranet-chat-shell--legacy .markdown-content .markdown-link,
+.terranet-chat-shell--legacy .markdown-content .markdown-blockquote,
+.terranet-chat-shell--legacy .markdown-content .markdown-th,
+.terranet-chat-shell--legacy .markdown-content .markdown-td,
+.terranet-chat-shell--legacy .markdown-content .markdown-strong,
+.terranet-chat-shell--legacy .markdown-content .markdown-em {
+  color: #cbd5e1;
+}
+
+.terranet-chat-shell--legacy .markdown-content .markdown-table,
+.terranet-chat-shell--legacy .markdown-content .markdown-th,
+.terranet-chat-shell--legacy .markdown-content .markdown-td {
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
+.terranet-chat-shell--legacy .markdown-content .markdown-hr {
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
+@media (max-width: 1100px) {
+  .terranet-chat-shell--legacy {
+    flex-direction: column;
+  }
+
+  .terranet-chat-shell--legacy .terranet-workspace-dock {
+    order: -1;
+    min-height: 52vh;
+    width: 100%;
+  }
+
+  .terranet-chat-shell--legacy .terranet-chat-main {
+    width: 100%;
+    max-width: none;
+    flex-basis: auto;
+    border-left: none;
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+  }
+}
+
+@media (max-width: 860px) {
+  .terranet-chat-shell--legacy .terranet-chat-main__chrome {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .terranet-chat-shell--legacy .terranet-chat-main__status {
+    margin-left: 0;
+    width: 100%;
+  }
+
+  .terranet-chat-shell--legacy .message-row--user .message-content {
+    max-width: 92%;
+  }
+
+  .terranet-chat-shell--legacy .composer {
+    padding: 0.85rem;
+  }
+
+  .terranet-chat-shell--legacy .composer-input-row {
+    gap: 0.4rem;
+  }
 }

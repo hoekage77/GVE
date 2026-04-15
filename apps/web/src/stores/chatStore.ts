@@ -18,8 +18,13 @@ import {
   sendSessionMessage,
   undoScene,
   type SessionMessage as ApiSessionMessage,
-  type SessionSceneState
+  type SessionSceneState,
+  type IterationState as SharedIterationState,
+  type IterationUpdateEvent,
+  type QualityReport,
+  type IterationStopReason
 } from '@visual-runtime/shared';
+import type { ActionBlock, TaskCheckpoint } from '../types/actionBlocks';
 
 const WS_RECONNECT_DELAY_MS = 750;
 const WS_OPEN_WAIT_TIMEOUT_MS = 1200;
@@ -404,19 +409,21 @@ function normalizeTaskList(tasks: unknown): GveTask[] {
 export type Session = SessionSceneState;
 export type LiveConnectionState = 'connecting' | 'open' | 'closed' | 'error';
 export type SceneHistoryCommand = 'undo' | 'redo' | 'artifact.previous' | 'artifact.next' | 'version.previous' | 'version.next';
-export type WorkspacePanelView = 'preview' | 'code';
+export type WorkspacePanelView = 'preview' | 'code' | 'files';
 export type TurnLifecycleStatus = 'idle' | 'running' | 'completed' | 'failed';
 export type MediaLifecycleStage = 'idle' | 'queued' | 'generating' | 'executing' | 'syncing' | 'ready' | 'error';
 
 const PANEL_WIDTH_RATIO_BY_VIEW: Record<WorkspacePanelView, number> = {
   preview: 0.6,
   code: 0.6,
+  files: 0.44,
 };
 
 function getPanelWidthPreset(view: WorkspacePanelView): number {
   const fallbackByView: Record<WorkspacePanelView, number> = {
     preview: 840,
     code: 840,
+    files: 620,
   };
 
   if (typeof window === 'undefined') {
@@ -427,6 +434,7 @@ function getPanelWidthPreset(view: WorkspacePanelView): number {
   const minimumWidthByView: Record<WorkspacePanelView, number> = {
     preview: 360,
     code: 360,
+    files: 360,
   };
   const minimumWidth = minimumWidthByView[view] ?? 360;
   const preservedChatWidth = viewportWidth < 980 ? 280 : 360;
@@ -448,7 +456,7 @@ export interface LiveThoughtState {
 
 export interface StageEventEntry {
   id: string;
-  source: 'orchestration' | 'activity';
+  source: 'orchestration' | 'activity' | 'task' | 'error';
   step: string;
   status: GveTaskStatus;
   text: string;
@@ -692,6 +700,56 @@ export interface ComposerImageAttachment {
   previewUrl: string;
 }
 
+// UI Iteration State - wrapper for displaying iteration progress
+export interface UIIterationState {
+  isIterating: boolean;
+  currentIteration: number;
+  maxIterations: number;
+  currentScore: number;
+  threshold: number;
+  phase: "generating" | "validating" | "scoring" | "patching" | "finalizing";
+  iterations: SharedIterationState[];
+  qualityReport: QualityReport | null;
+  stopReason: IterationStopReason | null;
+  sessionId: string;
+}
+
+// Agent Analysis State
+export interface AgentResult {
+  id: string;
+  name: string;
+  score: number; // 0-100 confidence
+  findings: string[]; // Top 2-3 key findings
+  recommendations: Array<{
+    action: string;
+    impact: number; // 0-20 (potential score improvement)
+    confidence: number; // 0-100
+    category: 'structure' | 'performance' | 'visual' | 'api' | 'safety';
+  }>;
+}
+
+export interface UIAgentState {
+  isAnalyzing: boolean;
+  results: Record<string, AgentResult>; // architect, materialDesigner, animator, optimizer, tester
+  consensus: number; // 0-100 (% agents agreeing)
+  shouldAutoApply: boolean; // true if consensus >= 80
+  recommendations: Array<{
+    agentId: string;
+    action: string;
+    impact: number;
+    confidence: number;
+    category: string;
+    priority: number;
+  }>;
+  memory: Array<{
+    iteration: number;
+    pattern: string;
+    frequency: number;
+    resolved: boolean;
+  }>;
+  lastAnalyzedAt: string | null;
+}
+
 interface ChatState {
   // Sessions
   sessions: Session[];
@@ -706,6 +764,11 @@ interface ChatState {
   // Session task progress
   taskProgressBySession: Record<string, SessionTaskProgress>;
   
+  // Action Blocks (per message, keyed by messageId)
+  actionBlocksByMessage: Record<string, ActionBlock[]>;
+  currentTurnCheckpoints: TaskCheckpoint[];
+  currentMessageId: string | null;
+  
   // UI State
   connectionState: LiveConnectionState;
   isSending: boolean;
@@ -713,6 +776,8 @@ interface ChatState {
   thinkingText: string | null;
   thinkingStep: string;
   showScrollToLatest: boolean;
+  iterationState: UIIterationState | null;
+  agentState: UIAgentState | null;
   
   // Workspace Panel State (new simplified system)
   panelOpen: boolean;
@@ -751,6 +816,22 @@ interface ChatState {
   closePanel: () => void;
   togglePanel: (view: WorkspacePanelView) => void;
   setPanelWidth: (width: number) => void;
+  
+  // Iteration Actions
+  updateIterationState: (state: UIIterationState | null) => void;
+  abortIteration: () => void;
+  
+  // Agent Actions
+  updateAgentState: (state: UIAgentState | null) => void;
+  setAgentAnalyzing: (isAnalyzing: boolean) => void;
+  clearAgentState: () => void;
+  
+  // Action Block Actions
+  setActionBlocks: (messageId: string, blocks: ActionBlock[]) => void;
+  updateActionBlock: (messageId: string, blockId: string, updates: Partial<ActionBlock>) => void;
+  setCurrentTurnCheckpoints: (checkpoints: TaskCheckpoint[]) => void;
+  setCurrentMessageId: (messageId: string | null) => void;
+  clearActionBlocks: (messageId: string) => void;
   
   clearSession: (sessionId: string) => void;
 }
@@ -1836,6 +1917,33 @@ export const useChatStore = create<ChatState>()(
                 return;
               }
 
+              if (parsed.type === 'generation:progress' || parsed.type === 'code:stream') {
+                if (!sessionId) {
+                  return;
+                }
+
+                const progressPercent = typeof payload.progress === 'number' ? payload.progress : null;
+                const currentTokens = typeof payload.tokens === 'number' ? payload.tokens : null;
+                const totalTokens = typeof payload.estimatedTotal === 'number' ? payload.estimatedTotal : null;
+                const statusMessage = typeof payload.message === 'string' ? payload.message : null;
+                const isFinal = payload.isFinal === true;
+
+                set((state) => ({
+                  taskProgressBySession: updateTaskProgressMap(state.taskProgressBySession, sessionId, (current) => ({
+                    ...current,
+                    mediaStage: current.turnStatus === 'running' ? 'generating' : current.mediaStage,
+                    mediaStatusText: statusMessage ?? (
+                      progressPercent !== null
+                        ? `Generating... ${progressPercent}%`
+                        : currentTokens !== null && totalTokens !== null
+                          ? `Generating... ${currentTokens} / ${totalTokens} tokens`
+                          : 'Generating runtime output...'
+                    )
+                  }))
+                }));
+                return;
+              }
+
               if (parsed.type === 'generation:complete' || parsed.type === 'code:update') {
                 if (!sessionId) {
                   return;
@@ -2089,6 +2197,74 @@ export const useChatStore = create<ChatState>()(
                 return;
               }
 
+              if (parsed.type === 'generation:error' || parsed.type === 'code:error') {
+                if (!sessionId) {
+                  return;
+                }
+
+                const errorMessage = typeof payload.message === 'string' ? payload.message : 'Generation failed';
+                const errorCode = typeof payload.code === 'string' ? payload.code : 'GENERATION_ERROR';
+                const failedAt = nowIso();
+
+                set((state) => ({
+                  taskProgressBySession: updateTaskProgressMap(state.taskProgressBySession, sessionId, (current) => ({
+                    ...current,
+                    mediaStage: 'error',
+                    mediaStatusText: errorMessage,
+                    stageEventsByAction: appendStageEvent(
+                      current.stageEventsByAction,
+                      current.activeStageAction ?? 'generate_code',
+                      {
+                        id: createClientMessageId(`generation-error-${errorCode}`),
+                        source: 'error',
+                        step: current.currentStep ?? 'generate_code',
+                        status: 'failed',
+                        text: errorMessage,
+                        detail: errorCode,
+                        createdAt: failedAt
+                      }
+                    )
+                  }))
+                }));
+                return;
+              }
+
+              if (parsed.type === 'thinking:analysis_failed') {
+                if (!sessionId) {
+                  return;
+                }
+
+                const errorMessage = typeof payload.message === 'string' ? payload.message : 'Analysis failed';
+                const failedAt = nowIso();
+
+                set((state) => ({
+                  thinkingText: eventTargetsActiveSession ? errorMessage : state.thinkingText,
+                  thinkingStep: eventTargetsActiveSession ? 'turn_error' : state.thinkingStep,
+                  taskProgressBySession: updateTaskProgressMap(state.taskProgressBySession, sessionId, (current) => ({
+                    ...current,
+                    liveThought: {
+                      text: errorMessage,
+                      step: 'turn_error',
+                      updatedAt: failedAt
+                    },
+                    stageEventsByAction: appendStageEvent(
+                      current.stageEventsByAction,
+                      'parse_intent',
+                      {
+                        id: createClientMessageId('thinking-analysis-failed'),
+                        source: 'error',
+                        step: 'parse_intent',
+                        status: 'failed',
+                        text: 'Analysis failed',
+                        detail: errorMessage,
+                        createdAt: failedAt
+                      }
+                    )
+                  }))
+                }));
+                return;
+              }
+
               if (parsed.type === 'turn:error') {
                 if (!eventTargetsActiveSession && !eventTargetsActiveRequest) {
                   return;
@@ -2193,6 +2369,243 @@ export const useChatStore = create<ChatState>()(
                 return;
               }
 
+              if (parsed.type === 'iteration:update') {
+                if (!sessionId) {
+                  return;
+                }
+
+                const iterationData = payload.iteration as SharedIterationState;
+                const progress = payload.progress as {
+                  current: number;
+                  total: number;
+                  phase: "generating" | "validating" | "scoring" | "patching" | "finalizing";
+                };
+
+                if (!iterationData || !progress) {
+                  return;
+                }
+
+                const {
+                  iterationNumber,
+                  qualitySignals,
+                  isFinal,
+                  generationDurationMs,
+                  validationDurationMs,
+                  patchGoals
+                } = iterationData;
+
+                set((state) => {
+                  const currentIterations = state.iterationState?.iterations ?? [];
+                  const isFirstIteration = iterationNumber === 1;
+                  
+                  // Update or add the iteration
+                  const updatedIterations = isFirstIteration 
+                    ? [iterationData]
+                    : [...currentIterations.filter(it => it.iterationNumber < iterationNumber), iterationData];
+
+                  const finalScore = qualitySignals?.composite ?? state.iterationState?.currentScore ?? 0;
+                  const isIterating = progress.phase !== 'finalizing' && !isFinal;
+
+                  return {
+                    iterationState: {
+                      isIterating,
+                      currentIteration: progress.current,
+                      maxIterations: progress.total,
+                      currentScore: finalScore,
+                      threshold: state.iterationState?.threshold ?? 75,
+                      phase: progress.phase as UIIterationState['phase'],
+                      iterations: updatedIterations,
+                      qualityReport: state.iterationState?.qualityReport ?? null,
+                      stopReason: state.iterationState?.stopReason ?? null,
+                      sessionId
+                    }
+                  };
+                });
+                return;
+              }
+
+              if (parsed.type === 'agent:analysis_complete') {
+                // Handle multi-agent analysis completion
+                const agentResults = payload.results as Record<string, any> ?? {};
+                const consensus = typeof payload.consensus === 'number' ? payload.consensus : 0;
+                const recommendations = (payload.recommendations ?? []) as Array<any>;
+                const shouldAutoApply = consensus >= 80;
+
+                // Convert agent results to our UI format
+                const formattedResults: Record<string, any> = {};
+                Object.entries(agentResults).forEach(([agentId, result]: [string, any]) => {
+                  formattedResults[agentId] = {
+                    id: agentId,
+                    name: result.name || agentId,
+                    score: result.score || 0,
+                    findings: result.findings || [],
+                    recommendations: result.recommendations || []
+                  };
+                });
+
+                set((state) => ({
+                  agentState: {
+                    isAnalyzing: false,
+                    results: formattedResults,
+                    consensus,
+                    shouldAutoApply,
+                    recommendations: recommendations.map((rec: any, idx: number) => ({
+                      ...rec,
+                      priority: idx + 1
+                    })),
+                    memory: state.agentState?.memory ?? [],
+                    lastAnalyzedAt: new Date().toISOString()
+                  }
+                }));
+                return;
+              }
+
+              if (parsed.type === 'tasks:planned') {
+                if (!sessionId) {
+                  return;
+                }
+
+                const planId = typeof payload.planId === 'string' ? payload.planId : null;
+                const taskCount = typeof payload.taskCount === 'number' ? payload.taskCount : 0;
+                const summary = typeof payload.summary === 'string' ? payload.summary : null;
+
+                set((state) => ({
+                  taskProgressBySession: updateTaskProgressMap(state.taskProgressBySession, sessionId, (current) => ({
+                    ...current,
+                    planId,
+                    turnStatus: current.turnStatus === 'idle' ? 'running' : current.turnStatus
+                  }))
+                }));
+                return;
+              }
+
+              if (parsed.type === 'task:started') {
+                if (!sessionId) {
+                  return;
+                }
+
+                const planId = typeof payload.planId === 'string' ? payload.planId : null;
+                const taskId = typeof payload.taskId === 'string' ? payload.taskId : null;
+                const action = typeof payload.action === 'string' ? payload.action : null;
+                const createdAt = nowIso();
+
+                set((state) => ({
+                  taskProgressBySession: updateTaskProgressMap(state.taskProgressBySession, sessionId, (current) => {
+                    const nextTasks = applyStepStatusToTasks(current.tasks, action, 'running');
+
+                    const nextStageEvents = action && (action as GveTaskAction in ORCHESTRATION_STEP_TO_ACTION)
+                      ? appendStageEvent(current.stageEventsByAction, action as GveTaskAction, {
+                          id: createClientMessageId(`task-started-${taskId}`),
+                          source: 'task',
+                          step: action,
+                          status: 'running',
+                          text: `Task ${action} started`,
+                          detail: `Plan: ${planId ?? 'unknown'}, Task: ${taskId ?? 'unknown'}`,
+                          createdAt
+                        })
+                      : current.stageEventsByAction;
+
+                    return {
+                      ...current,
+                      tasks: nextTasks,
+                      stageEventsByAction: nextStageEvents,
+                      currentStep: action ?? current.currentStep,
+                      currentStepStatus: 'running',
+                      turnStatus: current.turnStatus === 'idle' ? 'running' : current.turnStatus,
+                      activeStageAction: (action as GveTaskAction) ?? current.activeStageAction
+                    };
+                  })
+                }));
+                return;
+              }
+
+              if (parsed.type === 'task:completed') {
+                if (!sessionId) {
+                  return;
+                }
+
+                const planId = typeof payload.planId === 'string' ? payload.planId : null;
+                const taskId = typeof payload.taskId === 'string' ? payload.taskId : null;
+                const status = normalizeTaskStatus(payload.status, 'completed');
+                const durationMs = typeof payload.durationMs === 'number' ? payload.durationMs : 0;
+                const createdAt = nowIso();
+
+                set((state) => ({
+                  taskProgressBySession: updateTaskProgressMap(state.taskProgressBySession, sessionId, (current) => {
+                    const taskForEvent = current.tasks.find((t) => t.id === taskId);
+                    const action = taskForEvent?.action ?? current.currentStep;
+
+                    const nextTasks = applyStepStatusToTasks(current.tasks, action, status);
+
+                    const nextStageEvents = action && (action as GveTaskAction in ORCHESTRATION_STEP_TO_ACTION)
+                      ? appendStageEvent(current.stageEventsByAction, action as GveTaskAction, {
+                          id: createClientMessageId(`task-completed-${taskId}`),
+                          source: 'task',
+                          step: action,
+                          status,
+                          text: `Task ${action} completed`,
+                          detail: `Duration: ${(durationMs / 1000).toFixed(2)}s`,
+                          createdAt
+                        })
+                      : current.stageEventsByAction;
+
+                    return {
+                      ...current,
+                      tasks: nextTasks,
+                      stageEventsByAction: nextStageEvents,
+                      currentStep: action,
+                      currentStepStatus: status,
+                      turnStatus: current.turnStatus === 'idle' ? 'running' : current.turnStatus
+                    };
+                  })
+                }));
+                return;
+              }
+
+              if (parsed.type === 'task:failed') {
+                if (!sessionId) {
+                  return;
+                }
+
+                const planId = typeof payload.planId === 'string' ? payload.planId : null;
+                const taskId = typeof payload.taskId === 'string' ? payload.taskId : null;
+                const message = typeof payload.message === 'string' ? payload.message : 'Task failed';
+                const createdAt = nowIso();
+
+                set((state) => ({
+                  taskProgressBySession: updateTaskProgressMap(state.taskProgressBySession, sessionId, (current) => {
+                    const taskForEvent = current.tasks.find((t) => t.id === taskId);
+                    const action = taskForEvent?.action ?? current.currentStep;
+
+                    const nextTasks = applyStepStatusToTasks(current.tasks, action, 'failed');
+
+                    const nextStageEvents = action && (action as GveTaskAction in ORCHESTRATION_STEP_TO_ACTION)
+                      ? appendStageEvent(current.stageEventsByAction, action as GveTaskAction, {
+                          id: createClientMessageId(`task-failed-${taskId}`),
+                          source: 'task',
+                          step: action,
+                          status: 'failed',
+                          text: `Task ${action} failed`,
+                          detail: message,
+                          createdAt
+                        })
+                      : current.stageEventsByAction;
+
+                    return {
+                      ...current,
+                      tasks: nextTasks,
+                      stageEventsByAction: nextStageEvents,
+                      currentStep: action,
+                      currentStepStatus: 'failed',
+                      turnStatus: current.turnStatus === 'failed' ? 'failed' : current.turnStatus,
+                      mediaStage: current.mediaStage === 'ready' ? 'ready' : 'error',
+                      mediaStatusText: message
+                    };
+                  })
+                }));
+                return;
+              }
+
               if (parsed.type === 'message:error') {
                 const messageError = typeof payload.message === 'string' && payload.message.trim()
                   ? payload.message
@@ -2225,6 +2638,18 @@ export const useChatStore = create<ChatState>()(
                       }))
                     : state.taskProgressBySession
                 }));
+              }
+
+              if (parsed.type === 'action:block_update') {
+                const messageId = typeof payload.messageId === 'string' ? payload.messageId : null;
+                const blockId = typeof payload.blockId === 'string' ? payload.blockId : null;
+                const updates = payload.updates ?? null;
+
+                if (!messageId || !blockId || !updates || typeof updates !== 'object') {
+                  return;
+                }
+
+                get().updateActionBlock(messageId, blockId, updates as Partial<ActionBlock>);
               }
             } catch {
               // Ignore malformed websocket payloads.
@@ -2265,12 +2690,17 @@ export const useChatStore = create<ChatState>()(
         sessionsError: null,
         messages: {},
         taskProgressBySession: {},
+        actionBlocksByMessage: {},
+        currentTurnCheckpoints: [],
+        currentMessageId: null,
         connectionState: 'connecting',
         isSending: false,
         activeRequestId: null,
         thinkingText: null,
         thinkingStep: 'turn_started',
         showScrollToLatest: false,
+        iterationState: null,
+        agentState: null,
         panelOpen: false,
         panelView: null,
         panelWidth: 600,
@@ -2392,6 +2822,22 @@ export const useChatStore = create<ChatState>()(
           set({ panelWidth: width });
         },
         
+        // Iteration Actions
+        updateIterationState: (state: UIIterationState | null) => {
+          set({ iterationState: state });
+        },
+
+        abortIteration: () => {
+          const sessionId = get().iterationState?.sessionId;
+          if (sessionId && socket?.readyState === WebSocket.OPEN) {
+            socket.send(JSON.stringify({
+              type: 'iteration:abort',
+              sessionId
+            }));
+          }
+          set({ iterationState: null });
+        },
+        
         clearSession: (sessionId: string) => {
           const { [sessionId]: _, ...remainingMessages } = get().messages;
           const { [sessionId]: __, ...remainingTaskProgress } = get().taskProgressBySession;
@@ -2404,6 +2850,69 @@ export const useChatStore = create<ChatState>()(
               : state.activeSessionId,
           }));
         },
+
+        // Agent Actions
+        updateAgentState: (state: UIAgentState | null) => {
+          set({ agentState: state });
+        },
+
+        setAgentAnalyzing: (isAnalyzing: boolean) => {
+          const currentState = get().agentState;
+          if (currentState) {
+            set({
+              agentState: {
+                ...currentState,
+                isAnalyzing
+              }
+            });
+          }
+        },
+
+        clearAgentState: () => {
+          set({ agentState: null });
+        },
+
+        // Action Block Actions
+        setActionBlocks: (messageId: string, blocks: ActionBlock[]) => {
+          set((state) => ({
+            actionBlocksByMessage: {
+              ...state.actionBlocksByMessage,
+              [messageId]: blocks,
+            },
+          }));
+        },
+
+        updateActionBlock: (messageId: string, blockId: string, updates: Partial<ActionBlock>) => {
+          set((state) => {
+            const messageBlocks = state.actionBlocksByMessage[messageId] ?? [];
+            const updatedBlocks = messageBlocks.map((block) =>
+              block.id === blockId ? { ...block, ...updates } : block
+            );
+            return {
+              actionBlocksByMessage: {
+                ...state.actionBlocksByMessage,
+                [messageId]: updatedBlocks,
+              },
+            };
+          });
+        },
+
+        setCurrentTurnCheckpoints: (checkpoints: TaskCheckpoint[]) => {
+          set({ currentTurnCheckpoints: checkpoints });
+        },
+
+        setCurrentMessageId: (messageId: string | null) => {
+          set({ currentMessageId: messageId });
+        },
+
+        clearActionBlocks: (messageId: string) => {
+          set((state) => {
+            const { [messageId]: _, ...remaining } = state.actionBlocksByMessage;
+            return {
+              actionBlocksByMessage: remaining,
+            };
+          });
+        },
       }),
       {
         name: 'terranet-chat-storage',
@@ -2412,6 +2921,7 @@ export const useChatStore = create<ChatState>()(
           messages: state.messages,
           activeSessionId: state.activeSessionId,
           taskProgressBySession: state.taskProgressBySession,
+          actionBlocksByMessage: state.actionBlocksByMessage,
         }),
       }
     ),

@@ -1,0 +1,672 @@
+/* Agent Components Styling - Dark Mode (AGENTS.md design system) */
+
+:root {
+  --agent-bg: #0f172a;
+  --agent-surface: #1e293b;
+  --agent-surface-alt: #334155;
+  --agent-border: #334155;
+  --agent-text-primary: #e2e8f0;
+  --agent-text-secondary: #94a3b8;
+  --agent-accent: #60a5fa;
+  --agent-success: #10b981;
+  --agent-warning: #f59e0b;
+  --agent-error: #ef4444;
+  --agent-transition: all 0.2s ease;
+}
+
+/* ─────────────────────────────────────────────────────────────────── */
+/* AgentCard Styling */
+/* ─────────────────────────────────────────────────────────────────── */
+
+.agent-card {
+  background: var(--agent-surface);
+  border: 1px solid var(--agent-border);
+  border-radius: 12px;
+  overflow: hidden;
+  margin-bottom: 12px;
+  transition: var(--agent-transition);
+}
+
+.agent-card:hover {
+  background: color-mix(in srgb, var(--agent-surface) 90%, white);
+  border-color: var(--agent-accent);
+}
+
+.agent-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.agent-card-header:active {
+  opacity: 0.8;
+}
+
+.agent-card-header-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 1;
+}
+
+.agent-icon {
+  font-size: 24px;
+  line-height: 1;
+}
+
+.agent-card-title-group {
+  flex: 1;
+}
+
+.agent-card-title {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--agent-text-primary);
+  line-height: 1.4;
+}
+
+.agent-card-subtitle {
+  margin: 0;
+  font-size: 12px;
+  color: var(--agent-text-secondary);
+  line-height: 1.3;
+}
+
+.agent-card-header-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.agent-score-badge {
+  min-width: 46px;
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 700;
+  color: white;
+  text-align: center;
+  line-height: 1.4;
+}
+
+.agent-expand-btn {
+  background: transparent;
+  border: none;
+  color: var(--agent-text-secondary);
+  cursor: pointer;
+  padding: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  transition: var(--agent-transition);
+}
+
+.agent-expand-btn:hover {
+  background: var(--agent-surface-alt);
+  color: var(--agent-text-primary);
+}
+
+/* Card Content */
+.agent-card-content {
+  padding: 0 16px 12px 16px;
+  border-top: 1px solid var(--agent-border);
+}
+
+.agent-score-bar {
+  height: 4px;
+  background: var(--agent-border);
+  border-radius: 2px;
+  overflow: hidden;
+  margin-bottom: 12px;
+}
+
+.agent-score-fill {
+  height: 100%;
+  border-radius: 2px;
+  transition: width 0.3s ease;
+}
+
+.agent-findings {
+  margin-bottom: 12px;
+}
+
+.agent-findings-label {
+  margin: 0 0 6px 0;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--agent-text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.agent-findings-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.agent-findings-list li {
+  font-size: 12px;
+  color: var(--agent-text-secondary);
+  line-height: 1.5;
+  margin-bottom: 4px;
+  padding-left: 12px;
+  position: relative;
+}
+
+.agent-findings-list li::before {
+  content: '•';
+  position: absolute;
+  left: 0;
+  color: var(--agent-accent);
+}
+
+.agent-stats {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.agent-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.agent-stat-label {
+  font-size: 11px;
+  color: var(--agent-text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+.agent-stat-value {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--agent-accent);
+}
+
+/* Card Details (Expanded) */
+.agent-card-details {
+  padding: 12px 16px;
+  border-top: 1px solid var(--agent-border);
+  background: color-mix(in srgb, var(--agent-surface) 60%, var(--agent-bg));
+}
+
+.agent-details-section {
+  margin-bottom: 12px;
+}
+
+.agent-details-section:last-child {
+  margin-bottom: 0;
+}
+
+.agent-details-title {
+  margin: 0 0 8px 0;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--agent-text-primary);
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+.agent-categories {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.agent-category-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  background: var(--agent-surface);
+  border: 1px solid var(--agent-border);
+  border-radius: 4px;
+  font-size: 11px;
+  color: var(--agent-text-secondary);
+}
+
+.agent-category-name {
+  text-transform: capitalize;
+}
+
+.agent-category-count {
+  font-weight: 700;
+  color: var(--agent-accent);
+}
+
+.agent-all-findings {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.agent-all-findings li {
+  font-size: 12px;
+  color: var(--agent-text-secondary);
+  line-height: 1.5;
+  margin-bottom: 6px;
+  padding-left: 12px;
+  position: relative;
+}
+
+.agent-all-findings li::before {
+  content: '▸';
+  position: absolute;
+  left: 0;
+  color: var(--agent-accent);
+}
+
+/* ─────────────────────────────────────────────────────────────────── */
+/* AgentConfidenceMeter Styling */
+/* ─────────────────────────────────────────────────────────────────── */
+
+.agent-confidence-meter {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  padding: 20px;
+  background: var(--agent-surface);
+  border: 1px solid var(--agent-border);
+  border-radius: 12px;
+  margin-bottom: 16px;
+}
+
+.agent-confidence-circle {
+  flex-shrink: 0;
+}
+
+.agent-confidence-circle svg {
+  display: block;
+}
+
+.agent-confidence-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.agent-confidence-label {
+  margin: 0 0 4px 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--agent-text-primary);
+}
+
+.agent-confidence-detail {
+  margin: 0 0 6px 0;
+  font-size: 13px;
+  color: var(--agent-text-secondary);
+}
+
+.agent-confidence-description {
+  margin: 0;
+  font-size: 12px;
+  color: var(--agent-text-secondary);
+  line-height: 1.4;
+}
+
+/* ─────────────────────────────────────────────────────────────────── */
+/* AgentRecommendations Styling */
+/* ─────────────────────────────────────────────────────────────────── */
+
+.agent-recommendations {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.agent-recommendation-item {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 12px;
+  align-items: center;
+  padding: 12px;
+  background: var(--agent-surface);
+  border: 1px solid var(--agent-border);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: var(--agent-transition);
+}
+
+.agent-recommendation-item:hover {
+  background: color-mix(in srgb, var(--agent-surface) 90%, white);
+  border-color: var(--agent-accent);
+}
+
+.agent-recommendation-badge {
+  font-size: 16px;
+  line-height: 1;
+}
+
+.agent-recommendation-content {
+  min-width: 0;
+}
+
+.agent-recommendation-text {
+  font-size: 13px;
+  color: var(--agent-text-primary);
+  line-height: 1.4;
+  margin-bottom: 4px;
+}
+
+.agent-recommendation-meta {
+  display: flex;
+  gap: 8px;
+  font-size: 11px;
+  color: var(--agent-text-secondary);
+}
+
+.agent-recommendation-agent {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.agent-recommendation-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.agent-recommendation-confidence {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 32px;
+  height: 28px;
+  padding: 0 6px;
+  background: var(--agent-surface-alt);
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--agent-accent);
+}
+
+.agent-recommendation-impact {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--agent-success);
+}
+
+.agent-recommendation-actions {
+  display: flex;
+  gap: 4px;
+}
+
+.agent-recommendation-btn {
+  background: transparent;
+  border: 1px solid var(--agent-border);
+  color: var(--agent-text-secondary);
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  transition: var(--agent-transition);
+}
+
+.agent-recommendation-btn:hover {
+  background: var(--agent-accent);
+  border-color: var(--agent-accent);
+  color: white;
+}
+
+.agent-recommendation-btn.accept {
+  background: var(--agent-success);
+  border-color: var(--agent-success);
+  color: white;
+}
+
+.agent-recommendation-btn.accept:hover {
+  opacity: 0.8;
+}
+
+/* ─────────────────────────────────────────────────────────────────── */
+/* AgentAnalysisPanel Styling */
+/* ─────────────────────────────────────────────────────────────────── */
+
+.agent-analysis-panel {
+  position: fixed;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  width: 100%;
+  max-width: 600px;
+  background: var(--agent-bg);
+  border-left: 1px solid var(--agent-border);
+  display: flex;
+  flex-direction: column;
+  z-index: 40;
+  animation: slideInRight 0.3s ease-out;
+  box-shadow: -4px 0 12px rgba(0, 0, 0, 0.3);
+}
+
+@keyframes slideInRight {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+.agent-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px;
+  border-bottom: 1px solid var(--agent-border);
+}
+
+.agent-panel-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--agent-text-primary);
+  margin: 0;
+}
+
+.agent-panel-close-btn {
+  background: transparent;
+  border: none;
+  color: var(--agent-text-secondary);
+  cursor: pointer;
+  padding: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  transition: var(--agent-transition);
+}
+
+.agent-panel-close-btn:hover {
+  background: var(--agent-surface-alt);
+  color: var(--agent-text-primary);
+}
+
+.agent-panel-tabs {
+  display: flex;
+  gap: 0;
+  padding: 0 16px;
+  border-bottom: 1px solid var(--agent-border);
+  overflow-x: auto;
+}
+
+.agent-panel-tab {
+  flex: 1;
+  min-width: 100px;
+  padding: 12px 16px;
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: var(--agent-text-secondary);
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  transition: var(--agent-transition);
+  white-space: nowrap;
+}
+
+.agent-panel-tab:hover {
+  color: var(--agent-text-primary);
+}
+
+.agent-panel-tab.active {
+  color: var(--agent-accent);
+  border-bottom-color: var(--agent-accent);
+}
+
+.agent-panel-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px;
+}
+
+.agent-panel-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  flex-direction: column;
+  gap: 12px;
+  color: var(--agent-text-secondary);
+}
+
+.agent-panel-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  flex-direction: column;
+  gap: 12px;
+  color: var(--agent-text-secondary);
+  text-align: center;
+  padding: 20px;
+}
+
+.agent-panel-empty p {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+/* ─────────────────────────────────────────────────────────────────── */
+/* AgentBadge Styling */
+/* ─────────────────────────────────────────────────────────────────── */
+
+.agent-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  background: var(--agent-surface);
+  border: 1px solid var(--agent-border);
+  border-radius: 4px;
+  font-size: 11px;
+  color: var(--agent-text-secondary);
+}
+
+.agent-badge-icon {
+  font-size: 12px;
+}
+
+/* ─────────────────────────────────────────────────────────────────── */
+/* AgentMemoryTimeline Styling */
+/* ─────────────────────────────────────────────────────────────────── */
+
+.agent-memory-timeline {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.agent-memory-item {
+  padding: 12px;
+  background: var(--agent-surface);
+  border: 1px solid var(--agent-border);
+  border-radius: 8px;
+  border-left: 3px solid var(--agent-accent);
+}
+
+.agent-memory-iteration {
+  font-size: 11px;
+  color: var(--agent-text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  margin-bottom: 4px;
+}
+
+.agent-memory-pattern {
+  font-size: 13px;
+  color: var(--agent-text-primary);
+  line-height: 1.4;
+  margin-bottom: 4px;
+}
+
+.agent-memory-frequency {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  color: var(--agent-text-secondary);
+}
+
+.agent-memory-resolved {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  font-size: 11px;
+  color: var(--agent-success);
+  margin-left: 8px;
+}
+
+/* ─────────────────────────────────────────────────────────────────── */
+/* Responsive */
+/* ─────────────────────────────────────────────────────────────────── */
+
+@media (max-width: 768px) {
+  .agent-analysis-panel {
+    max-width: 100%;
+  }
+
+  .agent-confidence-meter {
+    flex-direction: column;
+    gap: 16px;
+    text-align: center;
+  }
+
+  .agent-recommendation-item {
+    grid-template-columns: 1fr;
+  }
+
+  .agent-recommendation-right {
+    grid-column: 1;
+    justify-self: flex-start;
+  }
+}
+
+/* ─────────────────────────────────────────────────────────────────── */
+/* Loading Animation */
+/* ─────────────────────────────────────────────────────────────────── */
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.agent-loading-spinner {
+  animation: spin 1s linear infinite;
+}

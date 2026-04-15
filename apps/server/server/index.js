@@ -169,6 +169,7 @@ function buildTurnLifecyclePayload(turnSummary) {
     mediaFps: turnSummary?.mediaFps ?? null,
     mediaResolution: turnSummary?.mediaResolution ?? null,
     mediaBytes: turnSummary?.mediaBytes ?? null,
+    assetPlan: turnSummary?.assetPlan ?? null,
     generationSource: turnSummary?.generationSource ?? null,
     generationWarning: turnSummary?.generationWarning ?? null,
     assistantSource: turnSummary?.assistantSource ?? null,
@@ -206,6 +207,7 @@ function buildTurnResultSummary(mode, result, sceneState, metadata = {}) {
       mediaFps: null,
       mediaResolution: null,
       mediaBytes: null,
+      assetPlan: null,
       generationSource: null,
       generationWarning: null,
       assistantSource,
@@ -247,6 +249,7 @@ function buildTurnResultSummary(mode, result, sceneState, metadata = {}) {
     mediaFps: result.mediaFps ?? result.runtime?.mediaFps ?? currentScene?.mediaFps ?? null,
     mediaResolution: result.mediaResolution ?? result.runtime?.mediaResolution ?? currentScene?.mediaResolution ?? null,
     mediaBytes: result.mediaBytes ?? result.runtime?.mediaBytes ?? currentScene?.mediaBytes ?? null,
+    assetPlan: result.assetPlan ?? currentScene?.assetPlan ?? null,
     generationSource: result.generationSource ?? null,
     generationWarning: result.generationWarning ?? null,
     assistantSource,
@@ -1415,6 +1418,7 @@ async function executeChatTurn(sessionId, content, preferences, options = {}) {
         mediaFps: imageResult.mediaFps ?? imageResult.runtime?.mediaFps ?? null,
         mediaResolution: imageResult.mediaResolution ?? imageResult.runtime?.mediaResolution ?? null,
         mediaBytes: imageResult.mediaBytes ?? imageResult.runtime?.mediaBytes ?? null,
+        assetPlan: imageResult.assetPlan ?? null,
         explanation: imageResult.explanation,
         source: "image-to-code",
         messageId: assistantMessageId
@@ -1654,6 +1658,7 @@ async function executeChatTurn(sessionId, content, preferences, options = {}) {
           mediaFps: turn.result.mediaFps ?? turn.result.runtime?.mediaFps ?? null,
           mediaResolution: turn.result.mediaResolution ?? turn.result.runtime?.mediaResolution ?? null,
           mediaBytes: turn.result.mediaBytes ?? turn.result.runtime?.mediaBytes ?? null,
+          assetPlan: turn.result.assetPlan ?? null,
           explanation: turn.result.explanation,
           source: turn.mode,
           messageId: assistantMessageId
@@ -2106,6 +2111,7 @@ app.post("/api/v1/generate", async (req, res) => {
       mediaFps: result.mediaFps ?? result.runtime?.mediaFps ?? null,
       mediaResolution: result.mediaResolution ?? result.runtime?.mediaResolution ?? null,
       mediaBytes: result.mediaBytes ?? result.runtime?.mediaBytes ?? null,
+      assetPlan: result.assetPlan ?? null,
       explanation: result.explanation,
       source: "generate"
     });
@@ -2199,6 +2205,7 @@ app.post("/api/v1/generate/from-image", async (req, res) => {
       mediaFps: result.mediaFps ?? result.runtime?.mediaFps ?? null,
       mediaResolution: result.mediaResolution ?? result.runtime?.mediaResolution ?? null,
       mediaBytes: result.mediaBytes ?? result.runtime?.mediaBytes ?? null,
+      assetPlan: result.assetPlan ?? null,
       explanation: result.explanation,
       source: "image-to-code"
     });
@@ -2306,6 +2313,7 @@ app.post("/api/v1/sessions/:sessionId/modify", async (req, res) => {
           mediaFps: result.mediaFps ?? result.runtime?.mediaFps ?? null,
           mediaResolution: result.mediaResolution ?? result.runtime?.mediaResolution ?? null,
           mediaBytes: result.mediaBytes ?? result.runtime?.mediaBytes ?? null,
+          assetPlan: result.assetPlan ?? null,
           explanation: result.explanation,
           source: "modify"
         });

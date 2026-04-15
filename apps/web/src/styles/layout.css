@@ -102,6 +102,10 @@
   max-width: none;
   margin: 0;
   padding: 0;
+  background:
+    radial-gradient(120% 100% at 0% 0%, rgba(56, 189, 248, 0.12) 0%, rgba(56, 189, 248, 0) 45%),
+    radial-gradient(90% 70% at 100% 0%, rgba(236, 72, 153, 0.08) 0%, rgba(236, 72, 153, 0) 42%),
+    #06090d;
 }
 
 .chat-sidebar-launcher {
@@ -170,8 +174,8 @@
 /* Sidebar */
 .app-sidebar {
   width: 260px;
-  background: white;
-  border-right: 1px solid #e2e8f0;
+  background: #0a0a0a;
+  border-right: 1px solid #1a1a1a;
   display: flex;
   flex-direction: column;
   min-height: 0;
@@ -189,7 +193,7 @@
 
 .app-sidebar-header {
   padding: 1rem;
-  border-bottom: 1px solid #f1f5f9;
+  border-bottom: 1px solid #1a1a1a;
 }
 
 .app-sidebar-header-row {
@@ -202,9 +206,9 @@
   width: 2.15rem;
   height: 2.15rem;
   flex-shrink: 0;
-  border: 1px solid #e2e8f0;
-  background: #ffffff;
-  color: #64748b;
+  border: 1px solid #2a2a2a;
+  background: #1a1a1a;
+  color: #808080;
   border-radius: 0.55rem;
   display: inline-flex;
   align-items: center;
@@ -214,9 +218,9 @@
 }
 
 .sidebar-collapse-button:hover {
-  background: #f8fafc;
-  border-color: #cbd5e1;
-  color: #334155;
+  background: #222222;
+  border-color: #333333;
+  color: #a0a0a0;
 }
 
 .app-sidebar-mini {
@@ -228,9 +232,9 @@
 .sidebar-mini-button {
   width: 2.2rem;
   height: 2.2rem;
-  border: 1px solid #e2e8f0;
-  background: #ffffff;
-  color: #64748b;
+  border: 1px solid #2a2a2a;
+  background: #1a1a1a;
+  color: #808080;
   border-radius: 0.6rem;
   display: inline-flex;
   align-items: center;
@@ -240,14 +244,14 @@
 }
 
 .sidebar-mini-button:hover {
-  background: #f8fafc;
-  border-color: #cbd5e1;
-  color: #334155;
+  background: #222222;
+  border-color: #333333;
+  color: #a0a0a0;
 }
 
 .sidebar-mini-button--new {
-  background: #eff6ff;
-  border-color: #bfdbfe;
+  background: #1d3a5f;
+  border-color: #2a4a75;
   color: #1d4ed8;
 }
 
@@ -390,6 +394,603 @@
   color: #475569;
 }
 
+/* Chat route sidebar: reference-style glass rail */
+.app-body--chat .app-sidebar {
+  width: 300px;
+  height: calc(100% - 1.5rem);
+  margin: 0.75rem 0.65rem 0.75rem 0.75rem;
+  border-radius: 24px;
+  position: relative;
+  background: rgba(24, 12, 14, 0.88);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  box-shadow: 0 30px 60px rgba(0, 0, 0, 0.45), 0 10px 20px rgba(0, 0, 0, 0.3);
+  overflow: hidden;
+}
+
+.app-body--chat .app-sidebar::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(120% 120% at 100% 0%, rgba(229, 138, 63, 0.14) 0%, rgba(229, 138, 63, 0) 45%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.035) 0%, rgba(255, 255, 255, 0) 26%);
+}
+
+.app-body--chat .app-sidebar.app-sidebar--collapsed {
+  width: 76px;
+  height: auto;
+  min-height: 0;
+  align-self: start;
+}
+
+.app-body--chat .app-sidebar-header,
+.app-body--chat .app-sidebar-main-nav,
+.app-body--chat .app-sidebar-messages,
+.app-body--chat .app-sidebar-footer {
+  position: relative;
+  z-index: 1;
+}
+
+.app-body--chat .app-sidebar-header {
+  padding: 0;
+  border-bottom: none;
+}
+
+.app-body--chat .app-sidebar-profile-row {
+  display: flex;
+  align-items: center;
+  gap: 0.72rem;
+  padding: 0.9rem 1.25rem 0.85rem;
+}
+
+.app-body--chat .app-sidebar-profile-photo {
+  width: 2.25rem;
+  height: 2.25rem;
+  border-radius: 999px;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+
+.app-body--chat .app-sidebar-profile-copy {
+  display: grid;
+  gap: 0.1rem;
+  min-width: 0;
+  flex: 1;
+}
+
+.app-body--chat .app-sidebar-profile-kicker {
+  margin: 0;
+  font-size: 0.61rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: #9a8a8a;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.app-body--chat .app-sidebar-profile-name {
+  margin: 0;
+  font-size: 0.86rem;
+  color: #ffffff;
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.app-body--chat .sidebar-collapse-button {
+  width: 1.95rem;
+  height: 1.95rem;
+  border: none;
+  border-radius: 0.6rem;
+  background: transparent;
+  color: #6b5e5e;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: color 180ms ease, background-color 180ms ease;
+}
+
+.app-body--chat .sidebar-collapse-button:hover {
+  color: #d4caca;
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.app-body--chat .app-sidebar-main-nav {
+  display: grid;
+  gap: 0.34rem;
+  padding: 0 0.75rem;
+  flex: 0 0 auto;
+}
+
+.app-body--chat .app-sidebar-section-label {
+  margin: 0;
+  padding: 0 0.42rem;
+  font-size: 0.66rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: #7a6e6e;
+}
+
+.app-body--chat .sidebar-dashboard-group {
+  display: grid;
+  gap: 0.3rem;
+}
+
+.app-body--chat .sidebar-item {
+  width: 100%;
+  border: none;
+  border-radius: 0.82rem;
+  background: transparent;
+  color: #b5a5a5;
+  display: flex;
+  align-items: center;
+  gap: 0.72rem;
+  min-height: 2.75rem;
+  padding: 0 0.78rem;
+  text-align: left;
+  cursor: pointer;
+  transition: background-color 180ms ease, color 180ms ease, box-shadow 180ms ease;
+}
+
+.app-body--chat .sidebar-item:hover {
+  background: rgba(255, 255, 255, 0.05);
+  color: #f4e7e7;
+}
+
+.app-body--chat .sidebar-item--active {
+  background: rgba(255, 255, 255, 0.06);
+  color: #ffffff;
+}
+
+.app-body--chat .sidebar-item-label {
+  flex: 1;
+  min-width: 0;
+  font-size: 0.87rem;
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.app-body--chat .sidebar-item-chevron {
+  width: 0.95rem;
+  height: 0.95rem;
+  color: #a08f8f;
+  transition: transform 200ms ease;
+}
+
+.app-body--chat .sidebar-item.is-open .sidebar-item-chevron {
+  transform: rotate(180deg);
+}
+
+.app-body--chat .sidebar-submenu {
+  margin-left: 2.56rem;
+  display: grid;
+  gap: 0.22rem;
+  max-height: 0;
+  opacity: 0;
+  overflow: hidden;
+  transition: max-height 220ms ease, opacity 220ms ease;
+}
+
+.app-body--chat .sidebar-submenu.is-open {
+  max-height: 8rem;
+  opacity: 1;
+}
+
+.app-body--chat .sidebar-subitem {
+  display: block;
+  border-radius: 0.58rem;
+  color: #b5a5a5;
+  font-size: 0.8rem;
+  padding: 0.32rem 0.62rem;
+  line-height: 1.4;
+}
+
+.app-body--chat .sidebar-subitem:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.app-body--chat .sidebar-subitem--active {
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.app-body--chat .app-sidebar-messages {
+  margin-top: 0.85rem;
+  padding: 0 0.75rem;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  gap: 0.38rem;
+  min-height: 0;
+}
+
+.app-body--chat .app-sidebar-messages-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 0.2rem;
+}
+
+.app-body--chat .sidebar-messages-add {
+  width: 1.7rem;
+  height: 1.7rem;
+  border: none;
+  border-radius: 0.55rem;
+  background: transparent;
+  color: #7a6e6e;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: color 180ms ease, background-color 180ms ease;
+}
+
+.app-body--chat .sidebar-messages-add:hover {
+  color: #f4e7e7;
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.app-body--chat .app-sidebar-messages-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  flex: 1;
+  min-height: 0;
+  max-height: none;
+  align-items: stretch;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.22) transparent;
+  padding-right: 0.14rem;
+}
+
+.app-body--chat .app-sidebar-messages-list::-webkit-scrollbar {
+  width: 5px;
+}
+
+.app-body--chat .app-sidebar-messages-list::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.app-body--chat .app-sidebar-messages-list::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.22);
+}
+
+.app-body--chat .app-sidebar-message-row {
+  border: none;
+  background: transparent;
+  display: flex;
+  align-items: flex-start;
+  gap: 0.62rem;
+  width: 100%;
+  height: auto;
+  min-height: 2.5rem;
+  border-radius: 0.74rem;
+  padding: 0.44rem 0.52rem;
+  text-align: left;
+  cursor: pointer;
+  transition: background-color 180ms ease;
+}
+
+.app-body--chat .app-sidebar-message-row:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.app-body--chat .app-sidebar-message-row.active {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.app-body--chat .app-sidebar-message-initial {
+  width: 1.72rem;
+  height: 1.72rem;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.17);
+  background: rgba(255, 255, 255, 0.07);
+  color: #f4e7e7;
+  font-size: 0.7rem;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.app-body--chat .app-sidebar-message-name {
+  flex: 1;
+  min-width: 0;
+  font-size: 0.79rem;
+  color: #d4caca;
+  line-height: 1.3;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.app-body--chat .app-sidebar-messages-empty {
+  margin: 0;
+  font-size: 0.74rem;
+  color: #8a7c7c;
+  padding: 0.35rem 0.46rem;
+}
+
+.app-body--chat .app-sidebar-footer {
+  margin-top: 0;
+  padding: 0.9rem 0.82rem 1rem;
+}
+
+.app-body--chat .sidebar-cta-card {
+  background: #1a0f10;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 1rem;
+  padding: 0.9rem;
+  display: grid;
+  gap: 0.45rem;
+}
+
+.app-body--chat .sidebar-cta-title {
+  margin: 0;
+  text-align: center;
+  color: #ffffff;
+  font-size: 0.88rem;
+  font-weight: 500;
+}
+
+.app-body--chat .sidebar-cta-copy {
+  margin: 0;
+  text-align: center;
+  color: #8a7c7c;
+  font-size: 0.69rem;
+  line-height: 1.45;
+}
+
+.app-body--chat .sidebar-cta-button {
+  width: 100%;
+  min-height: 2.35rem;
+  border: none;
+  border-radius: 0.78rem;
+  background: #e58a3f;
+  color: #1a0f10;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  cursor: pointer;
+  font-size: 0.74rem;
+  font-weight: 600;
+  transition: background-color 180ms ease, transform 180ms ease;
+}
+
+.app-body--chat .sidebar-cta-button:hover {
+  background: #f09a4f;
+  transform: translateY(-1px);
+}
+
+.app-body--chat .app-sidebar.app-sidebar--collapsed .app-sidebar-header {
+  height: auto;
+  border-bottom: none;
+  padding: 0.95rem 0.52rem 0.7rem;
+}
+
+.app-body--chat .app-sidebar-mini {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-height: 0;
+  gap: 0.45rem;
+  overflow: hidden;
+}
+
+.app-body--chat .app-sidebar.app-sidebar--collapsed .app-sidebar-mini-label--messages,
+.app-body--chat .app-sidebar.app-sidebar--collapsed .app-sidebar-mini-messages {
+  display: none;
+}
+
+.app-body--chat .app-sidebar-mini-profile-btn {
+  width: 2.4rem;
+  height: 2.4rem;
+  border: none;
+  border-radius: 999px;
+  padding: 0;
+  background: transparent;
+  cursor: pointer;
+}
+
+.app-body--chat .app-sidebar-mini-profile-photo {
+  width: 100%;
+  height: 100%;
+  border-radius: 999px;
+  object-fit: cover;
+}
+
+.app-body--chat .app-sidebar-mini-label {
+  margin: 0.05rem 0 0;
+  font-size: 0.58rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: #7a6e6e;
+}
+
+.app-body--chat .app-sidebar-mini-label--messages {
+  margin-top: 0.6rem;
+}
+
+.app-body--chat .app-sidebar-mini-top {
+  margin-top: 0.3rem;
+  display: grid;
+  gap: 0.75rem;
+}
+
+.app-body--chat .sidebar-mini-button {
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 0.78rem;
+  border: 1px solid transparent;
+  background: transparent;
+  color: #8a7a7a;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background-color 180ms ease, color 180ms ease, border-color 180ms ease;
+}
+
+.app-body--chat .sidebar-mini-button:hover {
+  background: rgba(255, 255, 255, 0.05);
+  color: #ffffff;
+}
+
+.app-body--chat .sidebar-mini-button--active {
+  background: rgba(255, 255, 255, 0.06);
+  color: #ffffff;
+}
+
+.app-body--chat .sidebar-mini-dashboard {
+  position: relative;
+}
+
+.app-body--chat .sidebar-mini-flyout {
+  position: absolute;
+  top: 0;
+  left: calc(100% + 0.52rem);
+  width: 8.75rem;
+  border-radius: 0.8rem;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(24, 12, 14, 0.94);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  box-shadow: 0 18px 28px -22px rgba(0, 0, 0, 0.75);
+  padding: 0.4rem;
+  display: grid;
+  gap: 0.2rem;
+  opacity: 0;
+  pointer-events: none;
+  transform: translateX(-8px);
+  transition: opacity 180ms ease, transform 180ms ease;
+  z-index: 12;
+}
+
+.app-body--chat .sidebar-mini-dashboard:hover .sidebar-mini-flyout {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateX(0);
+}
+
+.app-body--chat .sidebar-mini-flyout-item {
+  border-radius: 0.55rem;
+  padding: 0.38rem 0.52rem;
+  font-size: 0.78rem;
+  color: #b5a5a5;
+  line-height: 1.35;
+}
+
+.app-body--chat .sidebar-mini-flyout-item:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.app-body--chat .sidebar-mini-flyout-item--active {
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.app-body--chat .app-sidebar-mini-messages {
+  margin-top: 0.2rem;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  gap: 0.72rem;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.22) transparent;
+  padding-right: 0.06rem;
+}
+
+.app-body--chat .app-sidebar-mini-messages::-webkit-scrollbar {
+  width: 4px;
+}
+
+.app-body--chat .app-sidebar-mini-messages::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.app-body--chat .app-sidebar-mini-messages::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.22);
+}
+
+.app-body--chat .sidebar-mini-avatar {
+  width: 1.75rem;
+  height: 1.75rem;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.07);
+  padding: 0;
+  cursor: pointer;
+  opacity: 0.92;
+  color: #f4e7e7;
+  transition: opacity 180ms ease, transform 180ms ease, box-shadow 180ms ease;
+}
+
+.app-body--chat .sidebar-mini-avatar-label {
+  width: 100%;
+  height: 100%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.68rem;
+  font-weight: 600;
+}
+
+.app-body--chat .sidebar-mini-avatar:hover,
+.app-body--chat .sidebar-mini-avatar.active {
+  opacity: 1;
+  transform: translateY(-1px);
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.14);
+}
+
+.app-body--chat .sidebar-mini-placeholder {
+  width: 1.8rem;
+  height: 1.8rem;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.app-body--chat .app-sidebar-mini-bottom {
+  margin-top: auto;
+  padding-bottom: 0.15rem;
+}
+
+.app-body--chat .sidebar-mini-cta {
+  width: 2.5rem;
+  height: 2.5rem;
+  border: none;
+  border-radius: 0.78rem;
+  background: #e58a3f;
+  color: #1a0f10;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 10px 20px -16px rgba(229, 138, 63, 0.85);
+  transition: background-color 180ms ease, transform 180ms ease;
+}
+
+.app-body--chat .sidebar-mini-cta:hover {
+  background: #f09a4f;
+  transform: translateY(-1px);
+}
+
 /* Main Content Area */
 .app-main {
   flex: 1;
@@ -403,6 +1004,7 @@
 /* Chat Page Container */
 .chat-page-container {
   flex: 1;
+  height: 100%;
   min-height: 0;
   display: flex;
   flex-direction: column;
@@ -415,6 +1017,7 @@
 /* GenVis chat shell: centered by default, push panel when open */
 .terranet-chat-shell {
   display: grid;
+  height: 100%;
   grid-template-columns: minmax(0, 1fr);
   flex: 1;
   min-height: 0;
@@ -429,12 +1032,12 @@
 }
 
 .terranet-chat-shell--panel-open {
-  grid-template-columns: minmax(520px, 1fr) minmax(var(--workspace-min-width, 360px), min(var(--workspace-width, 42vw), 60vw));
+  grid-template-columns: minmax(380px, 1fr) minmax(var(--workspace-min-width, 320px), min(var(--workspace-width, 42vw), 58vw));
 }
 
 @media (max-width: 1200px) {
   .terranet-chat-shell--panel-open {
-    grid-template-columns: minmax(420px, 1fr) minmax(var(--workspace-min-width, 340px), min(var(--workspace-width, 50vw), 55vw));
+    grid-template-columns: minmax(320px, 1fr) minmax(var(--workspace-min-width, 300px), min(var(--workspace-width, 48vw), 54vw));
   }
 }
 
@@ -486,7 +1089,7 @@
 }
 
 .terranet-chat-main .chat-messages {
-  min-height: 100%;
+  min-height: 0;
   padding-top: 0.5rem;
   padding-bottom: 0.5rem;
 }
@@ -541,17 +1144,23 @@
   margin: clamp(0.2rem, 0.55vw, 0.45rem) 0;
 }
 
-.terranet-workspace-dock--preview {
+.terranet-workspace-dock--preview,
+.terranet-workspace-dock--code,
+.terranet-workspace-dock--files {
   border-left: 1px solid #2f2f35;
   background: linear-gradient(180deg, #18181b 0%, #202024 100%);
 }
 
-.terranet-workspace-dock--preview .terranet-workspace-dock__header {
+.terranet-workspace-dock--preview .terranet-workspace-dock__header,
+.terranet-workspace-dock--code .terranet-workspace-dock__header,
+.terranet-workspace-dock--files .terranet-workspace-dock__header {
   border-bottom-color: #2f2f35;
   background: color-mix(in srgb, #18181b 92%, #0f0f12 8%);
 }
 
-.terranet-workspace-dock--preview .terranet-workspace-dock__body {
+.terranet-workspace-dock--preview .terranet-workspace-dock__body,
+.terranet-workspace-dock--code .terranet-workspace-dock__body,
+.terranet-workspace-dock--files .terranet-workspace-dock__body {
   background: #18181b;
 }
 
@@ -782,6 +1391,92 @@
   color: #b91c1c;
 }
 
+/* Enhanced error panel with retry and fallback actions */
+.terranet-workspace-dock__error-panel {
+  margin: 0.8rem;
+  padding: 1rem;
+  border-radius: 0.5rem;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  color: #7f1d1d;
+  font-size: 0.875rem;
+}
+
+.terranet-workspace-dock__error-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+  font-weight: 600;
+}
+
+.terranet-workspace-dock__error-icon {
+  font-size: 1.125rem;
+  display: flex;
+  align-items: center;
+}
+
+.terranet-workspace-dock__error-title {
+  font-size: 0.875rem;
+}
+
+.terranet-workspace-dock__error-message {
+  margin: 0.5rem 0;
+  font-size: 0.8125rem;
+  line-height: 1.4;
+}
+
+.terranet-workspace-dock__error-hint {
+  margin: 0.5rem 0;
+  font-size: 0.75rem;
+  color: #991b1b;
+  opacity: 0.8;
+}
+
+.terranet-workspace-dock__error-actions {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+}
+
+.terranet-workspace-dock__error-btn {
+  appearance: none;
+  border: 1px solid #fca5a5;
+  padding: 0.4rem 0.75rem;
+  border-radius: 0.375rem;
+  font-size: 0.75rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.terranet-workspace-dock__error-btn--retry {
+  background: #dc2626;
+  color: white;
+  border-color: #dc2626;
+}
+
+.terranet-workspace-dock__error-btn--retry:hover:not(:disabled) {
+  background: #b91c1c;
+  border-color: #b91c1c;
+}
+
+.terranet-workspace-dock__error-btn--code {
+  background: #f5f5f5;
+  color: #374151;
+  border-color: #d1d5db;
+}
+
+.terranet-workspace-dock__error-btn--code:hover:not(:disabled) {
+  background: #e5e7eb;
+}
+
+.terranet-workspace-dock__error-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
 .terranet-workspace-dock__tabs button,
 .terranet-workspace-dock__close {
   appearance: none;
@@ -877,21 +1572,29 @@
   animation: terranet-dock-icon-spin 0.9s linear infinite;
 }
 
-.terranet-workspace-dock--preview .terranet-workspace-dock__tabs--minimal {
+.terranet-workspace-dock--preview .terranet-workspace-dock__tabs--minimal,
+.terranet-workspace-dock--code .terranet-workspace-dock__tabs--minimal,
+.terranet-workspace-dock--files .terranet-workspace-dock__tabs--minimal {
   background: #27272a;
   box-shadow: inset 0 0 0 1px #3f3f46;
 }
 
-.terranet-workspace-dock--preview .terranet-workspace-dock__tabs--minimal button {
+.terranet-workspace-dock--preview .terranet-workspace-dock__tabs--minimal button,
+.terranet-workspace-dock--code .terranet-workspace-dock__tabs--minimal button,
+.terranet-workspace-dock--files .terranet-workspace-dock__tabs--minimal button {
   color: #d4d4d8;
 }
 
-.terranet-workspace-dock--preview .terranet-workspace-dock__tabs--minimal button:hover {
+.terranet-workspace-dock--preview .terranet-workspace-dock__tabs--minimal button:hover,
+.terranet-workspace-dock--code .terranet-workspace-dock__tabs--minimal button:hover,
+.terranet-workspace-dock--files .terranet-workspace-dock__tabs--minimal button:hover {
   background: #323237;
   color: #f4f4f5;
 }
 
-.terranet-workspace-dock--preview .terranet-workspace-dock__tabs--minimal button.active {
+.terranet-workspace-dock--preview .terranet-workspace-dock__tabs--minimal button.active,
+.terranet-workspace-dock--code .terranet-workspace-dock__tabs--minimal button.active,
+.terranet-workspace-dock--files .terranet-workspace-dock__tabs--minimal button.active {
   background: #f4f4f5;
   color: #18181b;
   box-shadow: none;
@@ -899,13 +1602,25 @@
 
 .terranet-workspace-dock--preview .terranet-workspace-dock__history-btn--minimal,
 .terranet-workspace-dock--preview .terranet-workspace-dock__icon-action,
-.terranet-workspace-dock--preview .terranet-workspace-dock__close--minimal {
+.terranet-workspace-dock--preview .terranet-workspace-dock__close--minimal,
+.terranet-workspace-dock--code .terranet-workspace-dock__history-btn--minimal,
+.terranet-workspace-dock--code .terranet-workspace-dock__icon-action,
+.terranet-workspace-dock--code .terranet-workspace-dock__close--minimal,
+.terranet-workspace-dock--files .terranet-workspace-dock__history-btn--minimal,
+.terranet-workspace-dock--files .terranet-workspace-dock__icon-action,
+.terranet-workspace-dock--files .terranet-workspace-dock__close--minimal {
   color: #a1a1aa;
 }
 
 .terranet-workspace-dock--preview .terranet-workspace-dock__history-btn--minimal:hover,
 .terranet-workspace-dock--preview .terranet-workspace-dock__icon-action:hover,
-.terranet-workspace-dock--preview .terranet-workspace-dock__close--minimal:hover {
+.terranet-workspace-dock--preview .terranet-workspace-dock__close--minimal:hover,
+.terranet-workspace-dock--code .terranet-workspace-dock__history-btn--minimal:hover,
+.terranet-workspace-dock--code .terranet-workspace-dock__icon-action:hover,
+.terranet-workspace-dock--code .terranet-workspace-dock__close--minimal:hover,
+.terranet-workspace-dock--files .terranet-workspace-dock__history-btn--minimal:hover,
+.terranet-workspace-dock--files .terranet-workspace-dock__icon-action:hover,
+.terranet-workspace-dock--files .terranet-workspace-dock__close--minimal:hover {
   background: #27272a;
   color: #f4f4f5;
 }
@@ -1287,6 +2002,109 @@
   color: #64748b;
 }
 
+/* Activity List Styles */
+.terranet-task-view__section--activities {
+  margin-bottom: 1rem;
+}
+
+.terranet-task-view__activity-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.terranet-task-view__activity {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 0.75rem;
+  align-items: flex-start;
+  padding: 0.75rem;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 0.5rem;
+  font-size: 0.8rem;
+}
+
+.terranet-task-view__activity--running {
+  background: #fef3c7;
+  border-color: #fcd34d;
+}
+
+.terranet-task-view__activity--completed {
+  background: #dcfce7;
+  border-color: #bbf7d0;
+}
+
+.terranet-task-view__activity--failed {
+  background: #fee2e2;
+  border-color: #fecaca;
+}
+
+.terranet-task-view__activity-icon-wrap {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.terranet-task-view__activity-icon {
+  width: 1rem;
+  height: 1rem;
+}
+
+.terranet-task-view__activity-icon--completed {
+  color: #22c55e;
+}
+
+.terranet-task-view__activity-icon--running {
+  color: #f59e0b;
+  animation: terranet-task-spin 1s linear infinite;
+}
+
+.terranet-task-view__activity-icon--failed {
+  color: #ef4444;
+}
+
+.terranet-task-view__activity-icon--pending {
+  color: #94a3b8;
+}
+
+.terranet-task-view__activity-content {
+  min-width: 0;
+}
+
+.terranet-task-view__activity-text {
+  margin: 0;
+  font-weight: 500;
+  color: #1e293b;
+  line-height: 1.4;
+}
+
+.terranet-task-view__activity-detail {
+  margin: 0.35rem 0 0 0;
+  font-size: 0.75rem;
+  color: #64748b;
+  line-height: 1.3;
+}
+
+.terranet-task-view__activity-meta {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-shrink: 0;
+}
+
+.terranet-task-view__activity-time {
+  font-size: 0.7rem;
+  color: #94a3b8;
+  white-space: nowrap;
+}
+
 @keyframes terranet-task-spin {
   from {
     transform: rotate(0deg);
@@ -1312,6 +2130,252 @@
   background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
   box-shadow: 0 18px 44px -36px rgba(15, 23, 42, 0.58);
   overflow: hidden;
+}
+
+.terranet-workspace-dock__code-stack,
+.terranet-workspace-dock__files-stack {
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.terranet-workspace-dock--code .code-editor {
+  border: 1px solid #2f2f35;
+  border-radius: 0.92rem;
+  overflow: hidden;
+  background: #111113;
+}
+
+.terranet-workspace-dock--code .code-editor-toolbar {
+  border-bottom-color: #2f2f35;
+  background: #19191d;
+}
+
+.terranet-workspace-dock--code .code-editor-info,
+.terranet-workspace-dock--code .code-editor-meta {
+  color: #a1a1aa;
+}
+
+.terranet-workspace-dock--code .code-editor-btn {
+  background: transparent;
+  color: #d4d4d8;
+}
+
+.terranet-workspace-dock--code .code-editor-btn:hover {
+  background: #27272a;
+  color: #f4f4f5;
+}
+
+.terranet-workspace-dock--code .code-editor-btn--primary {
+  background: #f4f4f5;
+  color: #18181b;
+}
+
+.terranet-workspace-dock--code .code-editor-btn--primary:hover {
+  background: #ffffff;
+}
+
+.terranet-workspace-dock--code .code-editor-body {
+  background: #0f0f12;
+}
+
+.terranet-workspace-dock--code .code-line-number {
+  color: #6b7280;
+}
+
+.terranet-session-files {
+  height: 100%;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  display: grid;
+  align-content: start;
+  gap: 0.66rem;
+  padding: 0.12rem;
+}
+
+.terranet-session-files__card,
+.terranet-asset-plan {
+  border: 1px solid #2f2f35;
+  border-radius: 0.92rem;
+  background: linear-gradient(180deg, #121216 0%, #17171c 100%);
+  box-shadow: 0 14px 32px -28px rgba(2, 6, 23, 0.9);
+}
+
+.terranet-session-files__card {
+  padding: 0.78rem;
+  display: grid;
+  gap: 0.68rem;
+}
+
+.terranet-session-files__header,
+.terranet-asset-plan__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.terranet-session-files__title-wrap,
+.terranet-asset-plan__title-wrap {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  color: #e5e7eb;
+}
+
+.terranet-session-files__title,
+.terranet-asset-plan__title {
+  margin: 0;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.terranet-session-files__session-pill,
+.terranet-asset-plan__strategy,
+.terranet-session-files__kind-pill,
+.terranet-asset-plan__meta-pill,
+.terranet-asset-plan__chip {
+  border: 1px solid #3f3f46;
+  background: #1f1f23;
+  color: #d4d4d8;
+  border-radius: 999px;
+  font-size: 0.66rem;
+  font-weight: 600;
+  padding: 0.18rem 0.48rem;
+}
+
+.terranet-session-files__list,
+.terranet-asset-plan__candidate-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 0.42rem;
+}
+
+.terranet-session-files__item,
+.terranet-asset-plan__group {
+  border: 1px solid #31313a;
+  background: #1a1a20;
+  border-radius: 0.72rem;
+  padding: 0.56rem 0.6rem;
+}
+
+.terranet-session-files__item {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.6rem;
+}
+
+.terranet-session-files__item.is-current {
+  border-color: #52525b;
+  background: #202028;
+}
+
+.terranet-session-files__item-main {
+  min-width: 0;
+}
+
+.terranet-session-files__name {
+  margin: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.38rem;
+  color: #f3f4f6;
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+
+.terranet-session-files__name span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.terranet-session-files__meta {
+  margin: 0.24rem 0 0;
+  color: #9ca3af;
+  font-size: 0.68rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.32rem;
+  flex-wrap: wrap;
+}
+
+.terranet-session-files__quality-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2rem;
+  border: 1px solid #52525b;
+  border-radius: 999px;
+  padding: 0.1rem 0.36rem;
+  color: #fde68a;
+  background: #302c15;
+}
+
+.terranet-session-files__item-right {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.32rem;
+  flex-shrink: 0;
+}
+
+.terranet-session-files__open-link,
+.terranet-asset-plan__candidate-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  text-decoration: none;
+  border: 1px solid #3f3f46;
+  background: #22222a;
+  color: #e5e7eb;
+  border-radius: 999px;
+  padding: 0.2rem 0.48rem;
+  font-size: 0.66rem;
+  font-weight: 600;
+}
+
+.terranet-session-files__open-link:hover,
+.terranet-asset-plan__candidate-link:hover {
+  background: #2a2a34;
+  color: #ffffff;
+}
+
+.terranet-session-files__empty,
+.terranet-asset-plan__policy-copy,
+.terranet-asset-plan__candidate-note,
+.terranet-asset-plan__label {
+  margin: 0;
+  color: #a1a1aa;
+  font-size: 0.7rem;
+  line-height: 1.45;
+}
+
+.terranet-asset-plan {
+  padding: 0.72rem;
+  display: grid;
+  gap: 0.56rem;
+}
+
+.terranet-asset-plan__meta-row,
+.terranet-asset-plan__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.28rem;
+}
+
+.terranet-asset-plan__strategy--runtime-native,
+.terranet-asset-plan__strategy--hybrid,
+.terranet-asset-plan__strategy--model-first {
+  color: #e5e7eb;
+}
+
+.terranet-asset-plan__candidate-item {
+  display: grid;
+  gap: 0.24rem;
 }
 
 .terranet-media-viewer {
@@ -1889,7 +2953,7 @@
 }
 
 .chat-messages {
-  min-height: 100%;
+  min-height: 0;
   padding: 1rem 0;
 }
 
@@ -2332,9 +3396,11 @@
   }
 
   .app-body--chat .app-sidebar.app-sidebar--collapsed .app-sidebar-mini {
-    background: #1e293b;
-    border-color: #334155;
-    box-shadow: 0 24px 48px -34px rgba(2, 6, 23, 0.92);
+    border-color: rgba(255, 255, 255, 0.18);
+    background: rgba(24, 12, 14, 0.94);
+    box-shadow: 0 24px 48px -34px rgba(5, 4, 9, 0.95);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
   }
 
   .chat-sidebar-launcher {
@@ -2354,9 +3420,8 @@
   }
 
   .app-body--chat .chat-sidebar-sheet .app-sidebar {
-    background: #1e293b;
-    border-color: #334155;
-    box-shadow: 0 28px 56px -34px rgba(2, 6, 23, 0.92);
+    border-color: rgba(255, 255, 255, 0.14);
+    box-shadow: 0 28px 56px -34px rgba(5, 4, 9, 0.95);
   }
 
   .app-sidebar-backdrop {
@@ -2508,6 +3573,43 @@
     color: #fca5a5;
   }
 
+  /* Dark mode error panel */
+  .terranet-workspace-dock__error-panel {
+    background: #7f1d1d;
+    border-color: #991b1b;
+    color: #fecaca;
+  }
+
+  .terranet-workspace-dock__error-message {
+    color: #fecaca;
+  }
+
+  .terranet-workspace-dock__error-hint {
+    color: #fca5a5;
+  }
+
+  .terranet-workspace-dock__error-btn--retry {
+    background: #991b1b;
+    border-color: #7f1d1d;
+    color: #fecaca;
+  }
+
+  .terranet-workspace-dock__error-btn--retry:hover:not(:disabled) {
+    background: #b91c1c;
+    border-color: #dc2626;
+  }
+
+  .terranet-workspace-dock__error-btn--code {
+    background: #334155;
+    border-color: #475569;
+    color: #cbd5e1;
+  }
+
+  .terranet-workspace-dock__error-btn--code:hover:not(:disabled) {
+    background: #475569;
+    border-color: #64748b;
+  }
+
   .terranet-workspace-dock__tabs button.active {
     background: linear-gradient(180deg, #1d4ed8 0%, #1e3a8a 100%);
     border-color: #1d4ed8;
@@ -2582,6 +3684,34 @@
   .terranet-workspace-dock--tasks .terranet-task-view__task {
     border-color: #334155;
     background: #0f172a;
+  }
+
+  .terranet-task-view__activity {
+    background: #1e293b;
+    border-color: #334155;
+  }
+
+  .terranet-task-view__activity-text {
+    color: #e2e8f0;
+  }
+
+  .terranet-task-view__activity-detail {
+    color: #94a3b8;
+  }
+
+  .terranet-task-view__activity--running {
+    background: rgba(245, 158, 11, 0.12);
+    border-color: rgba(245, 158, 11, 0.35);
+  }
+
+  .terranet-task-view__activity--completed {
+    background: rgba(34, 197, 94, 0.12);
+    border-color: rgba(34, 197, 94, 0.35);
+  }
+
+  .terranet-task-view__activity--failed {
+    background: rgba(239, 68, 68, 0.12);
+    border-color: rgba(239, 68, 68, 0.35);
   }
 
   .terranet-media-viewer {
@@ -2717,6 +3847,676 @@
   }
 }
 
+.terranet-workspace-dock--stage {
+  display: flex;
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 0;
+  flex-direction: column;
+  overflow: hidden;
+  background:
+    radial-gradient(circle at top left, rgba(56, 189, 248, 0.12), transparent 26%),
+    radial-gradient(circle at top right, rgba(233, 74, 154, 0.1), transparent 24%),
+    linear-gradient(180deg, #08090d 0%, #0a0a0f 52%, #09090d 100%);
+}
+
+.terranet-workspace-dock--stage .terranet-workspace-dock__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.9rem 1rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  background: rgba(8, 8, 12, 0.72);
+  backdrop-filter: blur(18px);
+}
+
+.terranet-workspace-dock--stage .terranet-workspace-dock__header-left {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  min-width: 0;
+  flex-wrap: wrap;
+}
+
+.terranet-workspace-dock--stage .terranet-workspace-dock__identity {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.75rem;
+  min-width: 0;
+}
+
+.terranet-workspace-dock--stage .terranet-workspace-dock__icon {
+  width: 2.35rem;
+  height: 2.35rem;
+  border-radius: 0.85rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.08);
+  color: #e2e8f0;
+  flex-shrink: 0;
+}
+
+.terranet-workspace-dock--stage .terranet-workspace-dock__title-group {
+  display: grid;
+  gap: 0.15rem;
+  min-width: 0;
+}
+
+.terranet-workspace-dock--stage .terranet-workspace-dock__title {
+  min-width: 0;
+  font-size: 0.93rem;
+  font-weight: 600;
+  color: #f8fafc;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.terranet-workspace-dock--stage .terranet-workspace-dock__meta {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  color: #94a3b8;
+  font-size: 0.72rem;
+  min-width: 0;
+}
+
+.terranet-workspace-dock--stage .scene-status {
+  padding: 0.2rem 0.55rem;
+  border-radius: 999px;
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+
+.terranet-workspace-dock--stage .scene-status--active {
+  background: rgba(34, 197, 94, 0.12);
+  border: 1px solid rgba(34, 197, 94, 0.25);
+  color: #bbf7d0;
+}
+
+.terranet-workspace-dock--stage .terranet-workspace-dock__tabs--stage {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.24rem;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.terranet-workspace-dock--stage .terranet-workspace-dock__tabs--stage button {
+  border: none;
+  background: transparent;
+  color: #94a3b8;
+  border-radius: 999px;
+  padding: 0.55rem 0.8rem;
+  font-size: 0.76rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 160ms ease, color 160ms ease, transform 160ms ease;
+}
+
+.terranet-workspace-dock--stage .terranet-workspace-dock__tabs--stage button:hover {
+  color: #f8fafc;
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.terranet-workspace-dock--stage .terranet-workspace-dock__tabs--stage button.active {
+  background: rgba(255, 255, 255, 0.14);
+  color: #ffffff;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+
+.terranet-workspace-dock--stage .terranet-workspace-dock__header-right {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex-shrink: 0;
+}
+
+.terranet-workspace-dock--stage .terranet-workspace-dock__history-controls {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.terranet-workspace-dock--stage .terranet-workspace-dock__history-btn,
+.terranet-workspace-dock--stage .terranet-workspace-dock__icon-action,
+.terranet-workspace-dock--stage .terranet-workspace-dock__close {
+  width: 2.2rem;
+  height: 2.2rem;
+  border-radius: 0.75rem;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.04);
+  color: #cbd5e1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background-color 160ms ease, border-color 160ms ease, color 160ms ease, transform 160ms ease;
+}
+
+.terranet-workspace-dock--stage .terranet-workspace-dock__history-btn:hover,
+.terranet-workspace-dock--stage .terranet-workspace-dock__icon-action:hover,
+.terranet-workspace-dock--stage .terranet-workspace-dock__close:hover {
+  background: rgba(255, 255, 255, 0.09);
+  border-color: rgba(255, 255, 255, 0.14);
+  color: #ffffff;
+}
+
+.terranet-workspace-dock--stage .terranet-workspace-dock__history-btn:disabled,
+.terranet-workspace-dock--stage .terranet-workspace-dock__icon-action:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.terranet-workspace-dock--stage .terranet-workspace-dock__body {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.terranet-workspace-dock--stage .terranet-workspace-dock__preview-stack,
+.terranet-workspace-dock--stage .terranet-workspace-dock__code-stack,
+.terranet-workspace-dock--stage .terranet-workspace-dock__files-stack {
+  flex: 1;
+  min-height: 0;
+  min-width: 0;
+  display: flex;
+}
+
+.terranet-workspace-dock--stage .terranet-workspace-dock__preview-stack {
+  padding: 1rem;
+}
+
+.terranet-workspace-dock--stage .terranet-workspace-dock__presentation-surface {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  border-radius: 1.45rem;
+  overflow: hidden;
+  background: #09090c;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  box-shadow: 0 28px 70px -34px rgba(0, 0, 0, 0.65);
+}
+
+.terranet-workspace-dock--stage .terranet-workspace-dock__code-stack,
+.terranet-workspace-dock--stage .terranet-workspace-dock__files-stack {
+  padding: 1rem;
+  justify-content: center;
+  align-items: stretch;
+}
+
+.terranet-workspace-dock--stage .terranet-workspace-dock__code-stack > *,
+.terranet-workspace-dock--stage .terranet-workspace-dock__files-stack > * {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  width: min(100%, var(--workspace-width, 840px));
+  margin: 0 auto;
+}
+
+.terranet-workspace-dock--stage .terranet-workspace-dock__error-panel {
+  margin: 0 1rem 1rem;
+  border-radius: 1rem;
+  border: 1px solid rgba(248, 113, 113, 0.18);
+  background: rgba(69, 10, 10, 0.82);
+  color: #fecaca;
+  padding: 0.9rem 1rem;
+  box-shadow: 0 18px 40px -28px rgba(0, 0, 0, 0.6);
+}
+
+.terranet-workspace-dock--stage .terranet-workspace-dock__error-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.terranet-workspace-dock--stage .terranet-workspace-dock__error-title {
+  color: #fff1f2;
+}
+
+.terranet-workspace-dock--stage .terranet-workspace-dock__error-message,
+.terranet-workspace-dock--stage .terranet-workspace-dock__error-hint {
+  color: #fecaca;
+}
+
+.terranet-workspace-dock--stage .terranet-workspace-dock__error-actions {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.8rem;
+}
+
+.terranet-workspace-dock--stage .terranet-workspace-dock__error-btn {
+  border-radius: 0.8rem;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.06);
+  color: #e2e8f0;
+  padding: 0.55rem 0.85rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.terranet-workspace-dock--stage .terranet-workspace-dock__error-btn:hover {
+  background: rgba(255, 255, 255, 0.11);
+}
+
+.terranet-workspace-dock--stage .terranet-workspace-dock__error-btn--retry {
+  border-color: rgba(96, 165, 250, 0.22);
+}
+
+.terranet-workspace-dock--stage .terranet-workspace-dock__error-btn--code {
+  border-color: rgba(34, 197, 94, 0.22);
+}
+
+.terranet-workspace-dock--stage .scene-viewer-card {
+  background: linear-gradient(180deg, #0b0b0f 0%, #111216 100%);
+  border: none;
+  border-radius: 0;
+  height: 100%;
+}
+
+.terranet-workspace-dock--stage .scene-viewer-header {
+  padding: 0.95rem 1rem;
+  border-bottom-color: rgba(255, 255, 255, 0.06);
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.terranet-workspace-dock--stage .scene-viewer-icon {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(255, 255, 255, 0.08);
+  color: #cbd5e1;
+}
+
+.terranet-workspace-dock--stage .scene-viewer-name,
+.terranet-workspace-dock--stage .scene-viewer-skill {
+  color: #f8fafc;
+}
+
+.terranet-workspace-dock--stage .scene-viewer-meta {
+  color: #94a3b8;
+}
+
+.terranet-workspace-dock--stage .scene-viewer-btn {
+  color: #cbd5e1;
+}
+
+.terranet-workspace-dock--stage .scene-viewer-btn:hover {
+  background: rgba(255, 255, 255, 0.07);
+  color: #ffffff;
+}
+
+.terranet-workspace-dock--stage .scene-viewer-body {
+  background:
+    radial-gradient(circle at 18% 18%, rgba(56, 189, 248, 0.08), transparent 30%),
+    linear-gradient(180deg, #111116 0%, #0a0a0d 100%);
+}
+
+.terranet-workspace-dock--stage .scene-viewer-canvas {
+  background:
+    radial-gradient(circle at 18% 18%, rgba(255, 255, 255, 0.1), rgba(17, 24, 39, 0.12)),
+    linear-gradient(180deg, #0e1015 0%, #06070a 100%);
+}
+
+.terranet-workspace-dock--stage .scene-loading-overlay {
+  background: rgba(10, 10, 15, 0.72);
+}
+
+.terranet-workspace-dock--stage .scene-loading-overlay p,
+.terranet-workspace-dock--stage .scene-viewer-placeholder p,
+.terranet-workspace-dock--stage .scene-viewer-error p {
+  color: #94a3b8;
+}
+
+.terranet-workspace-dock--stage .scene-viewer-placeholder,
+.terranet-workspace-dock--stage .scene-viewer-error {
+  color: #cbd5e1;
+}
+
+.terranet-workspace-dock--stage .scene-viewer-placeholder svg,
+.terranet-workspace-dock--stage .scene-viewer-error svg {
+  color: #60a5fa;
+}
+
+.terranet-workspace-dock--stage .terranet-session-files,
+.terranet-workspace-dock--stage .code-editor,
+.terranet-workspace-dock--stage .terranet-media-viewer {
+  background: linear-gradient(180deg, #0d0d12 0%, #0a0a0f 100%);
+  border-color: rgba(255, 255, 255, 0.08);
+  color: #e2e8f0;
+  box-shadow: 0 22px 54px -32px rgba(0, 0, 0, 0.65);
+}
+
+.terranet-workspace-dock--stage .code-editor-toolbar,
+.terranet-workspace-dock--stage .terranet-session-files__header,
+.terranet-workspace-dock--stage .terranet-media-viewer__topbar,
+.terranet-workspace-dock--stage .terranet-media-viewer__bottombar {
+  border-color: rgba(255, 255, 255, 0.06);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.terranet-workspace-dock--stage .code-editor-info,
+.terranet-workspace-dock--stage .code-editor-meta,
+.terranet-workspace-dock--stage .terranet-session-files__meta,
+.terranet-workspace-dock--stage .terranet-session-files__empty,
+.terranet-workspace-dock--stage .terranet-media-viewer__status-copy,
+.terranet-workspace-dock--stage .terranet-media-viewer__empty-copy {
+  color: #94a3b8;
+}
+
+.terranet-workspace-dock--stage .code-editor-btn,
+.terranet-workspace-dock--stage .terranet-session-files__open-link,
+.terranet-workspace-dock--stage .terranet-media-viewer__action,
+.terranet-workspace-dock--stage .terranet-media-viewer__rail-btn {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(255, 255, 255, 0.08);
+  color: #cbd5e1;
+}
+
+.terranet-workspace-dock--stage .code-editor-btn:hover,
+.terranet-workspace-dock--stage .terranet-session-files__open-link:hover,
+.terranet-workspace-dock--stage .terranet-media-viewer__action:hover,
+.terranet-workspace-dock--stage .terranet-media-viewer__rail-btn:hover {
+  background: rgba(255, 255, 255, 0.09);
+  color: #ffffff;
+}
+
+.terranet-workspace-dock--stage .terranet-session-files__card,
+.terranet-workspace-dock--stage .terranet-session-files__item {
+  background: rgba(255, 255, 255, 0.04);
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
+.terranet-workspace-dock--stage .terranet-session-files__item.is-current {
+  background: rgba(56, 189, 248, 0.08);
+  border-color: rgba(56, 189, 248, 0.18);
+}
+
+@media (max-width: 1100px) {
+  .terranet-workspace-dock--stage {
+    width: 100%;
+    min-height: 52vh;
+    max-width: none;
+  }
+
+  .terranet-workspace-dock--stage .terranet-workspace-dock__header {
+    flex-wrap: wrap;
+    align-items: flex-start;
+  }
+
+  .terranet-workspace-dock--stage .terranet-workspace-dock__header-right {
+    margin-left: auto;
+  }
+}
+
+@media (max-width: 860px) {
+  .terranet-workspace-dock--stage .terranet-workspace-dock__tabs--stage {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .terranet-workspace-dock--stage .terranet-workspace-dock__tabs--stage button {
+    flex: 1;
+    text-align: center;
+  }
+
+  .terranet-workspace-dock--stage .terranet-workspace-dock__code-stack > *,
+  .terranet-workspace-dock--stage .terranet-workspace-dock__files-stack > * {
+    width: 100%;
+  }
+}
+
+.app-layout--immersive {
+  background:
+    radial-gradient(circle at top left, rgba(56, 189, 248, 0.08), transparent 28%),
+    radial-gradient(circle at top right, rgba(233, 74, 154, 0.08), transparent 24%),
+    linear-gradient(180deg, #050507 0%, #09090c 42%, #0b0b10 100%);
+}
+
+.app-layout--immersive .app-body {
+  background: transparent;
+}
+
+.app-layout--immersive .app-main {
+  min-width: 0;
+  min-height: 0;
+}
+
+.app-main--immersive {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  min-width: 0;
+  padding: 0;
+  max-width: none;
+  margin: 0;
+  background: transparent;
+}
+
+.app-header--chat {
+  position: sticky;
+  top: 0;
+  z-index: 140;
+  height: 3.5rem;
+  background: rgba(10, 10, 12, 0.84);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  backdrop-filter: blur(18px);
+  color: #e2e8f0;
+}
+
+.app-header--chat .app-header-brand {
+  gap: 0.75rem;
+}
+
+.app-header--chat .app-header-brand__mark {
+  width: 2rem;
+  height: 2rem;
+  border-radius: 0.7rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #0b0b10;
+  background: linear-gradient(180deg, #ffffff 0%, #cbd5e1 100%);
+  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.22), 0 12px 30px -18px rgba(255, 255, 255, 0.45);
+}
+
+.app-header--chat .app-header-brand__copy {
+  display: grid;
+  gap: 0.06rem;
+}
+
+.app-header--chat .app-header-brand__label {
+  font-size: 0.92rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: #f8fafc;
+}
+
+.app-header--chat .app-header-brand__sub {
+  font-size: 0.68rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: #94a3b8;
+}
+
+.app-header-center {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+}
+
+.app-header-center--compact {
+  justify-content: flex-start;
+}
+
+.app-header-transport {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.24rem;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.app-header-transport button {
+  border: none;
+  background: transparent;
+  color: #94a3b8;
+  border-radius: 999px;
+  padding: 0.42rem 0.8rem;
+  font-size: 0.76rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 160ms ease, color 160ms ease, transform 160ms ease;
+}
+
+.app-header-transport button:hover {
+  color: #e2e8f0;
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.app-header-transport button.is-active {
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.14);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+
+.app-header-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.65rem;
+  max-width: min(42vw, 30rem);
+  padding: 0.42rem 0.9rem;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.05);
+  color: #e2e8f0;
+  cursor: pointer;
+  transition: background-color 160ms ease, border-color 160ms ease, transform 160ms ease;
+}
+
+.app-header-pill:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.14);
+}
+
+.app-header-pill__status {
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: #94a3b8;
+}
+
+.app-header-pill__title {
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.app-header-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  margin-left: auto;
+}
+
+.app-header-action {
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.05);
+  color: #e2e8f0;
+  border-radius: 0.75rem;
+  min-height: 2.2rem;
+  padding: 0 0.8rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 160ms ease, border-color 160ms ease, color 160ms ease;
+}
+
+.app-header-action:hover {
+  background: rgba(255, 255, 255, 0.09);
+  border-color: rgba(255, 255, 255, 0.14);
+}
+
+.app-header-action--primary {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.92) 0%, rgba(226, 232, 240, 0.88) 100%);
+  color: #09090c;
+  border-color: rgba(255, 255, 255, 0.12);
+  box-shadow: 0 16px 32px -20px rgba(255, 255, 255, 0.45);
+}
+
+.app-header-action--primary:hover {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.98) 0%, rgba(248, 250, 252, 0.9) 100%);
+}
+
+.app-header-button {
+  width: 2.15rem;
+  height: 2.15rem;
+  border-radius: 0.75rem;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.05);
+  color: #cbd5e1;
+}
+
+.app-header-button:hover {
+  background: rgba(255, 255, 255, 0.09);
+  color: #ffffff;
+}
+
+.app-header-user {
+  display: inline-flex;
+  align-items: center;
+}
+
+.app-header-user > * {
+  display: inline-flex;
+  align-items: center;
+}
+
+@media (max-width: 960px) {
+  .app-header-center {
+    gap: 0.5rem;
+  }
+
+  .app-header-transport {
+    display: none;
+  }
+
+  .app-header-pill {
+    max-width: 52vw;
+  }
+}
+
+@media (max-width: 720px) {
+  .app-header-brand__sub {
+    display: none;
+  }
+
+  .app-header-action--primary {
+    display: none;
+  }
+}
+
 /* Responsive */
 @media (max-width: 768px) {
   .app-body:not(.app-body--chat) .app-sidebar {
@@ -2726,12 +4526,15 @@
   .app-body--chat .app-sidebar {
     display: flex;
     position: fixed;
-    top: 3.5rem;
+    top: 0;
     left: 0;
     bottom: 0;
-    width: min(82vw, 300px);
-    border-right: 1px solid #e2e8f0;
-    box-shadow: 0 24px 50px -36px rgba(15, 23, 42, 0.65);
+    margin: 0;
+    width: min(84vw, 320px);
+    height: auto;
+    border-right: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 0 1.25rem 1.25rem 0;
+    box-shadow: 0 24px 50px -36px rgba(5, 4, 9, 0.78);
     transform: translateX(-100%);
     opacity: 0;
     pointer-events: none;
@@ -2747,15 +4550,17 @@
   }
 
   .app-body--chat .app-sidebar.app-sidebar--collapsed {
-    width: auto;
+    width: 76px;
+    height: auto;
     min-height: auto;
-    top: calc(3.5rem + 0.58rem);
-    left: 0.46rem;
+    top: calc(env(safe-area-inset-top) + 0.52rem);
+    left: 0.4rem;
     bottom: auto;
     transform: translateX(0);
     opacity: 1;
     pointer-events: auto;
     border-right: none;
+    border-radius: 1.05rem;
     background: transparent;
     overflow: visible;
     box-shadow: none;
@@ -2763,7 +4568,7 @@
   }
 
   .app-body--chat .chat-sidebar-sheet {
-    width: min(84vw, 300px);
+    width: min(84vw, 320px);
   }
 
   .app-body--chat .chat-sidebar-sheet .app-sidebar {
@@ -2771,12 +4576,14 @@
     top: 0;
     left: 0;
     bottom: 0;
+    margin: 0;
     width: 100%;
+    height: 100%;
     transform: none;
     opacity: 1;
     pointer-events: auto;
-    border-right: 1px solid #e2e8f0;
-    background: #ffffff;
+    border-radius: 0;
+    border-right: 1px solid rgba(255, 255, 255, 0.12);
   }
 
   .chat-sidebar-launcher {
@@ -2792,18 +4599,24 @@
   }
 
   .app-body--chat .app-sidebar.app-sidebar--collapsed .app-sidebar-mini {
-    border: 1px solid #dbe3ef;
-    border-radius: 0.84rem;
-    background: #ffffff;
-    box-shadow: 0 18px 34px -30px rgba(15, 23, 42, 0.65);
-    padding: 0.38rem;
-    gap: 0.32rem;
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    border-radius: 1rem;
+    background: rgba(24, 12, 14, 0.94);
+    box-shadow: 0 18px 34px -30px rgba(5, 4, 9, 0.88);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    padding: 0.48rem;
+    gap: 0.5rem;
+  }
+
+  .app-body--chat .app-sidebar.app-sidebar--collapsed .app-sidebar-mini-bottom {
+    padding-bottom: 0;
   }
 
   .app-sidebar-backdrop {
     display: block;
     position: fixed;
-    inset: 3.5rem 0 0 0;
+    inset: 0;
     border: none;
     padding: 0;
     margin: 0;
@@ -2826,12 +4639,12 @@
     position: fixed;
     left: clamp(0.32rem, 1.7vw, 0.62rem);
     right: clamp(0.32rem, 1.7vw, 0.62rem);
-    top: calc(3.5rem + 0.34rem);
+    top: calc(env(safe-area-inset-top) + 0.34rem);
     bottom: calc(env(safe-area-inset-bottom) + 0.34rem);
     max-height: none;
-    border: 1px solid #dbe3ef;
+    border: 1px solid #2f2f35;
     border-radius: 1rem;
-    background: #f8fafc;
+    background: #18181b;
     box-shadow: 0 20px 44px -30px rgba(15, 23, 42, 0.6);
     z-index: 140;
     animation: terranet-workspace-card-in 220ms cubic-bezier(0.2, 0.8, 0.2, 1);

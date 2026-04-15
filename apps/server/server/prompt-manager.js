@@ -1,6 +1,7 @@
 import { existsSync, readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { resolveAssetPlan, buildAssetPolicyText, buildAssetCatalogText, buildQualityContractText } from "./asset-resolver.js";
 
 const defaultPromptConfig = {
   version: "prompt-config.v1",
@@ -32,6 +33,7 @@ const defaultPromptConfig = {
       "Generate runnable JavaScript scene code only.",
       "Use the selected skill runtime assumptions provided in the user prompt.",
       "If the selected skill is Three.js, prioritize premium visual quality: layered composition, detailed geometry, rich materials, cinematic lighting, and smooth motion.",
+      "If a Three.js quality contract and asset catalog are provided, follow them strictly.",
       "If the selected skill is Anime.js, prioritize premium motion design: timeline composition, staggered choreography, expressive easing, and layered DOM/SVG animation.",
       "Respect requested quality level: draft = minimal, standard = polished, high = maximum detail and fidelity.",
       "Default to light or neutral backgrounds with strong readability; only use dark or black backgrounds when the user explicitly asks for a dark look.",
@@ -45,6 +47,9 @@ const defaultPromptConfig = {
       "Requested quality: {requestedQuality}",
       "Background policy: {backgroundPolicy}",
       "Three.js quality profile: {threejsQualityProfile}",
+      "Three.js quality contract: {threejsQualityContract}",
+      "Asset policy: {assetPolicy}",
+      "Three.js asset catalog: {threejsAssetCatalog}",
       "Three.js reference template: {threejsReferenceTemplate}",
       "Intent: {parsedIntent}",
       "Return complete JavaScript that creates and renders the requested scene."
@@ -57,6 +62,7 @@ const defaultPromptConfig = {
       "Return runnable JavaScript code only.",
       "Preserve the current scene structure unless the edit requires a change.",
       "Maintain or improve visual fidelity, especially for Three.js scenes.",
+      "If a Three.js quality contract and asset catalog are provided, follow them strictly.",
       "For Anime.js scenes, maintain timeline coherence, easing quality, and smooth sequencing.",
       "Use light or neutral backgrounds unless the edit instruction explicitly asks for dark styling.",
       "Do not include markdown fences or prose.",
@@ -69,6 +75,9 @@ const defaultPromptConfig = {
       "Requested quality: {requestedQuality}",
       "Background policy: {backgroundPolicy}",
       "Three.js quality profile: {threejsQualityProfile}",
+      "Three.js quality contract: {threejsQualityContract}",
+      "Asset policy: {assetPolicy}",
+      "Three.js asset catalog: {threejsAssetCatalog}",
       "Three.js reference template: {threejsReferenceTemplate}",
       "Current code:",
       "{currentCode}",
@@ -141,6 +150,20 @@ function resolveRequestedQuality(request, selectedSkill) {
   return selectedSkill === "threejs" || selectedSkill === "animejs" || selectedSkill === "manim"
     ? "high"
     : "standard";
+}
+
+function resolvePromptAssetPlan({ selectedSkill, requestedQuality, sourceText, parsedIntent, assetPlan }) {
+  if (assetPlan && typeof assetPlan === "object") {
+    return assetPlan;
+  }
+
+  return resolveAssetPlan({
+    selectedSkill,
+    requestedQuality,
+    sourceText,
+    parsedIntent,
+    allowInternetFallback: true
+  });
 }
 
 function buildSkillRuntimeAssumption(selectedSkill) {
@@ -345,6 +368,14 @@ export function buildGenerationPromptBundle(state) {
   }
 
   const requestedQuality = resolveRequestedQuality(state.request, state.selectedSkill);
+  const promptSourceText = [state.request.query, JSON.stringify(state.parsedIntent)].join(" ");
+  const assetPlan = resolvePromptAssetPlan({
+    selectedSkill: state.selectedSkill,
+    requestedQuality,
+    sourceText: promptSourceText,
+    parsedIntent: state.parsedIntent,
+    assetPlan: state.assetPlan
+  });
 
   return buildPromptBundle(promptConfig.generation, {
     query: state.request.query,
@@ -353,6 +384,9 @@ export function buildGenerationPromptBundle(state) {
     requestedQuality,
     backgroundPolicy: buildBackgroundPolicy(state.request.query),
     threejsQualityProfile: buildThreejsQualityProfile(requestedQuality, state.selectedSkill),
+    threejsQualityContract: buildQualityContractText(assetPlan),
+    assetPolicy: buildAssetPolicyText(assetPlan),
+    threejsAssetCatalog: buildAssetCatalogText(assetPlan),
     threejsReferenceTemplate: buildThreejsReferenceTemplate(state.selectedSkill, requestedQuality),
     parsedIntent: JSON.stringify(state.parsedIntent)
   });
@@ -364,6 +398,14 @@ export function buildModificationPromptBundle(state) {
   }
 
   const requestedQuality = state.quality ?? (state.selectedSkill === "threejs" ? "high" : "standard");
+  const promptSourceText = state.instruction;
+  const assetPlan = resolvePromptAssetPlan({
+    selectedSkill: state.selectedSkill,
+    requestedQuality,
+    sourceText: promptSourceText,
+    parsedIntent: state.parsedIntent ?? null,
+    assetPlan: state.assetPlan
+  });
 
   return buildPromptBundle(promptConfig.modification, {
     instruction: state.instruction,
@@ -372,6 +414,9 @@ export function buildModificationPromptBundle(state) {
     requestedQuality,
     backgroundPolicy: buildBackgroundPolicy(state.instruction),
     threejsQualityProfile: buildThreejsQualityProfile(requestedQuality, state.selectedSkill),
+    threejsQualityContract: buildQualityContractText(assetPlan),
+    assetPolicy: buildAssetPolicyText(assetPlan),
+    threejsAssetCatalog: buildAssetCatalogText(assetPlan),
     threejsReferenceTemplate: buildThreejsReferenceTemplate(state.selectedSkill, requestedQuality),
     currentCode: state.currentCode
   });
@@ -389,10 +434,18 @@ export function buildModificationPromptBundle(state) {
  * @param {string} [options.query] - Optional text instruction alongside the image
  * @param {string} options.selectedSkill - Target skill (threejs, p5js, d3js)
  * @param {object} [options.parsedIntent] - Optional parsed intent object
+ * @param {object} [options.assetPlan] - Optional pre-resolved asset plan manifest
  * @returns {{ systemPrompt: string, userContent: Array }}
  */
-export function buildImageToCodePromptBundle({ imageUrl, query, selectedSkill, parsedIntent }) {
+export function buildImageToCodePromptBundle({ imageUrl, query, selectedSkill, parsedIntent, assetPlan = null }) {
   const isManim = selectedSkill === "manim";
+  const resolvedAssetPlan = resolvePromptAssetPlan({
+    selectedSkill,
+    requestedQuality: "high",
+    sourceText: query,
+    parsedIntent,
+    assetPlan
+  });
 
   const systemPrompt = [
     isManim
@@ -424,6 +477,12 @@ export function buildImageToCodePromptBundle({ imageUrl, query, selectedSkill, p
       : selectedSkill === "manim"
         ? "Define one Scene subclass named GVERichScene (subclass MovingCameraScene if you need to use self.camera.frame). Target 1080p/60fps rich motion quality."
           : "Use the d3 namespace for DOM manipulation. SVG container is available.",
+        selectedSkill === "threejs"
+          ? `Asset policy: ${buildAssetPolicyText(resolvedAssetPlan)}`
+          : "",
+        selectedSkill === "threejs"
+          ? `Curated asset manifest: ${buildAssetCatalogText(resolvedAssetPlan)}`
+          : "",
     "",
     "Rules:",
     isManim

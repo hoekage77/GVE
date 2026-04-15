@@ -1,8 +1,6 @@
 import { Outlet, useRouterState } from '@tanstack/react-router';
-import { useEffect, useState } from 'react';
-import { PanelLeftOpen } from 'lucide-react';
+import { useEffect } from 'react';
 import Sidebar from './Sidebar';
-import Header from './Header';
 import { useChatStore } from '../../stores';
 
 interface MainLayoutProps {
@@ -11,72 +9,23 @@ interface MainLayoutProps {
 
 export function MainLayout({ children }: MainLayoutProps) {
   const initialize = useChatStore((state) => state.initialize);
-  const [isChatSidebarOpen, setIsChatSidebarOpen] = useState(false);
   const pathname = useRouterState({
     select: (state) => state.location.pathname
   });
-  const isChatRoute = pathname.startsWith('/chat');
+  const isWorkspaceRoute = pathname.startsWith('/chat')
+    || pathname.startsWith('/scenes')
+    || pathname.startsWith('/tasks');
 
   useEffect(() => {
     void initialize();
   }, [initialize]);
 
-  useEffect(() => {
-    if (!isChatRoute && isChatSidebarOpen) {
-      setIsChatSidebarOpen(false);
-    }
-  }, [isChatRoute, isChatSidebarOpen]);
-
-  useEffect(() => {
-    if (!isChatRoute || !isChatSidebarOpen) {
-      return;
-    }
-
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        setIsChatSidebarOpen(false);
-      }
-    };
-
-    window.addEventListener('keydown', handleKeyDown);
-    return () => {
-      window.removeEventListener('keydown', handleKeyDown);
-    };
-  }, [isChatRoute, isChatSidebarOpen]);
-
   return (
-    <div className="app-layout">
-      {!isChatRoute && <Header />}
-      <div className={`app-body ${isChatRoute ? 'app-body--chat' : ''}`}>
-        {!isChatRoute && <Sidebar />}
+    <div className="relative z-10 h-[100dvh] w-screen flex flex-col bg-[#06090d] text-white">
+      <div className={`app-body ${isWorkspaceRoute ? 'app-body--chat' : ''} flex-1 min-h-0 flex ${isWorkspaceRoute ? 'flex-col xl:flex-row' : ''}`}>
+        <Sidebar />
 
-        {isChatRoute && !isChatSidebarOpen && (
-          <button
-            type="button"
-            className="chat-sidebar-launcher"
-            onClick={() => setIsChatSidebarOpen(true)}
-            aria-label="Open chat sidebar"
-            title="Open sidebar"
-          >
-            <PanelLeftOpen className="h-4 w-4" />
-          </button>
-        )}
-
-        {isChatRoute && isChatSidebarOpen && (
-          <>
-            <button
-              type="button"
-              className="chat-sidebar-overlay"
-              onClick={() => setIsChatSidebarOpen(false)}
-              aria-label="Close chat sidebar"
-            />
-            <div className="chat-sidebar-sheet" role="dialog" aria-label="Chat sidebar">
-              <Sidebar forceExpanded />
-            </div>
-          </>
-        )}
-
-        <main className="app-main">
+        <main className={`app-main flex-1 flex min-h-0 ${isWorkspaceRoute ? 'flex-col xl:flex-row' : ''}`}>
           {children || <Outlet />}
         </main>
       </div>

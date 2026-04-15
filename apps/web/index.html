@@ -4,8 +4,17 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>GenVis | Generative Visual Engine</title>
+    <style>
+      *{font-family:'Inter',system-ui,-apple-system,sans-serif}
+      html,body{height:100%;background:#0a0a0a;overflow:hidden;}
+      body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(rgba(255,255,255,.03) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.03) 1px,transparent 1px);background-size:40px 40px;pointer-events:none;opacity:.4}
+      .font-mono{font-family:'JetBrains Mono',ui-monospace,monospace}
+      .scrollbar::-webkit-scrollbar{width:5px;height:5px}
+      .scrollbar::-webkit-scrollbar-thumb{background:#2a2a2a;border-radius:10px}
+      .scrollbar::-webkit-scrollbar-track{background:transparent}
+    </style>
   </head>
-  <body>
+  <body class="text-white antialiased selection:bg-[#e94a9a]/30">
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>

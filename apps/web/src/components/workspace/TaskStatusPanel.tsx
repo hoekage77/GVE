@@ -1,16 +1,20 @@
-import { CheckCircle2, ChevronDown, Circle, ListTree, Loader2, XCircle } from 'lucide-react';
+import { CheckCircle2, ChevronDown, Circle, ListTree, Loader2, XCircle, Radio } from 'lucide-react';
 import { useEffect, useState } from 'react';
-import type { GveTask, GveTaskAction, GveTaskStatus } from '@visual-runtime/shared';
-import type { StageEventMap, TurnLifecycleStatus } from '../../stores/chatStore';
+import type { AgentActivityEvent, GveTask, GveTaskAction, GveTaskStatus, SceneAssetPlan } from '@visual-runtime/shared';
+import type { StageEventMap, TurnLifecycleStatus, LiveConnectionState } from '../../stores/chatStore';
+import { getTurnStepLabel } from '../chat/turnActivity';
 
 interface TaskStatusPanelProps {
   planId: string | null;
   turnStatus: TurnLifecycleStatus;
   currentStep: string | null;
   currentStepStatus: GveTaskStatus | null;
+  assetPlan?: SceneAssetPlan | null;
   tasks: GveTask[];
   stageEventsByAction: StageEventMap | null;
   activeStageAction: GveTaskAction | null;
+  activities?: AgentActivityEvent[];
+  connectionState?: LiveConnectionState;
 }
 
 const EMPTY_STAGE_EVENTS: StageEventMap = {
@@ -23,33 +27,8 @@ const EMPTY_STAGE_EVENTS: StageEventMap = {
   sync_state: []
 };
 
-const STEP_LABELS: Record<string, string> = {
-  turn_started: 'Starting',
-  parse_intent: 'Parse Intent',
-  intent_parsed: 'Parse Intent',
-  select_skill: 'Select Skill',
-  skill_selected: 'Select Skill',
-  plan_created: 'Build Prompt',
-  build_prompt: 'Build Prompt',
-  generate_code: 'Generate Code',
-  code_generated: 'Generate Code',
-  code_modified: 'Generate Code',
-  validate_code: 'Validate',
-  validation_failed: 'Validate',
-  execute_code: 'Execute',
-  executing: 'Execute',
-  execution_skipped: 'Execute',
-  sync_state: 'Sync State',
-  turn_complete: 'Done',
-  turn_error: 'Error'
-};
-
 function toStepLabel(step: string | null | undefined): string {
-  if (!step) {
-    return 'Waiting';
-  }
-
-  return STEP_LABELS[step] ?? step.replace(/_/g, ' ');
+  return getTurnStepLabel(step);
 }
 
 function taskStatusIcon(status: GveTaskStatus) {
@@ -91,8 +70,12 @@ function turnStatusTone(status: TurnLifecycleStatus): 'running' | 'completed' | 
   return 'idle';
 }
 
-function eventSourceLabel(source: 'orchestration' | 'activity'): string {
-  return source === 'orchestration' ? 'Pipeline' : 'Agent';
+function eventSourceLabel(source: 'orchestration' | 'activity' | 'task' | 'error'): string {
+  if (source === 'orchestration') return 'Pipeline';
+  if (source === 'activity') return 'Agent';
+  if (source === 'task') return 'Task';
+  if (source === 'error') return 'Error';
+  return 'Event';
 }
 
 function formatEventTime(timestamp: string): string {
@@ -108,14 +91,42 @@ function formatEventTime(timestamp: string): string {
   });
 }
 
+function toReadableLabel(value: string | null | undefined): string {
+  const normalized = String(value ?? '').trim();
+  if (!normalized) {
+    return '';
+  }
+
+  return normalized
+    .replace(/[_-]+/g, ' ')
+    .replace(/\b\w/g, (token) => token.toUpperCase());
+}
+
+function activityStatusIcon(status: GveTaskStatus | string | undefined) {
+  const resolvedStatus = status === 'completed' || status === 'success' ? 'completed' : status === 'running' ? 'running' : status === 'failed' || status === 'error' ? 'failed' : 'pending';
+  switch (resolvedStatus) {
+    case 'completed':
+      return <CheckCircle2 className="h-3.5 w-3.5 terranet-task-view__activity-icon terranet-task-view__activity-icon--completed" />;
+    case 'running':
+      return <Loader2 className="h-3.5 w-3.5 terranet-task-view__activity-icon terranet-task-view__activity-icon--running" />;
+    case 'failed':
+      return <XCircle className="h-3.5 w-3.5 terranet-task-view__activity-icon terranet-task-view__activity-icon--failed" />;
+    default:
+      return <Circle className="h-3.5 w-3.5 terranet-task-view__activity-icon terranet-task-view__activity-icon--pending" />;
+  }
+}
+
 export default function TaskStatusPanel({
   planId,
   turnStatus,
   currentStep,
   currentStepStatus,
+  assetPlan,
   tasks,
   stageEventsByAction,
-  activeStageAction
+  activeStageAction,
+  activities,
+  connectionState = 'open'
 }: TaskStatusPanelProps) {
   const [manuallyExpandedActions, setManuallyExpandedActions] = useState<Partial<Record<GveTaskAction, boolean>>>({});
 
@@ -132,11 +143,48 @@ export default function TaskStatusPanel({
 
   const hasContent = tasks.length > 0;
 
+  // Show connection status when not connected
+  if (connectionState === 'connecting') {
+    return (
+      <div className="terranet-task-view terranet-task-view--empty">
+        <div className="terranet-task-view__connection-status">
+          <Loader2 className="h-5 w-5 animate-spin terranet-task-view__connection-icon" />
+        </div>
+        <p className="terranet-task-view__empty-title">Waiting for connection...</p>
+        <p className="terranet-task-view__empty-copy">Connecting to WebSocket server</p>
+      </div>
+    );
+  }
+
+  if (connectionState === 'closed') {
+    return (
+      <div className="terranet-task-view terranet-task-view--empty">
+        <div className="terranet-task-view__connection-status">
+          <Radio className="h-5 w-5 terranet-task-view__connection-icon terranet-task-view__connection-icon--warning" />
+        </div>
+        <p className="terranet-task-view__empty-title">Connection lost</p>
+        <p className="terranet-task-view__empty-copy">Attempting to reconnect...</p>
+      </div>
+    );
+  }
+
+  if (connectionState === 'error') {
+    return (
+      <div className="terranet-task-view terranet-task-view--empty">
+        <div className="terranet-task-view__connection-status">
+          <XCircle className="h-5 w-5 terranet-task-view__connection-icon terranet-task-view__connection-icon--error" />
+        </div>
+        <p className="terranet-task-view__empty-title">Connection error</p>
+        <p className="terranet-task-view__empty-copy">Check your network and try again</p>
+      </div>
+    );
+  }
+
   if (!hasContent) {
     return (
       <div className="terranet-task-view terranet-task-view--empty">
-        <p className="terranet-task-view__empty-title">Tasks will appear here once a turn starts.</p>
-        <p className="terranet-task-view__empty-copy">Keep this tab open to monitor pipeline progress in real time.</p>
+        <p className="terranet-task-view__empty-title">No activity yet</p>
+        <p className="terranet-task-view__empty-copy">Tasks and events will appear here once a turn starts</p>
       </div>
     );
   }
@@ -165,8 +213,62 @@ export default function TaskStatusPanel({
         </>
       )}
 
+      {Array.isArray(activities) && activities.length > 0 && (
+        <section className="terranet-task-view__section terranet-task-view__section--activities">
+          <h3>Activity Log</h3>
+          <ul className="terranet-task-view__activity-list" role="log" aria-live="polite">
+            {activities.map((activity) => (
+              <li
+                key={activity.id}
+                className={`terranet-task-view__activity terranet-task-view__activity--${activity.status}`}
+              >
+                <div className="terranet-task-view__activity-icon-wrap">
+                  {activityStatusIcon(activity.status)}
+                </div>
+                <div className="terranet-task-view__activity-content">
+                  <p className="terranet-task-view__activity-text">{activity.text}</p>
+                  {activity.technicalDetail && (
+                    <p className="terranet-task-view__activity-detail">{activity.technicalDetail}</p>
+                  )}
+                </div>
+                <div className="terranet-task-view__activity-meta">
+                  <span className="terranet-task-view__activity-time">{formatEventTime(activity.createdAt)}</span>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+
       {planId && (
         <p className="terranet-task-view__plan-id">Plan {planId.slice(0, 12)}</p>
+      )}
+
+      {assetPlan && (
+        <section className="terranet-task-view__section terranet-task-view__section--asset">
+          <h3>Asset Strategy</h3>
+          <div className="terranet-task-view__asset-summary">
+            <p className="terranet-task-view__asset-line">
+              <strong>{toReadableLabel(assetPlan.strategy)}</strong>
+              {' · '}
+              Quality {toReadableLabel(assetPlan.requestedQuality)}
+            </p>
+            {Array.isArray(assetPlan.categories) && assetPlan.categories.length > 0 && (
+              <div className="terranet-task-view__asset-chips">
+                {assetPlan.categories.slice(0, 6).map((category) => (
+                  <span key={category} className="terranet-task-view__asset-chip">
+                    {toReadableLabel(category)}
+                  </span>
+                ))}
+              </div>
+            )}
+            <p className="terranet-task-view__asset-line terranet-task-view__asset-line--muted">
+              Internet fallback {assetPlan.fallbackPolicy?.allowInternetFallback ? 'enabled' : 'disabled'}
+              {' · '}
+              Warning {assetPlan.fallbackPolicy?.requireFallbackWarning ? 'required' : 'optional'}
+            </p>
+          </div>
+        </section>
       )}
 
       {tasks.length > 0 && (

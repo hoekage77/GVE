@@ -12,7 +12,10 @@ interface SceneViewerProps {
 const SKILL_CDNS: Record<string, string[]> = {
   threejs: [
     'https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js',
-    'https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js'
+    'https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js',
+    'https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js',
+    'https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/DRACOLoader.js',
+    'https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/RGBELoader.js'
   ],
   p5js: [
     'https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.0/p5.min.js'
@@ -55,13 +58,94 @@ function buildSceneHTML(code: string, skill: string): string {
       const __renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
       __renderer.setSize(window.innerWidth, window.innerHeight);
       __renderer.setPixelRatio(window.devicePixelRatio);
-      __renderer.setClearColor(0xf6f9fd, 0);
+      __renderer.setClearColor(0x0a0a0a, 1);
+      if (window.THREE && window.THREE.sRGBEncoding) {
+        __renderer.outputEncoding = window.THREE.sRGBEncoding;
+      }
+      if (window.THREE && window.THREE.ACESFilmicToneMapping) {
+        __renderer.toneMapping = window.THREE.ACESFilmicToneMapping;
+      }
+      __renderer.toneMappingExposure = 1.0;
+      __renderer.shadowMap.enabled = true;
+      if (window.THREE && window.THREE.PCFSoftShadowMap) {
+        __renderer.shadowMap.type = window.THREE.PCFSoftShadowMap;
+      }
       __container.appendChild(__renderer.domElement);
 
       const __controlsCtor = window.OrbitControls || (window.THREE && window.THREE.OrbitControls) || null;
       if (!window.OrbitControls && __controlsCtor) {
         window.OrbitControls = __controlsCtor;
       }
+
+      window.__GVE_MODEL_LIBRARY = {
+        humans: [
+          {
+            id: 'cesium-man',
+            url: 'https://rawcdn.githack.com/KhronosGroup/glTF-Sample-Models/master/2.0/CesiumMan/glTF-Binary/CesiumMan.glb',
+            note: 'Neutral standing human model'
+          },
+          {
+            id: 'robot-expressive',
+            url: 'https://rawcdn.githack.com/mrdoob/three.js/r128/examples/models/gltf/RobotExpressive/RobotExpressive.glb',
+            note: 'Expressive humanoid fallback'
+          }
+        ],
+        birds: [
+          {
+            id: 'flamingo',
+            url: 'https://rawcdn.githack.com/mrdoob/three.js/r128/examples/models/gltf/Flamingo.glb',
+            note: 'Animated bird model'
+          },
+          {
+            id: 'parrot',
+            url: 'https://rawcdn.githack.com/mrdoob/three.js/r128/examples/models/gltf/Parrot.glb',
+            note: 'Animated bird model'
+          },
+          {
+            id: 'stork',
+            url: 'https://rawcdn.githack.com/mrdoob/three.js/r128/examples/models/gltf/Stork.glb',
+            note: 'Animated bird model'
+          }
+        ],
+        animals: [
+          {
+            id: 'fox',
+            url: 'https://rawcdn.githack.com/mrdoob/three.js/r128/examples/models/gltf/Fox.glb',
+            note: 'Animated quadruped model'
+          }
+        ]
+      };
+
+      window.resolveGveModelCandidates = function(subject) {
+        const text = String(subject || '').toLowerCase();
+        if (/bird|eagle|owl|parrot|flamingo|stork/.test(text)) {
+          return window.__GVE_MODEL_LIBRARY.birds;
+        }
+        if (/human|person|man|woman|character|avatar|robot/.test(text)) {
+          return window.__GVE_MODEL_LIBRARY.humans;
+        }
+        if (/animal|fox|wolf|cat|dog|creature/.test(text)) {
+          return window.__GVE_MODEL_LIBRARY.animals;
+        }
+        return [
+          ...window.__GVE_MODEL_LIBRARY.humans,
+          ...window.__GVE_MODEL_LIBRARY.birds,
+          ...window.__GVE_MODEL_LIBRARY.animals
+        ];
+      };
+
+      window.createGveGltfLoader = function() {
+        if (!window.THREE || typeof window.THREE.GLTFLoader !== 'function') {
+          throw new Error('THREE.GLTFLoader is unavailable in this runtime.');
+        }
+        const loader = new window.THREE.GLTFLoader();
+        if (typeof window.THREE.DRACOLoader === 'function') {
+          const dracoLoader = new window.THREE.DRACOLoader();
+          dracoLoader.setDecoderPath('https://www.gstatic.com/draco/v1/decoders/');
+          loader.setDRACOLoader(dracoLoader);
+        }
+        return loader;
+      };
 
       // Compatibility shims for generated code across Three.js versions.
       if (window.THREE && typeof window.THREE.CapsuleGeometry !== 'function') {
@@ -114,6 +198,7 @@ function buildSceneHTML(code: string, skill: string): string {
       __scene.add(__ambientLight);
       const __directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
       __directionalLight.position.set(5, 10, 7);
+      __directionalLight.castShadow = true;
       __scene.add(__directionalLight);
       
       // Camera position
@@ -605,8 +690,6 @@ export default function SceneViewer({ code, skill, onError }: SceneViewerProps) 
   const [isGridEnabled, setIsGridEnabled] = useState(getInitialGridEnabled);
   const [pointerLockHint, setPointerLockHint] = useState<string | null>(null);
 
-  const skillLabel = skill?.toUpperCase() ?? "SCENE";
-
   // Listen for errors from iframe
   useEffect(() => {
     const handleMessage = (event: MessageEvent) => {
@@ -762,150 +845,141 @@ export default function SceneViewer({ code, skill, onError }: SceneViewerProps) 
     postControl("set_grid", { enabled: isGridEnabled });
   }, [is3D, isRendered, isGridEnabled, postControl]);
 
+  const controlButtonClass =
+    "h-7 w-7 rounded-lg border border-white/10 bg-white/5 text-white/65 transition hover:border-white/20 hover:bg-white/10 hover:text-white";
+
   return (
-    <div className="scene-viewer-card">
-      {/* Body */}
-      <div className="scene-viewer-body">
-        {runtimeError ? (
-          <div className="scene-viewer-error">
-            <AlertCircle className="h-6 w-6" />
-            <p>{runtimeError}</p>
-          </div>
-        ) : !code ? (
-          <div className="scene-viewer-placeholder">
-            <Sparkles className="h-10 w-10" />
-            <p>Generate a scene to see the preview</p>
-          </div>
-        ) : (
-          <>
-            {/* Iframe Container */}
-            <div className="scene-viewer-canvas">
+    <div className="relative h-full w-full overflow-hidden rounded-[28px] border border-white/10 bg-[#050507] shadow-[0_0_0_1px_#000,0_30px_90px_-30px_#000]">
+      <div className="pointer-events-none absolute inset-0">
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_12%_14%,rgba(56,189,248,0.18),transparent_45%),radial-gradient(circle_at_82%_20%,rgba(236,72,153,0.14),transparent_55%)]" />
+        <div
+          className="absolute inset-0 opacity-35"
+          style={{
+            backgroundImage:
+              "linear-gradient(rgba(255,255,255,.03) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.03) 1px, transparent 1px)",
+            backgroundSize: "28px 28px",
+          }}
+        />
+      </div>
+
+      <div className="relative z-10 flex h-full flex-col">
+        <div className="relative flex-1 min-h-0 overflow-hidden">
+          {runtimeError ? (
+            <div className="flex h-full flex-col items-center justify-center px-8 text-center">
+              <AlertCircle className="mb-3 h-12 w-12 text-red-400/70" />
+              <p className="max-w-lg text-sm text-red-200/80">{runtimeError}</p>
+            </div>
+          ) : !code ? (
+            <div className="flex h-full flex-col items-center justify-center px-8 text-center">
+              <div className="mb-4 inline-flex h-14 w-14 items-center justify-center rounded-2xl border border-white/15 bg-white/5">
+                <Sparkles className="h-7 w-7 text-cyan-300/85" />
+              </div>
+              <p className="text-sm text-white/80">Scene workspace is ready</p>
+              <p className="mt-1 text-xs text-white/45">Generate a scene and it will render here in live preview mode.</p>
+            </div>
+          ) : (
+            <>
               <iframe
                 ref={iframeRef}
-                className="scene-iframe"
+                className="h-full w-full border-none bg-transparent"
                 sandbox="allow-scripts allow-pointer-lock"
                 tabIndex={0}
                 title="Scene preview"
               />
 
+              <div className="pointer-events-none absolute left-4 top-4 inline-flex items-center gap-2 rounded-full border border-cyan-300/35 bg-black/55 px-2.5 py-1 font-mono text-[10px] uppercase tracking-[0.2em] text-cyan-200/90 backdrop-blur-sm">
+                <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-cyan-300" />
+                Live Preview
+              </div>
+
               {isLoading && (
-                <div className="scene-loading-overlay">
-                  <div className="scene-loading-spinner" />
-                  <p>Rendering scene...</p>
+                <div className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-[#050507]/78 backdrop-blur-sm">
+                  <div className="mb-3 h-9 w-9 animate-spin rounded-full border-2 border-white/15 border-t-cyan-300" />
+                  <p className="text-sm text-white/75">Rendering scene...</p>
                 </div>
+              )}
+            </>
+          )}
+        </div>
+
+        <div className="shrink-0 border-t border-white/10 bg-black/40 px-3 py-2 backdrop-blur-sm">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="flex items-center gap-1">
+              {is3D && (
+                <>
+                  <button className={controlButtonClass} onClick={handleZoomOut} title="Zoom out">
+                    <Minus className="mx-auto h-3.5 w-3.5" />
+                  </button>
+                  <button className={controlButtonClass} onClick={handleZoomIn} title="Zoom in">
+                    <Plus className="mx-auto h-3.5 w-3.5" />
+                  </button>
+                  <button className={controlButtonClass} onClick={handleResetCamera} title="Reset camera">
+                    <RotateCcw className="mx-auto h-3.5 w-3.5" />
+                  </button>
+                  <button
+                    className={cn(
+                      controlButtonClass,
+                      !isPlaying && "border-sky-400/35 bg-sky-400/12 text-sky-300"
+                    )}
+                    onClick={handleTogglePlayback}
+                    title={isPlaying ? "Pause" : "Play"}
+                  >
+                    {isPlaying ? <Pause className="mx-auto h-3.5 w-3.5" /> : <Play className="mx-auto h-3.5 w-3.5" />}
+                  </button>
+                  <button
+                    className={cn(controlButtonClass, orbitEnabled && "border-fuchsia-400/30 bg-fuchsia-400/10 text-fuchsia-200")}
+                    onClick={handleToggleOrbit}
+                    title="Toggle orbit controls"
+                  >
+                    <Compass className="mx-auto h-3.5 w-3.5" />
+                  </button>
+                  <button
+                    className={cn(controlButtonClass, isGridEnabled && "border-emerald-400/30 bg-emerald-400/10 text-emerald-200")}
+                    onClick={handleToggleGrid}
+                    title="Toggle grid"
+                  >
+                    <Grid3X3 className="mx-auto h-3.5 w-3.5" />
+                  </button>
+                  <button
+                    className={cn(controlButtonClass, isGameModeEnabled && "border-amber-400/30 bg-amber-400/10 text-amber-200")}
+                    onClick={handleToggleGameMode}
+                    title="Toggle game mode"
+                  >
+                    <Gamepad2 className="mx-auto h-3.5 w-3.5" />
+                  </button>
+                  <button
+                    className={cn(controlButtonClass, isPointerLocked && "border-cyan-400/35 bg-cyan-400/10 text-cyan-200")}
+                    onClick={handlePointerLockToggle}
+                    title={isPointerLocked ? "Exit mouse lock" : "Lock mouse"}
+                  >
+                    {isPointerLocked ? <Unlock className="mx-auto h-3.5 w-3.5" /> : <Lock className="mx-auto h-3.5 w-3.5" />}
+                  </button>
+                  <button className={controlButtonClass} onClick={handleFocusInput} title="Focus input">
+                    <Keyboard className="mx-auto h-3.5 w-3.5" />
+                  </button>
+                </>
               )}
             </div>
 
-            {/* Control Bar */}
-            <div className="scene-controls">
-              <div className="scene-controls-group">
-                {is3D && (
-                  <>
-                    <button
-                      type="button"
-                      className="scene-control-btn"
-                      onClick={handleZoomOut}
-                      title="Zoom out"
-                    >
-                      <Minus className="h-4 w-4" />
-                    </button>
-                    <button
-                      type="button"
-                      className="scene-control-btn"
-                      onClick={handleZoomIn}
-                      title="Zoom in"
-                    >
-                      <Plus className="h-4 w-4" />
-                    </button>
-                    <button
-                      type="button"
-                      className="scene-control-btn"
-                      onClick={handleResetCamera}
-                      title="Reset camera"
-                    >
-                      <RotateCcw className="h-4 w-4" />
-                    </button>
-                    <button
-                      type="button"
-                      className={cn("scene-control-btn", !isPlaying && "active")}
-                      onClick={handleTogglePlayback}
-                      title={isPlaying ? "Pause animation" : "Play animation"}
-                    >
-                      {isPlaying ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
-                    </button>
-                    <button
-                      type="button"
-                      className={cn("scene-control-btn", orbitEnabled && "active")}
-                      onClick={handleToggleOrbit}
-                      title={orbitEnabled ? "Disable orbit" : "Enable orbit"}
-                    >
-                      <Compass className="h-4 w-4" />
-                    </button>
-                    <button
-                      type="button"
-                      className={cn("scene-control-btn", isGridEnabled && "active")}
-                      onClick={handleToggleGrid}
-                      title={isGridEnabled ? "Hide 3D grid" : "Show 3D grid"}
-                    >
-                      <Grid3X3 className="h-4 w-4" />
-                    </button>
-                    <button
-                      type="button"
-                      className={cn("scene-control-btn", isGameModeEnabled && "active")}
-                      onClick={handleToggleGameMode}
-                      title={isGameModeEnabled ? "Disable game mode" : "Enable game mode"}
-                    >
-                      <Gamepad2 className="h-4 w-4" />
-                    </button>
-                    <button
-                      type="button"
-                      className={cn("scene-control-btn", isPointerLocked && "active")}
-                      onClick={handlePointerLockToggle}
-                      title={isPointerLocked ? "Unlock mouse" : "Lock mouse to scene"}
-                    >
-                      {isPointerLocked ? <Unlock className="h-4 w-4" /> : <Lock className="h-4 w-4" />}
-                    </button>
-                    <button
-                      type="button"
-                      className="scene-control-btn"
-                      onClick={handleFocusInput}
-                      title="Focus scene input"
-                    >
-                      <Keyboard className="h-4 w-4" />
-                    </button>
-                  </>
-                )}
-              </div>
-
-              <div className="scene-render-status">
-                {isRendered ? (
-                  <>
-                    <CheckCircle2 className="h-4 w-4" />
-                    <span>Scene rendered</span>
-                  </>
-                ) : isLoading ? (
-                  <>
-                    <div className="scene-status-pulse" />
-                    <span>Rendering...</span>
-                  </>
-                ) : null}
-              </div>
+            <div className="flex items-center gap-2 text-[11px] text-white/60">
+              <span className="inline-flex items-center gap-1 rounded-full border border-white/10 bg-white/5 px-2 py-0.5 font-mono">
+                <CheckCircle2 className="h-3.5 w-3.5 text-emerald-300" />
+                {isLoading ? "Rendering" : runtimeError ? "Error" : isRendered ? "Ready" : "Idle"}
+              </span>
+              {isGamepadConnected && (
+                <span className="inline-flex items-center gap-1 rounded-full border border-sky-400/25 bg-sky-400/10 px-2 py-0.5 font-mono text-sky-200">
+                  <Gamepad2 className="h-3.5 w-3.5" />
+                  Gamepad
+                </span>
+              )}
             </div>
+          </div>
+        </div>
 
-            {is3D && isGameModeEnabled && (
-              <div className="scene-game-hints" role="status" aria-live="polite">
-                <span>
-                  Input: WASD or Arrow keys, mouse look, Space jump, Shift sprint, Esc unlock.
-                </span>
-                <span>
-                  Mouse lock: {isPointerLocked ? "Captured" : pointerLockHint ?? "Press lock, then click inside scene"}
-                </span>
-                <span>
-                  Gamepad: {isGamepadConnected ? "Connected" : "Not connected"}
-                </span>
-              </div>
-            )}
-          </>
+        {pointerLockHint && (
+          <div className="shrink-0 border-t border-white/10 bg-black/25 px-3 py-2">
+            <p className="text-[11px] text-amber-200/85">{pointerLockHint}</p>
+          </div>
         )}
       </div>
     </div>

@@ -1,6 +1,6 @@
 import { getSkillRuntimeProfile } from "./skill-loader.js";
 import { persistMediaArtifact } from "./media-artifacts.js";
-import { SandboxPoolManager } from "@visual-runtime/sandbox-pool";
+import { SandboxPoolManager, toolRegistry, createSandboxFileSystem, createBuildManager } from "@visual-runtime/sandbox-pool";
 
 function parsePositiveIntEnv(rawValue, fallbackValue, minimum = 1) {
   const parsed = Number.parseInt(String(rawValue ?? ""), 10);
@@ -84,6 +84,101 @@ function extractCodeContent(rawCode) {
   const text = String(rawCode ?? "");
   const fencedBlock = text.match(/```(?:[a-z0-9_-]+)?\s*([\s\S]*?)```/i);
   return (fencedBlock ? fencedBlock[1] : text).trim();
+}
+
+/**
+ * Check if code is a multi-file project
+ * @param {any} code
+ * @returns {boolean}
+ */
+function isMultiFileProject(code) {
+  return code && typeof code === 'object' && 
+         Array.isArray(code.files) && 
+         code.entryPoint && 
+         code.files.length > 0;
+}
+
+/**
+ * Write multi-file project to sandbox filesystem
+ * @param {object} filesystem - SandboxFileSystem instance
+ * @param {object} project - GeneratedProject
+ * @returns {Promise<{success: boolean, filesWritten: number, error?: string}>}
+ */
+async function writeProjectToFS(filesystem, project) {
+  if (!project || !Array.isArray(project.files)) {
+    return { success: false, filesWritten: 0, error: 'Invalid project' };
+  }
+
+  try {
+    const result = await filesystem.writeMultiple(project.files);
+    return {
+      success: result.success,
+      filesWritten: result.written,
+      error: result.failed > 0 ? `Failed to write ${result.failed} file(s)` : undefined
+    };
+  } catch (error) {
+    return {
+      success: false,
+      filesWritten: 0,
+      error: error instanceof Error ? error.message : String(error)
+    };
+  }
+}
+
+/**
+ * Get entry point code from multi-file project
+ * @param {object} project
+ * @returns {string}
+ */
+function getEntryPointCode(project) {
+  if (!project || !project.entryPoint || !Array.isArray(project.files)) {
+    return '';
+  }
+
+  const entry = project.files.find(f => f.path === project.entryPoint);
+  return entry ? entry.content : '';
+}
+
+/**
+ * Check if skill should use build pipeline
+ * @param {string} skillId - Skill identifier
+ * @returns {boolean}
+ */
+function shouldBuildSkill(skillId) {
+  const buildableSkills = ['threejs', 'babylon', 'p5js', 'p5.js', 'd3', 'd3js', 'plotly', 'chart.js', 'chartjs', 'gsap', 'animation', 'mermaid'];
+  return buildableSkills.includes(skillId);
+}
+
+/**
+ * Build project and extract metrics
+ * @param {object} buildManager - BuildManager instance
+ * @param {string} skillId - Skill identifier
+ * @param {boolean} installDeps - Whether to install build dependencies
+ * @returns {Promise<{success: boolean, buildOutput?: any, artifacts?: any, error?: string}>}
+ */
+async function buildProject(buildManager, skillId, installDeps = true) {
+  try {
+    const result = await buildManager.build(skillId, { installDeps, timeout: 60000 });
+    
+    if (!result.success) {
+      return {
+        success: false,
+        error: result.message || result.reason,
+        buildOutput: result
+      };
+    }
+
+    return {
+      success: true,
+      buildOutput: result,
+      artifacts: result.artifacts || result.buildResult?.artifacts
+    };
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : String(error)
+    };
+  }
 }
 
 function withTimeout(promise, timeoutMs, timeoutMessage) {
@@ -580,7 +675,7 @@ export async function shutdownSandboxRuntime(options = {}) {
   await poolManager.shutdown(options);
 }
 
-export async function executeSkillRuntime({ skillId, code, timeoutMs, maxFrames, turnDeadlineAtMs = null, sessionId = null }) {
+export async function executeSkillRuntime({ skillId, code, timeoutMs, maxFrames, turnDeadlineAtMs = null, sessionId = null, tools = [] }) {
   const skill = getSkillRuntimeProfile(skillId);
   const startedAt = Date.now();
   const acquireDeadlineAtMs = resolveAcquireDeadlineAtMs(turnDeadlineAtMs);
@@ -603,6 +698,80 @@ export async function executeSkillRuntime({ skillId, code, timeoutMs, maxFrames,
     acquireDiagnostics = cloneAcquireDiagnostics(sandboxEnv?._acquireDiagnostics);
     console.log(`[RT] [TRACE] Acquired sandbox ${sandboxEnv.workspaceId} for ${skillId}.`);
 
+    // Install tools if needed
+    if (Array.isArray(tools) && tools.length > 0) {
+      const isCached = toolRegistry.isInstalled(sandboxEnv.workspaceId, tools);
+      
+      if (isCached) {
+        console.log(`[RT] [TRACE] Tools already installed in sandbox ${sandboxEnv.workspaceId}.`);
+        toolRegistry.recordCacheHit();
+      } else {
+        console.log(
+          `[RT] [TRACE] Installing tools in sandbox ${sandboxEnv.workspaceId}: ${tools.map(t => t.name).join(', ')}`
+        );
+        
+        const installResult = await poolManager.installTools(sandboxEnv.workspaceId, tools);
+        
+        if (installResult.success) {
+          toolRegistry.markInstalled(sandboxEnv.workspaceId, tools);
+          console.log(`[RT] [TRACE] Tool installation completed successfully.`);
+        } else {
+          console.warn(
+            `[RT] [WARN] Tool installation failed but continuing anyway: ${installResult.errors}`
+          );
+          toolRegistry.markFailed(sandboxEnv.workspaceId, new Error(installResult.errors));
+          // Don't fail the execution - tools might be available via CDN
+        }
+      }
+    }
+
+    // Handle multi-file projects
+    let executionCode = code;
+    let buildArtifacts = null;
+    
+    if (isMultiFileProject(code)) {
+      console.log(`[RT] [TRACE] Multi-file project detected. Writing ${code.files.length} files to sandbox...`);
+      
+      const filesystem = poolManager.getFileSystem(sandboxEnv.workspaceId, sandboxEnv._workspace);
+      const writeResult = await writeProjectToFS(filesystem, code);
+      
+      if (!writeResult.success) {
+        const writeError = new Error(`Failed to write project files: ${writeResult.error}`);
+        writeError.code = "PROJECT_WRITE_FAILED";
+        throw writeError;
+      }
+      
+      console.log(`[RT] [TRACE] Wrote ${writeResult.filesWritten} files. Using entry point: ${code.entryPoint}`);
+      
+      // Optional: Build project if applicable
+      if (shouldBuildSkill(skillId)) {
+        try {
+          console.log(`[RT] [TRACE] Building project for skill: ${skillId}...`);
+          const buildManager = poolManager.getBuildManager(sandboxEnv.workspaceId, sandboxEnv._workspace, filesystem);
+          const buildResult = await buildProject(buildManager, skillId, true);
+          
+          if (buildResult.success) {
+            buildArtifacts = buildResult.artifacts;
+            console.log(`[RT] [TRACE] Build completed. Bundle size: ${buildResult.artifacts?.totalBytes} bytes (gzip: ${buildResult.artifacts?.gzipBytes} bytes)`);
+          } else {
+            console.warn(`[RT] [WARN] Build failed but continuing with unbuilt code: ${buildResult.error}`);
+            // Don't fail - continue with unbuilt entry point code
+          }
+        } catch (buildError) {
+          console.warn(`[RT] [WARN] Build threw error but continuing: ${buildError instanceof Error ? buildError.message : String(buildError)}`);
+          // Build is optional - don't fail execution
+        }
+      }
+      
+      // Execute the entry point
+      executionCode = getEntryPointCode(code);
+      if (!executionCode) {
+        const entryError = new Error(`Entry point code not found: ${code.entryPoint}`);
+        entryError.code = "ENTRY_POINT_NOT_FOUND";
+        throw entryError;
+      }
+    }
+
     const executionBudgetMs = remainingBudgetMs(turnDeadlineAtMs);
     if (executionBudgetMs <= 0) {
       const budgetError = new Error("Runtime budget exhausted before sandbox execution.");
@@ -623,7 +792,7 @@ export async function executeSkillRuntime({ skillId, code, timeoutMs, maxFrames,
       console.log(`[RT] [TRACE] Executing Manim payload on ${sandboxEnv.workspaceId}...`);
       resultObj = await executeManimRuntime({
         workspace: sandboxEnv._workspace,
-        code,
+        code: executionCode,
         timeoutMs: effectiveTimeoutMs,
         sessionId
       });
@@ -631,7 +800,7 @@ export async function executeSkillRuntime({ skillId, code, timeoutMs, maxFrames,
       // Prepare execution payload for the isolated container
       const payload = JSON.stringify({
         skill,
-        code,
+        code: executionCode,
         timeoutMs: effectiveTimeoutMs,
         maxFrames
       });
@@ -674,6 +843,7 @@ export async function executeSkillRuntime({ skillId, code, timeoutMs, maxFrames,
       warningCode: noRenderWarning ? "RUNTIME_NO_RENDER_ACTIVITY" : (resultObj.warningCode ?? null),
       error: resultObj.error || null,
       errorCode: resultObj.errorCode ?? null,
+      buildArtifacts,
       acquireDiagnostics
     };
   } catch (error) {

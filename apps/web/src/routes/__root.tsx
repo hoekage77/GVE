@@ -3,7 +3,10 @@ import { ClerkProvider, SignedIn, SignedOut } from '@clerk/clerk-react';
 import AuthPage from '../pages/Auth';
 import ChatPage from '../pages/Chat';
 import ProfilePage from '../pages/Profile';
+import ScenesPage from '../pages/Scenes';
+import TasksPage from '../pages/Tasks';
 import { MainLayout } from '../components/layout/MainLayout';
+import { ToastContainer } from '../components/ToastContainer';
 
 // Test Clerk key - replace with production key in deployment
 const CLERK_PUBLISHABLE_KEY = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY || 'pk_test_dGVzdC10ZXJyYW5ldC1jbGVyay5jbGVyay5hY2NvdW50cy5kZXYk';
@@ -13,6 +16,7 @@ const rootRoute = new RootRoute({
   component: () => (
     <ClerkProvider publishableKey={CLERK_PUBLISHABLE_KEY}>
       <Outlet />
+      <ToastContainer />
     </ClerkProvider>
   ),
 });
@@ -66,6 +70,42 @@ const chatRoute = new Route({
   component: ProtectedAppShell,
 });
 
+// Scenes page (protected)
+const scenesRoute = new Route({
+  getParentRoute: () => rootRoute,
+  path: '/scenes',
+  component: () => (
+    <>
+      <SignedIn>
+        <MainLayout>
+          <ScenesPage />
+        </MainLayout>
+      </SignedIn>
+      <SignedOut>
+        <RedirectToAuth />
+      </SignedOut>
+    </>
+  ),
+});
+
+// Tasks page (protected)
+const tasksRoute = new Route({
+  getParentRoute: () => rootRoute,
+  path: '/tasks',
+  component: () => (
+    <>
+      <SignedIn>
+        <MainLayout>
+          <TasksPage />
+        </MainLayout>
+      </SignedIn>
+      <SignedOut>
+        <RedirectToAuth />
+      </SignedOut>
+    </>
+  ),
+});
+
 // Profile page (protected)
 const profileRoute = new Route({
   getParentRoute: () => rootRoute,
@@ -99,6 +139,8 @@ const routeTree = rootRoute.addChildren([
   homeRoute,
   authRoute,
   chatRoute,
+  scenesRoute,
+  tasksRoute,
   profileRoute,
 ]);
 

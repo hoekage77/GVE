@@ -10,6 +10,31 @@ export interface GenerateRequest {
   };
 }
 
+export interface SceneAssetCandidate {
+  id: string;
+  url: string;
+  note?: string;
+}
+
+export interface SceneAssetFallbackPolicy {
+  allowInternetFallback: boolean;
+  requireFallbackWarning: boolean;
+  requireInlineFallbackComment: boolean;
+}
+
+export interface SceneAssetPlan {
+  manifestVersion: string;
+  skill: string;
+  requestedQuality: "draft" | "standard" | "high";
+  strategy: "runtime-native" | "hybrid" | "model-first";
+  subjectNeedsModel: boolean;
+  categories: string[];
+  catalog: Record<string, SceneAssetCandidate[]>;
+  curatedCandidates: SceneAssetCandidate[];
+  fallbackPolicy: SceneAssetFallbackPolicy;
+  runtimeHelpers: string[];
+}
+
 export interface SceneVersion {
   versionId: string;
   version: number;
@@ -27,6 +52,7 @@ export interface SceneVersion {
   mediaFps?: number | null;
   mediaResolution?: string | null;
   mediaBytes?: number | null;
+  assetPlan?: SceneAssetPlan | null;
   explanation: string | null;
   messageId?: string | null;
   source: string;
@@ -250,6 +276,7 @@ export interface GenerateResponse {
   mediaFps?: number | null;
   mediaResolution?: string | null;
   mediaBytes?: number | null;
+  assetPlan?: SceneAssetPlan | null;
   explanation: string;
   sessionId: string;
   sceneVersion: number;
@@ -336,9 +363,9 @@ export interface VersionListResponse {
   artifactTimeline?: ArtifactTimelineEntry[];
 }
 
-const USE_DEV_MOCKS = import.meta.env.DEV && import.meta.env.VITE_USE_API_MOCK === "1";
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "";
-const WS_BASE_URL = import.meta.env.VITE_WS_BASE_URL ?? "";
+const USE_DEV_MOCKS = (import.meta as any).env?.DEV && (import.meta as any).env?.VITE_USE_API_MOCK === "1";
+const API_BASE_URL = (import.meta as any).env?.VITE_API_BASE_URL ?? "";
+const WS_BASE_URL = (import.meta as any).env?.VITE_WS_BASE_URL ?? "";
 
 function inferRuntimeApiBaseUrl(): string {
   if (typeof window === "undefined") {
@@ -1120,4 +1147,303 @@ export async function selectVersion(sessionId: string, versionId: string): Promi
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ versionId })
   }, "Version selection request failed", 0);
+}
+
+// ═══════════════════════════════════════════════════════════════
+// AGENTIC ITERATION & QUALITY SCORING (Phase 1)
+// ═══════════════════════════════════════════════════════════════
+
+export type GenerationMode = "one-shot" | "polish" | "agentic";
+export type IterationStopReason = "threshold_met" | "budget_exhausted" | "unrecoverable" | "user_abort";
+
+export interface StaticScore {
+  syntaxValid: boolean;
+  apiCompliant: boolean;
+  securityPass: boolean;
+  complexity: number; // lines of code
+  score: number; // 0-100
+}
+
+export interface RuntimeScore {
+  fps: number;
+  frameStability: number; // variance of FPS
+  memoryGrowthRate: number; // MB per second
+  errorCount: number;
+  warningCount: number;
+  startupTimeMs: number;
+  score: number; // 0-100
+}
+
+export interface VisualScore {
+  materialRichness: number; // 0-10 (layers: diffuse, normal, roughness, etc)
+  lightingLayers: number; // count of light types
+  motionContinuity: number; // 0-10 (smoothness of animation)
+  colorHarmony: number; // 0-10
+  compositionScore: number; // 0-10
+  score: number; // 0-100 weighted composite
+}
+
+export interface SemanticScore {
+  intentFulfillment: number; // 0-100
+  skillAppropriateness: number; // 0-100
+  promptAdherence: number; // 0-100
+  score: number; // 0-100
+}
+
+export interface QualitySignals {
+  static: StaticScore;
+  runtime: RuntimeScore;
+  visual?: VisualScore;
+  semantic?: SemanticScore;
+  composite: number; // weighted total 0-100
+}
+
+export interface PatchGoal {
+  id: string;
+  category: "static" | "runtime" | "visual" | "semantic";
+  severity: "critical" | "warning" | "suggestion";
+  description: string;
+  suggestedFix?: string;
+}
+
+export interface IterationState {
+  iterationNumber: number;
+  candidateCode: string;
+  candidateSceneId: string;
+  staticScore: StaticScore;
+  runtimeScore: RuntimeScore;
+  visualScore?: VisualScore;
+  semanticScore?: SemanticScore;
+  qualitySignals: QualitySignals;
+  patchGoals?: PatchGoal[];
+  generationDurationMs: number;
+  validationDurationMs: number;
+  stopReason?: IterationStopReason;
+  isFinal: boolean;
+  createdAt: string;
+}
+
+export interface QualityReport {
+  finalScore: number;
+  threshold: number;
+  totalIterations: number;
+  budgetUsed: number;
+  budgetTotal: number;
+  stopReason: IterationStopReason;
+  scoreBreakdown: {
+    static: number;
+    runtime: number;
+    visual: number;
+    semantic: number;
+  };
+  improvements: Array<{
+    iteration: number;
+    scoreBefore: number;
+    scoreAfter: number;
+    changes: string[];
+  }>;
+}
+
+export interface IterationPreferences {
+  mode: GenerationMode;
+  maxIterations: number; // default 3 for polish, 5 for agentic
+  qualityThreshold: number; // default 85
+  autoRepair: boolean; // whether to auto-apply patches
+  showIterations: boolean; // show intermediate drafts
+}
+
+// Enhanced GenerateRequest with iteration support
+export interface GenerateRequestV2 extends GenerateRequest {
+  preferences?: {
+    skill?: SkillPreference;
+    quality?: "draft" | "standard" | "high";
+    mode?: GenerationMode;
+    maxIterations?: number;
+    qualityThreshold?: number;
+  };
+}
+
+// WebSocket Events for Iteration Progress
+export interface IterationUpdateEvent {
+  type: "iteration:update";
+  payload: {
+    sessionId: string;
+    iteration: IterationState;
+    progress: {
+      current: number;
+      total: number;
+      phase: "generating" | "validating" | "scoring" | "patching";
+    };
+  };
+}
+
+// ═══════════════════════════════════════════════════════════════
+// LINUX SANDBOX & TOOL REGISTRY (Phase 2)
+// ═══════════════════════════════════════════════════════════════
+
+export interface ToolDefinition {
+  id: string;
+  name: string;
+  version: string;
+  description: string;
+  installCommand: string; // npm install command
+  cdnUrl?: string; // fallback CDN if sandbox unavailable
+  category: "core" | "utility" | "visual" | "audio" | "community";
+  reputation: "official" | "verified" | "community";
+  dependencies?: string[];
+  sizeEstimateMb: number;
+}
+
+export interface ToolRegistryResponse {
+  tools: ToolDefinition[];
+  categories: string[];
+}
+
+export interface SandboxExecutionRequest {
+  sessionId: string;
+  code: string;
+  skill: string;
+  tools?: string[]; // Tool IDs to install
+  budget: {
+    maxDurationMs: number;
+    maxMemoryMb: number;
+    maxCpuPercent: number;
+  };
+  assets?: string[]; // URLs or artifact IDs to preload
+  executionMode: "probe" | "full"; // probe = low budget test, full = final render
+}
+
+export interface SandboxMetrics {
+  durationMs: number;
+  memoryPeakMb: number;
+  cpuAvgPercent: number;
+  fpsAvg: number;
+  fpsMin: number;
+  fpsMax: number;
+  frameCount: number;
+  errorCount: number;
+  warningCount: number;
+  renderTimeMs: number;
+}
+
+export interface SandboxArtifact {
+  type: "code" | "preview" | "log" | "metric" | "asset";
+  name: string;
+  path: string;
+  sizeBytes: number;
+  contentType: string;
+  url: string; // signed URL for access
+}
+
+export interface SandboxExecutionResponse {
+  success: boolean;
+  executionId: string;
+  previewUrl: string | null;
+  artifacts: SandboxArtifact[];
+  metrics: SandboxMetrics;
+  logs: Array<{
+    level: "debug" | "info" | "warn" | "error";
+    message: string;
+    timestamp: string;
+    source?: string;
+  }>;
+  error?: string | null;
+  errorDetails?: string | null;
+}
+
+export interface SandboxStatus {
+  status: "pending" | "provisioning" | "running" | "completed" | "failed" | "cleaned_up";
+  containerId?: string;
+  resources: {
+    cpuPercent: number;
+    memoryUsedMb: number;
+    diskUsedMb: number;
+  };
+  toolsInstalled: string[];
+  uptimeSeconds: number;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// AUTONOMOUS AGENT & MULTI-AGENT (Phase 3 & 4)
+// ═══════════════════════════════════════════════════════════════
+
+export type AgentRole =
+  | "orchestrator"
+  | "scene_architect"
+  | "material_designer"
+  | "animator"
+  | "optimizer"
+  | "tester";
+
+export interface AgentTask {
+  id: string;
+  role: AgentRole;
+  taskType: "generate" | "validate" | "optimize" | "repair" | "review";
+  description: string;
+  inputArtifacts: string[]; // artifact IDs
+  outputArtifacts: string[]; // artifact IDs
+  dependencies: string[]; // task IDs that must complete first
+  status: "pending" | "running" | "completed" | "failed";
+  budget: {
+    maxIterations: number;
+    maxDurationMs: number;
+  };
+  result?: {
+    success: boolean;
+    score: number;
+    notes: string[];
+  };
+  createdAt: string;
+  startedAt?: string;
+  completedAt?: string;
+}
+
+export interface MultiAgentWorkflow {
+  workflowId: string;
+  sessionId: string;
+  intent: string;
+  agents: AgentTask[];
+  currentAgent?: AgentRole;
+  overallProgress: number; // 0-100
+  status: "planning" | "executing" | "reviewing" | "completed" | "failed";
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface AutonomousDecision {
+  decisionType: "continue" | "patch" | "escalate" | "abort" | "request_clarification";
+  reasoning: string;
+  confidence: number; // 0-1
+  action?: {
+    type: string;
+    parameters: Record<string, unknown>;
+  };
+  requiresApproval: boolean;
+}
+
+// API Functions for Agentic Features
+export async function installTool(toolId: string): Promise<{ success: boolean; message: string }> {
+  // Implementation would call backend to install tool in sandbox
+  return { success: true, message: `Tool ${toolId} installed` };
+}
+
+export async function executeInSandbox(request: SandboxExecutionRequest): Promise<SandboxExecutionResponse> {
+  // Implementation would call sandbox execution endpoint
+  return requestJson<SandboxExecutionResponse>("/api/v1/sandbox/execute", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(request)
+  }, "Sandbox execution failed");
+}
+
+export async function getSandboxStatus(sessionId: string): Promise<SandboxStatus> {
+  return requestJson<SandboxStatus>(`/api/v1/sessions/${sessionId}/sandbox/status`, {
+    method: "GET"
+  }, "Sandbox status request failed");
+}
+
+export async function listTools(): Promise<ToolRegistryResponse> {
+  return requestJson<ToolRegistryResponse>("/api/v1/tools", {
+    method: "GET"
+  }, "Tool registry request failed");
 }

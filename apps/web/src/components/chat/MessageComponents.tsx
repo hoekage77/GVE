@@ -1,10 +1,24 @@
-import { useMemo, useState } from "react";
-import { Sparkles, ChevronDown, Eye, Loader2, AlertTriangle, Code2 } from "lucide-react";
+import { useMemo, useState, useEffect } from "react";
+import { Sparkles, ChevronDown, Eye, Loader2, AlertTriangle, Code2, Film, Image as ImageIcon, ChevronLeft, ChevronRight } from "lucide-react";
 import MarkdownRenderer from "./MarkdownRenderer";
 import { ThoughtTraceToggle } from "./meta/ThoughtTraceToggle";
 import { SourceResultsList, type SourceResult } from "./meta/SourceResultsList";
 
 export type ChatMessageVariant = "legacy" | "meta";
+
+export interface ChatArtifactCard {
+  versionId: string;
+  sceneId: string;
+  versionLabel: string;
+  skill: string | null;
+  outputKind?: "code" | "media";
+  mediaType?: string | null;
+  previewUrl: string | null;
+  isPreviewActive?: boolean;
+  isCodeActive?: boolean;
+  onPreview?: () => void;
+  onCode?: () => void;
+}
 
 // === User Message ===
 
@@ -23,30 +37,19 @@ function formatTime(timestamp?: number): string {
 }
 
 export function UserMessage({ content, timestamp, variant = "legacy" }: UserMessageProps) {
-  if (variant === "meta") {
-    return (
-      <div className="meta-message meta-message--user">
-        <div className="meta-message__content meta-message__content--user">
-          <div className="meta-message__user-bubble">
-            <div className="meta-message__text">{content}</div>
-          </div>
-          {timestamp && <div className="meta-message__meta">{formatTime(timestamp)}</div>}
-        </div>
-      </div>
-    );
-  }
+  const isMetaVariant = variant === "meta";
 
   return (
-    <div className="message-row message-row--user">
-      <div className="message-content">
-        <div className="message-bubble message-bubble--user">
-          <div className="message-text">{content}</div>
+    <div className={`flex min-w-0 gap-3 animate-fade-in ${isMetaVariant ? "mb-5" : "mb-4"}`}>
+      <div className="mt-0.5 grid h-8 w-8 shrink-0 place-items-center rounded-full bg-gradient-to-br from-[#1ed760] to-[#1fb851] text-sm font-bold text-black shadow-lg">
+        A
+      </div>
+      <div className="flex-1 min-w-0">
+        <div className="mb-1.5 flex items-center gap-2">
+          <span className={isMetaVariant ? "text-[11px] font-semibold uppercase tracking-[0.14em] text-white/45" : "text-sm font-semibold text-white"}>You</span>
+          {timestamp && <span className={isMetaVariant ? "text-[11px] font-medium text-white/35" : "text-xs text-white/40"}>{formatTime(timestamp)}</span>}
         </div>
-        {timestamp && (
-          <div className="message-meta">
-            {formatTime(timestamp)}
-          </div>
-        )}
+        <p className={isMetaVariant ? "break-words text-[0.95rem] leading-[1.68] text-white/92" : "break-words text-sm leading-relaxed text-white/95"}>{content}</p>
       </div>
     </div>
   );
@@ -61,6 +64,7 @@ interface ThoughtItem {
 }
 
 interface AIMessageProps {
+  taskProgress?: any | null;
   content: string;
   thoughts?: ThoughtItem[];
   isThinking?: boolean;
@@ -79,6 +83,7 @@ interface AIMessageProps {
   onSceneCode?: () => void;
   onScenePreview?: () => void;
   variant?: ChatMessageVariant;
+  artifactCards?: ChatArtifactCard[];
 }
 
 function compactSceneName(sceneId: string | undefined): string {
@@ -215,6 +220,24 @@ function formatContextLabel(value: string | undefined): string {
   return normalized.replace(/[_-]+/g, " ");
 }
 
+function normalizePreviewUrl(url: string | null | undefined): string | null {
+  const normalized = String(url ?? "").trim();
+  if (!normalized || normalized === "about:blank") {
+    return null;
+  }
+
+  return normalized;
+}
+
+function isVideoThumbnail(url: string | null, mediaType: string | null | undefined): boolean {
+  if (String(mediaType ?? "").toLowerCase().startsWith("video/")) {
+    return true;
+  }
+
+  const normalized = String(url ?? "").toLowerCase();
+  return /\.(mp4|webm|ogg|mov)(\?|$)/.test(normalized);
+}
+
 function MetaAIMessage({
   content,
   thoughts = [],
@@ -234,6 +257,7 @@ function MetaAIMessage({
   onSceneCode,
   onScenePreview
 }: AIMessageProps) {
+  const [thoughtsExpanded, setThoughtsExpanded] = useState(false);
   const showSceneFooter = Boolean((onScenePreview || onSceneCode) && !isThinking);
   const compactSceneId = compactSceneName(sceneId);
   const sourceResults = useMemo(() => extractSourceResults(content, meta), [content, meta]);
@@ -338,172 +362,267 @@ function MetaAIMessage({
 export function AIMessage({
   content,
   thoughts = [],
-  isThinking,
+  isThinking = false,
   thinkingText,
-  thinkingStep = "turn_started",
-  thinkingDuration,
+  thinkingDuration = 0,
   timestamp,
-  sceneId,
-  skill,
-  assistantSource,
-  assistantWarning,
-  errorCode,
-  meta,
-  isPreviewActive = false,
-  isCodeActive = false,
-  onSceneCode,
-  onScenePreview,
-  variant = "legacy"
+  variant = "legacy",
+  artifactCards = []
 }: AIMessageProps) {
-  if (variant === "meta") {
-    return (
-      <MetaAIMessage
-        content={content}
-        thoughts={thoughts}
-        isThinking={isThinking}
-        thinkingText={thinkingText}
-        thinkingStep={thinkingStep}
-        thinkingDuration={thinkingDuration}
-        timestamp={timestamp}
-        sceneId={sceneId}
-        skill={skill}
-        assistantSource={assistantSource}
-        assistantWarning={assistantWarning}
-        errorCode={errorCode}
-        meta={meta}
-        isPreviewActive={isPreviewActive}
-        isCodeActive={isCodeActive}
-        onSceneCode={onSceneCode}
-        onScenePreview={onScenePreview}
-      />
-    );
-  }
+  const isMetaVariant = variant === "meta";
+  const [isThoughtsOpen, setIsThoughtsOpen] = useState(false);
+  const [activeArtifactIndex, setActiveArtifactIndex] = useState(0);
 
-  const showSceneFooter = Boolean((onScenePreview || onSceneCode) && !isThinking);
-  const compactSceneId = compactSceneName(sceneId);
+  useEffect(() => {
+    if (artifactCards.length === 0) {
+      setActiveArtifactIndex(0);
+      return;
+    }
+
+    setActiveArtifactIndex((previous) => Math.min(previous, artifactCards.length - 1));
+  }, [artifactCards]);
+
+  const activeArtifact = artifactCards[activeArtifactIndex] ?? null;
+
+  const handlePreviousArtifact = () => {
+    setActiveArtifactIndex((previous) => Math.max(0, previous - 1));
+  };
+
+  const handleNextArtifact = () => {
+    setActiveArtifactIndex((previous) => Math.min(artifactCards.length - 1, previous + 1));
+  };
 
   return (
-    <div className="message-row message-row--ai">
-      <div className={`message-avatar message-avatar--ai ${isThinking ? "message-avatar--thinking" : ""}`}>
-        <Sparkles className={`h-4 w-4 ${isThinking ? "thinking-sparkle" : ""}`} />
+    <div className={`flex min-w-0 gap-3 animate-fade-in ${isMetaVariant ? "mb-5" : "mb-4"}`}>
+      <div className="mt-0.5 grid h-8 w-8 shrink-0 place-items-center rounded-full bg-gradient-to-br from-white to-gray-100 text-black shadow-lg">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <path d="M12 2l9 4.5-9 4.5-9-4.5 9-4.5z"/>
+          <path d="M3 10.5l9 4.5 9-4.5M3 15.5l9 4.5 9-4.5"/>
+        </svg>
       </div>
-      <div className="message-content">
-        {/* Thought Process - collapsible */}
-        {thoughts.length > 0 && !isThinking && (
-          <ThoughtProcess
-            thoughts={thoughts}
-            duration={thinkingDuration}
-          />
-        )}
-
-        {/* Message Content - with Markdown */}
-        <div className="message-text message-text--ai">
-          {content ? (
-            <MarkdownRenderer content={content} />
-          ) : isThinking ? null : (
-            <span className="message-placeholder">Thinking...</span>
+      <div className="flex-1 min-w-0">
+        <div className="mb-1.5 flex items-center gap-2">
+          <span className={isMetaVariant ? "text-[11px] font-semibold uppercase tracking-[0.14em] text-white/45" : "text-sm font-semibold text-white"}>Lumina</span>
+          {timestamp && <span className={isMetaVariant ? "text-[11px] font-medium text-white/35" : "text-xs text-white/40"}>{formatTime(timestamp)}</span>}
+        </div>
+        
+        <div className="space-y-3 w-full min-w-0">
+          {/* Thoughts section */}
+          {thoughts.length > 0 && (
+            <div className="pb-2 border-b border-white/10">
+              <button
+                onClick={() => setIsThoughtsOpen(!isThoughtsOpen)}
+                className={isMetaVariant ? "flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.1em] text-white/58 transition-colors duration-200 hover:text-white/90" : "flex items-center gap-2 text-xs text-white/60 transition-colors duration-200 hover:text-white/90"}
+              >
+                <ChevronDown className={`w-3 h-3 transition-transform duration-300 ${isThoughtsOpen ? 'rotate-180' : ''}`} />
+                Thought for {Math.max(thinkingDuration / 1000, 0.1).toFixed(1)} seconds
+              </button>
+              {isThoughtsOpen && (
+                <div className="mt-2 space-y-1.5 p-2 bg-white/[0.03] rounded-lg border border-white/5">
+                  {thoughts.map((thought, i) => (
+                    <div
+                      key={i}
+                      className={isMetaVariant ? "text-[11px] leading-relaxed text-white/52" : "text-xs text-white/50 leading-relaxed"}
+                      style={{
+                        animation: 'slide-down 0.3s ease-out',
+                        animationDelay: `${i * 50}ms`
+                      }}
+                    >
+                      <span className={isMetaVariant ? "font-mono text-[10px] uppercase tracking-[0.08em] text-white/30" : "font-mono text-white/30"}>{thought.step}:</span>
+                      <p className="mt-0.5">{thought.text}</p>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           )}
-        </div>
 
-        {/* Inline thinking indicator — streams live thought text */}
-        {isThinking && (
-          <div className="message-thinking" role="status" aria-live="polite">
-            <span className="message-thinking__orb" aria-hidden="true">
-              <span className="message-thinking__core" />
-            </span>
-            <span className="message-thinking__copy">
-              <span className="message-thinking__title">
-                {toStepLabel(thinkingStep)}
-              </span>
-              {thinkingText && (
-                <span className="message-thinking__detail">{thinkingText}</span>
-              )}
-              <span className="message-thinking__track" aria-hidden="true">
-                <span className="message-thinking__track-fill" />
-              </span>
-            </span>
-          </div>
-        )}
+          {content ? (
+            <p className={isMetaVariant ? "break-words text-[0.94rem] leading-[1.72] text-white/90" : "break-words text-sm leading-relaxed text-white/90"}>{content}</p>
+          ) : isThinking ? (
+            <div className={`inline-flex items-center gap-2 ${isMetaVariant ? "text-[0.9rem] text-white/72" : "text-sm text-white/70"}`}>
+              <Loader2 className="h-4 w-4 animate-spin" />
+              <span>{thinkingText?.trim() || "Thinking..."}</span>
+            </div>
+          ) : null}
 
-        {timestamp && !isThinking && (
-          <div className="message-meta message-meta--ai">
-            {new Date(timestamp).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}
-          </div>
-        )}
+          {activeArtifact && (
+            <div className="border-t border-white/[0.14] pt-2.5">
+              <div
+                tabIndex={0}
+                onKeyDown={(event) => {
+                  if (event.key === "ArrowLeft") {
+                    event.preventDefault();
+                    handlePreviousArtifact();
+                  }
 
-        {showSceneFooter && (
-          <div className="ai-message-artifact" aria-label="Generated visual artifact">
-            <div className="ai-message-artifact__actions">
-              {onSceneCode && (
-                <button
-                  type="button"
-                  className={`ai-message-artifact__button ${isCodeActive ? 'is-active' : ''}`}
-                  onClick={onSceneCode}
-                  aria-label="Open code"
-                  title={compactSceneId ? `Open ${compactSceneId} code` : 'Open scene code'}
-                >
-                  <Code2 className="h-3.5 w-3.5" aria-hidden="true" />
-                  Code
-                </button>
-              )}
+                  if (event.key === "ArrowRight") {
+                    event.preventDefault();
+                    handleNextArtifact();
+                  }
+                }}
+                className="group overflow-hidden rounded-2xl border border-white/15 bg-gradient-to-b from-[#121723]/95 via-[#0d1118]/92 to-[#090c12]/95 shadow-[0_22px_45px_-28px_rgba(0,0,0,0.85)] focus:outline-none focus:ring-2 focus:ring-cyan-300/40"
+                aria-label="Artifact preview carousel"
+              >
+                {(() => {
+                  const thumbnailUrl = normalizePreviewUrl(activeArtifact.previewUrl);
+                  const showVideo = isVideoThumbnail(thumbnailUrl, activeArtifact.mediaType);
+                  const skillLabel = (activeArtifact.skill || "scene").toUpperCase();
+                  const artifactKindLabel = activeArtifact.outputKind === "media" ? "Generated media artifact" : "Generated scene artifact";
+                  const compactName = compactSceneName(activeArtifact.sceneId) || "Scene artifact";
 
-              {onScenePreview && (
-                <button
-                  type="button"
-                  className={`ai-message-artifact__button ${isPreviewActive ? 'is-active' : ''}`}
-                  onClick={onScenePreview}
-                  aria-label="Open preview"
-                  title={compactSceneId ? `Open ${compactSceneId} preview` : 'Open scene preview'}
-                >
-                  <Eye className="h-3.5 w-3.5" aria-hidden="true" />
-                  Preview Scene
-                </button>
+                  return (
+                    <article key={activeArtifact.versionId} className="relative">
+                      <div className="relative h-44 overflow-hidden bg-gradient-to-br from-[#151c29] via-[#0b1118] to-[#140d17]">
+                        {thumbnailUrl ? (
+                          showVideo ? (
+                            <video
+                              src={thumbnailUrl}
+                              className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.03]"
+                              muted
+                              loop
+                              autoPlay
+                              playsInline
+                            />
+                          ) : (
+                            <img
+                              src={thumbnailUrl}
+                              alt={`Preview for ${activeArtifact.sceneId}`}
+                              className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.03]"
+                              loading="lazy"
+                            />
+                          )
+                        ) : (
+                          <div className="flex h-full w-full flex-col items-center justify-center gap-2.5 bg-[radial-gradient(circle_at_50%_30%,rgba(56,189,248,0.12),rgba(0,0,0,0))] text-white/60">
+                            <span className="grid h-9 w-9 place-items-center rounded-full border border-white/18 bg-white/[0.06]">
+                              <ImageIcon className="h-4 w-4" />
+                            </span>
+                            <span className="text-[11px] font-medium tracking-[0.04em] text-white/68">Preview appears after render</span>
+                          </div>
+                        )}
+
+                        <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/70 via-black/25 to-black/10" />
+
+                        <div className="absolute left-2.5 top-2.5 inline-flex items-center gap-1 rounded-full border border-white/25 bg-black/55 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-white/88 backdrop-blur-sm">
+                          {activeArtifact.outputKind === "media" ? <Film className="h-3 w-3" /> : <Sparkles className="h-3 w-3" />}
+                          <span>{skillLabel}</span>
+                        </div>
+
+                        <span className="absolute right-2.5 top-2.5 rounded-full border border-white/25 bg-black/55 px-2.5 py-1 text-[10px] font-medium text-white/82 backdrop-blur-sm">
+                          {activeArtifact.versionLabel}
+                        </span>
+
+                        <div className="absolute inset-x-2.5 bottom-2.5 flex items-end justify-between gap-2">
+                          <div className="min-w-0">
+                            <p className={isMetaVariant ? "truncate text-[11px] font-semibold uppercase tracking-[0.08em] text-white" : "truncate text-xs font-semibold text-white"}>{compactName}</p>
+                            <p className={isMetaVariant ? "text-[10px] font-medium text-white/62" : "text-[11px] text-white/60"}>
+                              {artifactKindLabel}
+                            </p>
+                          </div>
+                          {showVideo && (
+                            <span className="inline-flex items-center rounded-full border border-cyan-300/40 bg-cyan-300/15 px-2 py-0.5 text-[9px] font-semibold uppercase tracking-[0.08em] text-cyan-100">
+                              Loop
+                            </span>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="border-t border-white/10 bg-black/25 p-2.5">
+                        <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            className={`inline-flex h-8 items-center gap-1.5 rounded-lg border px-2.5 text-[10px] font-semibold uppercase tracking-[0.08em] transition ${activeArtifact.isPreviewActive ? "border-cyan-300/45 bg-cyan-300/15 text-cyan-100" : "border-white/15 bg-white/5 text-white/72 hover:bg-white/10 hover:text-white"} disabled:cursor-not-allowed disabled:opacity-45`}
+                            onClick={activeArtifact.onPreview}
+                            disabled={!activeArtifact.onPreview}
+                          >
+                            <Eye className="h-3.5 w-3.5" />
+                            Preview
+                          </button>
+
+                          <button
+                            type="button"
+                            className={`inline-flex h-8 items-center gap-1.5 rounded-lg border px-2.5 text-[10px] font-semibold uppercase tracking-[0.08em] transition ${activeArtifact.isCodeActive ? "border-fuchsia-300/45 bg-fuchsia-300/15 text-fuchsia-100" : "border-white/15 bg-white/5 text-white/72 hover:bg-white/10 hover:text-white"} disabled:cursor-not-allowed disabled:opacity-45`}
+                            onClick={activeArtifact.onCode}
+                            disabled={!activeArtifact.onCode}
+                          >
+                            <Code2 className="h-3.5 w-3.5" />
+                            Code
+                          </button>
+                        </div>
+                      </div>
+                    </article>
+                  );
+                })()}
+              </div>
+
+              {artifactCards.length > 1 && (
+                <div className="mt-2.5 flex items-center gap-2">
+                  <button
+                    type="button"
+                    className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-white/15 bg-white/[0.04] text-white/72 transition hover:border-white/30 hover:bg-white/10 hover:text-white disabled:cursor-not-allowed disabled:opacity-35"
+                    onClick={handlePreviousArtifact}
+                    disabled={activeArtifactIndex === 0}
+                    aria-label="Previous artifact"
+                  >
+                    <ChevronLeft className="h-4 w-4" />
+                  </button>
+
+                  <div className="flex-1 overflow-x-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
+                    <div className="flex min-w-max gap-2.5 pr-0.5">
+                      {artifactCards.map((artifact, artifactIndex) => {
+                        const thumbnailUrl = normalizePreviewUrl(artifact.previewUrl);
+                        const showVideo = isVideoThumbnail(thumbnailUrl, artifact.mediaType);
+                        const isActive = artifactIndex === activeArtifactIndex;
+
+                        return (
+                          <button
+                            key={artifact.versionId}
+                            type="button"
+                            onClick={() => setActiveArtifactIndex(artifactIndex)}
+                            className={`group relative h-16 w-28 shrink-0 overflow-hidden rounded-lg border transition-all duration-200 ${isActive ? "border-cyan-300/55 ring-2 ring-cyan-300/35" : "border-white/15 hover:border-white/35"}`}
+                            aria-label={`Select ${artifact.versionLabel}`}
+                          >
+                            {thumbnailUrl ? (
+                              showVideo ? (
+                                <video src={thumbnailUrl} className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105" muted loop autoPlay playsInline />
+                              ) : (
+                                <img src={thumbnailUrl} alt={`Thumbnail ${artifact.versionLabel}`} className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105" loading="lazy" />
+                              )
+                            ) : (
+                              <div className="flex h-full w-full items-center justify-center bg-[#111827] text-white/40">
+                                <ImageIcon className="h-4 w-4" />
+                              </div>
+                            )}
+
+                            <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/65 via-black/10 to-transparent" />
+
+                            <span className="absolute bottom-1 left-1 rounded bg-black/65 px-1.5 py-0.5 text-[9px] font-medium text-white/85 backdrop-blur-sm">
+                              {artifact.versionLabel}
+                            </span>
+
+                            {isActive && <span className="absolute right-1.5 top-1.5 h-1.5 w-1.5 rounded-full bg-cyan-200 shadow-[0_0_0_3px_rgba(34,211,238,0.25)]" />}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  <button
+                    type="button"
+                    className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-white/15 bg-white/[0.04] text-white/72 transition hover:border-white/30 hover:bg-white/10 hover:text-white disabled:cursor-not-allowed disabled:opacity-35"
+                    onClick={handleNextArtifact}
+                    disabled={activeArtifactIndex >= artifactCards.length - 1}
+                    aria-label="Next artifact"
+                  >
+                    <ChevronRight className="h-4 w-4" />
+                  </button>
+                </div>
               )}
             </div>
-          </div>
-        )}
+          )}
+
+        </div>
       </div>
-    </div>
-  );
-}
-
-// === Thought Process (DeepSeek-Style) ===
-
-interface ThoughtProcessProps {
-  thoughts: ThoughtItem[];
-  duration?: number;
-}
-
-function ThoughtProcess({ thoughts, duration }: ThoughtProcessProps) {
-  const [isExpanded, setIsExpanded] = useState(false);
-
-  // Format duration text
-  const durationText = duration && duration > 0
-    ? `Thoughts ${(duration / 1000).toFixed(1)}s`
-    : "Thoughts";
-
-  return (
-    <div className="thought-process">
-      <button
-        type="button"
-        className="thought-process-toggle"
-        onClick={() => setIsExpanded(!isExpanded)}
-        aria-expanded={isExpanded}
-      >
-        <ChevronDown className={`h-4 w-4 ${isExpanded ? 'rotated' : ''}`} />
-        <span>{durationText}</span>
-      </button>
-
-      {isExpanded && (
-        <div className="thought-process-content">
-          {thoughts.map((thought, index) => (
-            <div key={index} className="thought-item">
-              <span className="thought-step">{thought.step.replace(/_/g, ' ')}</span>
-              <p className="thought-text">{thought.text}</p>
-            </div>
-          ))}
-        </div>
-      )}
     </div>
   );
 }

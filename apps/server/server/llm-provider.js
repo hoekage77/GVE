@@ -15,12 +15,33 @@ import "./env.js";
 
 const PROVIDER_DEFINITIONS = [
   {
+    id: "gradient-kimi",
+    name: "DigitalOcean Gradient - Kimi K2.5",
+    baseUrl: process.env.GRADIENT_BASE_URL ?? "https://inference.do-ai.run/v1",
+    model: "kimi-k2.5",
+    apiKeyEnv: "GRADIENT_API_KEY",
+    priority: 1,
+    capabilities: {
+      codeGeneration: true,
+      thinking: true,
+      vision: true,
+      streaming: true,
+    },
+    limits: {
+      rpm: 10,
+      concurrency: 2,
+    },
+    cooldownMs: 30_000,
+    payloadTransform: null,
+  },
+
+  {
     id: "moonshot",
     name: "Moonshot Kimi K2.5",
     baseUrl: process.env.MOONSHOT_BASE_URL ?? "https://api.moonshot.ai/v1",
     model: process.env.MOONSHOT_MODEL ?? "kimi-k2.5",
     apiKeyEnv: "MOONSHOT_API_KEY",
-    priority: 1,
+    priority: 2,
     capabilities: {
       codeGeneration: true,
       thinking: true,
@@ -72,7 +93,7 @@ const PROVIDER_DEFINITIONS = [
     baseUrl: "https://api.deepseek.com/v1",
     model: "deepseek-chat",
     apiKeyEnv: "DEEPSEEK_API_KEY",
-    priority: 2,
+    priority: 3,
     capabilities: {
       codeGeneration: true,
       thinking: true,
@@ -88,12 +109,33 @@ const PROVIDER_DEFINITIONS = [
   },
 
   {
+    id: "gradient-deepseek",
+    name: "DigitalOcean Gradient - DeepSeek R1 Distill Llama 70B",
+    baseUrl: process.env.GRADIENT_BASE_URL ?? "https://inference.do-ai.run/v1",
+    model: "deepseek-r1-distill-llama-70b",
+    apiKeyEnv: "GRADIENT_API_KEY",
+    priority: 4,
+    capabilities: {
+      codeGeneration: true,
+      thinking: true,
+      vision: false,
+      streaming: true,
+    },
+    limits: {
+      rpm: 10,
+      concurrency: 2,
+    },
+    cooldownMs: 30_000,
+    payloadTransform: null,
+  },
+
+  {
     id: "groq",
     name: "Groq Llama 3.3 70B",
     baseUrl: "https://api.groq.com/openai/v1",
     model: "llama-3.3-70b-versatile",
     apiKeyEnv: "GROQ_API_KEY",
-    priority: 3,
+    priority: 5,
     capabilities: {
       codeGeneration: true,
       thinking: false,
@@ -114,7 +156,7 @@ const PROVIDER_DEFINITIONS = [
     baseUrl: "https://generativelanguage.googleapis.com/v1beta/openai",
     model: "gemini-2.0-flash",
     apiKeyEnv: "GEMINI_API_KEY",
-    priority: 4,
+    priority: 6,
     capabilities: {
       codeGeneration: true,
       thinking: false,
@@ -135,7 +177,7 @@ const PROVIDER_DEFINITIONS = [
     baseUrl: "https://api.together.xyz/v1",
     model: "Qwen/Qwen2.5-Coder-32B-Instruct",
     apiKeyEnv: "TOGETHER_API_KEY",
-    priority: 5,
+    priority: 7,
     capabilities: {
       codeGeneration: true,
       thinking: false,

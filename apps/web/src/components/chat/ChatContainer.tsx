@@ -1,10 +1,11 @@
-import { useMemo, useRef, useEffect, useState, useCallback, type CSSProperties } from "react";
-import { UserMessage, AIMessage } from "./MessageComponents";
+import { useMemo, useRef, useEffect, useState, useCallback } from "react";
+import { UserMessage, AIMessage, type ChatArtifactCard } from "./MessageComponents";
 import { Composer } from "./Composer";
 import { useChatStore, type Session, type SessionMessage } from "../../stores";
-import { Send } from "lucide-react";
+import { Send, Zap } from "lucide-react";
 import WorkspacePanel from "../workspace/WorkspacePanel";
 import TaskStatusBar from "./TaskStatusBar";
+import IterationPanel from "../iteration/IterationPanel";
 
 const WELCOME_STARTERS = [
   {
@@ -68,7 +69,26 @@ function looksLikeRuntimeDiagnostic(content: string): boolean {
     return false;
   }
 
-  return RUNTIME_DIAGNOSTIC_PATTERNS.some((pattern) => normalized.includes(pattern));
+  // Preserve concise user-facing summaries even if they mention preview/runtime context.
+  if (/\b(generated scene code|live preview|media preview|re-run this scene|preview is running in degraded mode)\b/i.test(normalized)) {
+    return false;
+  }
+
+  const matchCount = RUNTIME_DIAGNOSTIC_PATTERNS.reduce(
+    (count, pattern) => (normalized.includes(pattern) ? count + 1 : count),
+    0
+  );
+
+  // Only collapse content when it clearly looks like an internal diagnostic dump.
+  if (matchCount >= 2) {
+    return true;
+  }
+
+  if (/^failure details:/i.test(normalized) || /^runtime recovery skipped/i.test(normalized)) {
+    return true;
+  }
+
+  return false;
 }
 
 function buildAnimationDescription(promptContext: string | undefined, sceneId: string | undefined): string {
@@ -314,6 +334,41 @@ function buildMessageVersionMap(sceneVersions: SceneVersionRecord[]): Map<string
   return versionsByMessageId;
 }
 
+function buildMessageVersionListMap(sceneVersions: SceneVersionRecord[]): Map<string, SceneVersionRecord[]> {
+  const versionsByMessageId = new Map<string, SceneVersionRecord[]>();
+
+  for (const version of sceneVersions) {
+    const messageId = typeof version.messageId === "string" ? version.messageId.trim() : "";
+    if (!messageId) {
+      continue;
+    }
+
+    const existing = versionsByMessageId.get(messageId);
+    if (existing) {
+      existing.push(version);
+      continue;
+    }
+
+    versionsByMessageId.set(messageId, [version]);
+  }
+
+  for (const versions of versionsByMessageId.values()) {
+    versions.sort((left, right) => {
+      const leftVersion = Number(left.version ?? 0);
+      const rightVersion = Number(right.version ?? 0);
+      if (leftVersion !== rightVersion) {
+        return rightVersion - leftVersion;
+      }
+
+      const leftUpdatedAt = Date.parse(left.updatedAt ?? left.createdAt ?? "") || 0;
+      const rightUpdatedAt = Date.parse(right.updatedAt ?? right.createdAt ?? "") || 0;
+      return rightUpdatedAt - leftUpdatedAt;
+    });
+  }
+
+  return versionsByMessageId;
+}
+
 function buildUniqueSceneIdVersionMap(sceneVersions: SceneVersionRecord[]): Map<string, SceneVersionRecord> {
   const versionsBySceneId = new Map<string, SceneVersionRecord[]>();
 
@@ -351,6 +406,7 @@ export function ChatContainer({ variant = "legacy" }: ChatContainerProps) {
     activeSessionId,
     messages,
     taskProgressBySession,
+    connectionState,
     sessionsError,
     isBootstrapping,
     isSending,
@@ -360,7 +416,6 @@ export function ChatContainer({ variant = "legacy" }: ChatContainerProps) {
     composerImage,
     panelOpen,
     panelView,
-    panelWidth,
     setComposerValue,
     setComposerImage,
     clearComposerImage,
@@ -375,7 +430,9 @@ export function ChatContainer({ variant = "legacy" }: ChatContainerProps) {
   const activeSession = sessions.find(s => s.sessionId === activeSessionId);
   const activeMessages = activeSessionId ? messages[activeSessionId] || [] : [];
   const activeTaskProgress = activeSessionId ? taskProgressBySession[activeSessionId] ?? null : null;
+  const activeScene = activeSession?.currentScene ?? null;
   const isTaskOperationActive = activeTaskProgress?.turnStatus === "running";
+  const hasGlobalTaskStatus = Boolean(isTaskOperationActive && activeTaskProgress);
   const activeStatusStep = activeTaskProgress?.liveThought?.step ?? activeTaskProgress?.currentStep ?? thinkingStep;
   const activeStatusText = activeTaskProgress?.liveThought?.text ?? thinkingText ?? null;
 
@@ -388,6 +445,10 @@ export function ChatContainer({ variant = "legacy" }: ChatContainerProps) {
   );
   const versionsByMessageId = useMemo(
     () => buildMessageVersionMap(sceneVersions),
+    [sceneVersions]
+  );
+  const versionsListByMessageId = useMemo(
+    () => buildMessageVersionListMap(sceneVersions),
     [sceneVersions]
   );
   const uniqueVersionsBySceneId = useMemo(
@@ -403,8 +464,9 @@ export function ChatContainer({ variant = "legacy" }: ChatContainerProps) {
   const shouldShowInlineThinking =
     isSending &&
     Boolean(thinkingText) &&
-    !lastMsgIsAssistant;
-  const lastAssistantIsThinking = isSending && lastMsgIsAssistant;
+    !lastMsgIsAssistant &&
+    !hasGlobalTaskStatus;
+  const lastAssistantIsThinking = isSending && lastMsgIsAssistant && !hasGlobalTaskStatus;
 
   // Calculate thinking duration from thoughts
   const getThinkingDuration = useCallback((thoughts: ThoughtItem[]) => {
@@ -480,137 +542,209 @@ export function ChatContainer({ variant = "legacy" }: ChatContainerProps) {
     );
   }
 
-  const shellStyle = {
-    ["--workspace-width" as string]: `${Math.max(360, panelWidth)}px`
-  } as CSSProperties;
-
   return (
-    <div
-      className={`chat-page-container terranet-chat-shell ${variant === "meta" ? "terranet-chat-shell--meta" : ""} ${panelOpen ? "terranet-chat-shell--panel-open" : "terranet-chat-shell--panel-closed"}`}
-      style={shellStyle}
-    >
-      {/* Chat Area */}
-      <div className="terranet-chat-main">
-        {/* Messages */}
-        <div className="terranet-chat-scroll" ref={chatRef}>
-          <div className="chat-messages">
-            <div className="chat-container">
-              {displayMessages.map(({ message, thoughts, sceneId, promptContext, skill, assistantSource, assistantWarning, errorCode }, index) => {
-                const isLast = index === displayMessages.length - 1;
-                const thinkingDuration = getThinkingDuration(thoughts);
-                const matchedVersion = message.role === 'assistant'
-                  ? (versionsByMessageId.get(message.id)
-                    ?? (sceneId ? uniqueVersionsBySceneId.get(sceneId) : undefined)
-                    ?? undefined)
-                  : undefined;
-                const resolvedSceneId = matchedVersion?.sceneId ?? sceneId;
-                const resolvedVersionId = matchedVersion?.versionId ?? null;
-                const isPreviewActive = Boolean(
+    <>
+      {/* LEFT WORKSPACE SCENE/Code PANEL */}
+      <WorkspacePanel />
+
+      {/* RIGHT AGENT */}
+      <aside
+        className={`relative z-20 w-full min-w-0 transition-all duration-300 ease-out ${
+          panelOpen
+            ? "h-[44vh] shrink-0 p-0 xl:h-full xl:w-[420px] 2xl:w-[460px]"
+            : "h-full flex-1 p-0"
+        }`}
+      >
+        <div className="relative h-full overflow-hidden border border-white/10 bg-[#0b0b10]/90 shadow-[-20px_0_50px_-25px_rgba(0,0,0,0.7)] rounded-none">
+          <div className="pointer-events-none absolute inset-0">
+            <div className="absolute inset-0 bg-[radial-gradient(circle_at_12%_8%,rgba(56,189,248,0.14),transparent_45%),radial-gradient(circle_at_85%_18%,rgba(236,72,153,0.1),transparent_50%)]" />
+            <div
+              className="absolute inset-0 opacity-30"
+              style={{
+                backgroundImage:
+                  "linear-gradient(rgba(255,255,255,.03) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.03) 1px, transparent 1px)",
+                backgroundSize: "30px 30px",
+              }}
+            />
+          </div>
+
+          <div className="relative z-10 flex h-full flex-col">
+            {sessionsError && <div className="border-b border-red-500/20 bg-red-950/30 p-3 text-xs text-red-300">{sessionsError}</div>}
+
+            {/* Messages */}
+            <div
+              className="flex min-h-0 w-full flex-1 overflow-x-hidden overflow-y-auto scrollbar px-0 py-0"
+              ref={chatRef}
+            >
+          <div className={`flex w-full min-h-full flex-col gap-5 ${panelOpen ? '' : 'mx-auto max-w-[980px] px-4 py-3'}`}>
+          {displayMessages.map(({ message, thoughts, sceneId, promptContext, skill, assistantSource, assistantWarning, errorCode }, index) => {
+            const isLast = index === displayMessages.length - 1;
+            const thinkingDuration = getThinkingDuration(thoughts);
+            const matchedVersion = message.role === 'assistant'
+              ? (versionsByMessageId.get(message.id)
+                ?? (sceneId ? uniqueVersionsBySceneId.get(sceneId) : undefined)
+                ?? undefined)
+              : undefined;
+            const resolvedSceneId = matchedVersion?.sceneId ?? sceneId;
+            const resolvedVersionId = matchedVersion?.versionId ?? null;
+            const isPreviewActive = Boolean(
+              panelOpen
+              && panelView === 'preview'
+              && resolvedVersionId
+              && activeSession?.currentScene?.versionId === resolvedVersionId
+            );
+            const isCodeActive = Boolean(
+              panelOpen
+              && panelView === 'code'
+              && resolvedVersionId
+              && activeSession?.currentScene?.versionId === resolvedVersionId
+            );
+
+            const messageVersionCandidates = message.role === 'assistant'
+              ? (versionsListByMessageId.get(message.id)
+                ?? (resolvedSceneId
+                  ? sceneVersions.filter((version) => version.sceneId === resolvedSceneId)
+                  : []))
+              : [];
+
+            const dedupedVersionCandidates = messageVersionCandidates.filter((version, candidateIndex, allVersions) => {
+              return allVersions.findIndex((candidate) => candidate.versionId === version.versionId) === candidateIndex;
+            });
+
+            const artifactCards: ChatArtifactCard[] = dedupedVersionCandidates.slice(0, 4).map((version) => {
+              const rawPreviewUrl = String(version.mediaUrl ?? version.previewUrl ?? "").trim();
+              const previewUrl = rawPreviewUrl && rawPreviewUrl !== "about:blank" ? rawPreviewUrl : null;
+
+              return {
+                versionId: version.versionId,
+                sceneId: version.sceneId,
+                versionLabel: `v${version.version ?? 0}`,
+                skill: version.skill,
+                outputKind: version.outputKind,
+                mediaType: version.mediaType,
+                previewUrl,
+                isPreviewActive: Boolean(
                   panelOpen
                   && panelView === 'preview'
-                  && resolvedVersionId
-                  && activeSession?.currentScene?.versionId === resolvedVersionId
-                );
-                const isCodeActive = Boolean(
+                  && activeSession?.currentScene?.versionId === version.versionId
+                ),
+                isCodeActive: Boolean(
                   panelOpen
                   && panelView === 'code'
-                  && resolvedVersionId
-                  && activeSession?.currentScene?.versionId === resolvedVersionId
-                );
-                const displayContent = message.role === "assistant"
-                  ? getAssistantDisplayContent(message.content, promptContext, resolvedSceneId)
-                  : message.content;
-
-                if (message.role === "user") {
-                  return (
-                    <UserMessage
-                      key={message.id}
-                      content={message.content}
-                      timestamp={Date.parse(message.createdAt)}
-                      variant={variant}
-                    />
-                  );
+                  && activeSession?.currentScene?.versionId === version.versionId
+                ),
+                onPreview: () => {
+                  void handleMessageSceneAction('preview', version.versionId);
+                },
+                onCode: () => {
+                  void handleMessageSceneAction('code', version.versionId);
                 }
+              };
+            });
 
-                return (
-                  <AIMessage
-                    key={message.id}
-                    content={displayContent}
-                    timestamp={Date.parse(message.createdAt)}
-                    isThinking={isLast && lastAssistantIsThinking && !message.content}
-                    thinkingText={isLast && lastAssistantIsThinking ? thinkingText : undefined}
-                    thinkingStep={isLast && lastAssistantIsThinking ? thinkingStep : undefined}
-                    thoughts={thoughts}
-                    thinkingDuration={thinkingDuration}
-                    sceneId={resolvedSceneId}
-                    skill={skill}
-                    assistantSource={assistantSource}
-                    assistantWarning={assistantWarning}
-                    errorCode={errorCode}
-                    meta={message.meta}
-                    isPreviewActive={isPreviewActive}
-                    isCodeActive={isCodeActive}
-                    variant={variant}
-                    onSceneCode={resolvedVersionId
-                      ? () => {
-                          void handleMessageSceneAction('code', resolvedVersionId);
-                        }
-                      : undefined}
-                    onScenePreview={resolvedVersionId
-                      ? () => {
-                          void handleMessageSceneAction('preview', resolvedVersionId);
-                        }
-                      : undefined}
-                  />
-                );
-              })}
+            const displayContent = message.role === "assistant"
+              ? getAssistantDisplayContent(message.content, promptContext, resolvedSceneId)
+              : message.content;
 
-              {shouldShowInlineThinking && (
-                <AIMessage
-                  content=""
-                  isThinking={true}
-                  thinkingText={thinkingText}
-                  thinkingStep={thinkingStep}
-                  thoughts={[{ text: thinkingText ?? "", step: thinkingStep, timestamp: Date.now() }]}
+            if (message.role === "user") {
+              return (
+                <UserMessage
+                  key={message.id}
+                  content={message.content}
+                  timestamp={Date.parse(message.createdAt)}
                   variant={variant}
                 />
-              )}
+              );
+            }
+
+            return (
+              <AIMessage
+                key={message.id}
+                content={displayContent}
+                timestamp={Date.parse(message.createdAt)}
+                isThinking={isLast && lastAssistantIsThinking && !message.content}
+                thinkingText={isLast && lastAssistantIsThinking ? thinkingText : undefined}
+                thinkingStep={isLast && lastAssistantIsThinking ? thinkingStep : undefined}
+                thoughts={thoughts}
+                thinkingDuration={thinkingDuration}
+                taskProgress={isLast ? activeTaskProgress : null}
+                sceneId={resolvedSceneId}
+                skill={skill}
+                assistantSource={assistantSource}
+                assistantWarning={assistantWarning}
+                errorCode={errorCode}
+                meta={message.meta}
+                isPreviewActive={isPreviewActive}
+                isCodeActive={isCodeActive}
+                variant={variant}
+                onSceneCode={resolvedVersionId
+                  ? () => {
+                      void handleMessageSceneAction('code', resolvedVersionId);
+                    }
+                  : undefined}
+                onScenePreview={resolvedVersionId
+                  ? () => {
+                      void handleMessageSceneAction('preview', resolvedVersionId);
+                    }
+                  : undefined}
+                artifactCards={artifactCards}
+              />
+            );
+          })}
+
+          {shouldShowInlineThinking && (
+            <AIMessage
+              content=""
+              isThinking={true}
+              thinkingText={thinkingText}
+              thinkingStep={thinkingStep}
+              thoughts={[{ text: thinkingText ?? "", step: thinkingStep, timestamp: Date.now() }]}
+              taskProgress={activeTaskProgress}
+              variant={variant}
+            />
+          )}
+
+          </div>
+
+        </div>
+        
+            {isTaskOperationActive && activeTaskProgress && (
+              <div className={`p-0 ${panelOpen ? '' : 'px-4 pb-3'}`}>
+                <div className={panelOpen ? '' : 'mx-auto w-full max-w-[980px]'}>
+                  <TaskStatusBar
+                    taskProgress={activeTaskProgress}
+                    statusStep={activeStatusStep}
+                    statusText={activeStatusText}
+                    assetPlan={activeSession?.currentScene?.assetPlan ?? null}
+                    isExpanded={isTasksExpanded}
+                    onToggle={handleOpenTasks}
+                    connectionState={connectionState}
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* Input */}
+            <div className="shrink-0 border-t border-white/10 bg-black/35 p-0 backdrop-blur-sm">
+              <div className={`relative ${panelOpen ? '' : 'mx-auto w-full max-w-[980px] px-4 py-3'}`}>
+                <Composer
+                  value={composerValue}
+                  onChange={setComposerValue}
+                  onSubmit={handleSend}
+                  attachedImage={composerImage}
+                  onImageSelected={setComposerImage}
+                  onRemoveImage={clearComposerImage}
+                  isSending={isSending}
+                  onStop={handleStop}
+                  variant={variant}
+                  placeholder="Send a message"
+                />
+              </div>
             </div>
           </div>
         </div>
-
-        {sessionsError && <div className="chat-error-banner">{sessionsError}</div>}
-
-        {isTaskOperationActive && activeTaskProgress && (
-          <div className="chat-task-status-container">
-            <TaskStatusBar
-              taskProgress={activeTaskProgress}
-              statusStep={activeStatusStep}
-              statusText={activeStatusText}
-              isExpanded={isTasksExpanded}
-              onToggle={handleOpenTasks}
-            />
-          </div>
-        )}
-
-        {/* Composer */}
-        <Composer
-          value={composerValue}
-          onChange={setComposerValue}
-          onSubmit={handleSend}
-          attachedImage={composerImage}
-          onImageSelected={setComposerImage}
-          onRemoveImage={clearComposerImage}
-          isSending={isSending}
-          onStop={handleStop}
-          variant={variant}
-          placeholder={variant === "meta" ? "Ask Meta AI..." : "Message GenVis..."}
-        />
-      </div>
-
-      {/* Workspace Panel - slides in from right */}
-      <WorkspacePanel />
-    </div>
+      </aside>
+    </>
   );
 }
 
