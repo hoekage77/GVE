@@ -18,7 +18,6 @@ interface ContextAwareSuggestionsProps {
   className?: string;
 }
 
-// Skill-specific suggestion generators
 const SKILL_SUGGESTIONS: Record<string, Suggestion[]> = {
   threejs: [
     { id: "color-red", label: "Make it red", prompt: "Change the color to red", category: "color", icon: <Palette className="h-3 w-3" /> },
@@ -61,7 +60,6 @@ export function ContextAwareSuggestions({
 }: ContextAwareSuggestionsProps) {
   const suggestions = useMemo(() => {
     if (!hasScene) {
-      // Initial suggestions when no scene exists
       return [
         { id: "3d-cube", label: "3D Cube", prompt: "Create a rotating 3D cube", category: "general" as const },
         { id: "sphere", label: "Sphere", prompt: "Create a 3D sphere", category: "general" as const },
@@ -70,53 +68,32 @@ export function ContextAwareSuggestions({
       ];
     }
 
-    // Get skill-specific suggestions
     const skillKey = skill && SKILL_SUGGESTIONS[skill] ? skill : "default";
     return SKILL_SUGGESTIONS[skillKey] || SKILL_SUGGESTIONS.default;
   }, [skill, hasScene]);
 
-  // Group suggestions by category
-  const groupedSuggestions = useMemo(() => {
-    const groups: Record<string, Suggestion[]> = {};
-    suggestions.forEach(s => {
-      if (!groups[s.category]) groups[s.category] = [];
-      groups[s.category].push(s);
-    });
-    return groups;
-  }, [suggestions]);
-
-  const categoryLabels: Record<string, string> = {
-    color: "Colors",
-    animation: "Animation",
-    shape: "Shape",
-    lighting: "Lighting",
-    camera: "Camera",
-    material: "Material",
-    general: "Quick Actions"
-  };
-
   if (suggestions.length === 0) return null;
 
   return (
-    <div className={`context-suggestions ${className}`}>
-      <div className="context-suggestions__header">
+    <div className={`p-2 px-3 bg-slate-800/40 rounded-xl border border-slate-600/30 animate-fade-in ${className}`}>
+      <div className="flex items-center gap-1.5 mb-2 text-slate-400/70 text-[0.7rem] font-semibold uppercase tracking-[0.05em]">
         <Sparkles className="h-3 w-3" />
         <span>Try these</span>
       </div>
-      
-      <div className="context-suggestions__chips">
+
+      <div className="flex flex-wrap gap-1.5 max-sm:gap-1">
         {suggestions.map((suggestion) => (
           <button
             key={suggestion.id}
             type="button"
-            className="context-suggestion-chip"
+            className="inline-flex items-center gap-1.5 py-1.5 px-2.5 max-sm:py-1 max-sm:px-2 border border-slate-600/40 rounded-full bg-slate-800/60 text-slate-300/85 text-[0.72rem] max-sm:text-[0.68rem] font-medium cursor-pointer transition-all duration-150 whitespace-nowrap hover:bg-blue-500/15 hover:border-blue-500/40 hover:text-blue-300/90 hover:-translate-y-px active:translate-y-0"
             onClick={() => onSuggestionClick(suggestion.prompt)}
             title={suggestion.prompt}
           >
             {suggestion.icon && (
-              <span className="context-suggestion-chip__icon">{suggestion.icon}</span>
+              <span className="inline-flex text-current opacity-70 max-sm:hidden">{suggestion.icon}</span>
             )}
-            <span className="context-suggestion-chip__label">{suggestion.label}</span>
+            <span className="leading-none">{suggestion.label}</span>
           </button>
         ))}
       </div>
@@ -137,18 +114,17 @@ export function InlineSuggestions({
   const suggestions = useMemo(() => {
     const skillKey = skill && SKILL_SUGGESTIONS[skill] ? skill : "default";
     const allSuggestions = SKILL_SUGGESTIONS[skillKey] || SKILL_SUGGESTIONS.default;
-    // Return top 3 suggestions
     return allSuggestions.slice(0, 3);
   }, [skill]);
 
   return (
-    <div className={`inline-suggestions ${className}`}>
-      <span className="inline-suggestions__label">Try:</span>
+    <div className={`inline-flex items-center gap-1.5 mt-2 py-1.5 ${className}`}>
+      <span className="text-slate-400/60 text-[0.7rem] font-medium mr-0.5">Try:</span>
       {suggestions.map((suggestion) => (
         <button
           key={suggestion.id}
           type="button"
-          className="inline-suggestion-chip"
+          className="inline-flex items-center py-1 px-2 border border-slate-600/40 rounded-full bg-slate-800/50 text-slate-300/80 text-[0.68rem] font-medium cursor-pointer transition-all duration-150 hover:bg-blue-500/12 hover:border-blue-500/35 hover:text-blue-300/85"
           onClick={() => onSuggestionClick(suggestion.prompt)}
         >
           {suggestion.label}

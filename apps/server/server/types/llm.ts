@@ -1,0 +1,95 @@
+/**
+ * LLM provider and pool types.
+ */
+
+export interface ProviderCapabilities {
+  codeGeneration: boolean;
+  thinking: boolean;
+  vision: boolean;
+  streaming: boolean;
+}
+
+export interface ProviderLimits {
+  rpm: number;
+  concurrency: number;
+}
+
+export interface ProviderDefinition {
+  id: string;
+  name: string;
+  baseUrl: string;
+  model: string;
+  apiKeyEnv: string;
+  priority: number;
+  capabilities: ProviderCapabilities;
+  limits: ProviderLimits;
+  cooldownMs: number;
+  payloadTransform: ((payload: ChatCompletionPayload, options?: Record<string, unknown>) => ChatCompletionPayload) | null;
+}
+
+export interface ResolvedProvider extends ProviderDefinition {
+  apiKey: string;
+  hasApiKey: boolean;
+}
+
+export interface PoolHealthEntry {
+  providerId: string;
+  available: boolean;
+  consecutiveFailures: number;
+  lastFailureAt: string | null;
+  cooldownUntil: string | null;
+}
+
+export interface ChatCompletionPayload {
+  model?: string;
+  messages: ChatMessage[];
+  temperature?: number;
+  max_tokens?: number;
+  stream?: boolean;
+  tools?: ToolDefinition[];
+  tool_choice?: string | { type: string; function: { name: string } };
+  [key: string]: unknown;
+}
+
+export interface ChatMessage {
+  role: "system" | "user" | "assistant" | "tool";
+  content: string | null;
+  name?: string;
+  tool_calls?: ToolCall[];
+  tool_call_id?: string;
+}
+
+export interface ToolDefinition {
+  type: "function";
+  function: {
+    name: string;
+    description: string;
+    parameters: Record<string, unknown>;
+  };
+}
+
+export interface ToolCall {
+  id: string;
+  type: "function";
+  function: {
+    name: string;
+    arguments: string;
+  };
+}
+
+export interface ChatCompletionResponse {
+  id: string;
+  object: string;
+  created: number;
+  model: string;
+  choices: Array<{
+    index: number;
+    message: ChatMessage;
+    finish_reason: string | null;
+  }>;
+  usage?: {
+    prompt_tokens: number;
+    completion_tokens: number;
+    total_tokens: number;
+  };
+}

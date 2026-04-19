@@ -15,13 +15,13 @@ export function SourceResultsList({ sources }: SourceResultsListProps) {
   }
 
   return (
-    <section className="meta-results" aria-label="Linked sources">
-      <p className="meta-results__heading">Sources</p>
-      <div className="meta-results__list">
+    <section className="mt-2" aria-label="Linked sources">
+      <p className="mb-1 text-[10px] font-semibold uppercase tracking-[0.08em] text-white/45">Sources</p>
+      <div className="flex flex-wrap gap-1.5">
         {sources.map((source) => (
           <a
             key={source.url}
-            className="meta-results__item"
+            className="inline-flex items-center gap-1 rounded-full border border-white/12 bg-white/[0.04] px-2 py-1 text-[11px] text-white/75 transition-colors duration-150 hover:border-white/20 hover:bg-white/[0.08] hover:text-white"
             href={source.url}
             target="_blank"
             rel="noopener noreferrer"

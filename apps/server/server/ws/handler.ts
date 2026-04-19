@@ -1,0 +1,385 @@
+// @ts-nocheck
+export const wsClients = new Set();
+
+import { 
+  executeChatTurn, 
+  executeSceneCommandMutation, 
+  normalizeSceneCommand, 
+  normalizeTurnPreferences, 
+  normalizeRequestedTurnMode,
+  buildAgentActivity,
+  buildTurnLifecyclePayload 
+} from "../routes/chat.js";
+import { sendSocketPayload, sendSocketEvent, replayEventsSince, broadcastEvent, wsEventSequence } from "./streaming.js";
+import { listSessionMessages } from "../session-state.js";
+const completedTurnCacheSize = Number.parseInt(String(process.env.WS_COMPLETED_TURN_CACHE_SIZE ?? "300"), 10);
+
+const activeChatTurns = new Map();
+const completedChatTurns = new Map();
+const activeSceneCommands = new Map();
+const completedSceneCommands = new Map();
+
+function pruneCompletedTurnCache() {
+  if (completedChatTurns.size <= completedTurnCacheSize) return;
+  const keys = [...completedChatTurns.keys()];
+  const overflow = completedChatTurns.size - completedTurnCacheSize;
+  for (let index = 0; index < overflow; index += 1) {
+    completedChatTurns.delete(keys[index]);
+  }
+}
+
+function rememberCompletedTurn(turnKey, payload) {
+  if (!turnKey || !payload) return;
+  completedChatTurns.set(turnKey, { ...payload, completedAt: new Date().toISOString() });
+  pruneCompletedTurnCache();
+}
+
+function rememberCompletedSceneCommand(commandKey, payload) {
+  if (!commandKey || !payload) return;
+  completedSceneCommands.set(commandKey, { ...payload, completedAt: new Date().toISOString() });
+  if (completedSceneCommands.size <= completedTurnCacheSize) return;
+  const keys = [...completedSceneCommands.keys()];
+  const overflow = completedSceneCommands.size - completedTurnCacheSize;
+  for (let index = 0; index < overflow; index += 1) {
+    completedSceneCommands.delete(keys[index]);
+  }
+}
+
+export function setupWebSocketHandler(wsServer: any) {
+  wsServer.on("connection", (socket: any) => {
+  wsClients.add(socket);
+
+  sendSocketEvent(socket, "connection:ready", {
+    backend: "js",
+    orchestration: "langgraph",
+    latestSeq: wsEventSequence
+  });
+
+  socket.on("close", () => {
+    wsClients.delete(socket);
+  });
+
+  socket.on("message", (rawMessage) => {
+    void (async () => {
+      try {
+        const parsedMessage = JSON.parse(rawMessage.toString());
+
+        if (parsedMessage?.type === "turn.abort") {
+          sendSocketEvent(socket, "turn:aborted", {
+            sessionId: String(parsedMessage?.payload?.sessionId ?? "").trim(),
+            requestId: String(parsedMessage?.payload?.requestId ?? "").trim() || null
+          });
+          return;
+        }
+
+        if (parsedMessage?.type === "session.resume") {
+          const lastSeq = Number(parsedMessage?.payload?.lastSeq ?? 0);
+          const sessionId = String(parsedMessage?.payload?.sessionId ?? "").trim();
+          replayEventsSince(socket, lastSeq, sessionId);
+          return;
+        }
+
+        if (parsedMessage?.type === "scene.command") {
+          const sessionId = String(parsedMessage?.payload?.sessionId ?? "").trim();
+          const command = normalizeSceneCommand(parsedMessage?.payload?.command);
+          const requestId = String(parsedMessage?.payload?.requestId ?? "").trim();
+          const idempotencyKey = String(parsedMessage?.payload?.idempotencyKey ?? requestId ?? "").trim();
+
+          if (!sessionId || !command) {
+            sendSocketEvent(socket, "scene:command_result", {
+              requestId: requestId || null,
+              idempotencyKey: idempotencyKey || null,
+              sessionId: sessionId || null,
+              command: command || null,
+              success: false,
+              errorCode: "VALIDATION_ERROR",
+              message: "sessionId and command are required for scene.command",
+              sceneState: null
+            });
+            return;
+          }
+
+          sendSocketEvent(socket, "scene:command_ack", {
+            requestId: requestId || null,
+            idempotencyKey: idempotencyKey || null,
+            sessionId,
+            command,
+            status: "received"
+          });
+
+          const commandKey = idempotencyKey
+            ? `${sessionId}:${command}:${idempotencyKey}`
+            : `${sessionId}:${command}:${requestId || Date.now()}`;
+
+          if (commandKey && completedSceneCommands.has(commandKey)) {
+            const completed = completedSceneCommands.get(commandKey);
+
+            sendSocketEvent(socket, "scene:command_ack", {
+              requestId: requestId || null,
+              idempotencyKey: idempotencyKey || null,
+              sessionId,
+              command,
+              status: "duplicate"
+            });
+
+            sendSocketEvent(socket, "scene:command_result", {
+              requestId: requestId || null,
+              idempotencyKey: idempotencyKey || null,
+              sessionId,
+              command,
+              success: completed?.success ?? false,
+              duplicate: true,
+              errorCode: completed?.errorCode ?? null,
+              message: completed?.message ?? null,
+              sceneState: completed?.sceneState ?? null
+            });
+            return;
+          }
+
+          if (activeSceneCommands.has(commandKey)) {
+            sendSocketEvent(socket, "scene:command_ack", {
+              requestId: requestId || null,
+              idempotencyKey: idempotencyKey || null,
+              sessionId,
+              command,
+              status: "in_progress"
+            });
+
+            const completed = await activeSceneCommands.get(commandKey);
+            sendSocketEvent(socket, "scene:command_result", {
+              requestId: requestId || null,
+              idempotencyKey: idempotencyKey || null,
+              sessionId,
+              command,
+              success: completed?.success ?? false,
+              duplicate: true,
+              errorCode: completed?.errorCode ?? null,
+              message: completed?.message ?? null,
+              sceneState: completed?.sceneState ?? null
+            });
+            return;
+          }
+
+          sendSocketEvent(socket, "scene:command_ack", {
+            requestId: requestId || null,
+            idempotencyKey: idempotencyKey || null,
+            sessionId,
+            command,
+            status: "processing"
+          });
+
+          const commandPromise = (async () => {
+            try {
+              return executeSceneCommandMutation(sessionId, command);
+            } finally {
+              activeSceneCommands.delete(commandKey);
+            }
+          })();
+          activeSceneCommands.set(commandKey, commandPromise);
+
+          const commandResult = await commandPromise;
+          rememberCompletedSceneCommand(commandKey, commandResult);
+
+          sendSocketEvent(socket, "scene:command_ack", {
+            requestId: requestId || null,
+            idempotencyKey: idempotencyKey || null,
+            sessionId,
+            command,
+            status: "accepted"
+          });
+
+          sendSocketEvent(socket, "scene:command_result", {
+            requestId: requestId || null,
+            idempotencyKey: idempotencyKey || null,
+            sessionId,
+            command,
+            success: commandResult.success,
+            duplicate: false,
+            errorCode: commandResult.errorCode,
+            message: commandResult.message,
+            sceneState: commandResult.sceneState
+          });
+          return;
+        }
+
+        if (parsedMessage?.type !== "message.send") {
+          return;
+        }
+
+        console.log(`[WS] [TRACE] Received message from ${parsedMessage?.payload?.sessionId}: "${parsedMessage?.payload?.content}"`);
+
+        const sessionId = String(parsedMessage?.payload?.sessionId ?? "").trim();
+        const content = String(parsedMessage?.payload?.content ?? parsedMessage?.payload?.query ?? "").trim();
+        const imageUrl = String(parsedMessage?.payload?.imageUrl ?? "").trim();
+        const imageData = String(parsedMessage?.payload?.imageData ?? "").trim();
+        const hasImage = Boolean(imageUrl || imageData);
+        const clientMessageId = String(parsedMessage?.payload?.clientMessageId ?? "").trim();
+        const requestId = String(parsedMessage?.payload?.requestId ?? clientMessageId ?? "").trim();
+        const idempotencyKey = String(parsedMessage?.payload?.idempotencyKey ?? requestId ?? clientMessageId ?? "").trim();
+        const forcedMode = normalizeRequestedTurnMode(
+          parsedMessage?.payload?.mode ?? parsedMessage?.payload?.preferences?.mode
+        );
+        const normalizedPreferences = normalizeTurnPreferences(parsedMessage?.payload?.preferences, forcedMode);
+
+        if (!sessionId || (!content && !hasImage)) {
+          sendSocketEvent(socket, "message:error", {
+            requestId: requestId || null,
+            message: "sessionId and at least one of content or image is required for message.send"
+          });
+          return;
+        }
+
+        sendSocketEvent(socket, "message:ack", {
+          sessionId,
+          requestId: requestId || null,
+          clientMessageId: clientMessageId || null,
+          idempotencyKey: idempotencyKey || null,
+          status: "received"
+        });
+
+        const turnModeKey = forcedMode ?? "auto";
+        const payloadFingerprint = content || imageUrl || imageData.slice(0, 64) || String(Date.now());
+        const turnKey = idempotencyKey
+          ? `${sessionId}:${turnModeKey}:${idempotencyKey}`
+          : `${sessionId}:${turnModeKey}:${payloadFingerprint}`;
+
+        if (turnKey && completedChatTurns.has(turnKey)) {
+          const completed = completedChatTurns.get(turnKey);
+
+          sendSocketEvent(socket, "message:ack", {
+            sessionId,
+            requestId: requestId || null,
+            clientMessageId: clientMessageId || null,
+            idempotencyKey: idempotencyKey || null,
+            status: "duplicate"
+          });
+
+          if (completed?.assistantMessage) {
+            sendSocketEvent(socket, "message.append", {
+              sessionId,
+              message: completed.assistantMessage
+            });
+          }
+
+          sendSocketEvent(socket, "message:accepted", {
+            sessionId,
+            requestId: requestId || null,
+            clientMessageId: clientMessageId || null,
+            mode: completed?.mode ?? null,
+            messageId: completed?.messageId ?? null,
+            duplicate: true
+          });
+
+          sendSocketEvent(socket, "turn:complete", {
+            sessionId,
+            mode: completed?.mode ?? null,
+            messageCount: listSessionMessages(sessionId).length,
+            duplicate: true,
+            requestId: requestId || null,
+            ...buildTurnLifecyclePayload(completed?.turnSummary)
+          });
+          return;
+        }
+
+        if (activeChatTurns.has(turnKey)) {
+          sendSocketEvent(socket, "message:ack", {
+            sessionId,
+            requestId: requestId || null,
+            clientMessageId: clientMessageId || null,
+            idempotencyKey: idempotencyKey || null,
+            status: "in_progress"
+          });
+
+          await activeChatTurns.get(turnKey);
+
+          const completed = completedChatTurns.get(turnKey);
+          if (completed) {
+            if (completed.assistantMessage) {
+              sendSocketEvent(socket, "message.append", {
+                sessionId,
+                message: completed.assistantMessage
+              });
+            }
+
+            sendSocketEvent(socket, "message:accepted", {
+              sessionId,
+              requestId: requestId || null,
+              clientMessageId: clientMessageId || null,
+              mode: completed.mode,
+              messageId: completed.messageId,
+              duplicate: true
+            });
+
+            sendSocketEvent(socket, "turn:complete", {
+              sessionId,
+              mode: completed.mode,
+              messageCount: listSessionMessages(sessionId).length,
+              duplicate: true,
+              requestId: requestId || null,
+              ...buildTurnLifecyclePayload(completed?.turnSummary)
+            });
+          }
+          return;
+        }
+
+        sendSocketEvent(socket, "message:ack", {
+          sessionId,
+          requestId: requestId || null,
+          clientMessageId: clientMessageId || null,
+          idempotencyKey: idempotencyKey || null,
+          status: "processing"
+        });
+
+        const turnPromise = (async () => {
+          try {
+            return await executeChatTurn(sessionId, content, normalizedPreferences, {
+              clientMessageId: clientMessageId || null,
+              requestId: requestId || null,
+              idempotencyKey: idempotencyKey || null,
+              transport: "websocket",
+              forcedMode,
+              imageUrl: imageUrl || null,
+              imageData: imageData || null
+            });
+          } finally {
+            activeChatTurns.delete(turnKey);
+          }
+        })();
+        activeChatTurns.set(turnKey, turnPromise);
+
+        const result = await turnPromise;
+
+        rememberCompletedTurn(turnKey, {
+          sessionId,
+          mode: result.mode,
+          messageId: result.assistantMessage?.id ?? null,
+          assistantMessage: result.assistantMessage ?? null,
+          turnSummary: result.turnSummary ?? null
+        });
+
+        sendSocketEvent(socket, "message:ack", {
+          sessionId,
+          requestId: requestId || null,
+          clientMessageId: clientMessageId || null,
+          idempotencyKey: idempotencyKey || null,
+          status: "accepted"
+        });
+
+        sendSocketEvent(socket, "message:accepted", {
+          sessionId,
+          requestId: requestId || null,
+          clientMessageId: clientMessageId || null,
+          mode: result.mode,
+          messageId: result.assistantMessage.id,
+          duplicate: false
+        });
+      } catch (error) {
+        sendSocketEvent(socket, "message:error", {
+          message: error instanceof Error ? error.message : "Unknown websocket message error"
+        });
+      }
+    })();
+  });
+});
+
+}

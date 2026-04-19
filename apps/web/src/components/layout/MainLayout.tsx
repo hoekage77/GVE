@@ -22,10 +22,10 @@ export function MainLayout({ children }: MainLayoutProps) {
 
   return (
     <div className="relative z-10 h-[100dvh] w-screen flex flex-col bg-[#06090d] text-white">
-      <div className={`app-body ${isWorkspaceRoute ? 'app-body--chat' : ''} flex-1 min-h-0 flex ${isWorkspaceRoute ? 'flex-col xl:flex-row' : ''}`}>
+      <div className={`flex min-h-0 flex-1 overflow-hidden ${isWorkspaceRoute ? 'relative isolate flex-row' : ''}`}>
         <Sidebar />
 
-        <main className={`app-main flex-1 flex min-h-0 ${isWorkspaceRoute ? 'flex-col xl:flex-row' : ''}`}>
+        <main className={`flex min-h-0 flex-1 ${isWorkspaceRoute ? 'max-w-none bg-[radial-gradient(120%_100%_at_0%_0%,rgba(56,189,248,0.12)_0%,rgba(56,189,248,0)_45%),radial-gradient(90%_70%_at_100%_0%,rgba(236,72,153,0.08)_0%,rgba(236,72,153,0)_42%),#06090d] flex-col lg:flex-row' : ''}`}>
           {children || <Outlet />}
         </main>
       </div>

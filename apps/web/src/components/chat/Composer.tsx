@@ -129,7 +129,7 @@ export function Composer({
 
   return (
     <div className="relative">
-      <div className="h-[42px] flex items-center gap-2 px-3 bg-[#0a0a0a] border border-white/10 rounded-xl focus-within:border-white/20 transition">
+      <div className="h-[38px] lg:h-[42px] flex items-center gap-1.5 lg:gap-2 px-2.5 lg:px-3 bg-[#0a0a0a]/80 backdrop-blur-md border border-white/10 rounded-xl focus-within:border-white/30 focus-within:ring-1 focus-within:ring-sky-500/40 shadow-inner transition-all duration-300">
         <input
           ref={fileInputRef}
           type="file"
@@ -142,7 +142,7 @@ export function Composer({
           onChange={(e) => onChange(e.target.value)}
           onKeyDown={handleKeyDown}
           placeholder={placeholder}
-          className="flex-1 bg-transparent outline-none text-[13.5px] placeholder:text-white/30"
+          className="flex-1 bg-transparent outline-none text-[13px] lg:text-[13.5px] placeholder:text-white/30"
           disabled={isSending}
         />
         <button

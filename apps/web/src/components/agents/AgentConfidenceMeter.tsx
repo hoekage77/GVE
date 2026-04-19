@@ -1,5 +1,3 @@
-import './agents.css';
-
 interface AgentConfidenceMeterProps {
   consensus: number; // 0-100
   agentCount?: number;
@@ -27,9 +25,9 @@ export default function AgentConfidenceMeter({
   const displayAgreeingCount = agreingCount ?? Math.round((consensus / 100) * agentCount);
 
   return (
-    <div className="agent-confidence-meter">
+    <div className="mb-4 flex items-center gap-6 rounded-xl border border-slate-700 bg-slate-800 p-5 max-md:flex-col max-md:text-center">
       {/* Circular Progress */}
-      <div className="agent-confidence-circle">
+      <div className="shrink-0">
         <svg width="120" height="120" viewBox="0 0 120 120">
           {/* Background circle */}
           <circle
@@ -77,12 +75,12 @@ export default function AgentConfidenceMeter({
       </div>
 
       {/* Text Info */}
-      <div className="agent-confidence-info">
-        <h3 className="agent-confidence-label">{getLabel()}</h3>
-        <p className="agent-confidence-detail">
+      <div className="min-w-0 flex-1">
+        <h3 className="mb-1 text-sm font-semibold text-slate-200">{getLabel()}</h3>
+        <p className="mb-1.5 text-[13px] text-slate-400">
           {displayAgreeingCount} of {agentCount} agents agreed
         </p>
-        <p className="agent-confidence-description">
+        <p className="text-xs leading-5 text-slate-400">
           {consensus >= 80
             ? 'Strong agreement across agents'
             : consensus >= 60

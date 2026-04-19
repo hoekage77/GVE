@@ -12,6 +12,11 @@ interface MessageActionsProps {
   className?: string;
 }
 
+const btnBase = "inline-flex items-center gap-1 px-2 py-1 border border-slate-600/40 rounded-md bg-slate-800/80 text-slate-300/80 text-[0.65rem] font-medium cursor-pointer transition-all duration-150 whitespace-nowrap hover:bg-slate-700/90 hover:border-slate-500/50 hover:text-slate-200/90 hover:-translate-y-px";
+const btnSuccess = "bg-green-500/10 border-green-500/30 text-green-400/90 hover:bg-green-500/15 hover:border-green-500/40";
+const btnIcon = "px-1 aspect-square";
+const btnActive = "bg-blue-500/15 border-blue-500/40 text-blue-400/90";
+
 export function MessageActions({
   content,
   messageId,
@@ -41,11 +46,11 @@ export function MessageActions({
   }, [onFeedback]);
 
   return (
-    <div className={`message-actions ${className}`}>
-      {/* Copy button - available for all messages */}
+    <div className={`flex items-center gap-1 py-1.5 opacity-0 transition-opacity duration-200 group-hover:opacity-100 hover:opacity-100 [@media(hover:none)]:opacity-100 ${className}`}>
+      {/* Copy button */}
       <button
         type="button"
-        className={`message-action-btn ${copied ? "message-action-btn--success" : ""}`}
+        className={`${btnBase} ${copied ? btnSuccess : ""}`}
         onClick={handleCopy}
         aria-label={copied ? "Copied!" : "Copy message"}
         title={copied ? "Copied!" : "Copy to clipboard"}
@@ -67,7 +72,7 @@ export function MessageActions({
       {!isAssistant && onEdit && (
         <button
           type="button"
-          className="message-action-btn"
+          className={btnBase}
           onClick={onEdit}
           aria-label="Edit message"
           title="Edit and resend"
@@ -77,11 +82,11 @@ export function MessageActions({
         </button>
       )}
 
-      {/* Regenerate button - for assistant messages or errors */}
+      {/* Regenerate button - for assistant messages */}
       {isAssistant && onRegenerate && (
         <button
           type="button"
-          className="message-action-btn"
+          className={btnBase}
           onClick={onRegenerate}
           aria-label="Regenerate response"
           title="Regenerate response"
@@ -93,10 +98,10 @@ export function MessageActions({
 
       {/* Feedback buttons - for assistant messages */}
       {isAssistant && onFeedback && !isError && (
-        <div className="message-actions__feedback">
+        <div className="inline-flex items-center gap-0.5 ml-0.5 pl-1.5 border-l border-slate-600/20">
           <button
             type="button"
-            className={`message-action-btn message-action-btn--icon ${feedbackGiven === "positive" ? "message-action-btn--active" : ""}`}
+            className={`${btnBase} ${btnIcon} ${feedbackGiven === "positive" ? btnActive : ""}`}
             onClick={() => handleFeedback("positive")}
             aria-label="Helpful"
             title="Helpful"
@@ -105,7 +110,7 @@ export function MessageActions({
           </button>
           <button
             type="button"
-            className={`message-action-btn message-action-btn--icon ${feedbackGiven === "negative" ? "message-action-btn--active" : ""}`}
+            className={`${btnBase} ${btnIcon} ${feedbackGiven === "negative" ? btnActive : ""}`}
             onClick={() => handleFeedback("negative")}
             aria-label="Not helpful"
             title="Not helpful"

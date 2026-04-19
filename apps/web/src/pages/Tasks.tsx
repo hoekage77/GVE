@@ -5,80 +5,40 @@ import { useChatStore, type Session, type SessionMessage } from '../stores';
 
 function compactSceneName(sceneId: string): string {
   const normalized = String(sceneId ?? '').trim();
-  if (!normalized) {
-    return sceneId;
-  }
-
-  if (normalized.length <= 16) {
-    return normalized;
-  }
-
-  if (normalized.startsWith('scene-')) {
-    return `scene-${normalized.slice(-6)}`;
-  }
-
+  if (!normalized) return sceneId;
+  if (normalized.length <= 16) return normalized;
+  if (normalized.startsWith('scene-')) return `scene-${normalized.slice(-6)}`;
   return `${normalized.slice(0, 8)}...${normalized.slice(-4)}`;
 }
 
 function deriveSessionTitle(session: Session, messages: SessionMessage[]): string {
   const latestUserMessage = [...messages].reverse().find((message) => message.role === 'user' && message.content.trim().length > 0);
-
-  if (latestUserMessage) {
-    return latestUserMessage.content;
-  }
-
-  if (session.currentScene?.sceneId) {
-    return compactSceneName(session.currentScene.sceneId);
-  }
-
+  if (latestUserMessage) return latestUserMessage.content;
+  if (session.currentScene?.sceneId) return compactSceneName(session.currentScene.sceneId);
   return `Session ${session.sessionId.slice(0, 8)}`;
 }
 
 function formatRelativeTime(value: string): string {
   const timestamp = new Date(value).getTime();
-  if (!Number.isFinite(timestamp)) {
-    return 'Unknown';
-  }
-
+  if (!Number.isFinite(timestamp)) return 'Unknown';
   const deltaMinutes = Math.floor((Date.now() - timestamp) / 60000);
-  if (deltaMinutes < 1) {
-    return 'Just now';
-  }
-
-  if (deltaMinutes < 60) {
-    return `${deltaMinutes}m ago`;
-  }
-
+  if (deltaMinutes < 1) return 'Just now';
+  if (deltaMinutes < 60) return `${deltaMinutes}m ago`;
   const deltaHours = Math.floor(deltaMinutes / 60);
-  if (deltaHours < 24) {
-    return `${deltaHours}h ago`;
-  }
-
+  if (deltaHours < 24) return `${deltaHours}h ago`;
   return new Date(value).toLocaleDateString();
 }
 
 function formatStep(step: string | null | undefined): string {
-  if (!step) {
-    return 'Waiting';
-  }
-
+  if (!step) return 'Waiting';
   return step.replace(/_/g, ' ').replace(/\b\w/g, (char) => char.toUpperCase());
 }
 
 function statusClass(turnStatus: string): string {
-  if (turnStatus === 'running') {
-    return 'border-amber-400/35 bg-amber-500/15 text-amber-200';
-  }
-
-  if (turnStatus === 'completed') {
-    return 'border-emerald-400/35 bg-emerald-500/15 text-emerald-200';
-  }
-
-  if (turnStatus === 'failed') {
-    return 'border-red-400/35 bg-red-500/15 text-red-200';
-  }
-
-  return 'border-white/15 bg-white/5 text-white/65';
+  if (turnStatus === 'running') return 'border-amber-500/20 bg-amber-500/10 text-amber-500';
+  if (turnStatus === 'completed') return 'border-emerald-500/20 bg-emerald-500/10 text-emerald-500';
+  if (turnStatus === 'failed') return 'border-red-500/20 bg-red-500/10 text-red-500';
+  return 'border-neutral-700/50 bg-neutral-800 text-neutral-400';
 }
 
 export default function TasksPage() {
@@ -127,113 +87,122 @@ export default function TasksPage() {
   };
 
   return (
-    <div className="h-full w-full overflow-y-auto p-4 xl:p-6">
-      <div className="mx-auto flex w-full max-w-5xl flex-col gap-5">
-        <header className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-white/10 bg-black/35 px-4 py-3 backdrop-blur-sm">
-          <div className="flex items-center gap-3">
-            <div className="grid h-10 w-10 place-items-center rounded-xl border border-white/10 bg-white/5 text-white/80">
-              <ListTodo className="h-5 w-5" />
+    <div className="h-full w-full overflow-y-auto bg-neutral-900 p-4 xl:p-8 font-sans text-neutral-200">
+      <div className="mx-auto flex w-full max-w-5xl flex-col gap-8">
+        
+        {/* Header */}
+        <header className="flex flex-wrap items-center justify-between gap-4">
+          <div className="flex items-center gap-4">
+            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-neutral-800 text-neutral-300">
+              <ListTodo className="h-6 w-6" />
             </div>
             <div>
-              <p className="text-xs uppercase tracking-[0.16em] text-white/45">Pipeline</p>
-              <h1 className="text-lg font-semibold text-white">Tasks</h1>
+              <h1 className="text-2xl font-medium tracking-tight text-neutral-100">Tasks Pipeline</h1>
+              <p className="text-sm text-neutral-400">Monitor and manage your background generations</p>
             </div>
           </div>
-
-          <Link to="/chat" className="inline-flex items-center gap-2 rounded-lg border border-white/15 bg-white/5 px-3 py-2 text-sm text-white/80 transition hover:bg-white/10 hover:text-white">
+          <Link to="/chat" className="inline-flex items-center gap-2 rounded-xl border border-neutral-700 bg-neutral-800 px-4 py-2.5 text-sm font-medium text-neutral-300 transition-colors hover:bg-neutral-700 hover:text-neutral-100">
             <ArrowLeft className="h-4 w-4" />
             Back to Studio
           </Link>
         </header>
 
-        <section className="grid gap-3 md:grid-cols-3">
-          <article className="rounded-xl border border-white/10 bg-black/30 px-4 py-3">
-            <p className="text-[11px] uppercase tracking-[0.14em] text-white/45">Tracked sessions</p>
-            <p className="mt-1 text-2xl font-semibold text-white">{rows.length}</p>
+        {/* Metrics */}
+        <section className="grid gap-4 md:grid-cols-3">
+          <article className="flex flex-col rounded-2xl border border-neutral-800 bg-[#1A1A1A] p-5">
+            <p className="text-xs font-medium uppercase tracking-wider text-neutral-500">Tracked Sessions</p>
+            <p className="mt-2 text-3xl font-semibold tracking-tight text-neutral-100">{rows.length}</p>
           </article>
-
-          <article className="rounded-xl border border-white/10 bg-black/30 px-4 py-3">
-            <p className="text-[11px] uppercase tracking-[0.14em] text-white/45">Running</p>
-            <p className="mt-1 text-2xl font-semibold text-white">{runningCount}</p>
+          <article className="flex flex-col rounded-2xl border border-neutral-800 bg-[#1A1A1A] p-5">
+            <p className="text-xs font-medium uppercase tracking-wider text-neutral-500">Running</p>
+            <p className="mt-2 text-3xl font-semibold tracking-tight text-neutral-100">{runningCount}</p>
           </article>
-
-          <article className="rounded-xl border border-white/10 bg-black/30 px-4 py-3">
-            <p className="text-[11px] uppercase tracking-[0.14em] text-white/45">Completed</p>
-            <p className="mt-1 text-2xl font-semibold text-white">{completedCount}</p>
+          <article className="flex flex-col rounded-2xl border border-neutral-800 bg-[#1A1A1A] p-5">
+            <p className="text-xs font-medium uppercase tracking-wider text-neutral-500">Completed</p>
+            <p className="mt-2 text-3xl font-semibold tracking-tight text-neutral-100">{completedCount}</p>
           </article>
         </section>
 
-        <section className="rounded-2xl border border-white/10 bg-black/30 p-3 xl:p-4">
+        {/* Tasks Table */}
+        <section className="rounded-2xl border border-neutral-800 bg-[#1A1A1A] p-1">
           {rows.length === 0 ? (
-            <div className="rounded-xl border border-dashed border-white/15 bg-black/20 px-4 py-8 text-center text-sm text-white/55">
-              Task progress appears here after you run prompts in Studio.
+            <div className="flex flex-col items-center justify-center rounded-xl p-12 text-center">
+              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-neutral-800 text-neutral-400">
+                <ListTodo className="h-5 w-5" />
+              </div>
+              <h3 className="mt-4 text-sm font-medium text-neutral-200">No tasks yet</h3>
+              <p className="mt-1 text-sm text-neutral-500">Task progress appears here after you run prompts in the Studio.</p>
             </div>
           ) : (
-            <div className="overflow-x-auto rounded-xl border border-white/10">
-              <table className="w-full min-w-[860px] table-fixed border-collapse">
+            <div className="overflow-x-auto rounded-xl">
+              <table className="w-full min-w-[860px] table-fixed border-collapse text-left text-sm">
                 <colgroup>
-                  <col className="w-[33%]" />
-                  <col className="w-[21%]" />
-                  <col className="w-[12%]" />
+                  <col className="w-[35%]" />
+                  <col className="w-[20%]" />
                   <col className="w-[12%]" />
                   <col className="w-[10%]" />
                   <col className="w-[12%]" />
+                  <col className="w-[11%]" />
                 </colgroup>
-                <thead className="bg-white/[0.04]">
-                  <tr className="border-b border-white/10 text-left">
-                    <th scope="col" className="px-3 py-2.5 text-[11px] font-semibold uppercase tracking-[0.12em] text-white/55">Session</th>
-                    <th scope="col" className="px-3 py-2.5 text-[11px] font-semibold uppercase tracking-[0.12em] text-white/55">Pipeline Step</th>
-                    <th scope="col" className="px-3 py-2.5 text-[11px] font-semibold uppercase tracking-[0.12em] text-white/55">Progress</th>
-                    <th scope="col" className="px-3 py-2.5 text-[11px] font-semibold uppercase tracking-[0.12em] text-white/55">Status</th>
-                    <th scope="col" className="px-3 py-2.5 text-[11px] font-semibold uppercase tracking-[0.12em] text-white/55">Updated</th>
-                    <th scope="col" className="px-3 py-2.5 text-right text-[11px] font-semibold uppercase tracking-[0.12em] text-white/55">Action</th>
+                <thead className="border-b border-neutral-800 text-xs font-medium text-neutral-500">
+                  <tr>
+                    <th scope="col" className="px-5 py-3.5 font-medium">Session</th>
+                    <th scope="col" className="px-5 py-3.5 font-medium">Pipeline Step</th>
+                    <th scope="col" className="px-5 py-3.5 font-medium">Progress</th>
+                    <th scope="col" className="px-5 py-3.5 font-medium">Status</th>
+                    <th scope="col" className="px-5 py-3.5 font-medium">Updated</th>
+                    <th scope="col" className="px-5 py-3.5 text-right font-medium">Action</th>
                   </tr>
                 </thead>
-                <tbody>
+                <tbody className="divide-y divide-neutral-800/50">
                   {rows.map((row) => {
                     const totalTasks = row.totalTasks || 0;
                     const progressPercent = totalTasks > 0 ? Math.round((row.completedTasks / totalTasks) * 100) : 0;
 
                     return (
-                      <tr key={row.sessionId} className="border-b border-white/10 bg-white/[0.02] transition hover:bg-white/[0.05] last:border-b-0">
-                        <td className="px-3 py-2.5 align-middle">
+                      <tr key={row.sessionId} className="group transition-colors hover:bg-neutral-800/30">
+                        <td className="px-5 py-4 align-middle">
                           <div className="min-w-0">
-                            <p className="truncate text-sm font-medium text-white" title={row.title}>{row.title}</p>
-                            <div className="mt-0.5 flex items-center gap-1.5 text-[11px] text-white/50">
-                              <span className="font-mono">Session {row.sessionId.slice(0, 8)}</span>
-                              {row.isActive ? (
-                                <span className="rounded-full border border-emerald-400/35 bg-emerald-500/15 px-1.5 py-0.5 text-[10px] font-medium text-emerald-200">Active</span>
-                              ) : null}
+                            <p className="truncate font-medium text-neutral-200" title={row.title}>{row.title}</p>
+                            <div className="mt-1 flex items-center gap-2 text-[11px] text-neutral-500">
+                              <span className="font-mono">ID: {row.sessionId.slice(0, 8)}</span>
+                              {row.isActive && (
+                                <span className="rounded-md bg-emerald-500/10 px-1.5 py-0.5 font-medium text-emerald-500">Active</span>
+                              )}
                             </div>
                           </div>
                         </td>
-                        <td className="px-3 py-2.5 align-middle">
-                          <p className="truncate text-sm text-white/78" title={row.stepLabel}>{row.stepLabel}</p>
+                        <td className="px-5 py-4 align-middle">
+                          <p className="truncate text-neutral-400" title={row.stepLabel}>{row.stepLabel}</p>
                         </td>
-                        <td className="px-3 py-2.5 align-middle">
-                          <div className="space-y-1">
-                            <p className="text-xs font-medium text-white/80">{row.completedTasks}/{totalTasks}</p>
-                            <div className="h-1.5 rounded-full bg-white/10">
+                        <td className="px-5 py-4 align-middle">
+                          <div className="flex w-full items-center gap-3">
+                            <span className="min-w-[28px] text-xs font-medium text-neutral-400">{row.completedTasks}/{totalTasks}</span>
+                            <div className="h-1.5 flex-1 rounded-full bg-neutral-800">
                               <div
-                                className="h-full rounded-full bg-cyan-300/70"
+                                className="h-full rounded-full bg-neutral-300 transition-all duration-500 ease-out"
                                 style={{ width: `${progressPercent}%` }}
                               />
                             </div>
                           </div>
                         </td>
-                        <td className="px-3 py-2.5 align-middle">
-                          <span className={`inline-flex rounded-full border px-2 py-1 text-xs capitalize ${statusClass(row.turnStatus)}`}>{row.turnStatus}</span>
+                        <td className="px-5 py-4 align-middle">
+                          <span className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium capitalize ${statusClass(row.turnStatus)}`}>
+                            {row.turnStatus}
+                          </span>
                         </td>
-                        <td className="px-3 py-2.5 align-middle text-xs text-white/65">{formatRelativeTime(row.updatedAt)}</td>
-                        <td className="px-3 py-2.5 text-right align-middle">
+                        <td className="px-5 py-4 align-middle text-neutral-400">
+                          {formatRelativeTime(row.updatedAt)}
+                        </td>
+                        <td className="px-5 py-4 text-right align-middle">
                           <button
                             type="button"
-                            className="inline-flex rounded-lg border border-cyan-300/35 bg-cyan-300/10 px-2.5 py-1 text-xs font-medium text-cyan-100 transition hover:bg-cyan-300/20"
+                            className="inline-flex rounded-lg border border-neutral-700 bg-neutral-800 px-3 py-1.5 text-xs font-medium text-neutral-300 opacity-0 transition-all hover:bg-neutral-700 hover:text-neutral-100 group-hover:opacity-100 focus:opacity-100"
                             onClick={() => {
                               void handleOpenInStudio(row.sessionId);
                             }}
                           >
-                            Open in Studio
+                            Open
                           </button>
                         </td>
                       </tr>

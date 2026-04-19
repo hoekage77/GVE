@@ -8,10 +8,8 @@ import {
   ChevronLeft,
   Monitor,
   Plug2,
-  History,
   Brain,
   ListTree,
-  Clock,
   ChevronDown,
   ChevronUp
 } from "lucide-react";
@@ -70,16 +68,16 @@ interface TurnTrace {
 }
 
 function statusIcon(status: GveTaskStatus, size: "sm" | "md" = "sm") {
-  const sizeClass = size === "sm" ? "h-3 w-3" : "h-4 w-4";
+  const sizeClass = size === "sm" ? "h-3.5 w-3.5" : "h-5 w-5";
   switch (status) {
     case "completed":
-      return <CheckCircle2 className={`${sizeClass} task-icon task-icon--completed`} />;
+      return <CheckCircle2 className={`${sizeClass} text-emerald-500`} />;
     case "running":
-      return <Loader2 className={`${sizeClass} task-icon task-icon--running animate-spin`} />;
+      return <Loader2 className={`${sizeClass} text-amber-500 animate-spin`} />;
     case "failed":
-      return <XCircle className={`${sizeClass} task-icon task-icon--failed`} />;
+      return <XCircle className={`${sizeClass} text-red-500`} />;
     default:
-      return <Circle className={`${sizeClass} task-icon task-icon--pending`} />;
+      return <Circle className={`${sizeClass} text-neutral-600`} />;
   }
 }
 
@@ -191,23 +189,6 @@ function buildTurnHistory(activities: AgentActivityEvent[], thoughts: SessionMes
   return turns;
 }
 
-function formatTurnStatus(status: TurnStatus): string {
-  if (status === "failed") return "Error";
-  if (status === "completed") return "Done";
-  return "Running";
-}
-
-function formatTime(ts: number | null): string {
-  if (!ts) return "--";
-  return new Date(ts).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
-}
-
-function formatDuration(start: number, end: number | null): string {
-  const duration = (end ?? Date.now()) - start;
-  if (duration < 1000) return `${duration}ms`;
-  return `${(duration / 1000).toFixed(1)}s`;
-}
-
 export default function TaskPlanViewer({
   tasks,
   activities = [],
@@ -284,9 +265,6 @@ export default function TaskPlanViewer({
   const totalCount = liveTasks.length;
   const progressPct = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0;
   const failedTask = liveTasks.find(task => task.status === "failed");
-  const runningTask = liveTasks.find(task => task.status === "running");
-  const focusTask = failedTask ?? runningTask ?? liveTasks[completedCount] ?? liveTasks[liveTasks.length - 1];
-  const focusLabel = focusTask ? (STEP_LABELS[focusTask.action] ?? focusTask.title) : "Ready";
   
   const turnHistory = useMemo(() => buildTurnHistory(activities, thoughts), [activities, thoughts]);
   const latestTurnIndex = Math.max(turnHistory.length - 1, 0);
@@ -309,20 +287,23 @@ export default function TaskPlanViewer({
 
   // Compact task list for sidebar
   const renderCompactTaskList = () => (
-    <div className="task-sidebar__list">
-      {liveTasks.map((task, index) => (
+    <div className="flex flex-col gap-1 px-4 pb-4">
+      {liveTasks.map((task) => (
         <div
           key={task.id}
-          className={`task-sidebar__item task-sidebar__item--${task.status}`}
+          className="flex items-center gap-2.5 rounded-lg py-1.5"
           title={STEP_DESCRIPTIONS[task.action]}
         >
-          <div className="task-sidebar__icon">
+          <div className="flex items-center justify-center">
             {statusIcon(task.status, "sm")}
           </div>
-          <span className="task-sidebar__label">{STEP_LABELS[task.action] ?? task.title}</span>
-          {task.status === "running" && (
-            <div className="task-sidebar__pulse" />
-          )}
+          <span className={`text-[13px] font-medium ${
+            task.status === 'completed' ? 'text-neutral-400' :
+            task.status === 'running' ? 'text-neutral-200' :
+            task.status === 'failed' ? 'text-red-400' : 'text-neutral-600'
+          }`}>
+            {STEP_LABELS[task.action] ?? task.title}
+          </span>
         </div>
       ))}
     </div>
@@ -330,41 +311,45 @@ export default function TaskPlanViewer({
 
   if (liveTasks.length === 0 && activities.length === 0) {
     return (
-      <div className="task-sidebar task-sidebar--empty">
-        <div className="task-sidebar__header">
+      <div className="flex h-full flex-col bg-neutral-900 border-l border-neutral-800 text-neutral-400">
+        <div className="flex items-center gap-2 px-5 py-4 border-b border-neutral-800">
           <Monitor className="h-4 w-4" />
-          <span>Task History</span>
+          <span className="text-sm font-medium">Task History</span>
         </div>
-        <p className="task-sidebar__empty-text">Submit a request to see task progress</p>
+        <div className="flex flex-1 items-center justify-center p-6 text-center text-sm">
+          Submit a request to see task progress
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="task-sidebar">
+    <div className="flex h-full flex-col bg-neutral-900 border-l border-neutral-800 text-neutral-300 overflow-y-auto">
       {/* Header */}
-      <div className="task-sidebar__header">
-        <div className="task-sidebar__title">
-          <Monitor className="h-4 w-4" />
-          <span>Tasks</span>
+      <div className="flex items-center justify-between px-5 py-4">
+        <div className="flex items-center gap-2 font-medium text-neutral-200">
+          <Monitor className="h-4 w-4 text-neutral-400" />
+          <span className="text-sm">Tasks</span>
         </div>
-        <div className="task-sidebar__progress">
-          <span>{completedCount}/{totalCount}</span>
+        <div className="text-[11px] font-medium tracking-wide text-neutral-500">
+          {completedCount}/{totalCount}
         </div>
       </div>
 
       {/* Mini Progress Bar */}
-      <div className="task-sidebar__progress-bar">
-        <div 
-          className="task-sidebar__progress-fill" 
-          style={{ width: `${progressPct}%` }}
-        />
+      <div className="px-5 pb-3">
+        <div className="h-1.5 w-full overflow-hidden rounded-full bg-neutral-800">
+          <div 
+            className="h-full rounded-full bg-neutral-300 transition-all duration-500 ease-out" 
+            style={{ width: `${progressPct}%` }}
+          />
+        </div>
       </div>
 
       {/* Current Status */}
-      <div className="task-sidebar__status">
-        <Plug2 className="h-3 w-3" />
-        <span className="task-sidebar__status-text">{deploymentLabel}</span>
+      <div className="flex items-center gap-2 px-5 pb-4">
+        <Plug2 className="h-3.5 w-3.5 text-neutral-500" />
+        <span className="truncate text-xs font-medium text-neutral-400">{deploymentLabel}</span>
       </div>
 
       {/* Compact Task List */}
@@ -372,132 +357,110 @@ export default function TaskPlanViewer({
 
       {/* Turn Navigator */}
       {turnHistory.length > 1 && (
-        <div className="task-sidebar__turns">
+        <div className="flex items-center justify-between border-t border-neutral-800 bg-neutral-800/20 px-3 py-2">
           <button
             type="button"
-            className="task-sidebar__turn-btn"
+            className="flex h-7 w-7 items-center justify-center rounded-md text-neutral-400 hover:bg-neutral-800 hover:text-neutral-200 disabled:opacity-30 disabled:hover:bg-transparent"
             onClick={() => {
               setSelectedTurnIndex(Math.max(0, selectedTurnIndex - 1));
               setFollowLatestTurn(false);
             }}
             disabled={selectedTurnIndex <= 0}
           >
-            <ChevronLeft className="h-3 w-3" />
+            <ChevronLeft className="h-4 w-4" />
           </button>
-          <span className="task-sidebar__turn-label">
-            Turn {selectedTurnIndex + 1}/{turnHistory.length}
+          <span className="text-xs font-medium text-neutral-500">
+            Turn {selectedTurnIndex + 1} of {turnHistory.length}
           </span>
           <button
             type="button"
-            className="task-sidebar__turn-btn"
+            className="flex h-7 w-7 items-center justify-center rounded-md text-neutral-400 hover:bg-neutral-800 hover:text-neutral-200 disabled:opacity-30 disabled:hover:bg-transparent"
             onClick={() => {
               setSelectedTurnIndex(Math.min(latestTurnIndex, selectedTurnIndex + 1));
               setFollowLatestTurn(selectedTurnIndex + 1 >= latestTurnIndex);
             }}
             disabled={selectedTurnIndex >= latestTurnIndex}
           >
-            <ChevronRight className="h-3 w-3" />
+            <ChevronRight className="h-4 w-4" />
           </button>
         </div>
       )}
 
-      {/* Expandable Activity Section */}
-      {selectedActivities.length > 0 && (
-        <div className="task-sidebar__section">
-          <button
-            type="button"
-            className="task-sidebar__section-header"
-            onClick={() => setExpandedSections(prev => ({ ...prev, activity: !prev.activity }))}
-          >
-            <ListTree className="h-3 w-3" />
-            <span>Activity</span>
-            {expandedSections.activity ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
-          </button>
-          
-          {expandedSections.activity && (
-            <div className="task-sidebar__activity-list">
-              {selectedActivities.slice(-4).reverse().map((activity) => (
-                <div key={activity.id} className={`task-sidebar__activity task-sidebar__activity--${activity.status}`}>
-                  <span className="task-sidebar__activity-step">
-                    {ACTIVITY_LABELS[activity.step] ?? activity.step}
-                  </span>
-                  <span className="task-sidebar__activity-time">
-                    {new Date(activity.createdAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}
-                  </span>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Expandable Thoughts Section */}
-      {(liveThought || visibleThoughts.length > 0) && (
-        <div className="task-sidebar__section">
-          <button
-            type="button"
-            className="task-sidebar__section-header"
-            onClick={() => setExpandedSections(prev => ({ ...prev, thoughts: !prev.thoughts }))}
-          >
-            <Brain className="h-3 w-3" />
-            <span>Thoughts</span>
-            {expandedSections.thoughts ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
-          </button>
-          
-          {expandedSections.thoughts && (
-            <div className="task-sidebar__thoughts-list">
-              {liveThought && selectedTurnIndex === latestTurnIndex && (
-                <div className="task-sidebar__thought task-sidebar__thought--live">
-                  <span className="task-sidebar__thought-step">{formatThoughtStep(liveThought.step)}</span>
-                  <p className="task-sidebar__thought-text">{liveThought.text}</p>
-                </div>
-              )}
-              {visibleThoughts.slice(0, 3).map((thought) => (
-                <div key={thought.id} className="task-sidebar__thought">
-                  <span className="task-sidebar__thought-step">
-                    {formatThoughtStep(thought.meta?.[0] ?? thought.kind)}
-                  </span>
-                  <p className="task-sidebar__thought-text">{thought.content}</p>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Pipeline Toggle */}
-      <button
-        type="button"
-        className="task-sidebar__pipeline-toggle"
-        onClick={() => setExpandedSections(prev => ({ ...prev, pipeline: !prev.pipeline }))}
-      >
-        {expandedSections.pipeline ? "Hide Pipeline" : "Show Pipeline"}
-      </button>
-
-      {/* Expanded Pipeline */}
-      {expandedSections.pipeline && (
-        <div className="task-sidebar__pipeline">
-          {liveTasks.map((task, index) => {
-            const isLast = index === liveTasks.length - 1;
-            return (
-              <div key={task.id} className={`task-pipeline__step task-pipeline__step--${task.status}`}>
-                <div className="task-pipeline__connector">
-                  {statusIcon(task.status, "sm")}
-                  {!isLast && <div className={`task-pipeline__line task-pipeline__line--${task.status}`} />}
-                </div>
-                <div className="task-pipeline__content">
-                  <span className="task-pipeline__title">{STEP_LABELS[task.action] ?? task.title}</span>
-                  <span className="task-pipeline__desc">{STEP_DESCRIPTIONS[task.action]}</span>
-                </div>
+      <div className="flex-1 divide-y divide-neutral-800">
+        {/* Expandable Activity Section */}
+        {selectedActivities.length > 0 && (
+          <div className="flex flex-col">
+            <button
+              type="button"
+              className="flex items-center justify-between px-5 py-3 hover:bg-neutral-800/30 transition-colors focus:outline-none"
+              onClick={() => setExpandedSections(prev => ({ ...prev, activity: !prev.activity }))}
+            >
+              <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-wider text-neutral-500">
+                <ListTree className="h-3.5 w-3.5" />
+                <span>Activity</span>
               </div>
-            );
-          })}
-        </div>
-      )}
+              {expandedSections.activity ? <ChevronUp className="h-3.5 w-3.5 text-neutral-600" /> : <ChevronDown className="h-3.5 w-3.5 text-neutral-600" />}
+            </button>
+            
+            {expandedSections.activity && (
+              <div className="flex flex-col px-5 pb-4 space-y-3">
+                {selectedActivities.slice(-4).reverse().map((activity) => (
+                  <div key={activity.id} className="flex justify-between items-baseline gap-2">
+                    <span className="text-[13px] text-neutral-300 truncate">
+                      {ACTIVITY_LABELS[activity.step] ?? activity.step}
+                    </span>
+                    <span className="text-[10px] text-neutral-500 whitespace-nowrap">
+                      {new Date(activity.createdAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Expandable Thoughts Section */}
+        {(liveThought || visibleThoughts.length > 0) && (
+          <div className="flex flex-col">
+            <button
+              type="button"
+              className="flex items-center justify-between px-5 py-3 hover:bg-neutral-800/30 transition-colors focus:outline-none"
+              onClick={() => setExpandedSections(prev => ({ ...prev, thoughts: !prev.thoughts }))}
+            >
+              <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-wider text-neutral-500">
+                <Brain className="h-3.5 w-3.5" />
+                <span>Thoughts</span>
+              </div>
+              {expandedSections.thoughts ? <ChevronUp className="h-3.5 w-3.5 text-neutral-600" /> : <ChevronDown className="h-3.5 w-3.5 text-neutral-600" />}
+            </button>
+            
+            {expandedSections.thoughts && (
+              <div className="flex flex-col px-5 pb-4 space-y-4">
+                {liveThought && selectedTurnIndex === latestTurnIndex && (
+                  <div className="flex flex-col gap-1">
+                    <span className="text-[11px] font-medium text-emerald-500 uppercase tracking-wider">
+                      {formatThoughtStep(liveThought.step)}
+                    </span>
+                    <p className="text-[13px] leading-relaxed text-neutral-200">{liveThought.text}</p>
+                  </div>
+                )}
+                {visibleThoughts.slice(0, 3).map((thought) => (
+                  <div key={thought.id} className="flex flex-col gap-1">
+                    <span className="text-[11px] font-medium text-neutral-500 uppercase tracking-wider">
+                      {formatThoughtStep(thought.meta?.[0] ?? thought.kind)}
+                    </span>
+                    <p className="text-[13px] leading-relaxed text-neutral-400">{thought.content}</p>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
 
       {planId && (
-        <div className="task-sidebar__footer">
-          <span className="task-sidebar__plan-id">{planId.slice(0, 8)}</span>
+        <div className="mt-auto border-t border-neutral-800 px-5 py-3">
+          <span className="font-mono text-[10px] text-neutral-600">Plan ID: {planId.slice(0, 8)}</span>
         </div>
       )}
     </div>

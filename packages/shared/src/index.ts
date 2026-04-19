@@ -209,6 +209,9 @@ export type GveTaskAction =
   | "build_prompt"
   | "generate_code"
   | "validate_code"
+  | "provision_sandbox"
+  | "analyze_quality"
+  | "autonomous_patching"
   | "execute_code"
   | "sync_state";
 

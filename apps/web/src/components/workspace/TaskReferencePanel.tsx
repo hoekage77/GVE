@@ -16,7 +16,7 @@ export default function TaskReferencePanel({
 }: TaskReferencePanelProps) {
   if (!checkpoints || checkpoints.length === 0) {
     return (
-      <div className="task-reference-panel task-reference-panel--empty">
+      <div className="flex min-h-[200px] items-center justify-center rounded-md border border-slate-700 bg-slate-900 px-4 text-sm italic text-slate-400">
         <p>No tasks in progress</p>
       </div>
     );
@@ -28,46 +28,46 @@ export default function TaskReferencePanel({
 
   const getCheckpointIcon = (checkpoint: TaskCheckpoint) => {
     if (checkpoint.completed) {
-      return <CheckCircle2 className="h-4 w-4 task-checkpoint__icon task-checkpoint__icon--completed" />;
+      return <CheckCircle2 className="h-4 w-4 text-emerald-500" />;
     }
-    return <Circle className="h-4 w-4 task-checkpoint__icon task-checkpoint__icon--pending" />;
+    return <Circle className="h-4 w-4 text-slate-600" />;
   };
 
   return (
-    <aside className="task-reference-panel">
+    <aside className="scrollbar flex h-full flex-col gap-4 overflow-y-auto border-l border-slate-700 bg-slate-900 px-4 py-6">
       {/* Header */}
-      <div className="task-reference-panel__header">
-        <h2 className="task-reference-panel__title">{title}</h2>
-        <span className="task-reference-panel__counter">
+      <div className="flex items-center justify-between gap-4 border-b border-slate-700 pb-4">
+        <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-200">{title}</h2>
+        <span className="text-xs font-medium tabular-nums text-slate-400">
           {completedCount}/{displayTotal}
         </span>
       </div>
 
       {/* Progress bar */}
-      <div className="task-reference-panel__progress-track">
+      <div className="h-[3px] overflow-hidden rounded-full bg-slate-800">
         <div
-          className="task-reference-panel__progress-fill"
+          className="h-full bg-gradient-to-r from-emerald-500 to-emerald-600 transition-[width] duration-300 ease-out"
           style={{ width: `${Math.round((completedCount / displayTotal) * 100)}%` }}
         />
       </div>
 
       {/* Checklist */}
-      <ul className="task-reference-panel__checklist">
+      <ul className="flex list-none flex-col gap-2 p-0">
         {checkpoints.map((checkpoint, index) => (
           <li
             key={checkpoint.id}
-            className={`task-checkpoint task-checkpoint--${checkpoint.completed ? 'completed' : 'pending'}`}
+            className="grid grid-cols-[auto_1fr] items-start gap-3 rounded bg-transparent p-3"
           >
-            <div className="task-checkpoint__icon-wrap">
+            <div className="flex shrink-0 items-center justify-center">
               {getCheckpointIcon(checkpoint)}
             </div>
-            <div className="task-checkpoint__content">
-              <p className="task-checkpoint__label">
-                <span className="task-checkpoint__index">[{String.fromCharCode(65 + index)}]</span>
+            <div className="flex min-w-0 flex-col gap-1">
+              <p className={`flex gap-2 break-words text-sm font-medium leading-5 ${checkpoint.completed ? 'text-emerald-300' : 'text-slate-300'}`}>
+                <span className="shrink-0 text-xs opacity-70">[{String.fromCharCode(65 + index)}]</span>
                 {checkpoint.label}
               </p>
               {checkpoint.description && (
-                <p className="task-checkpoint__description">{checkpoint.description}</p>
+                <p className="break-words text-xs leading-5 text-slate-400">{checkpoint.description}</p>
               )}
             </div>
           </li>

@@ -122,7 +122,7 @@ export default function WorkspacePanel() {
         aria-label="Close workspace panel"
         onClick={closePanel}
       />
-      <aside className={`fixed inset-y-0 right-0 z-50 h-full w-full border-l border-white/10 bg-[#0a0a0a] shadow-2xl transition-[transform,opacity] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none lg:static lg:flex-1 ${isVisible ? 'translate-x-0 opacity-100' : 'pointer-events-none translate-x-6 opacity-0'} flex flex-col`}>
+      <aside className={`fixed inset-y-0 right-0 z-50 h-full w-full min-h-0 min-w-0 border-l border-white/10 bg-[#0a0a0a] shadow-2xl transition-[transform,opacity] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none lg:static lg:flex-1 ${isVisible ? 'translate-x-0 opacity-100' : 'pointer-events-none translate-x-6 opacity-0'} flex flex-col`}>
         
         {/* Scene Workspace */}
         <div className="flex-1 overflow-hidden flex flex-col">

@@ -96,12 +96,36 @@ const DEFAULT_TASK_DEFINITIONS: ReadonlyArray<{
     dependsOn: ['task-generate-code']
   },
   {
+    id: 'task-provision-sandbox',
+    title: 'Provision Sandbox',
+    description: 'Acquire dedicated Daytona sandbox environment for runtime execution.',
+    action: 'provision_sandbox',
+    command: 'provision_sandbox',
+    dependsOn: ['task-validate-code']
+  },
+  {
+    id: 'task-analyze-quality',
+    title: 'Multi-Agent Review',
+    description: 'Trigger autonomous agent team for static and runtime quality analysis.',
+    action: 'analyze_quality',
+    command: 'analyze_quality',
+    dependsOn: ['task-provision-sandbox']
+  },
+  {
+    id: 'task-autonomous-patching',
+    title: 'Autonomous Patching',
+    description: 'Self-correct codebase iteratively using gathered quality signals.',
+    action: 'autonomous_patching',
+    command: 'autonomous_patching',
+    dependsOn: ['task-analyze-quality']
+  },
+  {
     id: 'task-execute-code',
     title: 'Execute',
     description: 'Execute runtime workload in sandboxed environment.',
     action: 'execute_code',
     command: 'execute_code',
-    dependsOn: ['task-validate-code']
+    dependsOn: ['task-autonomous-patching']
   },
   {
     id: 'task-sync-state',
@@ -126,8 +150,15 @@ const ORCHESTRATION_STEP_TO_ACTION: Record<string, GveTaskAction> = {
   code_modified: 'generate_code',
   validate_code: 'validate_code',
   validation_failed: 'validate_code',
+  provision_sandbox: 'provision_sandbox',
+  'sandbox:creating': 'provision_sandbox',
+  analyze_quality: 'analyze_quality',
+  'sandbox:analyzing': 'analyze_quality',
+  autonomous_patching: 'autonomous_patching',
+  'sandbox:patching': 'autonomous_patching',
   execute_code: 'execute_code',
   executing: 'execute_code',
+  'sandbox:executing': 'execute_code',
   execution_skipped: 'execute_code',
   sync_state: 'sync_state',
   turn_complete: 'sync_state',

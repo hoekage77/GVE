@@ -1,5 +1,3 @@
-import './agents.css';
-
 interface AgentBadgeProps {
   agentCount: number;
   recommendationCount: number;
@@ -13,7 +11,7 @@ export default function AgentBadge({
 }: AgentBadgeProps) {
   return (
     <button
-      className="agent-badge"
+      className="inline-flex items-center gap-1 rounded border border-slate-700 bg-slate-800 px-2 py-1 text-[11px] text-slate-300"
       onClick={onClick}
       style={{
         cursor: onClick ? 'pointer' : 'default',
@@ -21,7 +19,7 @@ export default function AgentBadge({
       }}
       title={`${agentCount} agents analyzed, ${recommendationCount} recommendations`}
     >
-      <span className="agent-badge-icon">✨</span>
+      <span className="text-xs">✨</span>
       <span>{agentCount} agents</span>
       <span>•</span>
       <span>{recommendationCount} tips</span>

@@ -7,7 +7,6 @@ interface MessageTimestampProps {
   className?: string;
 }
 
-// Format timestamp relative to now
 function formatRelativeTime(timestamp: string): string {
   const date = new Date(timestamp);
   const now = new Date();
@@ -32,7 +31,6 @@ function formatRelativeTime(timestamp: string): string {
   }
 }
 
-// Format absolute timestamp
 function formatAbsoluteTime(timestamp: string): string {
   const date = new Date(timestamp);
   return date.toLocaleString(undefined, {
@@ -59,19 +57,18 @@ export function MessageTimestamp({
 
   return (
     <span
-      className={`message-timestamp ${className}`}
+      className={`inline-flex items-center gap-1 text-[0.65rem] text-slate-400/60 cursor-pointer transition-colors duration-150 select-none hover:text-blue-300/85 ${className}`}
       onClick={handleClick}
       title={formatAbsoluteTime(timestamp)}
     >
-      {showIcon && <Clock className="message-timestamp__icon" />}
-      <span className="message-timestamp__text">
+      {showIcon && <Clock className="w-[0.7rem] h-[0.7rem] opacity-60" />}
+      <span className="font-medium tracking-[0.02em]">
         {showAbsolute ? formatAbsoluteTime(timestamp) : formatRelativeTime(timestamp)}
       </span>
     </span>
   );
 }
 
-// Compact version for inline display
 export function MessageTimestampCompact({
   timestamp,
   className = ""
@@ -82,13 +79,12 @@ export function MessageTimestampCompact({
   if (!timestamp) return null;
 
   return (
-    <span className={`message-timestamp message-timestamp--compact ${className}`}>
+    <span className={`inline-flex items-center gap-1 text-[0.6rem] text-slate-500/50 select-none ${className}`}>
       {formatRelativeTime(timestamp)}
     </span>
   );
 }
 
-// Timestamp group separator (e.g., "Today", "Yesterday")
 export function TimestampGroup({
   label,
   className = ""
@@ -97,33 +93,32 @@ export function TimestampGroup({
   className?: string;
 }) {
   return (
-    <div className={`timestamp-group ${className}`}>
-      <span className="timestamp-group__label">{label}</span>
+    <div className={`flex items-center justify-center my-4 md:my-3 before:flex-1 before:h-px before:bg-slate-600/40 after:flex-1 after:h-px after:bg-slate-600/40 ${className}`}>
+      <span className="px-3 text-[0.65rem] md:text-[0.6rem] font-semibold uppercase tracking-[0.08em] text-slate-400/60">{label}</span>
     </div>
   );
 }
 
-// Hook for grouping messages by date
 export function useMessageGroups<T extends { createdAt?: string }>(
   messages: T[]
 ): Array<{ label: string; items: T[] }> {
   const groups: Array<{ label: string; items: T[] }> = [];
-  
+
   const today = new Date();
   today.setHours(0, 0, 0, 0);
-  
+
   const yesterday = new Date(today);
   yesterday.setDate(yesterday.getDate() - 1);
-  
+
   const lastWeek = new Date(today);
   lastWeek.setDate(lastWeek.getDate() - 7);
 
   messages.forEach(message => {
     if (!message.createdAt) return;
-    
+
     const date = new Date(message.createdAt);
     date.setHours(0, 0, 0, 0);
-    
+
     let label: string;
     if (date.getTime() === today.getTime()) {
       label = "Today";

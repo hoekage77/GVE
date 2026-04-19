@@ -2,10 +2,12 @@
   "name": "@visual-runtime/server",
   "version": "1.0.0",
   "type": "module",
-  "main": "server/index.js",
+  "main": "server/index.ts",
   "scripts": {
-    "dev": "node --watch server/index.js",
-    "start": "node server/index.js",
+    "dev": "tsx --watch server/index.ts",
+    "start": "tsx server/index.ts",
+    "typecheck": "tsc --noEmit",
+    "build": "tsc",
     "test:sandbox:direct": "node ./scripts/sandbox-direct-test.mjs",
     "test:sandbox:runtime": "node ./scripts/sandbox-runtime-test.mjs",
     "test:sandbox:soak": "node ./scripts/sandbox-soak-test.mjs",
@@ -25,5 +27,13 @@
     "cors": "^2.8.6",
     "express": "^5.2.1",
     "ws": "^8.20.0"
+  },
+  "devDependencies": {
+    "@types/cors": "^2.8.19",
+    "@types/express": "^5.0.6",
+    "@types/node": "^25.6.0",
+    "@types/ws": "^8.18.1",
+    "tsx": "^4.21.0",
+    "typescript": "^6.0.3"
   }
 }

@@ -1,5 +1,3 @@
-import './agents.css';
-
 interface MemoryEntry {
   iteration: number;
   pattern: string;
@@ -14,9 +12,9 @@ interface AgentMemoryTimelineProps {
 export default function AgentMemoryTimeline({ memory = [] }: AgentMemoryTimelineProps) {
   if (memory.length === 0) {
     return (
-      <div className="agent-panel-empty">
+      <div className="flex h-full flex-col items-center justify-center gap-3 p-5 text-center text-slate-400">
         <p>No learning patterns yet.</p>
-        <p style={{ fontSize: '12px' }}>Run multiple iterations to see patterns emerge.</p>
+        <p className="text-xs">Run multiple iterations to see patterns emerge.</p>
       </div>
     );
   }
@@ -29,7 +27,7 @@ export default function AgentMemoryTimeline({ memory = [] }: AgentMemoryTimeline
   const pending = sortedMemory.filter(m => !m.resolved);
 
   return (
-    <div className="agent-memory-timeline">
+    <div className="flex flex-col gap-3">
       {/* Resolved Patterns */}
       {resolved.length > 0 && (
         <div>
@@ -45,16 +43,16 @@ export default function AgentMemoryTimeline({ memory = [] }: AgentMemoryTimeline
             ✓ Fixed Issues
           </h4>
           {resolved.map((entry, idx) => (
-            <div key={`resolved-${idx}`} className="agent-memory-item">
-              <div className="agent-memory-iteration">
+            <div key={`resolved-${idx}`} className="rounded-lg border border-slate-700 border-l-[3px] border-l-blue-400 bg-slate-800 p-3">
+              <div className="mb-1 text-[11px] uppercase tracking-[0.3px] text-slate-400">
                 Iteration {entry.iteration}
               </div>
-              <div className="agent-memory-pattern">
+              <div className="mb-1 text-[13px] leading-5 text-slate-200">
                 {entry.pattern}
               </div>
-              <div className="agent-memory-frequency">
+              <div className="inline-flex items-center gap-1 text-[11px] text-slate-400">
                 <span>Occurred {entry.frequency}x</span>
-                <span className="agent-memory-resolved">
+                <span className="ml-2 inline-flex items-center gap-1 text-emerald-500">
                   ✓ Resolved
                 </span>
               </div>
@@ -78,14 +76,14 @@ export default function AgentMemoryTimeline({ memory = [] }: AgentMemoryTimeline
             ⚠ Ongoing Patterns
           </h4>
           {pending.map((entry, idx) => (
-            <div key={`pending-${idx}`} className="agent-memory-item">
-              <div className="agent-memory-iteration">
+            <div key={`pending-${idx}`} className="rounded-lg border border-slate-700 border-l-[3px] border-l-blue-400 bg-slate-800 p-3">
+              <div className="mb-1 text-[11px] uppercase tracking-[0.3px] text-slate-400">
                 Iteration {entry.iteration}
               </div>
-              <div className="agent-memory-pattern">
+              <div className="mb-1 text-[13px] leading-5 text-slate-200">
                 {entry.pattern}
               </div>
-              <div className="agent-memory-frequency">
+              <div className="inline-flex items-center gap-1 text-[11px] text-slate-400">
                 <span>Occurred {entry.frequency}x</span>
               </div>
             </div>

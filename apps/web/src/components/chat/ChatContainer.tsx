@@ -401,6 +401,7 @@ function buildUniqueSceneIdVersionMap(sceneVersions: SceneVersionRecord[]): Map<
 export function ChatContainer({ variant = "legacy" }: ChatContainerProps) {
   const [isTasksExpanded, setIsTasksExpanded] = useState(false);
   const chatRef = useRef<HTMLDivElement>(null);
+  const isMetaVariant = variant === "meta";
   const {
     sessions,
     activeSessionId,
@@ -549,13 +550,15 @@ export function ChatContainer({ variant = "legacy" }: ChatContainerProps) {
 
       {/* RIGHT AGENT */}
       <aside
-        className={`relative z-20 w-full min-w-0 transition-all duration-300 ease-out ${
+        className={`flex flex-col relative z-20 min-h-0 h-full w-full min-w-0 transition-all duration-300 ease-out ${
           panelOpen
-            ? "h-[44vh] shrink-0 p-0 xl:h-full xl:w-[420px] 2xl:w-[460px]"
-            : "h-full flex-1 p-0"
+            ? (isMetaVariant
+              ? "flex-1 p-0 lg:w-[420px] lg:flex-none 2xl:w-[460px]"
+              : "flex-1 p-0 lg:w-[420px] 2xl:w-[460px]")
+            : "flex-1 p-0"
         }`}
       >
-        <div className="relative h-full overflow-hidden border border-white/10 bg-[#0b0b10]/90 shadow-[-20px_0_50px_-25px_rgba(0,0,0,0.7)] rounded-none">
+        <div className="relative flex-1 min-h-0 h-full overflow-hidden border border-white/10 bg-[#0b0b10]/90 shadow-[-20px_0_50px_-25px_rgba(0,0,0,0.7)] rounded-none">
           <div className="pointer-events-none absolute inset-0">
             <div className="absolute inset-0 bg-[radial-gradient(circle_at_12%_8%,rgba(56,189,248,0.14),transparent_45%),radial-gradient(circle_at_85%_18%,rgba(236,72,153,0.1),transparent_50%)]" />
             <div
@@ -568,15 +571,16 @@ export function ChatContainer({ variant = "legacy" }: ChatContainerProps) {
             />
           </div>
 
-          <div className="relative z-10 flex h-full flex-col">
-            {sessionsError && <div className="border-b border-red-500/20 bg-red-950/30 p-3 text-xs text-red-300">{sessionsError}</div>}
+          <div className="relative z-10 flex h-full flex-col pt-11 lg:pt-0">
+            {sessionsError && <div className="border-b border-red-500/20 bg-red-950/30 px-3 py-1.5 text-[11px] text-red-300/80 lg:p-3 lg:text-xs">{sessionsError}</div>}
 
             {/* Messages */}
             <div
-              className="flex min-h-0 w-full flex-1 overflow-x-hidden overflow-y-auto scrollbar px-0 py-0"
+              className="flex min-h-0 w-full flex-1 overflow-x-hidden overflow-y-auto scroll-smooth scrollbar px-0 py-0"
               ref={chatRef}
             >
-          <div className={`flex w-full min-h-full flex-col gap-5 ${panelOpen ? '' : 'mx-auto max-w-[980px] px-4 py-3'}`}>
+          <div className={`flex w-full flex-col gap-3 lg:gap-5 ${panelOpen ? 'px-3 py-2 lg:px-0 lg:py-0' : 'mx-auto max-w-[980px] px-4 py-4 lg:px-6 lg:py-6'}`}>
+            <div className="flex-1 min-h-[40px]" />
           {displayMessages.map(({ message, thoughts, sceneId, promptContext, skill, assistantSource, assistantWarning, errorCode }, index) => {
             const isLast = index === displayMessages.length - 1;
             const thinkingDuration = getThinkingDuration(thoughts);
@@ -725,8 +729,8 @@ export function ChatContainer({ variant = "legacy" }: ChatContainerProps) {
             )}
 
             {/* Input */}
-            <div className="shrink-0 border-t border-white/10 bg-black/35 p-0 backdrop-blur-sm">
-              <div className={`relative ${panelOpen ? '' : 'mx-auto w-full max-w-[980px] px-4 py-3'}`}>
+            <div className="shrink-0 border-t border-white/[0.08] bg-black/40 p-0 backdrop-blur-xl">
+              <div className={`relative ${panelOpen ? 'px-3 py-3 lg:px-0 lg:py-0' : 'mx-auto w-full max-w-[980px] px-4 py-3 lg:px-6 lg:py-4'}`}>
                 <Composer
                   value={composerValue}
                   onChange={setComposerValue}
@@ -775,22 +779,22 @@ function WelcomeScreen({
   };
 
   return (
-    <div className={`chat-welcome ${variant === "meta" ? "chat-welcome--meta" : ""}`}>
-      <div className="chat-welcome-content">
-        <div className="chat-welcome-eyebrow">GenVis Workspace</div>
-        <h1>Build visual ideas that feel production-ready</h1>
-        <p>
+    <div className="flex h-full w-full items-center justify-center overflow-y-auto p-4 lg:p-8">
+      <div className="w-full max-w-4xl rounded-2xl border border-white/10 bg-white/[0.03] p-6 backdrop-blur-xl lg:p-10">
+        <div className="mb-3 text-[11px] font-semibold uppercase tracking-[0.16em] text-white/50">GenVis Workspace</div>
+        <h1 className="text-2xl font-semibold text-white lg:text-3xl">Build visual ideas that feel production-ready</h1>
+        <p className="mt-3 max-w-3xl text-sm leading-7 text-white/70 lg:text-base">
           Move from prompt to polished output with live preview, editable code, and turn-by-turn progress in one focused canvas.
         </p>
-        {error && <p className="chat-welcome-error">{error}</p>}
-        <div className="chat-welcome-actions">
-          <button type="button" className="chat-welcome-button" onClick={() => void createNewChat()}>
+        {error && <p className="mt-3 rounded-lg border border-red-500/30 bg-red-950/40 px-3 py-2 text-sm text-red-300">{error}</p>}
+        <div className="mt-5 flex flex-wrap gap-2">
+          <button type="button" className="inline-flex items-center gap-2 rounded-lg border border-sky-400/45 bg-sky-400/15 px-4 py-2 text-sm font-medium text-sky-100 transition hover:bg-sky-400/25" onClick={() => void createNewChat()}>
             <Send className="h-4 w-4" />
             {isCreating || isBootstrapping ? "Preparing..." : "Start New Chat"}
           </button>
           <button
             type="button"
-            className="chat-welcome-button chat-welcome-button--ghost"
+            className="inline-flex items-center rounded-lg border border-white/15 bg-white/[0.04] px-4 py-2 text-sm font-medium text-white/80 transition hover:bg-white/[0.08] disabled:opacity-50"
             onClick={() => void createNewChat()}
             disabled={isCreating || isBootstrapping}
           >
@@ -798,32 +802,32 @@ function WelcomeScreen({
           </button>
         </div>
 
-        <div className="chat-welcome-capabilities" aria-label="Core capabilities">
-          <div className="chat-welcome-capability">
-            <h3>Live Preview</h3>
-            <p>See scene updates immediately while iterating.</p>
+        <div className="mt-6 grid gap-3 sm:grid-cols-3" aria-label="Core capabilities">
+          <div className="rounded-xl border border-white/10 bg-white/[0.03] p-4">
+            <h3 className="text-sm font-semibold text-white">Live Preview</h3>
+            <p className="mt-1 text-xs leading-6 text-white/65">See scene updates immediately while iterating.</p>
           </div>
-          <div className="chat-welcome-capability">
-            <h3>Code + Prompt</h3>
-            <p>Refine visuals from both natural language and code edits.</p>
+          <div className="rounded-xl border border-white/10 bg-white/[0.03] p-4">
+            <h3 className="text-sm font-semibold text-white">Code + Prompt</h3>
+            <p className="mt-1 text-xs leading-6 text-white/65">Refine visuals from both natural language and code edits.</p>
           </div>
-          <div className="chat-welcome-capability">
-            <h3>Task Trace</h3>
-            <p>Track parse, build, generate, and sync steps in real time.</p>
+          <div className="rounded-xl border border-white/10 bg-white/[0.03] p-4">
+            <h3 className="text-sm font-semibold text-white">Task Trace</h3>
+            <p className="mt-1 text-xs leading-6 text-white/65">Track parse, build, generate, and sync steps in real time.</p>
           </div>
         </div>
 
-        <div className="chat-welcome-starters" aria-label="Starter ideas">
+        <div className="mt-6 grid gap-2 sm:grid-cols-2" aria-label="Starter ideas">
           {WELCOME_STARTERS.map((starter) => (
             <button
               key={starter.title}
               type="button"
-              className="chat-welcome-starter"
+              className="group rounded-xl border border-white/10 bg-white/[0.02] p-4 text-left transition hover:border-white/20 hover:bg-white/[0.06] disabled:opacity-60"
               onClick={() => void createNewChat()}
               disabled={isCreating || isBootstrapping}
             >
-              <span className="chat-welcome-starter__title">{starter.title}</span>
-              <span className="chat-welcome-starter__description">{starter.description}</span>
+              <span className="block text-sm font-semibold text-white">{starter.title}</span>
+              <span className="mt-1 block text-xs leading-6 text-white/65">{starter.description}</span>
             </button>
           ))}
         </div>
