@@ -43,6 +43,9 @@ const PIPELINE_ACTION_ORDER: ReadonlyArray<GveTaskAction> = [
   'build_prompt',
   'generate_code',
   'validate_code',
+  'provision_sandbox',
+  'analyze_quality',
+  'autonomous_patching',
   'execute_code',
   'sync_state'
 ];
@@ -205,6 +208,9 @@ function normalizeStageEventMap(value: unknown): StageEventMap {
     build_prompt: Array.isArray(map.build_prompt) ? map.build_prompt : fallback.build_prompt,
     generate_code: Array.isArray(map.generate_code) ? map.generate_code : fallback.generate_code,
     validate_code: Array.isArray(map.validate_code) ? map.validate_code : fallback.validate_code,
+    provision_sandbox: Array.isArray(map.provision_sandbox) ? map.provision_sandbox : fallback.provision_sandbox,
+    analyze_quality: Array.isArray(map.analyze_quality) ? map.analyze_quality : fallback.analyze_quality,
+    autonomous_patching: Array.isArray(map.autonomous_patching) ? map.autonomous_patching : fallback.autonomous_patching,
     execute_code: Array.isArray(map.execute_code) ? map.execute_code : fallback.execute_code,
     sync_state: Array.isArray(map.sync_state) ? map.sync_state : fallback.sync_state
   };

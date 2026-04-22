@@ -1,13 +1,20 @@
-// @ts-nocheck
 import { getPool } from "../llm-pool.js";
 import { parseIntentFromQuery } from "./intent-classifier.js";
 import { resolveAssetPlan } from "../asset-resolver.js";
-import { computeBoundedTimeoutMs, executeSkillRuntimeWithQualityDecision, resolveRuntimeExecutionTimeoutMs, shouldDegradeRuntimeFailure, buildDegradedRuntimeResult } from "./runtime-executor.js";
+import { computeBoundedTimeoutMs, executeSkillRuntimeWithQualityDecision, resolveRuntimeExecutionTimeoutMs, shouldDegradeRuntimeFailure, buildDegradedRuntimeResult, runtimeExecutionMaxFrames } from "./runtime-executor.js";
 import { buildModificationPromptBundle } from "../prompt-manager.js";
-
-// Dummy function references since we need them
 import { attemptRuntimeAgentRecovery } from "../agent-runner.js";
-import { applyFallbackSceneEdit } from "../sandbox/fallback.js"; // or similar
+import { applyFallbackSceneEdit } from "../sandbox/fallback.js";
+import {
+  modifyRequestSchema,
+  resolveRequestedQuality,
+  emitPipelineProgress,
+  getTurnDeadlineAtMs,
+  runtimeDebugMaxIterations,
+  extractCodeContent,
+  describeGenerationSource
+} from "./utils.js";
+import { sleep } from "../lib/utils.js";
 
 function normalizeCodeForSemanticCompare(code: any) {
   return String(code ?? "")
@@ -21,17 +28,17 @@ function splitCodeLines(code: any) {
   return String(code ?? "").split("\n");
 }
 
-export function buildLineDiffOperations(previousLines: any, nextLines: any) {
+export function buildLineDiffOperations(previousLines: string[], nextLines: string[]) {
   const rowCount = previousLines.length;
   const columnCount = nextLines.length;
-  const matrix = Array.from({ length: rowCount + 1 }, () => Array(columnCount + 1).fill(0));
+  const matrix: number[][] = Array.from({ length: rowCount + 1 }, () => Array(columnCount + 1).fill(0));
 
   for (let row = rowCount - 1; row >= 0; row -= 1) {
     for (let column = columnCount - 1; column >= 0; column -= 1) {
       if (previousLines[row] === nextLines[column]) {
-        matrix[row][column] = matrix[row + 1][column + 1] + 1;
+        matrix[row]![column] = (matrix[row + 1]![column + 1] ?? 0) + 1;
       } else {
-        matrix[row][column] = Math.max(matrix[row + 1][column], matrix[row][column + 1]);
+        matrix[row]![column] = Math.max(matrix[row + 1]![column] ?? 0, matrix[row]![column + 1] ?? 0);
       }
     }
   }
@@ -48,7 +55,7 @@ export function buildLineDiffOperations(previousLines: any, nextLines: any) {
       continue;
     }
 
-    if (matrix[row + 1][column] >= matrix[row][column + 1]) {
+    if ((matrix[row + 1]![column] ?? 0) >= (matrix[row]![column + 1] ?? 0)) {
       operations.push({ type: "remove", line: previousLines[row] });
       row += 1;
     } else {
@@ -164,7 +171,7 @@ export function detectNoopModification({ previousCode, nextCode, changeSummary, 
 // We will implement modifyVisual later or let the facade do it, as modifyVisual is huge and relies on `modifyCodeWithPool`.
 
 
-export async function modifyVisual(input: any, options = {}) {
+export async function modifyVisual(input: any, options: any = {}): Promise<any> {
   const onProgress = options.onProgress ?? null;
   const request = modifyRequestSchema.parse(input);
   const runMode = request.runMode ?? "modify";
@@ -218,7 +225,7 @@ export async function modifyVisual(input: any, options = {}) {
     try {
       modificationResult = await modifyCodeWithPool(modificationState);
     } catch (error) {
-      const fallback = applyFallbackSceneEdit(modificationState.currentCode, modificationState.instruction);
+      const fallback = await applyFallbackSceneEdit(modificationState.currentCode, modificationState.instruction);
       modificationResult = {
         generatedCode: fallback.generatedCode,
         generationSource: "fallback",
@@ -422,7 +429,7 @@ export async function modifyVisual(input: any, options = {}) {
     sessionId: request.sessionId,
     quality: requestedQuality,
     originalQuery: normalizedInstruction,
-    onProgress: (progressEvent) => {
+    onProgress: (progressEvent: any) => {
       if (typeof onProgress === "function") {
         try {
           onProgress({
@@ -554,12 +561,12 @@ export async function modifyVisual(input: any, options = {}) {
   };
 }
 
-async function modifyCodeWithPool(state: any, options = {}) {
+async function modifyCodeWithPool(state: any, options: any = {}) {
   const pool = getPool();
   const maxAttempts = pool.providers.filter((p) => p.hasApiKey).length;
 
   if (maxAttempts === 0) {
-    const fallback = applyFallbackSceneEdit(state.currentCode, state.instruction);
+    const fallback = await applyFallbackSceneEdit(state.currentCode, state.instruction);
     return {
       generatedCode: fallback.generatedCode,
       generationSource: "fallback",
@@ -586,7 +593,7 @@ async function modifyCodeWithPool(state: any, options = {}) {
     triedProviders.add(provider.id);
 
     try {
-      const response = await fetchChatCompletion(provider, {
+      const response = await fetchChatCompletionLocal(provider, {
         messages: [
           { role: "system", content: systemPrompt },
           { role: "user", content: userPrompt },
@@ -609,7 +616,7 @@ async function modifyCodeWithPool(state: any, options = {}) {
         generationWarning: null,
         changeSummary: "Applied model-driven scene modification.",
       };
-    } catch (error) {
+    } catch (error: any) {
       const isRateLimited = error?.status === 429 || error?.code === "PROVIDER_RATE_LIMITED";
       const isTimeout = /timed? ?out/i.test(error?.message ?? "");
       const isOverloaded = /(overloaded|engine_overloaded|temporarily)/i.test(error?.message ?? "");
@@ -625,7 +632,7 @@ async function modifyCodeWithPool(state: any, options = {}) {
   }
 
   // All providers exhausted
-  const fallback = applyFallbackSceneEdit(state.currentCode, state.instruction);
+  const fallback = await applyFallbackSceneEdit(state.currentCode, state.instruction);
   pool.recordFallback();
   return {
     generatedCode: fallback.generatedCode,
@@ -633,4 +640,17 @@ async function modifyCodeWithPool(state: any, options = {}) {
     generationWarning: `All ${triedProviders.size} LLM providers exhausted; used fallback modifier.`,
     changeSummary: fallback.changeSummary,
   };
+}
+
+async function fetchChatCompletionLocal(provider: any, payload: any, options = {}) {
+  const endpoint = `${provider.baseUrl.replace(/\/$/, "")}/chat/completions`;
+  const response = await fetch(endpoint, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${provider.apiKey}`,
+    },
+    body: JSON.stringify(payload),
+  });
+  return response;
 }

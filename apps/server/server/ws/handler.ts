@@ -1,5 +1,4 @@
-// @ts-nocheck
-export const wsClients = new Set();
+export const wsClients = new Set<any>();
 
 import { 
   executeChatTurn, 
@@ -14,34 +13,36 @@ import { sendSocketPayload, sendSocketEvent, replayEventsSince, broadcastEvent, 
 import { listSessionMessages } from "../session-state.js";
 const completedTurnCacheSize = Number.parseInt(String(process.env.WS_COMPLETED_TURN_CACHE_SIZE ?? "300"), 10);
 
-const activeChatTurns = new Map();
-const completedChatTurns = new Map();
-const activeSceneCommands = new Map();
-const completedSceneCommands = new Map();
+const activeChatTurns = new Map<string, Promise<any>>();
+const completedChatTurns = new Map<string, any>();
+const activeSceneCommands = new Map<string, Promise<any>>();
+const completedSceneCommands = new Map<string, any>();
 
 function pruneCompletedTurnCache() {
   if (completedChatTurns.size <= completedTurnCacheSize) return;
   const keys = [...completedChatTurns.keys()];
   const overflow = completedChatTurns.size - completedTurnCacheSize;
   for (let index = 0; index < overflow; index += 1) {
-    completedChatTurns.delete(keys[index]);
+    const key = keys[index];
+    if (key) completedChatTurns.delete(key);
   }
 }
 
-function rememberCompletedTurn(turnKey, payload) {
+function rememberCompletedTurn(turnKey: string, payload: any) {
   if (!turnKey || !payload) return;
   completedChatTurns.set(turnKey, { ...payload, completedAt: new Date().toISOString() });
   pruneCompletedTurnCache();
 }
 
-function rememberCompletedSceneCommand(commandKey, payload) {
+function rememberCompletedSceneCommand(commandKey: string, payload: any) {
   if (!commandKey || !payload) return;
   completedSceneCommands.set(commandKey, { ...payload, completedAt: new Date().toISOString() });
   if (completedSceneCommands.size <= completedTurnCacheSize) return;
   const keys = [...completedSceneCommands.keys()];
   const overflow = completedSceneCommands.size - completedTurnCacheSize;
   for (let index = 0; index < overflow; index += 1) {
-    completedSceneCommands.delete(keys[index]);
+    const key = keys[index];
+    if (key) completedSceneCommands.delete(key);
   }
 }
 
@@ -59,7 +60,7 @@ export function setupWebSocketHandler(wsServer: any) {
     wsClients.delete(socket);
   });
 
-  socket.on("message", (rawMessage) => {
+  socket.on("message", (rawMessage: any) => {
     void (async () => {
       try {
         const parsedMessage = JSON.parse(rawMessage.toString());
@@ -216,10 +217,10 @@ export function setupWebSocketHandler(wsServer: any) {
         const clientMessageId = String(parsedMessage?.payload?.clientMessageId ?? "").trim();
         const requestId = String(parsedMessage?.payload?.requestId ?? clientMessageId ?? "").trim();
         const idempotencyKey = String(parsedMessage?.payload?.idempotencyKey ?? requestId ?? clientMessageId ?? "").trim();
-        const forcedMode = normalizeRequestedTurnMode(
+        const forcedMode: string | null = normalizeRequestedTurnMode(
           parsedMessage?.payload?.mode ?? parsedMessage?.payload?.preferences?.mode
         );
-        const normalizedPreferences = normalizeTurnPreferences(parsedMessage?.payload?.preferences, forcedMode);
+        const normalizedPreferences = normalizeTurnPreferences(parsedMessage?.payload?.preferences, forcedMode as any);
 
         if (!sessionId || (!content && !hasImage)) {
           sendSocketEvent(socket, "message:error", {

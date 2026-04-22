@@ -953,6 +953,9 @@ function buildDevTaskExecution(planId: string, task: GveTask): TaskExecutionResp
     build_prompt: "Prompt context assembled with templates, examples, and runtime constraints.",
     generate_code: "Code generation completed with 126 lines of JavaScript.",
     validate_code: "Validation passed: syntax, API whitelist, and security policy checks all green.",
+    provision_sandbox: "Sandbox provisioned and configured with required runtime dependencies.",
+    analyze_quality: "Code quality analysis completed. Performance and safety metrics evaluated.",
+    autonomous_patching: "Autonomous patching applied. Code validated against safety policies and whitelist.",
     execute_code: "Sandbox execution succeeded. Preview artifact generated.",
     sync_state: "Scene state version committed and websocket broadcast dispatched."
   };

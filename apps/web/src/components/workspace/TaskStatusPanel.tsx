@@ -23,6 +23,9 @@ const EMPTY_STAGE_EVENTS: StageEventMap = {
   build_prompt: [],
   generate_code: [],
   validate_code: [],
+  provision_sandbox: [],
+  analyze_quality: [],
+  autonomous_patching: [],
   execute_code: [],
   sync_state: []
 };
@@ -305,7 +308,7 @@ export default function TaskStatusPanel({
                                 <span className="uppercase tracking-wider">{eventSourceLabel(entry.source)}</span>
                                 <span>{formatEventTime(entry.createdAt)}</span>
                               </div>
-                              <p className={`text-xs ${entry.status === 'error' || entry.status === 'failed' ? 'text-red-400' : 'text-neutral-300'}`}>
+                              <p className={`text-xs ${entry.status === 'failed' ? 'text-red-400' : 'text-neutral-300'}`}>
                                 {entry.text}
                               </p>
                               {entry.detail && (

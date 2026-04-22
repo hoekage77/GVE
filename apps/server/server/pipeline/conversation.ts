@@ -1,11 +1,23 @@
-// @ts-nocheck
 import { getPool } from "../llm-pool.js";
 
-import { executeWithProviderFailover, buildLlmSourceMetadata } from "./failover.js";
+import { executeWithProviderFailover, buildLlmSourceMetadata, createRetryableProviderError } from "./failover.js";
+import { extractChoiceContent, fetchChatCompletion } from "./utils.js";
 
 import { parseIntentFromQuery, applySessionAwareIntentOverrides } from "./intent-classifier.js";
+import {
+  narrationRetryDelaysMs,
+  moonshotRetryDelaysMs,
+  fastModeEnabled,
+  extractAssistantText,
+  buildLocalPostTurnNarration,
+  serializeErrorForDiagnostics,
+  generateConversationReplyWithMoonshot
+} from "./utils.js";
+import { modifyVisual } from "./code-modifier.js";
+import { generateVisual } from "./code-generator.js";
+import { truncateDiagnostic } from "../lib/utils.js";
 
-export async function generateThinkingAnalysis(query: any, sessionContext = {}, options = {}) {
+export async function generateThinkingAnalysis(query: any, sessionContext: any = {}, options: any = {}) {
   const hasScene = Boolean(sessionContext?.currentScene?.code);
   const sceneHint = hasScene
     ? `The user already has an active scene (skill: ${sessionContext.currentScene.skill ?? "unknown"}, version ${sessionContext.currentScene.version ?? 1}).`
@@ -44,7 +56,7 @@ export async function generateThinkingAnalysis(query: any, sessionContext = {}, 
       filter: { requireThinking: true },
       mode: "thinking",
       retryDelays: thinkingRetryDelays,
-      executeProvider: async ({ provider, mode: providerMode, retryDelays }) => {
+      executeProvider: async ({ provider, mode: providerMode, retryDelays }: any) => {
         const response = await fetchChatCompletion(
           provider,
           {
@@ -74,7 +86,7 @@ export async function generateThinkingAnalysis(query: any, sessionContext = {}, 
 
     console.log(`[ThinkingAnalysis] Generated context-aware thoughts via ${completion.provider.id} for:`, query.slice(0, 60));
     return completion.value;
-  } catch (err) {
+  } catch (err: any) {
     const diagnostics = serializeErrorForDiagnostics(err, {
       stage: "thinking_analysis",
       queryPreview: truncateDiagnostic(query, 96),
@@ -96,7 +108,7 @@ export async function generateThinkingAnalysis(query: any, sessionContext = {}, 
   }
 }
 
-export async function generatePostTurnNarration(turnResult: any, query: any, options = {}) {
+export async function generatePostTurnNarration(turnResult: any, query: any, options: any = {}) {
   const fastNarrationMode = options.fastMode ?? fastModeEnabled;
 
   const skill = turnResult?.result?.skill ?? "unknown";
@@ -127,7 +139,7 @@ export async function generatePostTurnNarration(turnResult: any, query: any, opt
       filter: { requireThinking: true },
       mode: "thinking",
       retryDelays: narrationRetryDelays,
-      executeProvider: async ({ provider, mode: providerMode, retryDelays }) => {
+      executeProvider: async ({ provider, mode: providerMode, retryDelays }: any) => {
         const response = await fetchChatCompletion(
           provider,
           {
@@ -157,13 +169,13 @@ export async function generatePostTurnNarration(turnResult: any, query: any, opt
     }
 
     return content || null;
-  } catch (err) {
+  } catch (err: any) {
     console.warn("[PostTurnNarration] Failed:", err instanceof Error ? err.message : "Unknown error");
     return buildLocalPostTurnNarration(turnResult, query);
   }
 }
 
-export async function resolveChatTurn(request: any, sessionState: any, options = {}) {
+export async function resolveChatTurn(request: any, sessionState: any, options: any = {}) {
   const forcedMode = String(request?.preferences?.mode ?? "").trim().toLowerCase();
   let parsedIntent = applySessionAwareIntentOverrides(parseIntentFromQuery(request.query), request.query, sessionState);
 
@@ -274,50 +286,4 @@ export async function resolveChatTurn(request: any, sessionState: any, options =
     result,
     sceneState: result.sceneState
   };
-}
-
-function extractChoiceContent(rawContent: any) {
-  if (typeof rawContent === "string") {
-    return rawContent;
-  }
-
-  if (Array.isArray(rawContent)) {
-    return rawContent
-      .map((part) => {
-        if (typeof part === "string") {
-          return part;
-        }
-
-        if (!part || typeof part !== "object") {
-          return "";
-        }
-
-        if (typeof part.text === "string") {
-          return part.text;
-        }
-
-        if (typeof part.content === "string") {
-          return part.content;
-        }
-
-        if (typeof part.value === "string") {
-          return part.value;
-        }
-
-        return "";
-      })
-      .join("");
-  }
-
-  if (rawContent && typeof rawContent === "object") {
-    if (typeof rawContent.text === "string") {
-      return rawContent.text;
-    }
-
-    if (typeof rawContent.content === "string") {
-      return rawContent.content;
-    }
-  }
-
-  return "";
 }

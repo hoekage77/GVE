@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { getPool } from "../llm-pool.js";
 import { sleep, truncateDiagnostic } from "../lib/utils.js";
 
@@ -101,7 +100,7 @@ export async function executeWithProviderFailover(options: any = {}): Promise<an
   const maxAttempts = countEligibleProviders(pool, filter);
 
   if (maxAttempts === 0) {
-    const error = new Error(`${operationName} has no eligible LLM providers configured.`);
+    const error: any = new Error(`${operationName} has no eligible LLM providers configured.`);
     error.code = "NO_ELIGIBLE_LLM_PROVIDER";
     throw error;
   }
@@ -159,7 +158,7 @@ export async function executeWithProviderFailover(options: any = {}): Promise<an
           attempts
         })
       };
-    } catch (error) {
+    } catch (error: any) {
       const retryable = isRetryableProviderFailure(error);
       const reason = truncateDiagnostic(error?.code ?? error?.message ?? "provider_failure", 180);
 
@@ -188,7 +187,7 @@ export async function executeWithProviderFailover(options: any = {}): Promise<an
     }
   }
 
-  const exhaustedError = new Error(`${operationName}: all eligible LLM providers were exhausted.`);
+  const exhaustedError: any = new Error(`${operationName}: all eligible LLM providers were exhausted.`);
   exhaustedError.code = "ALL_LLM_PROVIDERS_EXHAUSTED";
   exhaustedError.llm = buildLlmSourceMetadata({
     providerId: null,

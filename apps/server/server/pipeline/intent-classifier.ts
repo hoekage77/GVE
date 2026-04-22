@@ -1,4 +1,3 @@
-// @ts-nocheck
 export function normalizeQuery(query: string): string {
   return query.trim().toLowerCase();
 }

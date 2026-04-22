@@ -3978,9 +3978,8 @@ const skipExecutionAfterValidationFailureNode = (state) => {
   };
 };
 
-export function isValidationPassable(validation) {
-  return validation?.passable ?? validation?.valid ?? false;
-}
+// isValidationPassable has been moved to pipeline/graph.ts
+// Re-exported below for backward compatibility
 
 function routeAfterValidation(state) {
   const validationPassable = isValidationPassable(state.validation);
@@ -4098,43 +4097,19 @@ const buildResponseNode = (state) => {
   return { response };
 };
 
-const generationGraph = new StateGraph(generateState)
-  .addNode("parse_intent", parseIntentNode)
-  .addNode("select_skill", selectSkillNode)
-  .addNode("build_prompt", buildPromptNode)
-  .addNode("generate_code", generateCodeNode)
-  .addNode("validate_code", validateCodeNode)
-  .addNode("skip_execution_after_validation_failure", skipExecutionAfterValidationFailureNode)
-  .addNode("agent_self_debug", agentSelfDebugNode)
-  .addNode("validate_recovery_code", validateCodeNode)
-  .addNode("execute_code", executeCodeNode)
-  .addNode("abort_execution", abortExecutionNode)
-  .addNode("sync_state", syncStateNode)
-  .addNode("build_response", buildResponseNode)
-  .addEdge(START, "parse_intent")
-  .addEdge("parse_intent", "select_skill")
-  .addEdge("select_skill", "build_prompt")
-  .addEdge("build_prompt", "generate_code")
-  .addEdge("generate_code", "validate_code")
-  .addConditionalEdges("validate_code", routeAfterValidation, {
-    execute_code: "execute_code",
-    skip_execution_after_validation_failure: "skip_execution_after_validation_failure",
-    agent_self_debug: "agent_self_debug"
-  })
-  .addEdge("skip_execution_after_validation_failure", "sync_state")
-  .addEdge("agent_self_debug", "validate_recovery_code")
-  .addConditionalEdges("validate_recovery_code", routeAfterRecoveryValidation, {
-    execute_code: "execute_code",
-    abort_execution: "abort_execution"
-  })
-  .addConditionalEdges("execute_code", routeAfterExecution, {
-    sync_state: "sync_state",
-    build_response: "build_response"
-  })
-  .addEdge("abort_execution", "build_response")
-  .addEdge("sync_state", "build_response")
-  .addEdge("build_response", END)
-  .compile();
+// generationGraph has been extracted to pipeline/graph.ts
+// See that file for the full StateGraph implementation including:
+// - generateState definition
+// - All 12 graph nodes (parseIntentNode, selectSkillNode, buildPromptNode, etc.)
+// - Helper functions (attemptRuntimeAgentRecovery, buildResponseExplanation, etc.)
+// - Routing functions (routeAfterValidation, routeAfterRecoveryValidation, routeAfterExecution)
+// - StateGraph compilation
+//
+// The re-export above maintains backward compatibility.
+
+// Re-export generationGraph from pipeline/graph.ts to maintain backward compatibility
+// The full graph implementation has been extracted to reduce this file's size
+export { generationGraph, isValidationPassable } from './pipeline/graph.js';
 
 export async function planTasks(input) {
   const request = requestSchema.parse(input);

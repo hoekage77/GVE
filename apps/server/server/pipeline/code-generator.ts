@@ -1,22 +1,44 @@
-// @ts-nocheck
 import { getPool } from "../llm-pool.js";
-
-import { sleep } from "../lib/utils.js";
-
+import { sleep, truncateDiagnostic } from "../lib/utils.js";
+import { resolveAssetPlan } from "../asset-resolver.js";
+import { validateCode } from "../code-validator.js";
+import { setErrorContext, clearErrorContext, getDebugTools } from "../agent-tools.js";
+import { runSelfDebugSession, attemptRuntimeAgentRecovery } from "../agent-runner.js";
+import { parseIntentFromQuery } from "./intent-classifier.js";
+import { executeWithProviderFailover, createRetryableProviderError } from "./failover.js";
+import { extractChoiceContent, shouldRequireOrbitControls, hasOrbitControlsInCode, buildFallbackGeneratedCode } from "./utils.js";
+import { executeSkillRuntimeWithQualityDecision, runtimeExecutionMaxFrames, resolveRuntimeExecutionTimeoutMs, computeBoundedTimeoutMs, shouldDegradeRuntimeFailure, buildDegradedRuntimeResult, getTurnDeadlineAtMs } from "./runtime-executor.js";
 import { buildGenerationPromptBundle, buildImageToCodePromptBundle } from "../prompt-manager.js";
+import { 
+  moonshotModel,
+  moonshotBaseUrl,
+  moonshotApiKey,
+  moonshotModeProfiles,
+  moonshotRetryDelaysMs,
+  selfDebugSessionTimeoutMs,
+  selfDebugMaxIterations,
+  runtimeDebugMaxIterations,
+  resolveRequestedQuality,
+  resolveMoonshotTemperature,
+  buildValidationOptions,
+  withTimeout,
+  isMoonshotOverloaded,
+  createMoonshotOverloadedError,
+  requestSchema
+} from "./utils.js";
 
-import { shouldRequireOrbitControls, hasOrbitControlsInCode, buildFallbackGeneratedCode } from "./utils.js"; // assumes these exist
-
-function buildMoonshotRequestPayload(payload: any, options = {}) {
+function buildMoonshotRequestPayload(payload: any, options: any = {}) {
   const mode = options.mode ?? "thinking";
-  const modeProfile = moonshotModeProfiles[mode] ?? moonshotModeProfiles.thinking;
+  const modeProfile = moonshotModeProfiles[mode as keyof typeof moonshotModeProfiles] ?? moonshotModeProfiles.thinking;
   const enrichedPayload = { ...payload };
   const requestModel = enrichedPayload.model ?? moonshotModel;
   const requestedTemperature = payload.temperature ?? modeProfile.temperature;
 
   enrichedPayload.temperature = resolveMoonshotTemperature(requestModel, requestedTemperature);
 
-  if (mode === "instant" && modeProfile.thinking === false) {
+  const modeProfileWithThinking = modeProfile as { temperature: number; thinking?: boolean };
+
+  if (mode === "instant" && modeProfileWithThinking.thinking === false) {
     const existingExtraBody = payload.extra_body ?? {};
     const existingTemplateArgs = existingExtraBody.chat_template_kwargs ?? {};
 
@@ -123,7 +145,7 @@ async function emitTextChunks(text: any, onChunk: any) {
   }
 }
 
-async function fetchMoonshotChatCompletion(payload: any, options = {}) {
+async function fetchMoonshotChatCompletion(payload: any, options: any = {}) {
   const mode = options.mode ?? "thinking";
   let lastError = null;
   let attempt = 0;
@@ -160,9 +182,9 @@ async function fetchMoonshotChatCompletion(payload: any, options = {}) {
       }
 
       lastError = error;
-      await sleep(moonshotRetryDelaysMs[attempt]);
+      await sleep(moonshotRetryDelaysMs[attempt] ?? 250);
       attempt += 1;
-    } catch (error) {
+    } catch (error: any) {
       lastError = error;
       console.warn(`[Moonshot] [WARN] Fetch threw. attempt=${attempt}, error=${error instanceof Error ? error.message : String(error)}`);
 
@@ -170,7 +192,7 @@ async function fetchMoonshotChatCompletion(payload: any, options = {}) {
         throw error;
       }
 
-      await sleep(moonshotRetryDelaysMs[attempt]);
+      await sleep(moonshotRetryDelaysMs[attempt] ?? 250);
       attempt += 1;
     }
   }
@@ -182,7 +204,7 @@ async function fetchMoonshotChatCompletion(payload: any, options = {}) {
   throw lastError ?? new Error("Moonshot request failed.");
 }
 
-async function fetchChatCompletion(provider: any, payload: any, options = {}) {
+async function fetchChatCompletion(provider: any, payload: any, options: any = {}) {
   const mode = options.mode ?? "instant";
   const retryDelays = options.retryDelays ?? [150, 350];
   let lastError = null;
@@ -221,7 +243,7 @@ async function fetchChatCompletion(provider: any, payload: any, options = {}) {
       const bodyText = await response.text();
       console.warn(`[LLMPool] [WARN] ${provider.id} request failed. status=${response.status}, attempt=${attempt}, duration=${fetchDurationMs}ms, body=${bodyText.slice(0, 200)}`);
 
-      const error = new Error(`${provider.id} request failed (${response.status}): ${bodyText.slice(0, 220)}`);
+      const error: any = new Error(`${provider.id} request failed (${response.status}): ${bodyText.slice(0, 220)}`);
       error.status = response.status;
 
       // On 429, don't retry within this provider — let the pool handle rotation
@@ -238,7 +260,7 @@ async function fetchChatCompletion(provider: any, payload: any, options = {}) {
       lastError = error;
       await sleep(retryDelays[attempt]);
       attempt += 1;
-    } catch (error) {
+    } catch (error: any) {
       // If it's a rate-limit error, propagate immediately for pool rotation
       if (error?.code === "PROVIDER_RATE_LIMITED" || error?.status === 429) {
         throw error;
@@ -259,7 +281,7 @@ async function fetchChatCompletion(provider: any, payload: any, options = {}) {
   throw lastError ?? new Error(`${provider.id} request failed.`);
 }
 
-async function generateCodeWithPool(state: any) {
+export async function generateCodeWithPool(state: any) {
   const pool = getPool();
   const maxAttempts = pool.providers.filter((p) => p.hasApiKey).length;
 
@@ -378,7 +400,7 @@ async function generateCodeWithPool(state: any) {
         generationSource: provider.id,
         generationWarning: null,
       };
-    } catch (error) {
+    } catch (error: any) {
       const isRateLimited = error?.status === 429 || error?.code === "PROVIDER_RATE_LIMITED";
       const isTimeout = /timed? ?out/i.test(error?.message ?? "");
       const isOverloaded = /(overloaded|engine_overloaded|temporarily)/i.test(error?.message ?? "");
@@ -406,16 +428,21 @@ async function generateCodeWithPool(state: any) {
   };
 }
 
-export async function generateVisual(input: any, options = {}) {
+export async function generateVisual(input: any, options: any = {}): Promise<any> {
+  // Import generationGraph from the extracted graph module
+  const { generationGraph } = await import("./graph.js");
+  
   const request = requestSchema.parse(input);
   const turnStartedAtMs = Date.now();
   const turnDeadlineAtMs = getTurnDeadlineAtMs(turnStartedAtMs);
+  
   const result = await generationGraph.invoke({
     request,
     progress: options.onProgress ?? null,
     turnStartedAtMs,
     turnDeadlineAtMs
   });
+  
   return result.response;
 }
 
@@ -481,7 +508,7 @@ export async function generateFromImage(input: any) {
       filter: { requireCodeGeneration: true, requireVision: true },
       mode: "thinking",
       retryDelays: moonshotRetryDelaysMs,
-      executeProvider: async ({ provider, mode: providerMode, retryDelays }) => {
+      executeProvider: async ({ provider, mode: providerMode, retryDelays }: any) => {
         const response = await fetchChatCompletion(
           provider,
           {
@@ -511,7 +538,7 @@ export async function generateFromImage(input: any) {
     if (completion.llm.fallbackUsed) {
       generationWarning = `Primary vision model unavailable; generated via ${completion.provider.id}.`;
     }
-  } catch (error) {
+  } catch (error: any) {
     if (error?.code === "NO_ELIGIBLE_LLM_PROVIDER") {
       throw new Error("No vision-capable LLM provider is configured for image-to-code generation.");
     }
@@ -689,12 +716,12 @@ export async function generateFromImage(input: any) {
   };
 }
 
-function extractCodeContent(rawContent: any) {
+function extractCodeContent(rawContent: unknown): string {
   if (!rawContent || typeof rawContent !== "string") {
     return "";
   }
 
   const fencedBlock = rawContent.match(/```(?:[a-z0-9_-]+)?\s*([\s\S]*?)```/i);
   const output = fencedBlock ? fencedBlock[1] : rawContent;
-  return output.trim();
+  return (output ?? "").trim();
 }

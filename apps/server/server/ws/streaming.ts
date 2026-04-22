@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { wsClients } from "./handler.js";
 
 import { generateThought, tokenizeThought } from "../thought-generator.js";
@@ -11,10 +10,17 @@ const codeStreamChunkSize = Number.parseInt(String(process.env.CODE_STREAM_CHUNK
 const codeStreamChunkDelayMs = Number.parseInt(String(process.env.CODE_STREAM_CHUNK_DELAY_MS ?? (fastModeEnabled ? "0" : "8")), 10);
 const wsReplayBufferSize = Number.parseInt(String(process.env.WS_REPLAY_BUFFER_SIZE ?? "2000"), 10);
 
-export const eventReplayBuffer = [];
+export interface ReplayEvent {
+  type: string;
+  seq: number;
+  timestamp: string;
+  payload: any;
+}
+
+export const eventReplayBuffer: ReplayEvent[] = [];
 export let wsEventSequence = 0;
 
-export function createReplayableEvent(type, payload) {
+export function createReplayableEvent(type: string, payload: any): ReplayEvent {
   const event = {
     type,
     seq: ++wsEventSequence,
@@ -28,7 +34,7 @@ export function createReplayableEvent(type, payload) {
   return event;
 }
 
-export function sendSocketPayload(socket, payload) {
+export function sendSocketPayload(socket: any, payload: any) {
   if (!socket || socket.readyState !== 1) {
     return;
   }
@@ -36,7 +42,7 @@ export function sendSocketPayload(socket, payload) {
   socket.send(JSON.stringify(payload));
 }
 
-export function sendSocketEvent(socket, type, payload) {
+export function sendSocketEvent(socket: any, type: string, payload: any) {
   sendSocketPayload(socket, {
     type,
     timestamp: new Date().toISOString(),
@@ -44,7 +50,7 @@ export function sendSocketEvent(socket, type, payload) {
   });
 }
 
-export function eventMatchesSession(eventPayload, targetSessionId) {
+export function eventMatchesSession(eventPayload: any, targetSessionId: string): boolean {
   if (!targetSessionId) {
     return true;
   }
@@ -59,7 +65,7 @@ export function eventMatchesSession(eventPayload, targetSessionId) {
   return eventSessionId === targetSessionId;
 }
 
-export function replayEventsSince(socket, lastSeq, sessionId = "") {
+export function replayEventsSince(socket: any, lastSeq: number, sessionId = "") {
   const normalizedLastSeq = Number.isFinite(lastSeq) ? Math.max(0, Number(lastSeq)) : 0;
   const normalizedSessionId = String(sessionId ?? "").trim();
   const missedEvents = eventReplayBuffer.filter(
@@ -78,18 +84,18 @@ export function replayEventsSince(socket, lastSeq, sessionId = "") {
   });
 }
 
-export function broadcastEvent(type, payload) {
+export function broadcastEvent(type: string, payload: any) {
   const event = createReplayableEvent(type, payload);
   const message = JSON.stringify(event);
 
-  for (const client of wsClients) {
+  for (const client of Array.from(wsClients) as any[]) {
     if (client.readyState === 1) {
       client.send(message);
     }
   }
 }
 
-export async function broadcastThought(sessionId, step, context = {}) {
+export async function broadcastThought(sessionId: string, step: string, context: any = {}): Promise<string> {
   const thought = generateThought(step, context);
   const tokens = tokenizeThought(thought);
   const requestId = typeof context.requestId === "string" && context.requestId.trim()
@@ -158,7 +164,7 @@ export async function broadcastThought(sessionId, step, context = {}) {
   return thought;
 }
 
-export async function broadcastCodeStream(sessionId, code, options = {}) {
+export async function broadcastCodeStream(sessionId: string, code: string, options: any = {}): Promise<void> {
   const normalizedCode = String(code ?? "");
   const messageId = options.messageId ?? null;
   const mode = options.mode ?? "generate";

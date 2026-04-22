@@ -1,4 +1,3 @@
-// @ts-nocheck
 export const metrics = {
   sessionsCreated: 0,
   plansCreated: 0,
@@ -11,7 +10,7 @@ export const metrics = {
   versionNavigations: 0,
   artifactNavigations: 0,
   errors: 0,
-  latencies: []
+  latencies: [] as number[]
 };
 
 export function recordLatency(durationMs: number) {
@@ -21,9 +20,9 @@ export function recordLatency(durationMs: number) {
   }
 }
 
-export function computeP95Latency() {
+export function computeP95Latency(): number {
   if (metrics.latencies.length === 0) return 0;
   const sorted = [...metrics.latencies].sort((a, b) => a - b);
   const index = Math.floor(sorted.length * 0.95);
-  return sorted[Math.min(index, sorted.length - 1)];
+  return sorted[Math.min(index, sorted.length - 1)] ?? 0;
 }
