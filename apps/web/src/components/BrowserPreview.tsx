@@ -1,13 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
-
-interface HighlightBox {
-  id: number;
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-  opacity: number;
-}
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 interface TooltipPos {
   x: number;
@@ -16,31 +7,46 @@ interface TooltipPos {
   text: string;
 }
 
+const TARGETS = [
+  { id: 't1', label: 'PALOCERAS' },
+  { id: 't2', label: 'SHOP ALL' },
+  { id: 't3', label: 'LOOKS' },
+  { id: 't4', label: 'BESPOKE' },
+  { id: 't5', label: 'BRAND' },
+  { id: 't6', label: 'BOUTIQUES' },
+  { id: 't7', label: 'ACCOUNT' },
+  { id: 't8', label: 'Cart' },
+  { id: 't9', label: 'PEBBLE COLLECTION' },
+  { id: 't10', label: 'Discover' }
+] as const;
+
 export default function BrowserPreview({ extractMode = true }: { extractMode?: boolean }) {
   const highlightsRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [tooltip, setTooltip] = useState<TooltipPos>({ x: 0, y: 0, visible: false, text: '' });
 
-  const targets = [
-    { id: 't1', label: 'PALOCERAS' },
-    { id: 't2', label: 'SHOP ALL' },
-    { id: 't3', label: 'LOOKS' },
-    { id: 't4', label: 'BESPOKE' },
-    { id: 't5', label: 'BRAND' },
-    { id: 't6', label: 'BOUTIQUES' },
-    { id: 't7', label: 'ACCOUNT' },
-    { id: 't8', label: 'Cart' },
-    { id: 't9', label: 'PEBBLE COLLECTION' },
-    { id: 't10', label: 'Discover' }
-  ];
+  const moveTip = useCallback((n: number) => {
+    const h = highlightsRef.current?.querySelector(`[data-id="${Math.min(n, 10)}"]`) as HTMLElement;
+    if (!h || !highlightsRef.current) return;
 
-  const layoutHighlights = () => {
+    const bh = highlightsRef.current.getBoundingClientRect();
+    const rh = h.getBoundingClientRect();
+
+    setTooltip({
+      x: rh.left - bh.left + rh.width / 2 - 75,
+      y: rh.top - bh.top - 44,
+      visible: true,
+      text: `Extracting link #${n}...`
+    });
+  }, []);
+
+  const layoutHighlights = useCallback(() => {
     if (!highlightsRef.current || !containerRef.current) return;
 
     highlightsRef.current.innerHTML = '';
     const base = highlightsRef.current.getBoundingClientRect();
 
-    targets.forEach((target, i) => {
+    TARGETS.forEach((target, i) => {
       const el = document.getElementById(target.id);
       if (!el) return;
 
@@ -69,28 +75,13 @@ export default function BrowserPreview({ extractMode = true }: { extractMode?: b
         highlightsRef.current.appendChild(h);
       }
     });
-  };
-
-  const moveTip = (n: number) => {
-    const h = highlightsRef.current?.querySelector(`[data-id="${Math.min(n, 10)}"]`) as HTMLElement;
-    if (!h || !highlightsRef.current) return;
-
-    const bh = highlightsRef.current.getBoundingClientRect();
-    const rh = h.getBoundingClientRect();
-
-    setTooltip({
-      x: rh.left - bh.left + rh.width / 2 - 75,
-      y: rh.top - bh.top - 44,
-      visible: true,
-      text: `Extracting link #${n}...`
-    });
-  };
+  }, [extractMode, moveTip]);
 
   useEffect(() => {
     layoutHighlights();
     window.addEventListener('resize', layoutHighlights);
     return () => window.removeEventListener('resize', layoutHighlights);
-  }, []);
+  }, [layoutHighlights]);
 
   useEffect(() => {
     if (!highlightsRef.current) return;

@@ -196,8 +196,7 @@ export default function TaskPlanViewer({
   liveThought = null,
   currentStep,
   currentStepStatus,
-  planId,
-  onExecuteTask
+  planId
 }: TaskPlanViewerProps) {
   const [liveTasks, setLiveTasks] = useState<GveTask[]>(tasks);
   const [selectedTurnIndex, setSelectedTurnIndex] = useState(0);

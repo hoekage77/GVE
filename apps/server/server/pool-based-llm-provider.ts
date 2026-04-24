@@ -9,6 +9,7 @@ import "./env.js";
 import { getPool, type LLMProviderPool } from "./llm-pool.js";
 import { sleep } from "./lib/utils.js";
 import type { ResolvedProvider, ChatCompletionPayload, ChatCompletionResponse } from "./types/llm.js";
+import { traceEvent } from "./trace/events.js";
 
 // ─── Helper: Make HTTP Request ──────────────────────────────────────
 
@@ -72,6 +73,23 @@ async function fetchChatCompletionFromProvider(
 
       const json = await response.json() as ChatCompletionResponse;
       console.log(`[PoolAdapter] ${provider.id} responded in ${durationMs}ms`);
+
+      if (json?.usage) {
+        traceEvent("llm.usage", {
+          providerId: provider.id,
+          model: json.model ?? enrichedPayload.model ?? provider.model ?? null,
+          prompt_tokens: json.usage.prompt_tokens,
+          completion_tokens: json.usage.completion_tokens,
+          total_tokens: json.usage.total_tokens,
+          latencyMs: durationMs
+        });
+      } else {
+        traceEvent("llm.response", {
+          providerId: provider.id,
+          model: json?.model ?? enrichedPayload.model ?? provider.model ?? null,
+          latencyMs: durationMs
+        });
+      }
 
       if (pool && typeof pool.recordRequest === "function") {
         pool.recordRequest(provider.id, durationMs);

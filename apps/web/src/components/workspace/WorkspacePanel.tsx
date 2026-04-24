@@ -129,23 +129,23 @@ export default function WorkspacePanel() {
           <div className="flex-1 flex flex-col overflow-hidden">
             
             {/* Card Header (Tabs + Playback) */}
-            <div className="px-4 py-3 shrink-0 flex items-center justify-between border-b border-white/5">
-              <div className="flex items-center gap-2">
+            <div className="px-2.5 py-2 shrink-0 flex items-center justify-between gap-1 border-b border-white/5 flex-wrap">
+              <div className="flex items-center gap-1">
                 <button
                   onClick={() => openPanel('preview')}
-                  className={`rounded-full px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] transition ${activeView === 'preview' ? 'bg-white/12 text-white' : 'text-white/50 hover:bg-white/5 hover:text-white/90'}`}
+                  className={`rounded-full px-2 py-0.5 text-[9px] font-semibold uppercase tracking-[0.08em] transition whitespace-nowrap ${activeView === 'preview' ? 'bg-white/12 text-white' : 'text-white/50 hover:bg-white/5 hover:text-white/90'}`}
                 >
                   Preview
                 </button>
                 <button
                   onClick={() => openPanel('code')}
-                  className={`rounded-full px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] transition ${activeView === 'code' ? 'bg-white/12 text-white' : 'text-white/50 hover:bg-white/5 hover:text-white/90'}`}
+                  className={`rounded-full px-2 py-0.5 text-[9px] font-semibold uppercase tracking-[0.08em] transition whitespace-nowrap ${activeView === 'code' ? 'bg-white/12 text-white' : 'text-white/50 hover:bg-white/5 hover:text-white/90'}`}
                 >
                   Code
                 </button>
               </div>
 
-              <div className="flex items-center gap-1">
+              <div className="flex items-center gap-0.5 shrink-0">
                 {[
                   { icon: SkipBack, action: 'artifact.previous', disabled: !currentSession?.canPreviousArtifact },
                   { icon: SkipForward, action: 'artifact.next', disabled: !currentSession?.canNextArtifact },
@@ -160,14 +160,13 @@ export default function WorkspacePanel() {
                       else sendSceneCommand(btn.action as any);
                     }}
                     disabled={btn.disabled || (btn.isRefresh && isRerunning)}
-                    className="flex h-8 w-8 items-center justify-center rounded-lg border border-white/5 bg-white/5 text-white/50 transition-all duration-150 hover:border-white/10 hover:bg-white/10 hover:text-white/90 disabled:opacity-30"
+                    className="flex h-6 w-6 items-center justify-center rounded-md border border-white/5 bg-white/5 text-white/50 transition-all duration-150 hover:border-white/10 hover:bg-white/10 hover:text-white/90 disabled:opacity-30 flex-shrink-0"
                   >
-                    <btn.icon className={`w-4 h-4 ${btn.isRefresh && isRerunning ? 'animate-spin' : ''}`} />
+                    <btn.icon className={`w-3 h-3 ${btn.isRefresh && isRerunning ? 'animate-spin' : ''}`} />
                   </button>
                 ))}
-                <div className="w-px h-6 bg-white/10 mx-1"></div>
-                <button onClick={closePanel} className="flex h-8 w-8 items-center justify-center rounded-lg border border-white/5 bg-white/5 text-white/50 transition-all duration-150 hover:border-white/10 hover:bg-white/10 hover:text-white/90">
-                  <X className="w-4 h-4" />
+                <button onClick={closePanel} className="flex h-6 w-6 items-center justify-center rounded-md border border-white/5 bg-white/5 text-white/50 transition-all duration-150 hover:border-white/10 hover:bg-white/10 hover:text-white/90 flex-shrink-0 ml-0.5" title="Close panel">
+                  <X className="w-3 h-3" />
                 </button>
               </div>
 

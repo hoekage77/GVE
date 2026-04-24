@@ -31,15 +31,16 @@ const config: Config = {
           DEFAULT: "hsl(var(--card))",
           foreground: "hsl(var(--card-foreground))"
         },
-        // GVE design system tokens
+        // IDE-style dark shell (Cursor / VS Code–adjacent neutrals)
         surface: {
-          DEFAULT: "#18181b",
-          "2": "#202024",
-          "3": "#27272a"
+          DEFAULT: "#1e1e1e",
+          "2": "#252526",
+          "3": "#2d2d30"
         },
-        "meta-border": "#2f2f35",
-        "meta-text": "#f5f5f5",
-        "meta-muted": "#a1a1aa",
+        "meta-border": "#3e3e42",
+        "meta-text": "#cccccc",
+        "meta-muted": "#9d9d9d",
+        "ide-accent": "#0078d4",
         "auth-bg": "#0B0D10",
         "auth-surface": "#1A1D23",
         "auth-ink": "#E2E8F0",

@@ -41,18 +41,18 @@ export function getTurnTone(status: TurnStatusTone | null | undefined, fallback:
 
 export function renderTurnStatusIcon(status: TurnStatusTone, className = "chat-task-status-icon") {
   if (status === "running") {
-    return <Loader2 className="h-4 w-4 animate-spin text-amber-400" />;
+    return <Loader2 className={`h-4 w-4 animate-spin text-amber-400 ${className}`} />;
   }
 
   if (status === "completed") {
-    return <CheckCircle2 className="h-4 w-4 text-emerald-400" />;
+    return <CheckCircle2 className={`h-4 w-4 text-emerald-400 ${className}`} />;
   }
 
   if (status === "failed") {
-    return <XCircle className="h-4 w-4 text-red-400" />;
+    return <XCircle className={`h-4 w-4 text-red-400 ${className}`} />;
   }
 
-  return <Circle className="h-4 w-4 text-slate-400" />;
+  return <Circle className={`h-4 w-4 text-slate-400 ${className}`} />;
 }
 
 export function formatTaskSummary(completed: number, total: number): string {

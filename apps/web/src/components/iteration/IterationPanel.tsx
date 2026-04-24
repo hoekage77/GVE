@@ -1,11 +1,11 @@
 import { useState } from "react";
-import { ChevronDown, X, Sparkles, AlertCircle, CheckCircle, Loader2 } from "lucide-react";
+import { ChevronDown, X, AlertCircle, CheckCircle, Loader2 } from "lucide-react";
 import { useChatStore } from "../../stores";
-import { AgentAnalysisPanel, AgentBadge } from "../agents";
+import { AgentBadge } from "../agents";
 import type { IterationState, QualitySignals } from "@visual-runtime/shared";
 
 export default function IterationPanel() {
-  const { iterationState, agentState, closePanel, openPanel, panelOpen } = useChatStore();
+  const { iterationState, agentState } = useChatStore();
   const [expandedIterations, setExpandedIterations] = useState<number[]>([]);
   const [activeAgentTab, setActiveAgentTab] = useState<'iterations' | 'agents'>('iterations');
 

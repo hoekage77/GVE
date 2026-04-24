@@ -40,16 +40,15 @@ export function UserMessage({ content, timestamp, variant = "legacy" }: UserMess
   const isMetaVariant = variant === "meta";
 
   return (
-    <div className={`flex min-w-0 gap-2.5 lg:gap-3 animate-[slideInUp_0.3s_ease-out] ${isMetaVariant ? "mb-3 lg:mb-5" : "mb-3 lg:mb-4"}`}>
-      <div className="mt-0.5 grid h-7 w-7 lg:h-8 lg:w-8 shrink-0 place-items-center rounded-full bg-gradient-to-br from-sky-400 to-indigo-500 text-xs lg:text-sm font-bold text-white shadow-[0_0_15px_rgba(56,189,248,0.3)]">
-        A
-      </div>
-      <div className="flex-1 min-w-0">
-        <div className="mb-1 lg:mb-1.5 flex items-center gap-2">
-          <span className={isMetaVariant ? "text-[10px] lg:text-[11px] font-semibold uppercase tracking-[0.14em] text-white/45" : "text-xs lg:text-sm font-semibold text-white"}>You</span>
-          {timestamp && <span className={isMetaVariant ? "text-[10px] lg:text-[11px] font-medium text-white/35" : "text-[11px] lg:text-xs text-white/40"}>{formatTime(timestamp)}</span>}
+    <div className={`flex flex-row-reverse min-w-0 gap-2.5 lg:gap-3 animate-[slideInUp_0.3s_ease-out] ${isMetaVariant ? "mb-3 lg:mb-5" : "mb-3 lg:mb-4"}`}>
+      <div className="flex-1 min-w-0 text-right">
+        <div className="mb-1 lg:mb-1.5 flex items-center justify-end gap-2">
+          {timestamp && <span className={isMetaVariant ? "text-[9px] font-normal text-meta-muted/60 lg:text-[11px]" : "text-[10px] font-normal text-meta-muted lg:text-xs"}>{formatTime(timestamp)}</span>}
+          <span className={isMetaVariant ? "text-[9px] font-semibold uppercase tracking-wider text-meta-muted/80 lg:text-[11px]" : "text-[10px] font-medium text-meta-muted lg:text-sm"}>You</span>
         </div>
-        <p className={isMetaVariant ? "break-words text-[0.88rem] lg:text-[0.95rem] leading-[1.6] lg:leading-[1.68] text-white/92" : "break-words text-[13px] lg:text-sm leading-relaxed text-white/95"}>{content}</p>
+        <div className="inline-block max-w-full">
+          <p className={isMetaVariant ? "break-words text-[0.88rem] lg:text-[0.95rem] leading-[1.6] lg:leading-[1.68] text-white/92" : "break-words text-[13px] lg:text-sm leading-relaxed text-white/95"}>{content}</p>
+        </div>
       </div>
     </div>
   );
@@ -238,7 +237,7 @@ function isVideoThumbnail(url: string | null, mediaType: string | null | undefin
   return /\.(mp4|webm|ogg|mov)(\?|$)/.test(normalized);
 }
 
-function MetaAIMessage({
+export function MetaAIMessage({
   content,
   thoughts = [],
   isThinking,
@@ -257,7 +256,6 @@ function MetaAIMessage({
   onSceneCode,
   onScenePreview
 }: AIMessageProps) {
-  const [thoughtsExpanded, setThoughtsExpanded] = useState(false);
   const showSceneFooter = Boolean((onScenePreview || onSceneCode) && !isThinking);
   const compactSceneId = compactSceneName(sceneId);
   const sourceResults = useMemo(() => extractSourceResults(content, meta), [content, meta]);
@@ -268,10 +266,6 @@ function MetaAIMessage({
 
   return (
     <div className={`mb-4 flex min-w-0 gap-3 ${isThinking ? 'opacity-95' : ''}`}>
-      <div className={`mt-0.5 grid h-8 w-8 shrink-0 place-items-center rounded-full border border-white/15 bg-white/[0.04] text-white/85 ${isThinking ? 'animate-pulse' : ''}`}>
-        <Sparkles className={`h-4 w-4 ${isThinking ? "thinking-sparkle" : ""}`} />
-      </div>
-
       <div className="min-w-0 flex-1">
         {thoughts.length > 0 && !isThinking && (
           <ThoughtTraceToggle thoughts={thoughts} durationMs={thinkingDuration} />
@@ -281,7 +275,7 @@ function MetaAIMessage({
           <div className="mb-2 inline-flex items-center gap-1.5 text-[11px] uppercase tracking-[0.08em] text-white/45">
             <Eye className="h-3.5 w-3.5" aria-hidden="true" />
             <span>Viewed</span>
-            <span className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold ${isPreviewActive ? 'border-cyan-300/55 bg-cyan-300/15 text-cyan-100' : 'border-white/15 bg-white/[0.05] text-white/75'}`}>
+            <span className={`rounded border px-2 py-0.5 text-[10px] font-medium ${isPreviewActive ? "border-ide-accent/50 bg-ide-accent/10 text-meta-text" : "border-meta-border bg-surface-3 text-meta-muted"}`}>
               {compactSceneId || "Scene"}
             </span>
           </div>
@@ -330,7 +324,7 @@ function MetaAIMessage({
             {onSceneCode && (
               <button
                 type="button"
-                className={`inline-flex items-center gap-1 rounded-lg border px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.06em] transition ${isCodeActive ? 'border-fuchsia-300/45 bg-fuchsia-300/15 text-fuchsia-100' : 'border-white/12 bg-white/5 text-white/65 hover:bg-white/10'}`}
+                className={`inline-flex items-center gap-1 rounded-md border px-2 py-1 text-[10px] font-medium uppercase tracking-wide transition-colors ${isCodeActive ? "border-ide-accent/50 bg-ide-accent/10 text-meta-text" : "border-meta-border bg-surface-3 text-meta-muted hover:bg-surface"}`}
                 onClick={onSceneCode}
                 aria-label="Open code"
                 title={compactSceneId ? `Open ${compactSceneId} code` : "Open scene code"}
@@ -343,7 +337,7 @@ function MetaAIMessage({
             {onScenePreview && (
               <button
                 type="button"
-                className={`inline-flex items-center gap-1 rounded-lg border px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.06em] transition ${isPreviewActive ? 'border-cyan-300/45 bg-cyan-300/15 text-cyan-100' : 'border-white/12 bg-white/5 text-white/65 hover:bg-white/10'}`}
+                className={`inline-flex items-center gap-1 rounded-md border px-2 py-1 text-[10px] font-medium uppercase tracking-wide transition-colors ${isPreviewActive ? "border-ide-accent/50 bg-ide-accent/10 text-meta-text" : "border-meta-border bg-surface-3 text-meta-muted hover:bg-surface"}`}
                 onClick={onScenePreview}
                 aria-label="Open preview"
                 title={compactSceneId ? `Open ${compactSceneId} preview` : "Open scene preview"}
@@ -394,31 +388,26 @@ export function AIMessage({
 
   return (
     <div className={`flex min-w-0 gap-2.5 lg:gap-3 animate-fade-in ${isMetaVariant ? "mb-3 lg:mb-5" : "mb-3 lg:mb-4"}`}>
-      <div className="mt-0.5 grid h-7 w-7 lg:h-8 lg:w-8 shrink-0 place-items-center rounded-full bg-gradient-to-br from-white to-gray-100 text-black shadow-lg">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="lg:w-4 lg:h-4">
-          <path d="M12 2l9 4.5-9 4.5-9-4.5 9-4.5z"/>
-          <path d="M3 10.5l9 4.5 9-4.5M3 15.5l9 4.5 9-4.5"/>
-        </svg>
-      </div>
       <div className="flex-1 min-w-0">
         <div className="mb-1 lg:mb-1.5 flex items-center gap-2">
-          <span className={isMetaVariant ? "text-[10px] lg:text-[11px] font-semibold uppercase tracking-[0.14em] text-white/45" : "text-xs lg:text-sm font-semibold text-white"}>Lumina</span>
-          {timestamp && <span className={isMetaVariant ? "text-[10px] lg:text-[11px] font-medium text-white/35" : "text-[11px] lg:text-xs text-white/40"}>{formatTime(timestamp)}</span>}
+          <span className={isMetaVariant ? "text-[9px] font-semibold uppercase tracking-wider text-meta-muted/80 lg:text-[11px]" : "text-[10px] font-medium text-meta-muted lg:text-sm"}>Assistant</span>
+          {timestamp && <span className={isMetaVariant ? "text-[9px] lg:text-[11px] font-medium text-white/30" : "text-[10px] lg:text-xs text-white/40"}>{formatTime(timestamp)}</span>}
         </div>
         
         <div className="space-y-2 lg:space-y-3 w-full min-w-0">
           {/* Thoughts section */}
           {thoughts.length > 0 && (
-            <div className="pb-1.5 lg:pb-2 border-b border-white/10">
+            <div className="pb-1.5 lg:pb-2">
               <button
                 onClick={() => setIsThoughtsOpen(!isThoughtsOpen)}
                 className={isMetaVariant ? "flex items-center gap-1.5 lg:gap-2 text-[9px] lg:text-[10px] font-semibold uppercase tracking-[0.1em] text-white/58 transition-colors duration-200 hover:text-white/90" : "flex items-center gap-2 text-[11px] lg:text-xs text-white/60 transition-colors duration-200 hover:text-white/90"}
               >
                 <ChevronDown className={`w-3 h-3 transition-transform duration-300 ${isThoughtsOpen ? 'rotate-180' : ''}`} />
-                Thought for {Math.max(thinkingDuration / 1000, 0.1).toFixed(1)} seconds
+                <span className="hidden sm:inline">Thought for {Math.max(thinkingDuration / 1000, 0.1).toFixed(1)}s</span>
+                <span className="sm:hidden">Thought ({Math.max(thinkingDuration / 1000, 0.1).toFixed(1)}s)</span>
               </button>
               {isThoughtsOpen && (
-                <div className="mt-2 space-y-1.5 p-2 bg-white/[0.03] rounded-lg border border-white/5">
+                <div className="mt-2 space-y-1.5 p-2 bg-white/[0.03] rounded-lg">
                   {thoughts.map((thought, i) => (
                     <div
                       key={i}
@@ -450,16 +439,13 @@ export function AIMessage({
             const thumbnailUrl = normalizePreviewUrl(activeArtifact.previewUrl);
             const showVideo = isVideoThumbnail(thumbnailUrl, activeArtifact.mediaType);
             const skillLabel = (activeArtifact.skill || "scene").toUpperCase();
-            const artifactKindLabel = activeArtifact.outputKind === "media" ? "Generated media artifact" : "Generated scene artifact";
             const compactName = compactSceneName(activeArtifact.sceneId) || "Scene artifact";
 
             return (
-            <div className="border-t border-white/[0.14] pt-2">
-              {/* ── Mobile: Compact Pill ── */}
-              <div className="lg:hidden">
-                <div className="flex items-center gap-2 rounded-xl border border-white/12 bg-white/[0.04] p-2">
-                  {/* Thumbnail mini */}
-                  <div className="h-10 w-14 shrink-0 overflow-hidden rounded-lg bg-gradient-to-br from-[#151c29] to-[#140d17]">
+              <div className="pt-2">
+                <div className="inline-flex items-center gap-2 rounded-full bg-white/[0.04] p-1 pr-3 shadow-sm transition-all hover:bg-white/[0.08]">
+                  {/* Tiny Thumbnail */}
+                  <div className="relative h-7 w-7 shrink-0 overflow-hidden rounded-full bg-black/40">
                     {thumbnailUrl ? (
                       showVideo ? (
                         <video src={thumbnailUrl} className="h-full w-full object-cover" muted loop autoPlay playsInline />
@@ -467,174 +453,69 @@ export function AIMessage({
                         <img src={thumbnailUrl} alt="" className="h-full w-full object-cover" loading="lazy" />
                       )
                     ) : (
-                      <div className="flex h-full w-full items-center justify-center text-white/40">
+                      <div className="flex h-full w-full items-center justify-center text-white/30">
                         <ImageIcon className="h-3 w-3" />
                       </div>
                     )}
                   </div>
-                  {/* Info */}
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-1.5">
-                      <span className="inline-flex items-center gap-0.5 text-[9px] font-semibold uppercase tracking-[0.1em] text-white/60">
-                        {activeArtifact.outputKind === "media" ? <Film className="h-2.5 w-2.5" /> : <Sparkles className="h-2.5 w-2.5" />}
-                        {skillLabel}
-                      </span>
-                      <span className="text-[9px] text-white/35">•</span>
-                      <span className="truncate text-[10px] font-medium text-white/75">{compactName}</span>
-                    </div>
-                    <p className="text-[9px] text-white/45 mt-0.5">{artifactKindLabel}</p>
+
+                  {/* Name & Label */}
+                  <div className="flex min-w-0 flex-col leading-tight">
+                    <span className="max-w-[120px] truncate text-[12px] font-medium text-white/90 sm:max-w-[200px]">{compactName}</span>
+                    <span className="text-[9px] uppercase tracking-wider text-white/40">{skillLabel}</span>
                   </div>
+
+                  {/* Action Divider */}
+                  <div className="mx-1 h-4 w-px bg-white/10" />
+
                   {/* Actions */}
-                  <div className="flex items-center gap-1 shrink-0">
+                  <div className="flex items-center gap-0.5">
                     <button
                       type="button"
-                      className={`inline-flex h-7 items-center gap-1 rounded-lg border px-2 text-[9px] font-semibold uppercase tracking-[0.06em] transition ${activeArtifact.isPreviewActive ? "border-cyan-300/45 bg-cyan-300/15 text-cyan-100" : "border-white/12 bg-white/5 text-white/65 active:bg-white/10"} disabled:opacity-40`}
+                      className={`flex h-7 w-7 items-center justify-center rounded-full transition-colors ${activeArtifact.isPreviewActive ? "bg-meta-accent/20 text-meta-accent" : "text-white/60 hover:bg-white/10 hover:text-white"}`}
                       onClick={activeArtifact.onPreview}
                       disabled={!activeArtifact.onPreview}
+                      title="Open Preview"
                     >
-                      <Eye className="h-3 w-3" />
+                      <Eye className="h-3.5 w-3.5" />
                     </button>
                     <button
                       type="button"
-                      className={`inline-flex h-7 items-center gap-1 rounded-lg border px-2 text-[9px] font-semibold uppercase tracking-[0.06em] transition ${activeArtifact.isCodeActive ? "border-fuchsia-300/45 bg-fuchsia-300/15 text-fuchsia-100" : "border-white/12 bg-white/5 text-white/65 active:bg-white/10"} disabled:opacity-40`}
+                      className={`flex h-7 w-7 items-center justify-center rounded-full transition-colors ${activeArtifact.isCodeActive ? "bg-meta-accent/20 text-meta-accent" : "text-white/60 hover:bg-white/10 hover:text-white"}`}
                       onClick={activeArtifact.onCode}
                       disabled={!activeArtifact.onCode}
+                      title="View Code"
                     >
-                      <Code2 className="h-3 w-3" />
+                      <Code2 className="h-3.5 w-3.5" />
                     </button>
                   </div>
                 </div>
-              </div>
 
-              {/* ── Desktop: Full Cinematic Card ── */}
-              <div
-                className="hidden lg:block"
-                tabIndex={0}
-                onKeyDown={(event) => {
-                  if (event.key === "ArrowLeft") {
-                    event.preventDefault();
-                    handlePreviousArtifact();
-                  }
-                  if (event.key === "ArrowRight") {
-                    event.preventDefault();
-                    handleNextArtifact();
-                  }
-                }}
-              >
-                <div className="group overflow-hidden rounded-2xl border border-white/15 bg-gradient-to-b from-[#121723]/95 via-[#0d1118]/92 to-[#090c12]/95 shadow-[0_22px_45px_-28px_rgba(0,0,0,0.85)] focus:outline-none focus:ring-2 focus:ring-cyan-300/40">
-                  <article key={activeArtifact.versionId} className="relative">
-                    <div className="relative h-44 overflow-hidden bg-gradient-to-br from-[#151c29] via-[#0b1118] to-[#140d17]">
-                      {thumbnailUrl ? (
-                        showVideo ? (
-                          <video src={thumbnailUrl} className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.03]" muted loop autoPlay playsInline />
-                        ) : (
-                          <img src={thumbnailUrl} alt={`Preview for ${activeArtifact.sceneId}`} className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.03]" loading="lazy" />
-                        )
-                      ) : (
-                        <div className="flex h-full w-full flex-col items-center justify-center gap-2.5 bg-[radial-gradient(circle_at_50%_30%,rgba(56,189,248,0.12),rgba(0,0,0,0))] text-white/60">
-                          <span className="grid h-9 w-9 place-items-center rounded-full border border-white/18 bg-white/[0.06]">
-                            <ImageIcon className="h-4 w-4" />
-                          </span>
-                          <span className="text-[11px] font-medium tracking-[0.04em] text-white/68">Preview appears after render</span>
-                        </div>
-                      )}
-                      <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/70 via-black/25 to-black/10" />
-                      <div className="absolute left-2.5 top-2.5 inline-flex items-center gap-1 rounded-full border border-white/25 bg-black/55 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-white/88 backdrop-blur-sm">
-                        {activeArtifact.outputKind === "media" ? <Film className="h-3 w-3" /> : <Sparkles className="h-3 w-3" />}
-                        <span>{skillLabel}</span>
-                      </div>
-                      <span className="absolute right-2.5 top-2.5 rounded-full border border-white/25 bg-black/55 px-2.5 py-1 text-[10px] font-medium text-white/82 backdrop-blur-sm">
-                        {activeArtifact.versionLabel}
-                      </span>
-                      <div className="absolute inset-x-2.5 bottom-2.5 flex items-end justify-between gap-2">
-                        <div className="min-w-0">
-                          <p className={isMetaVariant ? "truncate text-[11px] font-semibold uppercase tracking-[0.08em] text-white" : "truncate text-xs font-semibold text-white"}>{compactName}</p>
-                          <p className={isMetaVariant ? "text-[10px] font-medium text-white/62" : "text-[11px] text-white/60"}>{artifactKindLabel}</p>
-                        </div>
-                        {showVideo && (
-                          <span className="inline-flex items-center rounded-full border border-cyan-300/40 bg-cyan-300/15 px-2 py-0.5 text-[9px] font-semibold uppercase tracking-[0.08em] text-cyan-100">Loop</span>
-                        )}
-                      </div>
-                    </div>
-                    <div className="border-t border-white/10 bg-black/25 p-2.5">
-                      <div className="flex items-center gap-2">
-                        <button type="button" className={`inline-flex h-8 items-center gap-1.5 rounded-lg border px-2.5 text-[10px] font-semibold uppercase tracking-[0.08em] transition ${activeArtifact.isPreviewActive ? "border-cyan-300/45 bg-cyan-300/15 text-cyan-100" : "border-white/15 bg-white/5 text-white/72 hover:bg-white/10 hover:text-white"} disabled:cursor-not-allowed disabled:opacity-45`} onClick={activeArtifact.onPreview} disabled={!activeArtifact.onPreview}>
-                          <Eye className="h-3.5 w-3.5" />Preview
-                        </button>
-                        <button type="button" className={`inline-flex h-8 items-center gap-1.5 rounded-lg border px-2.5 text-[10px] font-semibold uppercase tracking-[0.08em] transition ${activeArtifact.isCodeActive ? "border-fuchsia-300/45 bg-fuchsia-300/15 text-fuchsia-100" : "border-white/15 bg-white/5 text-white/72 hover:bg-white/10 hover:text-white"} disabled:cursor-not-allowed disabled:opacity-45`} onClick={activeArtifact.onCode} disabled={!activeArtifact.onCode}>
-                          <Code2 className="h-3.5 w-3.5" />Code
-                        </button>
-                      </div>
-                    </div>
-                  </article>
-                </div>
-              </div>
-
-              {/* Carousel thumbnails (multi-artifact, desktop only) */}
-              {artifactCards.length > 1 && (
-                <div className="mt-2.5 hidden lg:flex items-center gap-2">
-                  <button
-                    type="button"
-                    className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-white/15 bg-white/[0.04] text-white/72 transition hover:border-white/30 hover:bg-white/10 hover:text-white disabled:cursor-not-allowed disabled:opacity-35"
-                    onClick={handlePreviousArtifact}
-                    disabled={activeArtifactIndex === 0}
-                    aria-label="Previous artifact"
-                  >
-                    <ChevronLeft className="h-4 w-4" />
-                  </button>
-
-                  <div className="flex-1 overflow-x-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
-                    <div className="flex min-w-max gap-2.5 pr-0.5">
-                      {artifactCards.map((artifact, artifactIndex) => {
-                        const thumbnailUrl = normalizePreviewUrl(artifact.previewUrl);
-                        const showVideo = isVideoThumbnail(thumbnailUrl, artifact.mediaType);
-                        const isActive = artifactIndex === activeArtifactIndex;
-
-                        return (
-                          <button
-                            key={artifact.versionId}
-                            type="button"
-                            onClick={() => setActiveArtifactIndex(artifactIndex)}
-                            className={`group relative h-16 w-28 shrink-0 overflow-hidden rounded-lg border transition-all duration-200 ${isActive ? "border-cyan-300/55 ring-2 ring-cyan-300/35" : "border-white/15 hover:border-white/35"}`}
-                            aria-label={`Select ${artifact.versionLabel}`}
-                          >
-                            {thumbnailUrl ? (
-                              showVideo ? (
-                                <video src={thumbnailUrl} className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105" muted loop autoPlay playsInline />
-                              ) : (
-                                <img src={thumbnailUrl} alt={`Thumbnail ${artifact.versionLabel}`} className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105" loading="lazy" />
-                              )
-                            ) : (
-                              <div className="flex h-full w-full items-center justify-center bg-[#111827] text-white/40">
-                                <ImageIcon className="h-4 w-4" />
-                              </div>
-                            )}
-
-                            <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/65 via-black/10 to-transparent" />
-
-                            <span className="absolute bottom-1 left-1 rounded bg-black/65 px-1.5 py-0.5 text-[9px] font-medium text-white/85 backdrop-blur-sm">
-                              {artifact.versionLabel}
-                            </span>
-
-                            {isActive && <span className="absolute right-1.5 top-1.5 h-1.5 w-1.5 rounded-full bg-cyan-200 shadow-[0_0_0_3px_rgba(34,211,238,0.25)]" />}
-                          </button>
-                        );
-                      })}
-                    </div>
+                {/* Navigation Arrows for multi-artifact */}
+                {artifactCards.length > 1 && (
+                  <div className="mt-1.5 flex items-center gap-1.5 pl-1">
+                    <button
+                      type="button"
+                      className="flex h-5 w-5 items-center justify-center rounded-full bg-white/5 text-white/40 transition hover:bg-white/10 hover:text-white disabled:opacity-30"
+                      onClick={handlePreviousArtifact}
+                      disabled={activeArtifactIndex === 0}
+                    >
+                      <ChevronLeft className="h-3 w-3" />
+                    </button>
+                    <span className="text-[10px] tabular-nums text-white/30">
+                      {activeArtifactIndex + 1} / {artifactCards.length}
+                    </span>
+                    <button
+                      type="button"
+                      className="flex h-5 w-5 items-center justify-center rounded-full bg-white/5 text-white/40 transition hover:bg-white/10 hover:text-white disabled:opacity-30"
+                      onClick={handleNextArtifact}
+                      disabled={activeArtifactIndex >= artifactCards.length - 1}
+                    >
+                      <ChevronRight className="h-3 w-3" />
+                    </button>
                   </div>
-
-                  <button
-                    type="button"
-                    className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-white/15 bg-white/[0.04] text-white/72 transition hover:border-white/30 hover:bg-white/10 hover:text-white disabled:cursor-not-allowed disabled:opacity-35"
-                    onClick={handleNextArtifact}
-                    disabled={activeArtifactIndex >= artifactCards.length - 1}
-                    aria-label="Next artifact"
-                  >
-                    <ChevronRight className="h-4 w-4" />
-                  </button>
-                </div>
-              )}
-            </div>
+                )}
+              </div>
             );
           })()}
 

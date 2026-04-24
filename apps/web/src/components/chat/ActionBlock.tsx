@@ -6,7 +6,6 @@ import ActionStep from './ActionStep';
 
 interface ActionBlockProps {
   block: ActionBlockType;
-  index: number;
 }
 
 const STATUS_STYLES = {
@@ -32,7 +31,7 @@ const STATUS_STYLES = {
   }
 } as const;
 
-export default function ActionBlock({ block, index }: ActionBlockProps) {
+export default function ActionBlock({ block }: ActionBlockProps) {
   const [isExpanded, setIsExpanded] = useState(block.expanded ?? false);
   const statusStyle = STATUS_STYLES[block.status] ?? STATUS_STYLES.pending;
 
@@ -94,8 +93,8 @@ export default function ActionBlock({ block, index }: ActionBlockProps) {
       {isExpanded && block.steps && block.steps.length > 0 && (
         <div className={`flex flex-col border-t bg-black/20 ${statusStyle.border} animate-[slideDown_0.2s_ease-out]`}>
           <ul className="flex list-none flex-col gap-2 p-3">
-            {block.steps.map((step, stepIndex) => (
-              <ActionStep key={step.id} step={step} index={stepIndex} />
+            {block.steps.map((step) => (
+              <ActionStep key={step.id} step={step} />
             ))}
           </ul>
         </div>

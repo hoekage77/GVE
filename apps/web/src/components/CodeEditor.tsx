@@ -12,7 +12,7 @@ interface CodeEditorProps {
   runPending?: boolean;
 }
 
-export default function CodeEditor({ code, skill, readOnly, onChange, onRun, runPending = false }: CodeEditorProps) {
+export default function CodeEditor({ code, skill, readOnly, onRun, runPending = false }: CodeEditorProps) {
   const [localCode, setLocalCode] = useState(code ?? "");
   const [copied, setCopied] = useState(false);
   const [isDirty, setIsDirty] = useState(false);
@@ -24,12 +24,6 @@ export default function CodeEditor({ code, skill, readOnly, onChange, onRun, run
     setLocalCode(code ?? "");
     setIsDirty(false);
   }, [code]);
-
-  const handleChange = (value: string) => {
-    setLocalCode(value);
-    setIsDirty(value !== (code ?? ""));
-    onChange?.(value);
-  };
 
   const handleCopy = async () => {
     try {

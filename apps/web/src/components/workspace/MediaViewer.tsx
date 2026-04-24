@@ -1,4 +1,4 @@
-import { AlertCircle, Expand, Film, Heart, MessageCircle, Pause, Play, Share2, Volume2, VolumeX } from 'lucide-react';
+import { AlertCircle, Expand, Film, Heart, Pause, Play, Share2, Volume2, VolumeX } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 interface MediaViewerProps {

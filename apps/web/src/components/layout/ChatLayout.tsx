@@ -30,7 +30,7 @@ export default function ChatLayout({
       {/* Divider with collapse toggle */}
       {collapsible && (
         <button
-          className="relative flex h-10 w-full shrink-0 items-center justify-center border-b border-slate-700 bg-slate-800 text-slate-400 transition-colors duration-200 hover:bg-slate-700 hover:text-slate-200 active:bg-slate-600 md:h-auto md:w-10 md:border-b-0 md:border-r"
+          className="relative flex h-8 w-full shrink-0 items-center justify-center border-b border-slate-700 bg-slate-800 text-slate-400 transition-colors duration-200 hover:bg-slate-700 hover:text-slate-200 active:bg-slate-600 md:h-auto md:w-10 md:border-b-0 md:border-r text-sm"
           onClick={() => setIsReferenceCollapsed(!isReferenceCollapsed)}
           aria-label={isReferenceCollapsed ? 'Show reference panel' : 'Hide reference panel'}
           title={isReferenceCollapsed ? 'Show reference panel' : 'Hide reference panel'}

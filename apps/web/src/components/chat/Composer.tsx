@@ -1,5 +1,5 @@
-import { useState, useRef, useEffect } from "react";
-import { Plus, Send, Paperclip, X, Mic, Sparkles } from "lucide-react";
+import { useRef, useState } from "react";
+import { Mic, Send, X, Plus } from "lucide-react";
 
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
 
@@ -32,31 +32,14 @@ export function Composer({
   onSubmit, 
   attachedImage,
   onImageSelected,
-  onRemoveImage,
   isSending, 
   onStop,
-  placeholder = "Message GenVis...",
-  variant = "legacy",
-  participantLabel = "You",
-  modelLabel = "Meta AI"
+  placeholder = "Message GenVis..."
 }: ComposerProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [showAttachments, setShowAttachments] = useState(false);
   const [attachmentError, setAttachmentError] = useState<string | null>(null);
 
   const canSubmit = value.trim().length > 0 || Boolean(attachedImage);
-
-  const formatBytes = (valueInBytes: number) => {
-    if (valueInBytes < 1024) {
-      return `${valueInBytes} B`;
-    }
-
-    if (valueInBytes < 1024 * 1024) {
-      return `${(valueInBytes / 1024).toFixed(1)} KB`;
-    }
-
-    return `${(valueInBytes / (1024 * 1024)).toFixed(1)} MB`;
-  };
 
   const readFileAsDataUrl = (file: File) =>
     new Promise<string>((resolve, reject) => {
@@ -101,7 +84,6 @@ export function Composer({
         previewUrl: dataUrl
       });
       setAttachmentError(null);
-      setShowAttachments(false);
     } catch {
       setAttachmentError("Unable to process the selected image.");
     }
@@ -129,7 +111,7 @@ export function Composer({
 
   return (
     <div className="relative">
-      <div className="h-[38px] lg:h-[42px] flex items-center gap-1.5 lg:gap-2 px-2.5 lg:px-3 bg-[#0a0a0a]/80 backdrop-blur-md border border-white/10 rounded-xl focus-within:border-white/30 focus-within:ring-1 focus-within:ring-sky-500/40 shadow-inner transition-all duration-300">
+      <div className="flex h-12 items-center gap-2 rounded-xl border border-white/20 bg-surface-3 px-3 shadow-2xl transition-all duration-200 focus-within:border-ide-accent/55 focus-within:ring-1 focus-within:ring-ide-accent/25 lg:h-14 lg:px-4">
         <input
           ref={fileInputRef}
           type="file"
@@ -137,36 +119,43 @@ export function Composer({
           className="hidden"
           onChange={handleImageInputChange}
         />
+        <button
+          type="button"
+          className="p-1 text-meta-muted transition-colors hover:text-meta-text"
+          onClick={() => fileInputRef.current?.click()}
+        >
+          <Plus className="w-5 h-5" />
+        </button>
+        <button
+          type="button"
+          className="p-1 text-meta-muted transition-colors hover:text-meta-text"
+        >
+          <Mic className="w-5 h-5" />
+        </button>
         <input
           value={value}
           onChange={(e) => onChange(e.target.value)}
           onKeyDown={handleKeyDown}
           placeholder={placeholder}
-          className="flex-1 bg-transparent outline-none text-[13px] lg:text-[13.5px] placeholder:text-white/30"
+          className="flex-1 bg-transparent text-[15px] text-meta-text outline-none placeholder:text-meta-muted/50"
           disabled={isSending}
         />
-        <button
-          type="button"
-          className="text-white/40 hover:text-white/70 p-1 transition"
-        >
-          <Mic className="w-[18px] h-[18px]" />
-        </button>
         {isSending ? (
           <button
             onClick={onStop}
             type="button"
-            className="w-7 h-7 grid place-items-center rounded-lg bg-white/10 hover:bg-white/15 text-white/80 transition"
+            className="grid h-7 w-7 place-items-center rounded-md border border-meta-border bg-surface text-meta-text transition-colors hover:bg-surface-2"
           >
-            <X className="w-[14px] h-[14px] stroke-[2.5]" />
+            <X className="w-4 h-4 stroke-[2.5]" />
           </button>
         ) : (
           <button
             onClick={() => { if (canSubmit) onSubmit(); }}
             disabled={!canSubmit}
             type="button"
-            className={`w-7 h-7 grid place-items-center rounded-lg transition ${canSubmit ? 'bg-white/10 hover:bg-white/15 text-white/80' : 'text-white/20'}`}
+            className={`grid h-7 w-7 place-items-center rounded-md border transition-colors ${canSubmit ? 'border-ide-accent/35 bg-ide-accent/15 text-meta-text hover:bg-ide-accent/25' : 'border-transparent text-meta-muted/40'}`}
           >
-            <Send className="w-[14px] h-[14px] stroke-[2]" />
+            <Send className="w-4 h-4 stroke-[2]" />
           </button>
         )}
       </div>

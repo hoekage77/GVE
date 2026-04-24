@@ -1,30 +1,11 @@
 import { useMemo, useRef, useEffect, useState, useCallback } from "react";
 import { UserMessage, AIMessage, type ChatArtifactCard } from "./MessageComponents";
+import { CinematicPlayer } from "./meta/CinematicPlayer";
 import { Composer } from "./Composer";
 import { useChatStore, type Session, type SessionMessage } from "../../stores";
-import { Send, Zap } from "lucide-react";
-import WorkspacePanel from "../workspace/WorkspacePanel";
 import TaskStatusBar from "./TaskStatusBar";
-import IterationPanel from "../iteration/IterationPanel";
+import { WelcomeScreen } from "./WelcomeScreen";
 
-const WELCOME_STARTERS = [
-  {
-    title: "Cinematic Intro Scene",
-    description: "Craft a moody camera fly-through with dramatic lighting and slow motion particles."
-  },
-  {
-    title: "Data Storyboard",
-    description: "Build a visual narrative that animates trends and annotations across a timeline."
-  },
-  {
-    title: "Interactive Geometry",
-    description: "Generate a responsive shape system with controls for scale, color, and movement."
-  },
-  {
-    title: "Brand Motion Loop",
-    description: "Design a short seamless loop with polished easing and layered depth."
-  }
-] as const;
 
 // Types for message grouping
 type ThoughtItem = {
@@ -45,11 +26,6 @@ type DisplayMessage = {
 };
 
 type SceneVersionRecord = NonNullable<Session["currentScene"]>;
-type ChatContainerVariant = "legacy" | "meta";
-
-interface ChatContainerProps {
-  variant?: ChatContainerVariant;
-}
 
 const RUNTIME_DIAGNOSTIC_PATTERNS = [
   "Generated through LangGraph",
@@ -69,7 +45,6 @@ function looksLikeRuntimeDiagnostic(content: string): boolean {
     return false;
   }
 
-  // Preserve concise user-facing summaries even if they mention preview/runtime context.
   if (/\b(generated scene code|live preview|media preview|re-run this scene|preview is running in degraded mode)\b/i.test(normalized)) {
     return false;
   }
@@ -79,7 +54,6 @@ function looksLikeRuntimeDiagnostic(content: string): boolean {
     0
   );
 
-  // Only collapse content when it clearly looks like an internal diagnostic dump.
   if (matchCount >= 2) {
     return true;
   }
@@ -133,23 +107,6 @@ function getMetaValue(meta: string[] | undefined, prefix: string): string | null
 
 function hasMetaFlag(meta: string[] | undefined, value: string): boolean {
   return Array.isArray(meta) && meta.includes(value);
-}
-
-function compactSceneName(sceneId: string | null | undefined): string {
-  const normalized = String(sceneId ?? "").trim();
-  if (!normalized) {
-    return "Live Chat";
-  }
-
-  if (normalized.length <= 16) {
-    return normalized;
-  }
-
-  if (normalized.startsWith("scene-")) {
-    return `scene-${normalized.slice(-6)}`;
-  }
-
-  return `${normalized.slice(0, 8)}...${normalized.slice(-4)}`;
 }
 
 function toThought(message: SessionMessage): ThoughtItem {
@@ -327,7 +284,6 @@ function buildMessageVersionMap(sceneVersions: SceneVersionRecord[]): Map<string
       continue;
     }
 
-    // Keep the latest revision for each assistant message id.
     versionsByMessageId.set(messageId, version);
   }
 
@@ -398,10 +354,10 @@ function buildUniqueSceneIdVersionMap(sceneVersions: SceneVersionRecord[]): Map<
   return uniqueBySceneId;
 }
 
-export function ChatContainer({ variant = "legacy" }: ChatContainerProps) {
+export function ChatContainer() {
   const [isTasksExpanded, setIsTasksExpanded] = useState(false);
   const chatRef = useRef<HTMLDivElement>(null);
-  const isMetaVariant = variant === "meta";
+  const isMetaVariant = true;
   const {
     sessions,
     activeSessionId,
@@ -420,18 +376,34 @@ export function ChatContainer({ variant = "legacy" }: ChatContainerProps) {
     setComposerValue,
     setComposerImage,
     clearComposerImage,
-    createNewSession,
+    createNewSession: startDraftSession,
     sendMessage,
     stopTurn,
     openPanel,
     closePanel,
+    openTheaterMode,
+    activeArtifactId,
     selectSceneVersion,
   } = useChatStore();
 
+  const createNewSession = async (initialPrompt?: string) => {
+    try {
+      await startDraftSession();
+      if (initialPrompt) {
+        setComposerValue(initialPrompt);
+      }
+    } catch (err) {
+      console.error("Failed to create new session:", err);
+    }
+  };
+
   const activeSession = sessions.find(s => s.sessionId === activeSessionId);
-  const activeMessages = activeSessionId ? messages[activeSessionId] || [] : [];
+  const activeMessages = useMemo(
+    () => (activeSessionId ? (messages[activeSessionId] ?? []) : []),
+    [activeSessionId, messages]
+  );
   const activeTaskProgress = activeSessionId ? taskProgressBySession[activeSessionId] ?? null : null;
-  const activeScene = activeSession?.currentScene ?? null;
+  const isWorkspaceVisible = panelOpen && (panelView === "preview" || panelView === "code");
   const isTaskOperationActive = activeTaskProgress?.turnStatus === "running";
   const hasGlobalTaskStatus = Boolean(isTaskOperationActive && activeTaskProgress);
   const activeStatusStep = activeTaskProgress?.liveThought?.step ?? activeTaskProgress?.currentStep ?? thinkingStep;
@@ -492,6 +464,13 @@ export function ChatContainer({ variant = "legacy" }: ChatContainerProps) {
     }
   }, [displayMessages, thinkingText]);
 
+  // Workspace panel auto-close logic removed - split screen deprecated
+  useEffect(() => {
+    if (panelOpen) {
+      closePanel();
+    }
+  }, [panelOpen, closePanel]);
+
   const handleSend = async () => {
     await sendMessage(composerValue);
   };
@@ -507,19 +486,18 @@ export function ChatContainer({ variant = "legacy" }: ChatContainerProps) {
     }
 
     const currentVersionId = activeSession?.currentScene?.versionId ?? null;
-    const isAlreadyActive = panelOpen && panelView === action && currentVersionId === normalizedVersionId;
+    const isAlreadyActive = isWorkspaceVisible && panelView === action && currentVersionId === normalizedVersionId;
 
     if (isAlreadyActive) {
       closePanel();
       return;
     }
 
-    const selected = await selectSceneVersion(normalizedVersionId);
-    if (!selected) {
-      return;
+    if (action === 'preview') {
+      openTheaterMode(normalizedVersionId);
+    } else {
+      openPanel(action);
     }
-
-    openPanel(action);
   };
 
   const handleOpenTasks = () => {
@@ -532,55 +510,36 @@ export function ChatContainer({ variant = "legacy" }: ChatContainerProps) {
     }
   }, [isTaskOperationActive, isTasksExpanded]);
 
-  if (!activeSession) {
-    return (
-      <WelcomeScreen
-        isBootstrapping={isBootstrapping}
-        error={sessionsError}
-        onCreate={createNewSession}
-        variant={variant}
-      />
-    );
-  }
+  // Split view functionality removed
+  const debugLayout =
+    typeof window !== "undefined"
+    && new URLSearchParams(window.location.search).get("chatDebug") === "1";
 
   return (
     <>
-      {/* LEFT WORKSPACE SCENE/Code PANEL */}
-      <WorkspacePanel />
-
-      {/* RIGHT AGENT */}
+      {/* LEFT AGENT */}
       <aside
-        className={`flex flex-col relative z-20 min-h-0 h-full w-full min-w-0 transition-all duration-300 ease-out ${
-          panelOpen
-            ? (isMetaVariant
-              ? "flex-1 p-0 lg:w-[420px] lg:flex-none 2xl:w-[460px]"
-              : "flex-1 p-0 lg:w-[420px] 2xl:w-[460px]")
-            : "flex-1 p-0"
-        }`}
+        className={`relative z-20 flex h-full min-h-0 w-full min-w-0 flex-1 flex-col p-0 transition-all duration-300 ease-out ${debugLayout ? "outline outline-2 outline-fuchsia-500/70" : ""}`}
       >
-        <div className="relative flex-1 min-h-0 h-full overflow-hidden border border-white/10 bg-[#0b0b10]/90 shadow-[-20px_0_50px_-25px_rgba(0,0,0,0.7)] rounded-none">
-          <div className="pointer-events-none absolute inset-0">
-            <div className="absolute inset-0 bg-[radial-gradient(circle_at_12%_8%,rgba(56,189,248,0.14),transparent_45%),radial-gradient(circle_at_85%_18%,rgba(236,72,153,0.1),transparent_50%)]" />
-            <div
-              className="absolute inset-0 opacity-30"
-              style={{
-                backgroundImage:
-                  "linear-gradient(rgba(255,255,255,.03) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.03) 1px, transparent 1px)",
-                backgroundSize: "30px 30px",
-              }}
-            />
-          </div>
-
-          <div className="relative z-10 flex h-full flex-col pt-11 lg:pt-0">
-            {sessionsError && <div className="border-b border-red-500/20 bg-red-950/30 px-3 py-1.5 text-[11px] text-red-300/80 lg:p-3 lg:text-xs">{sessionsError}</div>}
+        <div className={`relative flex h-full min-h-0 flex-1 overflow-hidden rounded-none bg-transparent shadow-none ${debugLayout ? "outline outline-2 outline-cyan-400/70" : ""}`}>
+          <div className="relative z-10 flex h-full w-full flex-1 flex-col pt-0">
+            {sessionsError && <div className="bg-red-950/30 px-3 py-1.5 text-[11px] text-red-300/80 lg:p-3 lg:text-xs">{sessionsError}</div>}
 
             {/* Messages */}
             <div
               className="flex min-h-0 w-full flex-1 overflow-x-hidden overflow-y-auto scroll-smooth scrollbar px-0 py-0"
               ref={chatRef}
             >
-          <div className={`flex w-full flex-col gap-3 lg:gap-5 ${panelOpen ? 'px-3 py-2 lg:px-0 lg:py-0' : 'mx-auto max-w-[980px] px-4 py-4 lg:px-6 lg:py-6'}`}>
-            <div className="flex-1 min-h-[40px]" />
+          <div className={`flex w-full flex-col gap-3 px-3 py-3 lg:gap-4 lg:py-8 min-h-full ${activeSession ? 'lg:px-24 xl:px-48 2xl:px-72' : 'items-center justify-center'}`}>
+            {!activeSession ? (
+              <WelcomeScreen
+                isBootstrapping={isBootstrapping}
+                error={sessionsError}
+                onCreate={createNewSession}
+              />
+            ) : (
+              <>
+                <div className="flex-1 min-h-[40px]" />
           {displayMessages.map(({ message, thoughts, sceneId, promptContext, skill, assistantSource, assistantWarning, errorCode }, index) => {
             const isLast = index === displayMessages.length - 1;
             const thinkingDuration = getThinkingDuration(thoughts);
@@ -592,13 +551,13 @@ export function ChatContainer({ variant = "legacy" }: ChatContainerProps) {
             const resolvedSceneId = matchedVersion?.sceneId ?? sceneId;
             const resolvedVersionId = matchedVersion?.versionId ?? null;
             const isPreviewActive = Boolean(
-              panelOpen
+              isWorkspaceVisible
               && panelView === 'preview'
               && resolvedVersionId
               && activeSession?.currentScene?.versionId === resolvedVersionId
             );
             const isCodeActive = Boolean(
-              panelOpen
+              isWorkspaceVisible
               && panelView === 'code'
               && resolvedVersionId
               && activeSession?.currentScene?.versionId === resolvedVersionId
@@ -628,12 +587,10 @@ export function ChatContainer({ variant = "legacy" }: ChatContainerProps) {
                 mediaType: version.mediaType,
                 previewUrl,
                 isPreviewActive: Boolean(
-                  panelOpen
-                  && panelView === 'preview'
-                  && activeSession?.currentScene?.versionId === version.versionId
+                  activeArtifactId === version.versionId
                 ),
                 isCodeActive: Boolean(
-                  panelOpen
+                  isWorkspaceVisible
                   && panelView === 'code'
                   && activeSession?.currentScene?.versionId === version.versionId
                 ),
@@ -656,7 +613,7 @@ export function ChatContainer({ variant = "legacy" }: ChatContainerProps) {
                   key={message.id}
                   content={message.content}
                   timestamp={Date.parse(message.createdAt)}
-                  variant={variant}
+                  variant="meta"
                 />
               );
             }
@@ -680,7 +637,7 @@ export function ChatContainer({ variant = "legacy" }: ChatContainerProps) {
                 meta={message.meta}
                 isPreviewActive={isPreviewActive}
                 isCodeActive={isCodeActive}
-                variant={variant}
+                variant="meta"
                 onSceneCode={resolvedVersionId
                   ? () => {
                       void handleMessageSceneAction('code', resolvedVersionId);
@@ -704,17 +661,19 @@ export function ChatContainer({ variant = "legacy" }: ChatContainerProps) {
               thinkingStep={thinkingStep}
               thoughts={[{ text: thinkingText ?? "", step: thinkingStep, timestamp: Date.now() }]}
               taskProgress={activeTaskProgress}
-              variant={variant}
+              variant="meta"
             />
           )}
+              </>
+            )}
 
           </div>
 
         </div>
         
             {isTaskOperationActive && activeTaskProgress && (
-              <div className={`p-0 ${panelOpen ? '' : 'px-4 pb-3'}`}>
-                <div className={panelOpen ? '' : 'mx-auto w-full max-w-[980px]'}>
+              <div className="w-full p-0 px-4 pb-3 lg:px-24 xl:px-48 2xl:px-72">
+                <div className="w-full">
                   <TaskStatusBar
                     taskProgress={activeTaskProgress}
                     statusStep={activeStatusStep}
@@ -729,8 +688,9 @@ export function ChatContainer({ variant = "legacy" }: ChatContainerProps) {
             )}
 
             {/* Input */}
-            <div className="shrink-0 border-t border-white/[0.08] bg-black/40 p-0 backdrop-blur-xl">
-              <div className={`relative ${panelOpen ? 'px-3 py-3 lg:px-0 lg:py-0' : 'mx-auto w-full max-w-[980px] px-4 py-3 lg:px-6 lg:py-4'}`}>
+            <div className="shrink-0 bg-transparent pb-4 lg:pb-8">
+              <div className="w-full">
+                <div className={`relative w-full px-3 ${activeSession ? 'lg:px-24 xl:px-48 2xl:px-72' : 'max-w-3xl mx-auto'} ${debugLayout ? "outline outline-2 outline-amber-300/80" : ""}`}>
                 <Composer
                   value={composerValue}
                   onChange={setComposerValue}
@@ -740,98 +700,19 @@ export function ChatContainer({ variant = "legacy" }: ChatContainerProps) {
                   onRemoveImage={clearComposerImage}
                   isSending={isSending}
                   onStop={handleStop}
-                  variant={variant}
+                  variant="meta"
                   placeholder="Send a message"
                 />
+                </div>
               </div>
             </div>
           </div>
         </div>
       </aside>
+
+      {/* Cinematic Theater Mode Overlay */}
+      <CinematicPlayer />
     </>
   );
 }
 
-function WelcomeScreen({
-  onCreate,
-  error,
-  isBootstrapping,
-  variant
-}: {
-  onCreate: () => Promise<unknown>;
-  error: string | null;
-  isBootstrapping: boolean;
-  variant: ChatContainerVariant;
-}) {
-  const [isCreating, setIsCreating] = useState(false);
-
-  const createNewChat = async () => {
-    if (isCreating || isBootstrapping) {
-      return;
-    }
-
-    setIsCreating(true);
-    try {
-      await onCreate();
-    } finally {
-      setIsCreating(false);
-    }
-  };
-
-  return (
-    <div className="flex h-full w-full items-center justify-center overflow-y-auto p-4 lg:p-8">
-      <div className="w-full max-w-4xl rounded-2xl border border-white/10 bg-white/[0.03] p-6 backdrop-blur-xl lg:p-10">
-        <div className="mb-3 text-[11px] font-semibold uppercase tracking-[0.16em] text-white/50">GenVis Workspace</div>
-        <h1 className="text-2xl font-semibold text-white lg:text-3xl">Build visual ideas that feel production-ready</h1>
-        <p className="mt-3 max-w-3xl text-sm leading-7 text-white/70 lg:text-base">
-          Move from prompt to polished output with live preview, editable code, and turn-by-turn progress in one focused canvas.
-        </p>
-        {error && <p className="mt-3 rounded-lg border border-red-500/30 bg-red-950/40 px-3 py-2 text-sm text-red-300">{error}</p>}
-        <div className="mt-5 flex flex-wrap gap-2">
-          <button type="button" className="inline-flex items-center gap-2 rounded-lg border border-sky-400/45 bg-sky-400/15 px-4 py-2 text-sm font-medium text-sky-100 transition hover:bg-sky-400/25" onClick={() => void createNewChat()}>
-            <Send className="h-4 w-4" />
-            {isCreating || isBootstrapping ? "Preparing..." : "Start New Chat"}
-          </button>
-          <button
-            type="button"
-            className="inline-flex items-center rounded-lg border border-white/15 bg-white/[0.04] px-4 py-2 text-sm font-medium text-white/80 transition hover:bg-white/[0.08] disabled:opacity-50"
-            onClick={() => void createNewChat()}
-            disabled={isCreating || isBootstrapping}
-          >
-            Explore Templates
-          </button>
-        </div>
-
-        <div className="mt-6 grid gap-3 sm:grid-cols-3" aria-label="Core capabilities">
-          <div className="rounded-xl border border-white/10 bg-white/[0.03] p-4">
-            <h3 className="text-sm font-semibold text-white">Live Preview</h3>
-            <p className="mt-1 text-xs leading-6 text-white/65">See scene updates immediately while iterating.</p>
-          </div>
-          <div className="rounded-xl border border-white/10 bg-white/[0.03] p-4">
-            <h3 className="text-sm font-semibold text-white">Code + Prompt</h3>
-            <p className="mt-1 text-xs leading-6 text-white/65">Refine visuals from both natural language and code edits.</p>
-          </div>
-          <div className="rounded-xl border border-white/10 bg-white/[0.03] p-4">
-            <h3 className="text-sm font-semibold text-white">Task Trace</h3>
-            <p className="mt-1 text-xs leading-6 text-white/65">Track parse, build, generate, and sync steps in real time.</p>
-          </div>
-        </div>
-
-        <div className="mt-6 grid gap-2 sm:grid-cols-2" aria-label="Starter ideas">
-          {WELCOME_STARTERS.map((starter) => (
-            <button
-              key={starter.title}
-              type="button"
-              className="group rounded-xl border border-white/10 bg-white/[0.02] p-4 text-left transition hover:border-white/20 hover:bg-white/[0.06] disabled:opacity-60"
-              onClick={() => void createNewChat()}
-              disabled={isCreating || isBootstrapping}
-            >
-              <span className="block text-sm font-semibold text-white">{starter.title}</span>
-              <span className="mt-1 block text-xs leading-6 text-white/65">{starter.description}</span>
-            </button>
-          ))}
-        </div>
-      </div>
-    </div>
-  );
-}

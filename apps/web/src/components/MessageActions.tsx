@@ -19,7 +19,6 @@ const btnActive = "bg-blue-500/15 border-blue-500/40 text-blue-400/90";
 
 export function MessageActions({
   content,
-  messageId,
   isAssistant,
   isError,
   onRegenerate,

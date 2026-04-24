@@ -8,6 +8,8 @@
     "start": "tsx server/index.ts",
     "typecheck": "tsc --noEmit",
     "build": "tsc",
+    "test": "vitest run",
+    "chat:full-turn": "tsx scripts/chat-full-turn.ts",
     "test:sandbox:direct": "node ./scripts/sandbox-direct-test.mjs",
     "test:sandbox:runtime": "node ./scripts/sandbox-runtime-test.mjs",
     "test:sandbox:soak": "node ./scripts/sandbox-soak-test.mjs",
@@ -34,6 +36,7 @@
     "@types/node": "^25.6.0",
     "@types/ws": "^8.18.1",
     "tsx": "^4.21.0",
-    "typescript": "^6.0.3"
+    "typescript": "^6.0.3",
+    "vitest": "^3.2.4"
   }
 }

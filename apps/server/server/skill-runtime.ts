@@ -8,6 +8,9 @@
 import { getSkillRuntimeProfile } from "./skill-loader.js";
 import { persistMediaArtifact } from "./media-artifacts.js";
 import { SandboxPoolManager, toolRegistry } from "@visual-runtime/sandbox-pool";
+import { DedicatedSandboxManager } from "./dedicated-sandbox-manager.js";
+import { traceEvent } from "./trace/events.js";
+import { getTraceContext } from "./trace/context.js";
 
 function parsePositiveIntEnv(rawValue: string | undefined | null, fallbackValue: number, minimum = 1): number {
   const parsed = Number.parseInt(String(rawValue ?? ""), 10);
@@ -36,6 +39,7 @@ function escapeDoubleQuotedShellValue(value: string | undefined | null): string 
 }
 
 const poolManager = new SandboxPoolManager();
+const dedicatedSandboxManager = new DedicatedSandboxManager(poolManager);
 
 const runtimeAcquireBudgetMs = parsePositiveIntEnv(process.env.RUNTIME_ACQUIRE_BUDGET_MS, 12_000, 1_000);
 const manimRenderWidth = parsePositiveIntEnv(process.env.MANIM_RENDER_WIDTH, 1920, 320);
@@ -288,12 +292,20 @@ export async function executeSkillRuntime({ skillId, code, timeoutMs, maxFrames,
   const acquireDeadlineAtMs = resolveAcquireDeadlineAtMs(turnDeadlineAtMs);
   let sandboxEnv: any = null;
   let acquireDiagnostics: any = null;
+  const traceCtx = getTraceContext();
+  const effectiveSessionId = sessionId ?? traceCtx.sessionId ?? null;
+  const dedicatedKey = dedicatedSandboxManager.getKey({ userId: traceCtx.userId ?? null, sessionId: effectiveSessionId });
 
   try {
     const acquireBudgetMs = remainingBudgetMs(acquireDeadlineAtMs);
     if (acquireBudgetMs <= 0) throw new Error("Runtime budget exhausted before sandbox acquisition.");
 
-    sandboxEnv = await poolManager.acquire({ skillId, turnDeadlineAtMs: acquireDeadlineAtMs });
+    traceEvent("sandbox.acquire_start", { skillId, sessionId: effectiveSessionId, dedicated: dedicatedSandboxManager.isEnabled(), key: dedicatedKey });
+    const acquireStartMs = Date.now();
+    sandboxEnv = dedicatedKey
+      ? await dedicatedSandboxManager.acquireForKey(dedicatedKey, { skillId, turnDeadlineAtMs: acquireDeadlineAtMs })
+      : await poolManager.acquire({ skillId, turnDeadlineAtMs: acquireDeadlineAtMs });
+    traceEvent("sandbox.acquire_ok", { skillId, workspaceId: sandboxEnv?.workspaceId ?? null, acquireMs: Date.now() - acquireStartMs, key: dedicatedKey });
     acquireDiagnostics = cloneAcquireDiagnostics(sandboxEnv?._acquireDiagnostics);
 
     if (Array.isArray(tools) && tools.length > 0) {
@@ -336,7 +348,9 @@ export async function executeSkillRuntime({ skillId, code, timeoutMs, maxFrames,
       resultObj = await executeManimRuntime({ workspace: sandboxEnv._workspace, code: executionCode, timeoutMs: effectiveTimeoutMs, sessionId });
     } else {
       const payload = JSON.stringify({ skill, code: executionCode, timeoutMs: effectiveTimeoutMs, maxFrames });
+      const execStartMs = Date.now();
       resultObj = await sandboxEnv.execute(payload);
+      traceEvent("sandbox.execute_complete", { skillId, workspaceId: sandboxEnv?.workspaceId ?? null, execMs: Date.now() - execStartMs, success: Boolean(resultObj?.success) });
     }
 
     return {
@@ -363,6 +377,12 @@ export async function executeSkillRuntime({ skillId, code, timeoutMs, maxFrames,
       acquireDiagnostics
     };
   } finally {
-    if (sandboxEnv) await poolManager.release(sandboxEnv).catch(() => { });
+    if (sandboxEnv) {
+      if (dedicatedKey) {
+        await dedicatedSandboxManager.releaseForKey(dedicatedKey, sandboxEnv).catch(() => {});
+      } else {
+        await poolManager.release(sandboxEnv).catch(() => { });
+      }
+    }
   }
 }

@@ -1,6 +1,15 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, useImperativeHandle, forwardRef } from "react";
 import { Plus, Minus, RotateCcw, Compass, CheckCircle2, AlertCircle, Sparkles, Pause, Play, Gamepad2, Lock, Unlock, Keyboard, Grid3X3 } from "lucide-react";
 import { cn } from "../lib/utils";
+
+export interface SceneViewerRef {
+  zoomIn: () => void;
+  zoomOut: () => void;
+  resetCamera: () => void;
+  toggleOrbit: () => void;
+  togglePlayback: () => void;
+  toggleGrid: () => void;
+}
 
 interface SceneViewerProps {
   code: string | null;
@@ -150,17 +159,40 @@ function buildSceneHTML(code: string, skill: string): string {
       // Compatibility shims for generated code across Three.js versions.
       if (window.THREE && typeof window.THREE.CapsuleGeometry !== 'function') {
         window.THREE.CapsuleGeometry = function(radius = 0.5, length = 1, capSegments = 8, radialSegments = 16) {
+          const __safeRadius = Math.max(0.0001, Number(radius) || 0.5);
+          const __safeLength = Math.max(0.0001, Number(length) || 1);
           const __capsuleGroup = new THREE.Group();
-          const __cylinder = new THREE.Mesh(new THREE.CylinderGeometry(radius, radius, length, radialSegments, 1, true));
-          const __capTop = new THREE.Mesh(new THREE.SphereGeometry(radius, radialSegments, capSegments, 0, Math.PI * 2, 0, Math.PI / 2));
-          const __capBottom = new THREE.Mesh(new THREE.SphereGeometry(radius, radialSegments, capSegments, 0, Math.PI * 2, Math.PI / 2, Math.PI / 2));
-          __capTop.position.y = length / 2;
-          __capBottom.position.y = -length / 2;
+          const __cylinder = new THREE.Mesh(new THREE.CylinderGeometry(__safeRadius, __safeRadius, __safeLength, radialSegments, 1, true));
+          const __capTop = new THREE.Mesh(new THREE.SphereGeometry(__safeRadius, radialSegments, capSegments, 0, Math.PI * 2, 0, Math.PI / 2));
+          const __capBottom = new THREE.Mesh(new THREE.SphereGeometry(__safeRadius, radialSegments, capSegments, 0, Math.PI * 2, Math.PI / 2, Math.PI / 2));
+          __capTop.position.y = __safeLength / 2;
+          __capBottom.position.y = -__safeLength / 2;
           __capsuleGroup.add(__cylinder, __capTop, __capBottom);
           __capsuleGroup.updateMatrixWorld(true);
-          const __fallbackGeometry = new THREE.CylinderGeometry(radius, radius, length + radius * 2, radialSegments, 1, false);
+          const __fallbackGeometry = new THREE.CylinderGeometry(__safeRadius, __safeRadius, __safeLength + __safeRadius * 2, radialSegments, 1, false);
           return __fallbackGeometry;
         };
+      }
+
+      if (window.THREE && window.THREE.TubeGeometry) {
+        const __OriginalTubeGeometry = window.THREE.TubeGeometry;
+        window.THREE.TubeGeometry = function(path, tubularSegments = 64, radius = 1, radialSegments = 8, closed = false) {
+          if (!path || typeof path.getPointAt !== 'function') {
+            console.warn('TubeGeometry: path is invalid, falling back to dummy path.');
+            path = new THREE.LineCurve3(new THREE.Vector3(0, 0, 0), new THREE.Vector3(0, 1, 0));
+          }
+          const __safeRadius = Math.max(0.0001, Number(radius) || 1);
+          const __safeTubularSegments = Math.max(1, Math.floor(Number(tubularSegments) || 64));
+          const __safeRadialSegments = Math.max(3, Math.floor(Number(radialSegments) || 8));
+          
+          try {
+            return new __OriginalTubeGeometry(path, __safeTubularSegments, __safeRadius, __safeRadialSegments, closed);
+          } catch (e) {
+            console.error('TubeGeometry construction failed:', e);
+            return new THREE.BoxGeometry(0.1, 0.1, 0.1);
+          }
+        };
+        window.THREE.TubeGeometry.prototype = __OriginalTubeGeometry.prototype;
       }
 
       if (window.THREE && window.THREE.MeshPhysicalMaterial) {
@@ -282,17 +314,17 @@ function buildSceneHTML(code: string, skill: string): string {
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body { 
       overflow: hidden; 
-      background-color: #f6f9fd;
+      background-color: #050507;
       background-image:
-        linear-gradient(rgba(148, 163, 184, 0.18) 1px, transparent 1px),
-        linear-gradient(90deg, rgba(148, 163, 184, 0.18) 1px, transparent 1px);
-      background-size: 42px 42px;
+        linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+      background-size: 32px 32px;
       font-family: system-ui, -apple-system, sans-serif;
     }
     #scene-container { 
       width: 100vw; 
       height: 100vh; 
-      background: radial-gradient(circle at 25% 20%, rgba(255, 255, 255, 0.45), rgba(241, 245, 249, 0.3));
+      background: radial-gradient(circle at 25% 20%, rgba(255, 255, 255, 0.05), transparent);
     }
     #error-display {
       position: fixed;
@@ -677,7 +709,7 @@ function buildSceneHTML(code: string, skill: string): string {
 </html>`;
 }
 
-export default function SceneViewer({ code, skill, onError }: SceneViewerProps) {
+const SceneViewer = forwardRef<SceneViewerRef, SceneViewerProps>(({ code, skill, onError }, ref) => {
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const [runtimeError, setRuntimeError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -689,6 +721,15 @@ export default function SceneViewer({ code, skill, onError }: SceneViewerProps) 
   const [isGamepadConnected, setIsGamepadConnected] = useState(false);
   const [isGridEnabled, setIsGridEnabled] = useState(getInitialGridEnabled);
   const [pointerLockHint, setPointerLockHint] = useState<string | null>(null);
+
+  useImperativeHandle(ref, () => ({
+    zoomIn: handleZoomIn,
+    zoomOut: handleZoomOut,
+    resetCamera: handleResetCamera,
+    toggleOrbit: handleToggleOrbit,
+    togglePlayback: handleTogglePlayback,
+    toggleGrid: handleToggleGrid,
+  }));
 
   // Listen for errors from iframe
   useEffect(() => {
@@ -887,7 +928,7 @@ export default function SceneViewer({ code, skill, onError }: SceneViewerProps) 
                 title="Scene preview"
               />
 
-              <div className="pointer-events-none absolute left-4 top-4 inline-flex items-center gap-2 rounded-full border border-cyan-300/35 bg-black/55 px-2.5 py-1 font-mono text-[10px] uppercase tracking-[0.2em] text-cyan-200/90 backdrop-blur-sm">
+              <div className="pointer-events-none absolute left-4 top-4 inline-flex items-center gap-2 rounded-full bg-black/55 px-2.5 py-1 font-mono text-[10px] uppercase tracking-[0.2em] text-cyan-200/90 backdrop-blur-sm">
                 <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-cyan-300" />
                 Live Preview
               </div>
@@ -902,7 +943,7 @@ export default function SceneViewer({ code, skill, onError }: SceneViewerProps) 
           )}
         </div>
 
-        <div className="shrink-0 border-t border-white/10 bg-black/40 px-3 py-2 backdrop-blur-sm">
+        <div className="shrink-0 bg-black/40 px-3 py-2 backdrop-blur-sm">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div className="flex items-center gap-1">
               {is3D && (
@@ -977,11 +1018,13 @@ export default function SceneViewer({ code, skill, onError }: SceneViewerProps) 
         </div>
 
         {pointerLockHint && (
-          <div className="shrink-0 border-t border-white/10 bg-black/25 px-3 py-2">
+          <div className="shrink-0 bg-black/25 px-3 py-2">
             <p className="text-[11px] text-amber-200/85">{pointerLockHint}</p>
           </div>
         )}
       </div>
     </div>
   );
-}
+});
+
+export default SceneViewer;

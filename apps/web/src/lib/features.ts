@@ -11,5 +11,9 @@ function parseBooleanFlag(value: string | undefined): boolean {
 }
 
 export function isMetaChatUiEnabled(): boolean {
-  return parseBooleanFlag(import.meta.env.VITE_CHAT_META_UI);
+  const flag = import.meta.env.VITE_CHAT_META_UI;
+  if (flag === undefined) {
+    return true;
+  }
+  return parseBooleanFlag(flag);
 }

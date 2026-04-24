@@ -9,6 +9,7 @@ import {
   buildAgentActivity,
   buildTurnLifecyclePayload 
 } from "../routes/chat.js";
+import { runWithTraceContext } from "../trace/context.js";
 import { sendSocketPayload, sendSocketEvent, replayEventsSince, broadcastEvent, wsEventSequence } from "./streaming.js";
 import { listSessionMessages } from "../session-state.js";
 const completedTurnCacheSize = Number.parseInt(String(process.env.WS_COMPLETED_TURN_CACHE_SIZE ?? "300"), 10);
@@ -333,15 +334,20 @@ export function setupWebSocketHandler(wsServer: any) {
 
         const turnPromise = (async () => {
           try {
-            return await executeChatTurn(sessionId, content, normalizedPreferences, {
-              clientMessageId: clientMessageId || null,
-              requestId: requestId || null,
-              idempotencyKey: idempotencyKey || null,
-              transport: "websocket",
-              forcedMode,
-              imageUrl: imageUrl || null,
-              imageData: imageData || null
-            });
+            const userId = String(parsedMessage?.payload?.userId ?? parsedMessage?.payload?.auth?.userId ?? "").trim() || null;
+            return await runWithTraceContext(
+              { sessionId, userId, requestId: requestId || null },
+              () =>
+                executeChatTurn(sessionId, content, normalizedPreferences, {
+                  clientMessageId: clientMessageId || null,
+                  requestId: requestId || null,
+                  idempotencyKey: idempotencyKey || null,
+                  transport: "websocket",
+                  forcedMode,
+                  imageUrl: imageUrl || null,
+                  imageData: imageData || null
+                })
+            );
           } finally {
             activeChatTurns.delete(turnKey);
           }

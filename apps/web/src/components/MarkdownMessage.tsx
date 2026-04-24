@@ -35,7 +35,7 @@ const CodeBlock = ({ language, value }: { language: string; value: string }) => 
 
 export function MarkdownMessage({ content, className = "" }: MarkdownMessageProps) {
   const components = useMemo(() => ({
-    code({ node, inline, className: codeClassName, children, ...props }: any) {
+    code({ inline, className: codeClassName, children, ...props }: any) {
       const match = /language-(\w+)/.exec(codeClassName || "");
       const value = String(children).replace(/\n$/, "");
       

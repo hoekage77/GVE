@@ -1,6 +1,7 @@
 import { Outlet, useRouterState } from '@tanstack/react-router';
 import { useEffect } from 'react';
 import Sidebar from './Sidebar';
+import { MetaHeader } from './MetaHeader';
 import { useChatStore } from '../../stores';
 
 interface MainLayoutProps {
@@ -20,12 +21,14 @@ export function MainLayout({ children }: MainLayoutProps) {
     void initialize();
   }, [initialize]);
 
-  return (
-    <div className="relative z-10 h-[100dvh] w-screen flex flex-col bg-[#06090d] text-white">
-      <div className={`flex min-h-0 flex-1 overflow-hidden ${isWorkspaceRoute ? 'relative isolate flex-row' : ''}`}>
-        <Sidebar />
+  const isSidebarCollapsed = useChatStore((state) => state.isSidebarCollapsed);
 
-        <main className={`flex min-h-0 flex-1 ${isWorkspaceRoute ? 'max-w-none bg-[radial-gradient(120%_100%_at_0%_0%,rgba(56,189,248,0.12)_0%,rgba(56,189,248,0)_45%),radial-gradient(90%_70%_at_100%_0%,rgba(236,72,153,0.08)_0%,rgba(236,72,153,0)_42%),#06090d] flex-col lg:flex-row' : ''}`}>
+  return (
+    <div className="relative z-10 flex h-[100dvh] w-screen flex-row bg-surface text-meta-text">
+      <Sidebar />
+      <div className={`flex min-h-0 flex-1 flex-col overflow-hidden transition-[padding] duration-300 ${isWorkspaceRoute ? "relative isolate" : ""}`}>
+        <MetaHeader />
+        <main className={`flex min-h-0 w-full flex-1 bg-grid ${isWorkspaceRoute ? 'max-w-none flex-col' : ''}`}>
           {children || <Outlet />}
         </main>
       </div>

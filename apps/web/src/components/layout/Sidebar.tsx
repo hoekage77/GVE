@@ -226,12 +226,12 @@ export default function Sidebar({ forceExpanded = false }: SidebarProps) {
       {showMobileLauncher && (
         <button
           type="button"
-          className="fixed left-2.5 top-[calc(env(safe-area-inset-top)+0.62rem)] z-[160] inline-flex h-8.5 w-8.5 items-center justify-center rounded-[0.62rem] border border-[#dbe3ef] bg-white/90 text-slate-600 shadow-[0_10px_22px_-16px_rgba(15,23,42,0.55)] backdrop-blur transition-colors duration-200 hover:border-slate-300 hover:bg-white hover:text-slate-700"
+          className="fixed right-3 top-[calc(env(safe-area-inset-top)+0.5rem)] z-[100] inline-flex h-7 w-7 items-center justify-center rounded-md border border-slate-600/50 bg-slate-800/90 text-slate-200 shadow-lg backdrop-blur transition-colors duration-200 hover:border-slate-400 hover:bg-slate-700 hover:text-white"
           onClick={() => setIsCollapsed(false)}
           aria-label="Open chat sidebar"
           title="Open sidebar"
         >
-          <LayoutGrid className="h-4 w-4" />
+          <LayoutGrid className="h-3.5 w-3.5" />
         </button>
       )}
 
@@ -251,17 +251,12 @@ export default function Sidebar({ forceExpanded = false }: SidebarProps) {
             <div className="grid justify-items-center gap-2">
               <button
                 type="button"
-                className="inline-flex h-10 w-10 items-center justify-center overflow-hidden rounded-xl border border-[#2a2a2a] bg-[#161616]"
+                className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-[#2a2a2a] bg-[#1a1a1a] text-slate-400 hover:border-[#333333] hover:bg-[#222222] hover:text-slate-300"
                 onClick={() => setIsCollapsed(false)}
                 aria-label="Expand sidebar"
                 title="Open sidebar"
               >
-                <img
-                  src="https://i.pravatar.cc/40?img=12"
-                  alt="Andrew Smith"
-                  className="h-10 w-10 object-cover"
-                  loading="lazy"
-                />
+                <LayoutGrid className="h-4 w-4" />
               </button>
 
               <p className="text-[10px] uppercase tracking-[0.12em] text-white/45">Main</p>
@@ -322,26 +317,17 @@ export default function Sidebar({ forceExpanded = false }: SidebarProps) {
             </div>
           ) : (
             <>
-              <div className="flex items-center gap-2.5">
-                <img
-                  src="https://i.pravatar.cc/40?img=12"
-                  alt="Andrew Smith"
-                  className="h-10 w-10 rounded-xl object-cover"
-                  loading="lazy"
-                />
-                <div className="flex min-w-0 flex-1 flex-col">
-                  <span className="text-[10px] uppercase tracking-[0.12em] text-white/40">Product Designer</span>
-                  <span className="truncate text-sm font-semibold text-white/90">Andrew Smith</span>
-                </div>
+              <div className="flex items-center justify-between">
+                <h2 className="text-xs font-semibold uppercase tracking-wider text-white/60">Workspace</h2>
                 {!forceExpanded && (
                   <button
                     type="button"
-                    className="inline-flex h-8.5 w-8.5 shrink-0 items-center justify-center rounded-[0.55rem] border border-[#2a2a2a] bg-[#1a1a1a] text-[#808080] transition-all duration-200 hover:border-[#333333] hover:bg-[#222222] hover:text-[#a0a0a0]"
+                    className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-sm border border-[#2a2a2a] bg-[#1a1a1a] text-[#808080] transition-all duration-200 hover:border-[#333333] hover:bg-[#222222] hover:text-[#a0a0a0]"
                     onClick={() => setIsCollapsed(true)}
                     aria-label="Collapse sidebar"
                     title="Collapse sidebar"
                   >
-                    <ChevronLeft className="h-4 w-4" />
+                    <ChevronLeft className="h-3.5 w-3.5" />
                   </button>
                 )}
               </div>

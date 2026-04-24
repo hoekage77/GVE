@@ -1,5 +1,5 @@
-import { FileCode2, Film, FolderOpen, Link2, Award, TrendingUp } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import { FileCode2, Film, FolderOpen, Link2, Award } from 'lucide-react';
+import { useMemo } from 'react';
 import type { SceneAssetPlan, SceneVersion } from '@visual-runtime/shared';
 import { useChatStore } from '../../stores';
 import AssetPlanSummary from './AssetPlanSummary';
@@ -113,7 +113,6 @@ export default function SessionFilesPanel({
   currentSceneId,
   assetPlan
 }: SessionFilesPanelProps) {
-  const [expandedTooltip, setExpandedTooltip] = useState<string | null>(null);
   const { iterationState } = useChatStore();
   const finalScore = iterationState?.qualityReport?.finalScore ?? 
                      (iterationState?.iterations.length ? iterationState.iterations[iterationState.iterations.length - 1]?.qualitySignals?.composite : undefined);
@@ -157,8 +156,6 @@ export default function SessionFilesPanel({
                     {file.qualityScore !== undefined && (
                       <span
                         className="terranet-session-files__quality-badge"
-                        onMouseEnter={() => file.qualityScore !== undefined && setExpandedTooltip(file.id)}
-                        onMouseLeave={() => setExpandedTooltip(null)}
                         title="Quality score from iterations"
                       >
                         <Award className="h-3 w-3" aria-hidden="true" />

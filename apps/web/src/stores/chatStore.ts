@@ -20,7 +20,6 @@ import {
   type SessionMessage as ApiSessionMessage,
   type SessionSceneState,
   type IterationState as SharedIterationState,
-  type IterationUpdateEvent,
   type QualityReport,
   type IterationStopReason
 } from '@visual-runtime/shared';
@@ -821,12 +820,19 @@ interface ChatState {
   panelView: WorkspacePanelView | null;
   panelWidth: number;
   
+  // Theater Mode (New Cinematic Preview)
+  activeArtifactId: string | null;
+  
   // Composer
   composerValue: string;
   composerImage: ComposerImageAttachment | null;
   isSlashMenuOpen: boolean;
   
   // Actions
+  isSidebarCollapsed: boolean;
+  setSidebarCollapsed: (collapsed: boolean) => void;
+  cycleTheaterArtifact: (direction: "next" | "prev") => void;
+  
   initialize: () => Promise<void>;
   refreshSessions: () => Promise<void>;
   createNewSession: () => Promise<Session | null>;
@@ -871,12 +877,49 @@ interface ChatState {
   clearActionBlocks: (messageId: string) => void;
   
   clearSession: (sessionId: string) => void;
+
+  // Theater Mode Actions
+  openTheaterMode: (artifactId: string) => void;
+  closeTheaterMode: () => void;
 }
 
 export const useChatStore = create<ChatState>()(
   devtools(
     persist(
       (set, get) => ({
+        activeArtifactId: null,
+        isSidebarCollapsed: typeof window !== "undefined" ? window.sessionStorage.getItem("terranet.sidebar.collapsed.v2") === "1" : false,
+        
+        setSidebarCollapsed: (collapsed: boolean) => {
+          set({ isSidebarCollapsed: collapsed });
+          if (typeof window !== "undefined") {
+            window.sessionStorage.setItem("terranet.sidebar.collapsed.v2", collapsed ? "1" : "0");
+          }
+        },
+
+        cycleTheaterArtifact: (direction: "next" | "prev") => {
+          const { activeArtifactId, activeSessionId, sessions } = get();
+          if (!activeArtifactId || !activeSessionId) return;
+          
+          const session = sessions.find(s => s.sessionId === activeSessionId);
+          if (!session || !session.versions || session.versions.length <= 1) return;
+          
+          const currentIndex = session.versions.findIndex(v => v.versionId === activeArtifactId);
+          if (currentIndex === -1) return;
+          
+          let nextIndex;
+          if (direction === "next") {
+            nextIndex = (currentIndex + 1) % session.versions.length;
+          } else {
+            nextIndex = (currentIndex - 1 + session.versions.length) % session.versions.length;
+          }
+          
+          const nextVersion = session.versions[nextIndex];
+          if (nextVersion) {
+            set({ activeArtifactId: nextVersion.versionId });
+          }
+        },
+
         initialize: async () => {
           if (get().isBootstrapping) {
             return;
@@ -913,6 +956,9 @@ export const useChatStore = create<ChatState>()(
               sessions,
               activeSessionId: nextActiveSessionId,
               sessionsError: null,
+              panelOpen: false,
+              panelView: null,
+              activeArtifactId: null,
               taskProgressBySession: reconcileTaskProgressMap(state.taskProgressBySession, sessions)
             }));
 
@@ -969,7 +1015,10 @@ export const useChatStore = create<ChatState>()(
             activeRequestId: nextProgress?.activeRequestId ?? null,
             thinkingText: nextProgress?.liveThought?.text ?? null,
             thinkingStep: nextProgress?.liveThought?.step ?? nextProgress?.currentStep ?? 'turn_started',
-            composerImage: null
+            composerImage: null,
+            panelOpen: false,
+            panelView: null,
+            activeArtifactId: null
           });
 
           const hasMessages = (get().messages[sessionId] ?? []).length > 0;
@@ -1053,6 +1102,9 @@ export const useChatStore = create<ChatState>()(
             thinkingText: 'Analyzing your request...',
             thinkingStep: 'parse_intent',
             sessionsError: null,
+            panelOpen: false,
+            panelView: null,
+            activeArtifactId: null,
             messages: {
               ...state.messages,
               [sessionId!]: upsertMessage(state.messages[sessionId!] ?? [], optimisticUserMessage)
@@ -1963,8 +2015,6 @@ export const useChatStore = create<ChatState>()(
                 const currentTokens = typeof payload.tokens === 'number' ? payload.tokens : null;
                 const totalTokens = typeof payload.estimatedTotal === 'number' ? payload.estimatedTotal : null;
                 const statusMessage = typeof payload.message === 'string' ? payload.message : null;
-                const isFinal = payload.isFinal === true;
-
                 set((state) => ({
                   taskProgressBySession: updateTaskProgressMap(state.taskProgressBySession, sessionId, (current) => ({
                     ...current,
@@ -2426,9 +2476,6 @@ export const useChatStore = create<ChatState>()(
                   iterationNumber,
                   qualitySignals,
                   isFinal,
-                  generationDurationMs,
-                  validationDurationMs,
-                  patchGoals
                 } = iterationData;
 
                 set((state) => {
@@ -2503,8 +2550,6 @@ export const useChatStore = create<ChatState>()(
                 }
 
                 const planId = typeof payload.planId === 'string' ? payload.planId : null;
-                const taskCount = typeof payload.taskCount === 'number' ? payload.taskCount : 0;
-                const summary = typeof payload.summary === 'string' ? payload.summary : null;
 
                 set((state) => ({
                   taskProgressBySession: updateTaskProgressMap(state.taskProgressBySession, sessionId, (current) => ({
@@ -2561,7 +2606,6 @@ export const useChatStore = create<ChatState>()(
                   return;
                 }
 
-                const planId = typeof payload.planId === 'string' ? payload.planId : null;
                 const taskId = typeof payload.taskId === 'string' ? payload.taskId : null;
                 const status = normalizeTaskStatus(payload.status, 'completed');
                 const durationMs = typeof payload.durationMs === 'number' ? payload.durationMs : 0;
@@ -2604,7 +2648,6 @@ export const useChatStore = create<ChatState>()(
                   return;
                 }
 
-                const planId = typeof payload.planId === 'string' ? payload.planId : null;
                 const taskId = typeof payload.taskId === 'string' ? payload.taskId : null;
                 const message = typeof payload.message === 'string' ? payload.message : 'Task failed';
                 const createdAt = nowIso();
@@ -2839,13 +2882,13 @@ export const useChatStore = create<ChatState>()(
         },
         
         closePanel: () => {
-          set({ panelOpen: false });
+          set({ panelOpen: false, panelView: null });
         },
         
         togglePanel: (view: WorkspacePanelView) => {
           const state = get();
           if (state.panelOpen && state.panelView === view) {
-            set({ panelOpen: false });
+            set({ panelOpen: false, panelView: null });
           } else {
             set({
               panelOpen: true,
@@ -2876,8 +2919,10 @@ export const useChatStore = create<ChatState>()(
         },
         
         clearSession: (sessionId: string) => {
-          const { [sessionId]: _, ...remainingMessages } = get().messages;
-          const { [sessionId]: __, ...remainingTaskProgress } = get().taskProgressBySession;
+          const { [sessionId]: omittedMessages, ...remainingMessages } = get().messages;
+          const { [sessionId]: omittedTaskProgress, ...remainingTaskProgress } = get().taskProgressBySession;
+          void omittedMessages;
+          void omittedTaskProgress;
           set((state) => ({
             sessions: state.sessions.filter(s => s.sessionId !== sessionId),
             messages: remainingMessages,
@@ -2944,12 +2989,21 @@ export const useChatStore = create<ChatState>()(
 
         clearActionBlocks: (messageId: string) => {
           set((state) => {
-            const { [messageId]: _, ...remaining } = state.actionBlocksByMessage;
+            const { [messageId]: omittedBlock, ...remaining } = state.actionBlocksByMessage;
+            void omittedBlock;
             return {
               actionBlocksByMessage: remaining,
             };
           });
         },
+
+        openTheaterMode: (artifactId) => {
+          set({ activeArtifactId: artifactId });
+        },
+
+        closeTheaterMode: () => {
+          set({ activeArtifactId: null });
+        }
       }),
       {
         name: 'terranet-chat-storage',

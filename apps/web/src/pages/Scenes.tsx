@@ -1,5 +1,5 @@
 import { Link, useNavigate } from '@tanstack/react-router';
-import { ArrowLeft, Clapperboard, Sparkles } from 'lucide-react';
+import { ArrowLeft, Clapperboard } from 'lucide-react';
 import { useEffect, useMemo } from 'react';
 import { useChatStore } from '../stores';
 
@@ -110,23 +110,6 @@ export default function ScenesPage() {
   return (
     <div className="h-full w-full overflow-y-auto p-4 xl:p-6">
       <div className="mx-auto flex w-full max-w-5xl flex-col gap-5">
-        <header className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-white/10 bg-black/35 px-4 py-3 backdrop-blur-sm">
-          <div className="flex items-center gap-3">
-            <div className="grid h-10 w-10 place-items-center rounded-xl border border-white/10 bg-white/5 text-white/80">
-              <Clapperboard className="h-5 w-5" />
-            </div>
-            <div>
-              <p className="text-xs uppercase tracking-[0.16em] text-white/45">Workspace</p>
-              <h1 className="text-lg font-semibold text-white">Scenes</h1>
-            </div>
-          </div>
-
-          <Link to="/chat" className="inline-flex items-center gap-2 rounded-lg border border-white/15 bg-white/5 px-3 py-2 text-sm text-white/80 transition hover:bg-white/10 hover:text-white">
-            <ArrowLeft className="h-4 w-4" />
-            Back to Studio
-          </Link>
-        </header>
-
         <section className="grid gap-3 md:grid-cols-3">
           <article className="rounded-xl border border-white/10 bg-black/30 px-4 py-3">
             <p className="text-[11px] uppercase tracking-[0.14em] text-white/45">Total scenes</p>
@@ -144,14 +127,18 @@ export default function ScenesPage() {
           </article>
         </section>
 
-        <section className="rounded-2xl border border-white/10 bg-black/30 p-3 xl:p-4">
+        <section className="rounded-2xl border border-neutral-800 bg-[#1A1A1A] p-1">
           {sceneRows.length === 0 ? (
-            <div className="rounded-xl border border-dashed border-white/15 bg-black/20 px-4 py-8 text-center text-sm text-white/55">
-              Generate your first scene in Studio and it will appear here.
+            <div className="flex flex-col items-center justify-center rounded-xl p-12 text-center">
+              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-neutral-800 text-neutral-400">
+                <Clapperboard className="h-5 w-5" />
+              </div>
+              <h3 className="mt-4 text-sm font-medium text-neutral-200">No scenes yet</h3>
+              <p className="mt-1 text-sm text-neutral-500">Generate your first scene in Studio and it will appear here.</p>
             </div>
           ) : (
-            <div className="overflow-x-auto rounded-xl border border-white/10">
-              <table className="w-full min-w-[860px] table-fixed border-collapse">
+            <div className="overflow-x-auto rounded-xl">
+              <table className="w-full min-w-[860px] table-fixed border-collapse text-left text-sm">
                 <colgroup>
                   <col className="w-[34%]" />
                   <col className="w-[12%]" />
@@ -160,50 +147,47 @@ export default function ScenesPage() {
                   <col className="w-[12%]" />
                   <col className="w-[14%]" />
                 </colgroup>
-                <thead className="bg-white/[0.04]">
-                  <tr className="border-b border-white/10 text-left">
-                    <th scope="col" className="px-3 py-2.5 text-[11px] font-semibold uppercase tracking-[0.12em] text-white/55">Scene</th>
-                    <th scope="col" className="px-3 py-2.5 text-[11px] font-semibold uppercase tracking-[0.12em] text-white/55">Output</th>
-                    <th scope="col" className="px-3 py-2.5 text-[11px] font-semibold uppercase tracking-[0.12em] text-white/55">Skill</th>
-                    <th scope="col" className="px-3 py-2.5 text-[11px] font-semibold uppercase tracking-[0.12em] text-white/55">Version</th>
-                    <th scope="col" className="px-3 py-2.5 text-[11px] font-semibold uppercase tracking-[0.12em] text-white/55">Updated</th>
-                    <th scope="col" className="px-3 py-2.5 text-right text-[11px] font-semibold uppercase tracking-[0.12em] text-white/55">Action</th>
+                <thead className="border-b border-neutral-800 text-xs font-medium text-neutral-500">
+                  <tr>
+                    <th scope="col" className="px-5 py-3.5 font-medium uppercase tracking-wider">Scene</th>
+                    <th scope="col" className="px-5 py-3.5 font-medium uppercase tracking-wider">Output</th>
+                    <th scope="col" className="px-5 py-3.5 font-medium uppercase tracking-wider">Skill</th>
+                    <th scope="col" className="px-5 py-3.5 font-medium uppercase tracking-wider">Version</th>
+                    <th scope="col" className="px-5 py-3.5 font-medium uppercase tracking-wider">Updated</th>
+                    <th scope="col" className="px-5 py-3.5 text-right font-medium uppercase tracking-wider">Action</th>
                   </tr>
                 </thead>
-                <tbody>
+                <tbody className="divide-y divide-neutral-800/50">
                   {sceneRows.map((row) => (
-                    <tr key={row.versionId} className="border-b border-white/10 bg-white/[0.02] transition hover:bg-white/[0.05] last:border-b-0">
-                      <td className="px-3 py-2.5 align-middle">
-                        <div className="flex min-w-0 items-center gap-2.5">
-                          <span className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-white/15 bg-white/5 text-[11px] font-semibold text-white/75">
+                    <tr key={row.versionId} className="group transition-colors hover:bg-neutral-800/30">
+                      <td className="px-5 py-4 align-middle">
+                        <div className="flex min-w-0 items-center gap-3">
+                          <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-neutral-800 bg-neutral-800/50 text-[11px] font-semibold text-neutral-400">
                             {row.outputKind === 'media' ? 'M' : 'C'}
                           </span>
                           <div className="min-w-0">
-                            <p className="truncate text-sm font-medium text-white" title={row.sceneId}>{compactSceneLabel(row.sceneId)}</p>
-                            <div className="mt-0.5 flex items-center gap-1.5 text-[11px] text-white/50">
+                            <p className="truncate font-medium text-neutral-200" title={row.sceneId}>{compactSceneLabel(row.sceneId)}</p>
+                            <div className="mt-1 flex items-center gap-2 text-[11px] text-neutral-500">
                               <span className="font-mono">Session {row.sessionId.slice(0, 8)}</span>
                               {row.isActive ? (
-                                <span className="inline-flex items-center gap-1 rounded-full border border-emerald-400/35 bg-emerald-500/15 px-1.5 py-0.5 text-[10px] font-medium text-emerald-200">
-                                  <Sparkles className="h-2.5 w-2.5" />
-                                  Active
-                                </span>
+                                <span className="rounded-md bg-emerald-500/10 px-1.5 py-0.5 font-medium text-emerald-500">Active</span>
                               ) : null}
                             </div>
                           </div>
                         </div>
                       </td>
-                      <td className="px-3 py-2.5 align-middle">
-                        <span className="inline-flex rounded-full border border-white/15 bg-white/5 px-2 py-1 text-xs font-medium uppercase tracking-[0.08em] text-white/72">{row.outputKind}</span>
+                      <td className="px-5 py-4 align-middle">
+                        <span className="inline-flex rounded-md border border-neutral-800 bg-neutral-800/50 px-2 py-0.5 text-xs font-medium uppercase tracking-wider text-neutral-400">{row.outputKind}</span>
                       </td>
-                      <td className="px-3 py-2.5 align-middle">
-                        <span className="inline-flex rounded-full border border-white/15 bg-white/5 px-2 py-1 text-xs uppercase tracking-[0.08em] text-white/70">{row.skill}</span>
+                      <td className="px-5 py-4 align-middle">
+                        <span className="inline-flex rounded-md border border-neutral-800 bg-neutral-800/50 px-2 py-0.5 text-xs font-medium uppercase tracking-wider text-neutral-400">{row.skill}</span>
                       </td>
-                      <td className="px-3 py-2.5 align-middle text-sm text-white/78">v{row.version}</td>
-                      <td className="px-3 py-2.5 align-middle text-xs text-white/65">{formatRelativeTime(row.updatedAt)}</td>
-                      <td className="px-3 py-2.5 text-right align-middle">
+                      <td className="px-5 py-4 align-middle text-neutral-400">v{row.version}</td>
+                      <td className="px-5 py-4 align-middle text-neutral-400">{formatRelativeTime(row.updatedAt)}</td>
+                      <td className="px-5 py-4 text-right align-middle">
                         <button
                           type="button"
-                          className="inline-flex rounded-lg border border-cyan-300/35 bg-cyan-300/10 px-2.5 py-1 text-xs font-medium text-cyan-100 transition hover:bg-cyan-300/20"
+                          className="inline-flex rounded-lg border border-neutral-700 bg-neutral-800 px-3 py-1.5 text-xs font-medium text-neutral-300 opacity-0 transition-all hover:bg-neutral-700 hover:text-neutral-100 group-hover:opacity-100 focus:opacity-100"
                           onClick={() => {
                             void handleOpenInStudio(row.sessionId);
                           }}

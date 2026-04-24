@@ -87,26 +87,9 @@ export default function TasksPage() {
   };
 
   return (
-    <div className="h-full w-full overflow-y-auto bg-neutral-900 p-4 xl:p-8 font-sans text-neutral-200">
+    <div className="h-full w-full overflow-y-auto p-4 xl:p-8 font-sans text-neutral-200">
       <div className="mx-auto flex w-full max-w-5xl flex-col gap-8">
         
-        {/* Header */}
-        <header className="flex flex-wrap items-center justify-between gap-4">
-          <div className="flex items-center gap-4">
-            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-neutral-800 text-neutral-300">
-              <ListTodo className="h-6 w-6" />
-            </div>
-            <div>
-              <h1 className="text-2xl font-medium tracking-tight text-neutral-100">Tasks Pipeline</h1>
-              <p className="text-sm text-neutral-400">Monitor and manage your background generations</p>
-            </div>
-          </div>
-          <Link to="/chat" className="inline-flex items-center gap-2 rounded-xl border border-neutral-700 bg-neutral-800 px-4 py-2.5 text-sm font-medium text-neutral-300 transition-colors hover:bg-neutral-700 hover:text-neutral-100">
-            <ArrowLeft className="h-4 w-4" />
-            Back to Studio
-          </Link>
-        </header>
-
         {/* Metrics */}
         <section className="grid gap-4 md:grid-cols-3">
           <article className="flex flex-col rounded-2xl border border-neutral-800 bg-[#1A1A1A] p-5">

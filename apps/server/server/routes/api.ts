@@ -1,5 +1,4 @@
-// @ts-nocheck
-import { Router } from "express";
+import { type Response, Router } from "express";
 export const apiRouter = Router();
 
 import { ZodError } from "zod";
@@ -14,13 +13,14 @@ import {
 import { executeChatTurn } from "./chat.js";
 import { getSkillCatalog } from "../skill-registry.js";
 import { streamMediaArtifact } from "../media-artifacts.js";
-import { planTasks, executeTask, generateVisual, generateFromImage } from "../orchestrator.js";
+import { planTasks, executeTask, generateVisual, generateFromImage, modifyVisual } from "../pipeline/index.js";
 import { broadcastEvent, broadcastCodeStream } from "../ws/streaming.js";
 import { getCacheStats } from "../cache-manager.js";
 import { getSandboxRuntimeMetrics } from "../skill-runtime.js";
 import { wsClients } from "../ws/handler.js";
-import { startupDaytonaPreflight } from "../index.js";
+import { startupDaytonaPreflight } from "../startup-preflight.js";
 import { metrics, computeP95Latency } from "../lib/metrics.js";
+import { runWithTraceContext } from "../trace/context.js";
 apiRouter.get("/healthz", (_req, res) => {
   const daytonaPreflight = getDaytonaEnvPreflight();
   const pool = getPool();
@@ -82,6 +82,8 @@ apiRouter.post("/api/v1/sessions/:sessionId/messages", async (req, res) => {
   const content = String(req.body?.content ?? req.body?.query ?? "").trim();
   const imageUrl = String(req.body?.imageUrl ?? "").trim();
   const imageData = String(req.body?.imageData ?? "").trim();
+  const userId = String(req.header("x-user-id") ?? req.body?.userId ?? "").trim() || null;
+  const requestId = String(req.header("x-request-id") ?? req.body?.requestId ?? "").trim() || null;
 
   if (!content && !imageUrl && !imageData) {
     res.status(400).json({
@@ -92,11 +94,16 @@ apiRouter.post("/api/v1/sessions/:sessionId/messages", async (req, res) => {
   }
 
   try {
-    const result = await executeChatTurn(sessionId, content, req.body?.preferences, {
-      imageUrl: imageUrl || null,
-      imageData: imageData || null,
-      transport: "rest"
-    });
+    const result = await runWithTraceContext(
+      { sessionId, userId, requestId },
+      () =>
+        executeChatTurn(sessionId, content, req.body?.preferences, {
+          imageUrl: imageUrl || null,
+          imageData: imageData || null,
+          requestId,
+          transport: "rest"
+        })
+    );
     res.json(result);
   } catch (error) {
     handleError(error, res);
@@ -117,10 +124,13 @@ apiRouter.post("/api/v1/tasks/plan", async (req, res) => {
   try {
     metrics.plansCreated += 1;
     const result = await planTasks(req.body);
+    const taskCount = Array.isArray((result as { tasks?: unknown }).tasks)
+      ? ((result as { tasks: unknown[] }).tasks.length)
+      : 0;
     broadcastEvent("tasks:planned", {
-      planId: result.planId,
-      taskCount: result.tasks.length,
-      summary: result.summary
+      planId: (result as { planId?: unknown }).planId,
+      taskCount,
+      summary: (result as { summary?: unknown }).summary
     });
     res.json(result);
   } catch (error) {
@@ -357,16 +367,14 @@ apiRouter.post("/api/v1/sessions/:sessionId/modify", async (req, res) => {
       runMode
     });
 
-    const result = await import("../orchestrator.js").then((module) =>
-      module.modifyVisual({
-        sessionId,
-        instruction,
-        runMode,
-        codeOverride,
-        preferences: req.body?.preferences,
-        sceneState: sessionState
-      })
-    );
+    const result = await modifyVisual({
+      sessionId,
+      instruction,
+      runMode,
+      codeOverride,
+      preferences: req.body?.preferences,
+      sceneState: sessionState
+    });
 
     await broadcastCodeStream(sessionId, result.code, {
       mode: runMode,
@@ -580,7 +588,7 @@ apiRouter.get("/api/v1/sessions/:sessionId/versions", (req, res) => {
   res.json(result);
 });
 
-function handleError(error, res) {
+function handleError(error: unknown, res: Response): void {
   metrics.errors += 1;
 
   if (error instanceof ZodError) {
@@ -612,6 +620,3 @@ apiRouter.get("/metrics", (_req, res) => {
     uptimeSeconds: Math.round(process.uptime())
   });
 });
-
-// ── Startup ──
-initializeSessions();

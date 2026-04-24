@@ -2,6 +2,43 @@ import { executeSkillRuntime } from "../skill-runtime.js";
 import { executeWithQualityLoop } from "../sandbox-execution.js";
 import { determineModeFromQuality } from "../mode-decision-engine.js";
 
+type RuntimeStatus = "ok" | "error" | "degraded" | "quality-loop";
+type RuntimeOutputKind = "code" | "media";
+
+export interface RuntimeExecutionResult {
+  success: boolean;
+  status: RuntimeStatus;
+  previewUrl: string | null;
+  outputKind: RuntimeOutputKind;
+  mediaType?: string | null;
+  mediaUrl?: string | null;
+  mediaArtifactId?: string | null;
+  mediaDurationMs?: number | null;
+  mediaFps?: number | null;
+  mediaResolution?: string | null;
+  mediaBytes?: number | null;
+  skillId: string;
+  skillName?: string;
+  dependencyCount?: number;
+  durationMs: number;
+  renderCount?: number;
+  frameCount?: number;
+  logs?: unknown[];
+  summary?: { childCount: number; types: string[] };
+  warning?: string | null;
+  warningCode?: string | null;
+  error?: string | null;
+  errorCode?: string | null;
+  acquireDiagnostics?: unknown;
+  degradedFrom?: {
+    status: string;
+    error: string | null;
+    errorCode: string | null;
+  };
+  iterations?: unknown[];
+  qualityReport?: unknown;
+}
+
 // Constants
 export const runtimeExecutionMaxFrames = Number.parseInt(String(process.env.RUNTIME_EXEC_MAX_FRAMES ?? "48"), 10);
 const runtimeExecutionTimeoutMs = Number.parseInt(String(process.env.RUNTIME_EXEC_TIMEOUT_MS ?? "2200"), 10);
@@ -50,14 +87,18 @@ export function computeBoundedTimeoutMs(deadlineAtMs: number, configuredTimeoutM
   return Math.max(minimum, Math.min(configuredTimeoutMs, remainingMs));
 }
 
-export function shouldDegradeRuntimeFailure(runtimeResult: any): boolean {
+export function shouldDegradeRuntimeFailure(runtimeResult: RuntimeExecutionResult | null | undefined): boolean {
   if (!runtimeResult || runtimeResult.success) return false;
   const detail = [runtimeResult.errorCode, runtimeResult.error, runtimeResult.warning, runtimeResult.status]
     .filter(Boolean).join(" | ").toLowerCase();
   return /(acquire_budget_exhausted|runtime_budget_exhausted|budget exhausted|daytona|eai_again|getaddrinfo|enotfound|dns|enetunreach|operation timed out|timed out|failed to create and start sandbox|acquire timeout)/i.test(detail);
 }
 
-export function buildDegradedRuntimeResult(runtimeResult: any, selectedSkill: string, fallbackPreviewUrl = "about:blank"): any {
+export function buildDegradedRuntimeResult(
+  runtimeResult: RuntimeExecutionResult | null | undefined,
+  selectedSkill: string,
+  fallbackPreviewUrl = "about:blank"
+): RuntimeExecutionResult {
   const originalDetail = runtimeResult?.error || runtimeResult?.warning || "Sandbox runtime unavailable.";
   const resolvedOutputKind = runtimeResult?.outputKind ?? (selectedSkill === "manim" ? "media" : "code");
   const resolvedMediaType = runtimeResult?.mediaType ?? (resolvedOutputKind === "media" ? "video/mp4" : null);
@@ -97,7 +138,15 @@ export function buildDegradedRuntimeResult(runtimeResult: any, selectedSkill: st
   };
 }
 
-export function buildRuntimeFailureResult({ skillId, errorMessage, errorCode = "RUNTIME_EXEC_TIMEOUT" }: any): any {
+export function buildRuntimeFailureResult({
+  skillId,
+  errorMessage,
+  errorCode = "RUNTIME_EXEC_TIMEOUT"
+}: {
+  skillId: string;
+  errorMessage: string;
+  errorCode?: string;
+}): RuntimeExecutionResult {
   const outputKind = skillId === "manim" ? "media" : "code";
   return {
     success: false,

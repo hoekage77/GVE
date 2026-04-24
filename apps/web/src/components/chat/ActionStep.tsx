@@ -1,9 +1,8 @@
 import { CheckCircle2, ChevronRight, Loader2, XCircle } from 'lucide-react';
-import type { ActionStep, ActionBlockStatus, STATUS_ICONS } from '../../types/actionBlocks';
+import type { ActionStep, ActionBlockStatus } from '../../types/actionBlocks';
 
 interface ActionStepProps {
   step: ActionStep;
-  index: number;
 }
 
 const STEP_STYLES: Record<ActionBlockStatus, { text: string; accent: string }> = {
@@ -13,7 +12,7 @@ const STEP_STYLES: Record<ActionBlockStatus, { text: string; accent: string }> =
   failed: { text: 'text-red-300', accent: 'text-red-500' }
 };
 
-export default function ActionStepComponent({ step, index }: ActionStepProps) {
+export default function ActionStepComponent({ step }: ActionStepProps) {
   const statusStyle = STEP_STYLES[step.status] ?? STEP_STYLES.pending;
 
   const getStatusIcon = (status: ActionBlockStatus) => {

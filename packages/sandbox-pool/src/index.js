@@ -1153,6 +1153,65 @@ export class SandboxPoolManager {
     }
   }
 
+  async hibernate(sandboxEnv, reason = "hibernate") {
+    if (!sandboxEnv || !sandboxEnv._workspace) {
+      return { success: false, reason: "missing_workspace" };
+    }
+
+    const workspace = sandboxEnv._workspace;
+    const workspaceId = sandboxEnv.workspaceId ?? "unknown";
+    const daytona = await this._getDaytonaClient();
+
+    // Best-effort: Daytona SDK surface differs by version/deployment.
+    // Try a stop/suspend primitive if available; otherwise delete.
+    try {
+      if (typeof daytona.stop === "function") {
+        await daytona.stop(workspace);
+        console.log(`[Daytona] Stopped sandbox ${workspaceId} (${reason}).`);
+        return { success: true, mode: "stop" };
+      }
+      if (typeof daytona.suspend === "function") {
+        await daytona.suspend(workspace);
+        console.log(`[Daytona] Suspended sandbox ${workspaceId} (${reason}).`);
+        return { success: true, mode: "suspend" };
+      }
+    } catch (err) {
+      console.warn(`[Daytona] Hibernate failed for ${workspaceId}, falling back to delete: ${err?.message ?? String(err)}`);
+    }
+
+    await this._deleteWorkspace(workspace, workspaceId, `hibernate_${reason}`);
+    return { success: true, mode: "delete_fallback" };
+  }
+
+  async resume(sandboxEnv, reason = "resume") {
+    if (!sandboxEnv || !sandboxEnv._workspace) {
+      return { success: false, reason: "missing_workspace" };
+    }
+
+    const workspace = sandboxEnv._workspace;
+    const workspaceId = sandboxEnv.workspaceId ?? "unknown";
+    const daytona = await this._getDaytonaClient();
+
+    try {
+      if (typeof daytona.start === "function") {
+        await daytona.start(workspace);
+        console.log(`[Daytona] Started sandbox ${workspaceId} (${reason}).`);
+        return { success: true, mode: "start" };
+      }
+      if (typeof daytona.resume === "function") {
+        await daytona.resume(workspace);
+        console.log(`[Daytona] Resumed sandbox ${workspaceId} (${reason}).`);
+        return { success: true, mode: "resume" };
+      }
+    } catch (err) {
+      console.warn(`[Daytona] Resume failed for ${workspaceId}: ${err?.message ?? String(err)}`);
+      return { success: false, reason: err?.message ?? String(err) };
+    }
+
+    // If SDK has no resume primitive, treat as no-op; the next liveness ping will detect true state.
+    return { success: true, mode: "noop" };
+  }
+
   async release(sandboxEnv) {
     if (!sandboxEnv || !sandboxEnv._workspace) return;
 

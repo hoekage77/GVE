@@ -1,6 +1,6 @@
 import { useUser } from '@clerk/clerk-react';
 import { Link } from '@tanstack/react-router';
-import { ArrowLeft, User, Key, Database, LogOut, ExternalLink } from 'lucide-react';
+import { ArrowLeft, User, Key, Database, ExternalLink } from 'lucide-react';
 import { useEffect } from 'react';
 
 export default function ProfilePage() {
@@ -11,21 +11,9 @@ export default function ProfilePage() {
   }, []);
 
   return (
-    <div className="flex h-full w-full flex-col items-center overflow-y-auto bg-neutral-900 px-4 py-8 md:py-12">
+    <div className="flex h-full w-full flex-col items-center overflow-y-auto px-4 py-8 md:py-12">
       <div className="w-full max-w-2xl">
         
-        {/* Header */}
-        <header className="mb-10 flex items-center gap-4">
-          <Link 
-            to="/chat" 
-            className="flex h-10 w-10 items-center justify-center rounded-xl text-neutral-400 transition-colors hover:bg-neutral-800 hover:text-neutral-100"
-            aria-label="Back to Chat"
-          >
-            <ArrowLeft className="h-5 w-5" />
-          </Link>
-          <h1 className="text-2xl font-medium tracking-tight text-neutral-100">Settings</h1>
-        </header>
-
         <div className="flex flex-col gap-8">
           
           {/* Account Section */}

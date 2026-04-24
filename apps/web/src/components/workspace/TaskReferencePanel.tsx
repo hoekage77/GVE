@@ -1,18 +1,16 @@
-import { CheckCircle2, Circle, XCircle, Loader2 } from 'lucide-react';
+import { CheckCircle2, Circle } from 'lucide-react';
 import type { TaskCheckpoint } from '../../types/actionBlocks';
 
 interface TaskReferencePanelProps {
   checkpoints: TaskCheckpoint[];
   title?: string;
   totalSteps?: number;
-  currentStep?: number;
 }
 
 export default function TaskReferencePanel({
   checkpoints,
   title = 'Task Progress',
-  totalSteps,
-  currentStep
+  totalSteps
 }: TaskReferencePanelProps) {
   if (!checkpoints || checkpoints.length === 0) {
     return (
@@ -24,8 +22,6 @@ export default function TaskReferencePanel({
 
   const completedCount = checkpoints.filter(c => c.completed).length;
   const displayTotal = totalSteps ?? checkpoints.length;
-  const displayCurrent = currentStep ?? completedCount + 1;
-
   const getCheckpointIcon = (checkpoint: TaskCheckpoint) => {
     if (checkpoint.completed) {
       return <CheckCircle2 className="h-4 w-4 text-emerald-500" />;
