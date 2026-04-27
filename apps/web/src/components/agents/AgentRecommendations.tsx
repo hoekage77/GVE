@@ -1,5 +1,5 @@
 import { CheckCircle2, X } from 'lucide-react';
-import type { UIAgentState } from '../../stores/chatStore';
+import type { UIAgentState } from '../../stores/chat';
 
 interface AgentRecommendationsProps {
   recommendations: UIAgentState['recommendations'];

@@ -140,11 +140,16 @@ function validateProject(code: any): any {
   return { valid: true, errors: [] };
 }
 
-function detectRequiredTools(code: string): any[] {
-  // Simple detection based on import/require statements
-  const tools: any[] = [];
-  if (/three/i.test(code)) tools.push({ name: "threejs", version: "latest" });
-  return tools;
+function detectRequiredTools(code: string): string[] {
+  // Detect npm package names from import/require statements
+  const tools: string[] = [];
+  if (/\bthree\b/i.test(code)) tools.push("three");
+  if (/\bpostprocessing\b/i.test(code)) tools.push("postprocessing");
+  if (/\bp5\b/i.test(code)) tools.push("p5");
+  if (/\bd3\b/i.test(code)) tools.push("d3");
+  if (/\bgsap\b/i.test(code)) tools.push("gsap");
+  if (/\banimejs?\b/i.test(code)) tools.push("animejs");
+  return [...new Set(tools)];
 }
 
 // Graph State Definition
@@ -800,14 +805,14 @@ const executeCodeNode = async (state: any) => {
     
     const allCode = state.generatedCode.files.map((f: any) => f.content).join('\n');
     detectedTools = detectRequiredTools(allCode);
-    console.log(`[Graph] [TRACE] Multi-file project with ${state.generatedCode.files.length} files, detected tools: ${detectedTools.map(t => t.name).join(', ') || 'none'}`);
+    console.log(`[Graph] [TRACE] Multi-file project with ${state.generatedCode.files.length} files, detected tools: ${detectedTools.join(', ') || 'none'}`);
   } else {
     detectedTools = detectRequiredTools(state.generatedCode);
   }
   
   if (detectedTools.length > 0) {
     console.log(
-      `[Graph] [TRACE] Detected required tools: ${detectedTools.map(t => t.name).join(', ')}`
+      `[Graph] [TRACE] Detected required tools: ${detectedTools.join(', ')}`
     );
   }
   

@@ -67,7 +67,14 @@ export async function executeWithQualityLoop(request: ExecutionRequest, onProgre
   let sandbox;
   try {
     const recommendedTools = getRecommendedTools(skill);
-    sandbox = await createSandbox({ sessionId, tools: [...new Set([...recommendedTools, ...tools])], timeoutMs: iterationConfig.timeoutPerIterationMs });
+    // Normalize tools to plain npm package name strings — the graph layer may pass
+    // objects ({ name, version }) while the tool-registry returns plain strings.
+    const normalizedTools = [...new Set(
+      [...recommendedTools, ...tools].map((t: any) =>
+        typeof t === "string" ? t : (t?.npmPackage ?? t?.name ?? String(t))
+      )
+    )];
+    sandbox = await createSandbox({ sessionId, tools: normalizedTools, timeoutMs: iterationConfig.timeoutPerIterationMs });
   } catch (error: any) {
     return { success: false, sessionId, error: sanitizeError(error, 'sandbox-creation').userMessage, iterations: [] };
   }

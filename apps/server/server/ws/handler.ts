@@ -380,7 +380,7 @@ export function setupWebSocketHandler(wsServer: any) {
         rememberCompletedTurn(turnKey, {
           sessionId,
           mode: result.mode,
-          messageId: result.assistantMessage?.id ?? null,
+          messageId: (result.assistantMessage as any)?.messageId ?? (result.assistantMessage as any)?.id ?? null,
           assistantMessage: result.assistantMessage ?? null,
           turnSummary: result.turnSummary ?? null
         });
@@ -398,7 +398,7 @@ export function setupWebSocketHandler(wsServer: any) {
           requestId: requestId || null,
           clientMessageId: clientMessageId || null,
           mode: result.mode,
-          messageId: result.assistantMessage.id,
+          messageId: (result.assistantMessage as any)?.messageId ?? (result.assistantMessage as any)?.id,
           duplicate: false
         });
       } catch (error) {

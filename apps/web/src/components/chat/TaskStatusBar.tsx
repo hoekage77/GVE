@@ -1,6 +1,6 @@
 import { ListTree, Maximize2, Sparkles } from "lucide-react";
 import type { SceneAssetPlan } from "@visual-runtime/shared";
-import type { SessionTaskProgress, LiveConnectionState } from "../../stores/chatStore";
+import type { SessionTaskProgress, LiveConnectionState } from "../../stores/chat";
 import TaskStatusPanel from "../workspace/TaskStatusPanel";
 import { formatTaskSummary, getTurnStepLabel, getTurnTone, renderTurnStatusIcon } from "./turnActivity";
 

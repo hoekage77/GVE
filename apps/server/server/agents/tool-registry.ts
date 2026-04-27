@@ -33,8 +33,8 @@ const TOOL_REGISTRY: Record<string, ToolMetadata> = {
     category: "3d",
     description: "Three.js - JavaScript 3D library",
     npmPackage: "three",
-    defaultVersion: "^0.160.0",
-    versions: ["0.160.0", "0.159.0", "0.158.0", "0.128.0"],
+    defaultVersion: "^0.172.0",
+    versions: ["0.172.0", "0.168.0", "0.160.0"],
     dependencies: [],
     extras: {
       addons: "three-addons",

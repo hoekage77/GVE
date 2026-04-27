@@ -10,6 +10,28 @@ const codeStreamChunkSize = Number.parseInt(String(process.env.CODE_STREAM_CHUNK
 const codeStreamChunkDelayMs = Number.parseInt(String(process.env.CODE_STREAM_CHUNK_DELAY_MS ?? (fastModeEnabled ? "0" : "8")), 10);
 const wsReplayBufferSize = Number.parseInt(String(process.env.WS_REPLAY_BUFFER_SIZE ?? "2000"), 10);
 
+const STEP_DISPLAY_LABELS: Record<string, string> = {
+  turn_started: "Thinking",
+  parse_intent: "Understanding request",
+  intent_parsed: "Understanding request",
+  select_skill: "Selecting skill",
+  build_prompt: "Building prompt",
+  generate_code: "Generating code",
+  code_generated: "Code ready",
+  code_modified: "Modifying scene",
+  validate_code: "Validating code",
+  validation_failed: "Recovering from error",
+  execute_code: "Executing in sandbox",
+  executing: "Running scene",
+  execution_skipped: "Skipping execution",
+  sync_state: "Syncing state",
+  turn_complete: "Done",
+  turn_error: "Error",
+  post_narration: "Narrating",
+  image_analyzing: "Analyzing image",
+  image_generating: "Generating from image",
+};
+
 export interface ReplayEvent {
   type: string;
   seq: number;
@@ -120,7 +142,11 @@ export async function broadcastThought(sessionId: string, step: string, context:
         ...thoughtPayloadBase,
         thought: accumulated,
         token: tokens[i],
-        isFinal: i === tokens.length - 1
+        isFinal: i === tokens.length - 1,
+        stepLabel: STEP_DISPLAY_LABELS[step] ?? step.replace(/_/g, " "),
+        status: i === tokens.length - 1 ? "completed" : "streaming",
+        durationMs: context.stageDurationMs ?? null,
+        detail: context.detail ?? null,
       });
 
       if (thoughtTokenDelayMs > 0) {
@@ -136,7 +162,11 @@ export async function broadcastThought(sessionId: string, step: string, context:
         ...thoughtPayloadBase,
         thought: previewThought,
         token: previewThought,
-        isFinal: false
+        isFinal: false,
+        stepLabel: STEP_DISPLAY_LABELS[step] ?? step.replace(/_/g, " "),
+        status: "streaming",
+        durationMs: context.stageDurationMs ?? null,
+        detail: context.detail ?? null,
       });
     }
 
@@ -144,7 +174,11 @@ export async function broadcastThought(sessionId: string, step: string, context:
       ...thoughtPayloadBase,
       thought,
       token: thought,
-      isFinal: true
+      isFinal: true,
+      stepLabel: STEP_DISPLAY_LABELS[step] ?? step.replace(/_/g, " "),
+      status: "completed",
+      durationMs: context.stageDurationMs ?? null,
+      detail: context.detail ?? null,
     });
   }
 
@@ -157,7 +191,8 @@ export async function broadcastThought(sessionId: string, step: string, context:
     meta: [
       step,
       requestId ? `requestId:${requestId}` : null,
-      messageId ? `messageId:${messageId}` : null
+      messageId ? `messageId:${messageId}` : null,
+      context.stageDurationMs ? `durationMs:${context.stageDurationMs}` : null
     ].filter(Boolean)
   });
 

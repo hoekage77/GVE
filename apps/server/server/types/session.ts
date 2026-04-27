@@ -28,12 +28,15 @@ export interface Artifact {
   revisionPointer: number;
 }
 
-export type SessionStatus = "idle" | "generating" | "modifying" | "error";
+export type SessionStatus = "idle" | "generating" | "modifying" | "error" | "parsing" | "planning" | "executing";
 
 export interface SessionMessage {
   messageId: string;
   role: "user" | "assistant" | "system";
   content: string;
+  kind?: string;
+  error?: any;
+  meta?: string[];
   createdAt: string;
   updatedAt: string;
   metadata?: Record<string, unknown>;
@@ -42,11 +45,12 @@ export interface SessionMessage {
 export interface TraceEntry {
   step: string;
   detail?: string;
+  payload?: any;
   timestamp: string;
   duration?: number;
 }
 
-export interface SessionState {
+export interface InternalSessionState {
   sessionId: string;
   status: SessionStatus;
   artifacts: Artifact[];
@@ -56,6 +60,22 @@ export interface SessionState {
   orchestrationTrace: TraceEntry[];
   createdAt: string;
   updatedAt: string;
+}
+
+export interface SessionState extends InternalSessionState {
+  versionCount: number;
+  versionPointer: number;
+  revisionCount: number;
+  revisionPointer: number;
+  artifactCount: number;
+  currentArtifactId: string | null;
+  canUndo: boolean;
+  canRedo: boolean;
+  canPreviousArtifact: boolean;
+  canNextArtifact: boolean;
+  versions: SceneVersion[];
+  sceneVersions: SceneVersion[];
+  sceneId: string | null;
 }
 
 export interface SessionResponse {

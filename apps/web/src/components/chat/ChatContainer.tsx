@@ -12,6 +12,7 @@ type ThoughtItem = {
   text: string;
   step: string;
   timestamp: number;
+  meta?: string[];
 };
 
 type DisplayMessage = {
@@ -113,7 +114,8 @@ function toThought(message: SessionMessage): ThoughtItem {
   return {
     text: message.content,
     step: message.meta?.[0] ?? message.kind ?? "thought",
-    timestamp: Date.parse(message.createdAt)
+    timestamp: Date.parse(message.createdAt),
+    meta: message.meta
   };
 }
 
@@ -367,6 +369,7 @@ export function ChatContainer() {
     sessionsError,
     isBootstrapping,
     isSending,
+    activeRequestId,
     thinkingText,
     thinkingStep,
     composerValue,
@@ -397,7 +400,7 @@ export function ChatContainer() {
     }
   };
 
-  const activeSession = sessions.find(s => s.sessionId === activeSessionId);
+  const activeSession = (sessions || []).find(s => s?.sessionId === activeSessionId);
   const activeMessages = useMemo(
     () => (activeSessionId ? (messages[activeSessionId] ?? []) : []),
     [activeSessionId, messages]
@@ -430,16 +433,18 @@ export function ChatContainer() {
   );
 
   // Show inline thinking bubble when agent is active.
-  // - If the last message is already from the assistant: attach thought to it via isThinking prop
+  // - If the last message is already from the assistant AND belongs to the current request: attach thought to it
   // - If last message is from user or chat is empty: render a standalone thinking bubble
   const lastDisplayMsg = displayMessages[displayMessages.length - 1];
   const lastMsgIsAssistant = lastDisplayMsg?.message.role === "assistant";
+  const lastMsgRequestId = lastMsgIsAssistant ? getMetaValue(lastDisplayMsg?.message.meta, "requestId:") : null;
+  const lastMsgBelongsToCurrentTurn = Boolean(lastMsgRequestId && activeRequestId && lastMsgRequestId === activeRequestId);
   const shouldShowInlineThinking =
     isSending &&
     Boolean(thinkingText) &&
-    !lastMsgIsAssistant &&
+    !lastMsgBelongsToCurrentTurn &&
     !hasGlobalTaskStatus;
-  const lastAssistantIsThinking = isSending && lastMsgIsAssistant && !hasGlobalTaskStatus;
+  const lastAssistantIsThinking = isSending && lastMsgBelongsToCurrentTurn && !hasGlobalTaskStatus;
 
   // Calculate thinking duration from thoughts
   const getThinkingDuration = useCallback((thoughts: ThoughtItem[]) => {
@@ -530,7 +535,7 @@ export function ChatContainer() {
               className="flex min-h-0 w-full flex-1 overflow-x-hidden overflow-y-auto scroll-smooth scrollbar px-0 py-0"
               ref={chatRef}
             >
-          <div className={`flex w-full flex-col gap-3 px-3 py-3 lg:gap-4 lg:py-8 min-h-full ${activeSession ? 'lg:px-24 xl:px-48 2xl:px-72' : 'items-center justify-center'}`}>
+          <div className={`flex w-full flex-col gap-5 px-3 py-3 lg:gap-6 lg:py-8 ${activeSession ? 'max-w-3xl mx-auto' : 'items-center justify-center min-h-full'}`}>
             {!activeSession ? (
               <WelcomeScreen
                 isBootstrapping={isBootstrapping}
@@ -610,7 +615,7 @@ export function ChatContainer() {
             if (message.role === "user") {
               return (
                 <UserMessage
-                  key={message.id}
+                  key={message.id || `msg-user-${index}`}
                   content={message.content}
                   timestamp={Date.parse(message.createdAt)}
                   variant="meta"
@@ -620,7 +625,7 @@ export function ChatContainer() {
 
             return (
               <AIMessage
-                key={message.id}
+                key={message.id || `msg-ai-${index}`}
                 content={displayContent}
                 timestamp={Date.parse(message.createdAt)}
                 isThinking={isLast && lastAssistantIsThinking && !message.content}
@@ -649,17 +654,26 @@ export function ChatContainer() {
                     }
                   : undefined}
                 artifactCards={artifactCards}
+                sceneCode={matchedVersion?.code}
+                sceneSkill={matchedVersion?.skill}
+                sceneVersionId={resolvedVersionId}
+                onSceneExpand={resolvedVersionId
+                  ? () => {
+                      void handleMessageSceneAction('preview', resolvedVersionId);
+                    }
+                  : undefined}
               />
             );
           })}
 
           {shouldShowInlineThinking && (
             <AIMessage
+              key="inline-thinking"
               content=""
               isThinking={true}
               thinkingText={thinkingText}
               thinkingStep={thinkingStep}
-              thoughts={[{ text: thinkingText ?? "", step: thinkingStep, timestamp: Date.now() }]}
+              thoughts={[{ text: thinkingText ?? "", step: thinkingStep, timestamp: Date.now(), meta: [thinkingStep, "status:streaming"] }]}
               taskProgress={activeTaskProgress}
               variant="meta"
             />
@@ -672,7 +686,7 @@ export function ChatContainer() {
         </div>
         
             {isTaskOperationActive && activeTaskProgress && (
-              <div className="w-full p-0 px-4 pb-3 lg:px-24 xl:px-48 2xl:px-72">
+              <div className="w-full p-0 px-4 pb-3 max-w-3xl mx-auto">
                 <div className="w-full">
                   <TaskStatusBar
                     taskProgress={activeTaskProgress}
@@ -688,9 +702,9 @@ export function ChatContainer() {
             )}
 
             {/* Input */}
-            <div className="shrink-0 bg-transparent pb-4 lg:pb-8">
+            <div className="shrink-0 bg-transparent pb-4 lg:pb-8 pt-2">
               <div className="w-full">
-                <div className={`relative w-full px-3 ${activeSession ? 'lg:px-24 xl:px-48 2xl:px-72' : 'max-w-3xl mx-auto'} ${debugLayout ? "outline outline-2 outline-amber-300/80" : ""}`}>
+                <div className={`relative w-full px-3 max-w-3xl mx-auto ${debugLayout ? "outline outline-2 outline-amber-300/80" : ""}`}>
                 <Composer
                   value={composerValue}
                   onChange={setComposerValue}
@@ -701,8 +715,11 @@ export function ChatContainer() {
                   isSending={isSending}
                   onStop={handleStop}
                   variant="meta"
-                  placeholder="Send a message"
+                  placeholder="Send a message..."
                 />
+                <div className="mt-2 text-center text-[11px] text-white/30 hidden lg:block">
+                  Press Enter to send, Shift+Enter for new line
+                </div>
                 </div>
               </div>
             </div>

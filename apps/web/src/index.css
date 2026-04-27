@@ -59,9 +59,9 @@
 .scrollbar { scrollbar-color: rgba(121, 121, 121, 0.45) transparent; scrollbar-width: thin; }
 
 .markdown-message {
-  font-size: 13px;
-  line-height: 1.55;
-  color: #cccccc;
+  font-size: 15px;
+  line-height: 1.6;
+  color: #d1d5db;
 }
 .markdown-message h1, .markdown-message h2, .markdown-message h3,
 .markdown-message h4, .markdown-message h5, .markdown-message h6 {
@@ -83,13 +83,13 @@
 .markdown-message blockquote p:last-child { margin-bottom: 0; }
 .markdown-message code {
   font-family: ui-monospace, "Cascadia Mono", "SF Mono", Menlo, Monaco, Consolas, monospace;
-  font-size: 12px; padding: 2px 5px; background: #2d2d30; border-radius: 3px; color: #d7ba7d;
+  font-size: 13.5px; padding: 2px 5px; background: #2d2d30; border-radius: 4px; color: #d7ba7d;
 }
 .markdown-message pre {
-  position: relative; margin: 14px 0; padding: 12px 14px; background: #1e1e1e;
-  border-radius: 4px; overflow-x: auto; border: 1px solid #3e3e42;
+  position: relative; margin: 16px 0; padding: 14px 16px; background: #1e1e1e;
+  border-radius: 6px; overflow-x: auto; border: 1px solid #3e3e42;
 }
-.markdown-message pre code { padding: 0; background: transparent; color: #d4d4d4; font-size: 12px; line-height: 1.5; }
+.markdown-message pre code { padding: 0; background: transparent; color: #e2e8f0; font-size: 13px; line-height: 1.5; }
 .markdown-message a { color: #3794ff; text-decoration: none; transition: color 0.15s; }
 .markdown-message a:hover { color: #4aa3ff; text-decoration: underline; }
 .markdown-message table { width: 100%; margin: 16px 0; border-collapse: collapse; }
@@ -104,6 +104,24 @@
 .markdown-message ul ul, .markdown-message ul ol,
 .markdown-message ol ul, .markdown-message ol ol { margin-top: 4px; margin-bottom: 4px; }
 .markdown-message input[type="checkbox"] { margin-right: 8px; cursor: default; }
+
+.composer-glow {
+  box-shadow: 0 0 16px 0px rgba(0, 120, 212, 0.15), inset 0 0 0 1px rgba(255, 255, 255, 0.05);
+}
+
+.composer-textarea {
+  resize: none;
+  min-height: 24px;
+  max-height: 200px;
+  line-height: 1.5;
+  overflow-y: auto;
+}
+
+.message-bubble-user {
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 16px;
+  padding: 10px 16px;
+}
 
 :root {
   --background: 246 249 253;
@@ -143,7 +161,7 @@ textarea {
 }
 .bg-grid {
   background-image: 
-    linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+    linear-gradient(rgba(255, 255, 255, 0.015) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.015) 1px, transparent 1px);
   background-size: 32px 32px;
 }

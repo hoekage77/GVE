@@ -1,5 +1,5 @@
-import { useRef, useState } from "react";
-import { Mic, Send, X, Plus } from "lucide-react";
+import { useRef, useState, useEffect } from "react";
+import { Send, X, Plus } from "lucide-react";
 
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
 
@@ -37,9 +37,19 @@ export function Composer({
   placeholder = "Message GenVis..."
 }: ComposerProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
   const [attachmentError, setAttachmentError] = useState<string | null>(null);
 
   const canSubmit = value.trim().length > 0 || Boolean(attachedImage);
+
+  // Auto-resize textarea
+  useEffect(() => {
+    const textarea = textareaRef.current;
+    if (textarea) {
+      textarea.style.height = "auto";
+      textarea.style.height = `${textarea.scrollHeight}px`;
+    }
+  }, [value]);
 
   const readFileAsDataUrl = (file: File) =>
     new Promise<string>((resolve, reject) => {
@@ -100,7 +110,7 @@ export function Composer({
     await handleImageSelect(file);
   };
 
-  const handleKeyDown = (e: React.KeyboardEvent) => {
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       if (canSubmit && !isSending) {
@@ -111,7 +121,7 @@ export function Composer({
 
   return (
     <div className="relative">
-      <div className="flex h-12 items-center gap-2 rounded-xl border border-white/20 bg-surface-3 px-3 shadow-2xl transition-all duration-200 focus-within:border-ide-accent/55 focus-within:ring-1 focus-within:ring-ide-accent/25 lg:h-14 lg:px-4">
+      <div className="flex min-h-[52px] items-end gap-2 rounded-2xl border border-white/10 bg-white/[0.04] p-2 shadow-lg transition-all duration-200 focus-within:composer-glow focus-within:border-ide-accent/40 focus-within:bg-white/[0.06] lg:min-h-[56px] lg:p-2.5">
         <input
           ref={fileInputRef}
           type="file"
@@ -121,45 +131,51 @@ export function Composer({
         />
         <button
           type="button"
-          className="p-1 text-meta-muted transition-colors hover:text-meta-text"
+          className="mb-1 rounded-full p-1.5 text-meta-muted/80 transition-colors hover:bg-white/10 hover:text-meta-text"
           onClick={() => fileInputRef.current?.click()}
+          title="Attach image"
         >
-          <Plus className="w-5 h-5" />
+          <Plus className="h-5 w-5" />
         </button>
-        <button
-          type="button"
-          className="p-1 text-meta-muted transition-colors hover:text-meta-text"
-        >
-          <Mic className="w-5 h-5" />
-        </button>
-        <input
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-          onKeyDown={handleKeyDown}
-          placeholder={placeholder}
-          className="flex-1 bg-transparent text-[15px] text-meta-text outline-none placeholder:text-meta-muted/50"
-          disabled={isSending}
-        />
+        
+        <div className="flex min-w-0 flex-1 flex-col justify-center pb-1.5 pt-1.5">
+          <textarea
+            ref={textareaRef}
+            value={value}
+            onChange={(e) => onChange(e.target.value)}
+            onKeyDown={handleKeyDown}
+            placeholder={placeholder}
+            className="composer-textarea w-full bg-transparent text-[15px] text-white/90 outline-none placeholder:text-meta-muted/60"
+            disabled={isSending}
+            rows={1}
+          />
+        </div>
+
         {isSending ? (
           <button
             onClick={onStop}
             type="button"
-            className="grid h-7 w-7 place-items-center rounded-md border border-meta-border bg-surface text-meta-text transition-colors hover:bg-surface-2"
+            className="mb-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-red-500/20 text-red-400 transition-colors hover:bg-red-500/30"
           >
-            <X className="w-4 h-4 stroke-[2.5]" />
+            <div className="h-3 w-3 rounded-[2px] bg-currentColor" />
           </button>
         ) : (
           <button
             onClick={() => { if (canSubmit) onSubmit(); }}
             disabled={!canSubmit}
             type="button"
-            className={`grid h-7 w-7 place-items-center rounded-md border transition-colors ${canSubmit ? 'border-ide-accent/35 bg-ide-accent/15 text-meta-text hover:bg-ide-accent/25' : 'border-transparent text-meta-muted/40'}`}
+            className={`mb-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full transition-all duration-200 ${canSubmit ? 'bg-ide-accent text-white hover:bg-ide-accent/90 shadow-md' : 'bg-white/5 text-meta-muted/30'}`}
           >
-            <Send className="w-4 h-4 stroke-[2]" />
+            <Send className="h-[18px] w-[18px] translate-x-[1px]" strokeWidth={2.5} />
           </button>
         )}
       </div>
-      {attachmentError && <div className="absolute -top-10 left-0 text-red-400 text-xs px-3 py-1.5 bg-red-950/50 rounded-lg">{attachmentError}</div>}
+      
+      {attachmentError && (
+        <div className="absolute -top-10 left-0 rounded-lg bg-red-950/80 px-3 py-1.5 text-xs text-red-300 shadow-md backdrop-blur-md">
+          {attachmentError}
+        </div>
+      )}
     </div>
   );
 }

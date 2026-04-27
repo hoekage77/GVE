@@ -4,7 +4,7 @@ import AgentCard from './AgentCard';
 import AgentConfidenceMeter from './AgentConfidenceMeter';
 import AgentRecommendations from './AgentRecommendations';
 import AgentMemoryTimeline from './AgentMemoryTimeline';
-import type { UIAgentState } from '../../stores/chatStore';
+import type { UIAgentState } from '../../stores/chat';
 
 interface AgentAnalysisPanelProps {
   agentState: UIAgentState;

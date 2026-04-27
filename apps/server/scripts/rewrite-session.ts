@@ -1,4 +1,7 @@
-import { randomUUID } from "node:crypto";
+import fs from "node:fs";
+import path from "node:path";
+
+const content = `import { randomUUID } from "node:crypto";
 import { loadAllSessions, saveSession, saveSessionSync, flushAll } from "./file-store.js";
 import type { 
   InternalSessionState, 
@@ -26,7 +29,7 @@ export function initializeSessions(): void {
   }
 
   initialized = true;
-  console.log(`[SessionState] Initialized with ${sessions.size} session(s).`);
+  console.log(\`[SessionState] Initialized with \${sessions.size} session(s).\`);
 }
 
 export function shutdownSessions(): void {
@@ -34,7 +37,7 @@ export function shutdownSessions(): void {
 }
 
 function persistSession(session: InternalSessionState): void {
-  saveSession(session.sessionId, session as any);
+  saveSession(session.sessionId, session);
 }
 
 function isoNow(): string {
@@ -63,12 +66,12 @@ function normalizeSceneVersion(
 
   return {
     ...version,
-    versionId: version.versionId ?? `version-${globalVersion}`,
+    versionId: version.versionId ?? \`version-\${globalVersion}\`,
     version: globalVersion,
     artifactId,
     artifactVersion,
     source: version.source ?? "generate",
-    sceneId: version.sceneId ?? `scene-${artifactId}`,
+    sceneId: version.sceneId ?? \`scene-\${artifactId}\`,
     createdAt,
     updatedAt
   };
@@ -84,7 +87,7 @@ function deriveArtifactTitle(artifact: Artifact, index: number): string {
     return firstRevision.sceneId;
   }
 
-  return `Artifact ${index + 1}`;
+  return \`Artifact \${index + 1}\`;
 }
 
 function flattenArtifactRevisions(artifacts: Artifact[]): SceneVersion[] {
@@ -101,7 +104,6 @@ function buildRevisionLocations(session: InternalSessionState): any[] {
   const locations: any[] = [];
   for (let artifactIndex = 0; artifactIndex < session.artifacts.length; artifactIndex += 1) {
     const artifact = session.artifacts[artifactIndex];
-    if (!artifact) continue;
     for (let revisionIndex = 0; revisionIndex < artifact.revisions.length; revisionIndex += 1) {
       const revision = artifact.revisions[revisionIndex] as SceneVersion;
       locations.push({
@@ -202,8 +204,8 @@ function migrateToInternalState(rawSession: any): InternalSessionState {
 
         if (startsNewArtifact) {
           activeArtifact = {
-            artifactId: revision.artifactId ?? `artifact-${Date.now()}-${artifacts.length + 1}`,
-            title: revision.sceneId ?? `Artifact ${artifacts.length + 1}`,
+            artifactId: revision.artifactId ?? \`artifact-\${Date.now()}-\${artifacts.length + 1}\`,
+            title: revision.sceneId ?? \`Artifact \${artifacts.length + 1}\`,
             createdAt: revision.createdAt ?? now,
             updatedAt: revision.updatedAt ?? revision.createdAt ?? now,
             revisions: [],
@@ -242,7 +244,7 @@ function migrateToInternalState(rawSession: any): InternalSessionState {
   // Normalization
   let globalVersion = 0;
   const typedArtifacts: Artifact[] = artifacts.map((artifact: any, artifactIndex: number) => {
-    const artifactId = artifact.artifactId ?? `artifact-${rawSession.sessionId}-${artifactIndex + 1}`;
+    const artifactId = artifact.artifactId ?? \`artifact-\${rawSession.sessionId}-\${artifactIndex + 1}\`;
     const revisions = Array.isArray(artifact.revisions) ? artifact.revisions : [];
 
     const normalizedRevisions = revisions.map((revision: any, revisionIndex: number) => {
@@ -369,7 +371,7 @@ export function createSession(sessionId?: string): SessionState {
 
   const session = createInternalSession(resolvedSessionId);
   sessions.set(resolvedSessionId, session);
-  saveSessionSync(resolvedSessionId, session as any);
+  saveSessionSync(resolvedSessionId, session);
   return cloneSessionState(session);
 }
 
@@ -397,10 +399,10 @@ export function recordSceneVersion(sessionId: string, sceneSnapshot: any): Sessi
   let activeArtifact = session.artifacts[session.artifactPointer];
 
   if (createsNewArtifact || !activeArtifact) {
-    const artifactId = sceneSnapshot.artifactId ?? `artifact-${Date.now()}-${Math.random().toString(16).slice(2, 8)}`;
+    const artifactId = sceneSnapshot.artifactId ?? \`artifact-\${Date.now()}-\${Math.random().toString(16).slice(2, 8)}\`;
     activeArtifact = {
       artifactId,
-      title: sceneSnapshot.artifactTitle ?? sceneSnapshot.sceneId ?? `Artifact ${session.artifacts.length + 1}`,
+      title: sceneSnapshot.artifactTitle ?? sceneSnapshot.sceneId ?? \`Artifact \${session.artifacts.length + 1}\`,
       createdAt: now,
       updatedAt: now,
       revisions: [],
@@ -414,7 +416,7 @@ export function recordSceneVersion(sessionId: string, sceneSnapshot: any): Sessi
 
   const globalVersion = flattenArtifactRevisions(session.artifacts).length + 1;
   const artifactVersion = activeArtifact.revisions.length + 1;
-  const sceneId = sceneSnapshot.sceneId ?? activeArtifact.revisions[activeArtifact.revisionPointer]?.sceneId ?? session.currentScene?.sceneId ?? `scene-${sessionId}`;
+  const sceneId = sceneSnapshot.sceneId ?? activeArtifact.revisions[activeArtifact.revisionPointer]?.sceneId ?? session.currentScene?.sceneId ?? \`scene-\${sessionId}\`;
 
   const currentScene = normalizeSceneVersion(
     {
@@ -660,7 +662,7 @@ export function listSceneVersions(sessionId: string): any {
 
 export function createSessionMessageId(sessionId: string): string {
   const session = getOrCreateInternalSession(sessionId);
-  return `message-${session.messages.length + 1}`;
+  return \`message-\${session.messages.length + 1}\`;
 }
 
 export function appendOrchestrationTrace(sessionId: string, entry: Partial<TraceEntry> & { id?: string }): TraceEntry {
@@ -669,7 +671,6 @@ export function appendOrchestrationTrace(sessionId: string, entry: Partial<Trace
   const traceEntry: TraceEntry = {
     step: entry.step ?? "unknown",
     detail: entry.detail ?? undefined,
-    payload: entry.payload ?? undefined,
     timestamp: entry.timestamp ?? now,
     duration: entry.duration
   };
@@ -691,7 +692,7 @@ export function setSessionStatus(sessionId: string, status: SessionStatus): Sess
 export function appendSessionMessage(sessionId: string, message: any): SessionMessage {
   const session = getOrCreateInternalSession(sessionId);
   const now = isoNow();
-  const messageId = message.id ?? `message-${session.messages.length + 1}`;
+  const messageId = message.id ?? \`message-\${session.messages.length + 1}\`;
 
   const existingMessage = session.messages.find((entry: SessionMessage) => entry.messageId === messageId);
   if (existingMessage) {
@@ -702,9 +703,6 @@ export function appendSessionMessage(sessionId: string, message: any): SessionMe
     messageId,
     role: message.role ?? "user",
     content: message.content ?? "",
-    kind: message.kind,
-    error: message.error,
-    meta: message.meta,
     metadata: message.meta ?? {},
     createdAt: message.createdAt ?? now,
     updatedAt: now
@@ -714,32 +712,6 @@ export function appendSessionMessage(sessionId: string, message: any): SessionMe
   session.updatedAt = now;
   persistSession(session);
   return { ...storedMessage };
-}
-
-export function updateSessionMessage(sessionId: string, messageId: string, updates: Partial<SessionMessage>): SessionMessage | null {
-  const session = getOrCreateInternalSession(sessionId);
-  const messageIndex = session.messages.findIndex(m => m.messageId === messageId);
-  
-  if (messageIndex === -1) {
-    return null;
-  }
-  
-  const now = isoNow();
-  const existing = session.messages[messageIndex] as SessionMessage;
-  const updatedMessage: SessionMessage = {
-    ...existing,
-    ...updates,
-    messageId: existing.messageId,
-    role: updates.role ?? existing.role,
-    content: updates.content ?? existing.content,
-    createdAt: existing.createdAt,
-    updatedAt: now
-  };
-  
-  session.messages[messageIndex] = updatedMessage;
-  session.updatedAt = now;
-  persistSession(session);
-  return { ...updatedMessage };
 }
 
 export function buildSessionResponse(sessionState: SessionState, websocketUrl?: string): any {
@@ -752,7 +724,7 @@ export function buildSessionResponse(sessionState: SessionState, websocketUrl?: 
 export function buildWebSocketUrl(req: any): string {
   const protocol = req.headers["x-forwarded-proto"] === "https" ? "wss" : "ws";
   const host = req.headers["x-forwarded-host"] || req.headers.host;
-  return `${protocol}://${host}/ws`;
+  return \`\${protocol}://\${host}/ws\`;
 }
 
 export function listSessionMessages(sessionId: string): SessionMessage[] {
@@ -772,10 +744,16 @@ export function buildSceneUpdatePayload(sessionId: string): any {
   };
 }
 
-export function buildCodeUpdatePayload(sessionId: string, payload: any): any {
+export function buildCodeUpdatePayload(sessionId: string, currentCode: string, skill: string): any {
   return {
     type: "code_update",
     sessionId,
-    ...payload
+    code: currentCode,
+    skill,
+    outputKind: "react"
   };
 }
+\`
+
+fs.writeFileSync(path.join(__dirname, '../server/state/session.ts'), content);
+console.log("Written state/session.ts");

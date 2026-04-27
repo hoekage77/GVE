@@ -1,8 +1,9 @@
 import { useMemo, useState, useEffect } from "react";
 import { Sparkles, ChevronDown, Eye, Loader2, AlertTriangle, Code2, Film, Image as ImageIcon, ChevronLeft, ChevronRight } from "lucide-react";
 import MarkdownRenderer from "./MarkdownRenderer";
-import { ThoughtTraceToggle } from "./meta/ThoughtTraceToggle";
+import { ThoughtStream } from "./ThoughtStream";
 import { SourceResultsList, type SourceResult } from "./meta/SourceResultsList";
+import { InlineScenePreview } from "./InlineScenePreview";
 
 export type ChatMessageVariant = "legacy" | "meta";
 
@@ -40,14 +41,10 @@ export function UserMessage({ content, timestamp, variant = "legacy" }: UserMess
   const isMetaVariant = variant === "meta";
 
   return (
-    <div className={`flex flex-row-reverse min-w-0 gap-2.5 lg:gap-3 animate-[slideInUp_0.3s_ease-out] ${isMetaVariant ? "mb-3 lg:mb-5" : "mb-3 lg:mb-4"}`}>
-      <div className="flex-1 min-w-0 text-right">
-        <div className="mb-1 lg:mb-1.5 flex items-center justify-end gap-2">
-          {timestamp && <span className={isMetaVariant ? "text-[9px] font-normal text-meta-muted/60 lg:text-[11px]" : "text-[10px] font-normal text-meta-muted lg:text-xs"}>{formatTime(timestamp)}</span>}
-          <span className={isMetaVariant ? "text-[9px] font-semibold uppercase tracking-wider text-meta-muted/80 lg:text-[11px]" : "text-[10px] font-medium text-meta-muted lg:text-sm"}>You</span>
-        </div>
-        <div className="inline-block max-w-full">
-          <p className={isMetaVariant ? "break-words text-[0.88rem] lg:text-[0.95rem] leading-[1.6] lg:leading-[1.68] text-white/92" : "break-words text-[13px] lg:text-sm leading-relaxed text-white/95"}>{content}</p>
+    <div className={`flex flex-row-reverse min-w-0 gap-2.5 lg:gap-3 animate-message-enter ${isMetaVariant ? "mb-6" : "mb-4"}`}>
+      <div className="flex-1 min-w-0 flex flex-col items-end">
+        <div className="message-bubble-user max-w-[85%] inline-block">
+          <p className="break-words text-[14px] lg:text-[15px] leading-[1.6] text-white/90">{content}</p>
         </div>
       </div>
     </div>
@@ -56,10 +53,11 @@ export function UserMessage({ content, timestamp, variant = "legacy" }: UserMess
 
 // === AI Message ===
 
-interface ThoughtItem {
+export interface ThoughtItem {
   text: string;
   step: string;
   timestamp: number;
+  meta?: string[];
 }
 
 interface AIMessageProps {
@@ -83,6 +81,10 @@ interface AIMessageProps {
   onScenePreview?: () => void;
   variant?: ChatMessageVariant;
   artifactCards?: ChatArtifactCard[];
+  sceneCode?: string | null;
+  sceneSkill?: string | null;
+  sceneVersionId?: string | null;
+  onSceneExpand?: () => void;
 }
 
 function compactSceneName(sceneId: string | undefined): string {
@@ -102,31 +104,7 @@ function compactSceneName(sceneId: string | undefined): string {
   return `${normalized.slice(0, 8)}...${normalized.slice(-4)}`;
 }
 
-const STEP_LABELS: Record<string, string> = {
-  turn_started: "Thinking",
-  parse_intent: "Understanding request",
-  intent_parsed: "Understanding request",
-  select_skill: "Selecting skill",
-  build_prompt: "Building prompt",
-  generate_code: "Generating code",
-  code_generated: "Code ready",
-  code_modified: "Modifying scene",
-  validate_code: "Validating code",
-  validation_failed: "Recovering from error",
-  execute_code: "Executing in sandbox",
-  executing: "Running scene",
-  execution_skipped: "Skipping execution",
-  sync_state: "Syncing state",
-  turn_complete: "Done",
-  turn_error: "Error",
-  post_narration: "Narrating",
-  image_analyzing: "Analyzing image",
-  image_generating: "Generating from image",
-};
 
-function toStepLabel(step: string): string {
-  return STEP_LABELS[step] ?? step.replace(/_/g, " ");
-}
 
 function extractSourceResults(content: string, meta: string[] | undefined): SourceResult[] {
   const normalized = String(content ?? "").trim();
@@ -259,7 +237,6 @@ export function MetaAIMessage({
   const showSceneFooter = Boolean((onScenePreview || onSceneCode) && !isThinking);
   const compactSceneId = compactSceneName(sceneId);
   const sourceResults = useMemo(() => extractSourceResults(content, meta), [content, meta]);
-  const stepLabel = toStepLabel(thinkingStep);
   const contextSource = formatContextLabel(assistantSource);
   const contextSkill = formatContextLabel(skill);
   const hasContextRow = Boolean(contextSource || contextSkill || assistantWarning || errorCode);
@@ -267,8 +244,8 @@ export function MetaAIMessage({
   return (
     <div className={`mb-4 flex min-w-0 gap-3 ${isThinking ? 'opacity-95' : ''}`}>
       <div className="min-w-0 flex-1">
-        {thoughts.length > 0 && !isThinking && (
-          <ThoughtTraceToggle thoughts={thoughts} durationMs={thinkingDuration} />
+        {thoughts.length > 0 && (
+          <ThoughtStream thoughts={thoughts} isThinking={isThinking} thinkingDuration={thinkingDuration} />
         )}
 
         {sceneId && !isThinking && (
@@ -295,21 +272,13 @@ export function MetaAIMessage({
           </div>
         )}
 
-        {isThinking && (
-          <div className="mb-2 rounded-lg border border-white/12 bg-white/[0.04] p-2" role="status" aria-live="polite">
-            <div className="flex items-center gap-2 text-sm text-white/85">
-              <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
-              <span>{thinkingText?.trim() ? thinkingText : `${stepLabel}...`}</span>
-            </div>
-            <div className="mt-1 text-[11px] uppercase tracking-[0.08em] text-white/45">{stepLabel}</div>
-          </div>
-        )}
 
-        <div className="markdown-message break-words text-[0.88rem] leading-[1.6] text-white/90 lg:text-[0.94rem] lg:leading-[1.72]">
+
+        <div className={`markdown-message ${isThinking ? "text-white/50" : "text-white/90"}`}>
           {content ? (
             <MarkdownRenderer content={content} />
           ) : isThinking ? null : (
-            <span className="text-white/50">Thinking...</span>
+            <span>Thinking...</span>
           )}
         </div>
 
@@ -361,10 +330,15 @@ export function AIMessage({
   thinkingDuration = 0,
   timestamp,
   variant = "legacy",
-  artifactCards = []
+  artifactCards = [],
+  sceneCode,
+  sceneSkill,
+  sceneId,
+  sceneVersionId,
+  onSceneExpand,
+  onSceneCode
 }: AIMessageProps) {
   const isMetaVariant = variant === "meta";
-  const [isThoughtsOpen, setIsThoughtsOpen] = useState(false);
   const [activeArtifactIndex, setActiveArtifactIndex] = useState(0);
 
   useEffect(() => {
@@ -387,53 +361,24 @@ export function AIMessage({
   };
 
   return (
-    <div className={`flex min-w-0 gap-2.5 lg:gap-3 animate-fade-in ${isMetaVariant ? "mb-3 lg:mb-5" : "mb-3 lg:mb-4"}`}>
+    <div className={`flex min-w-0 gap-2.5 lg:gap-3 animate-message-enter ${isMetaVariant ? "mb-6" : "mb-4"}`}>
       <div className="flex-1 min-w-0">
-        <div className="mb-1 lg:mb-1.5 flex items-center gap-2">
-          <span className={isMetaVariant ? "text-[9px] font-semibold uppercase tracking-wider text-meta-muted/80 lg:text-[11px]" : "text-[10px] font-medium text-meta-muted lg:text-sm"}>Assistant</span>
-          {timestamp && <span className={isMetaVariant ? "text-[9px] lg:text-[11px] font-medium text-white/30" : "text-[10px] lg:text-xs text-white/40"}>{formatTime(timestamp)}</span>}
-        </div>
         
         <div className="space-y-2 lg:space-y-3 w-full min-w-0">
           {/* Thoughts section */}
-          {thoughts.length > 0 && (
-            <div className="pb-1.5 lg:pb-2">
-              <button
-                onClick={() => setIsThoughtsOpen(!isThoughtsOpen)}
-                className={isMetaVariant ? "flex items-center gap-1.5 lg:gap-2 text-[9px] lg:text-[10px] font-semibold uppercase tracking-[0.1em] text-white/58 transition-colors duration-200 hover:text-white/90" : "flex items-center gap-2 text-[11px] lg:text-xs text-white/60 transition-colors duration-200 hover:text-white/90"}
-              >
-                <ChevronDown className={`w-3 h-3 transition-transform duration-300 ${isThoughtsOpen ? 'rotate-180' : ''}`} />
-                <span className="hidden sm:inline">Thought for {Math.max(thinkingDuration / 1000, 0.1).toFixed(1)}s</span>
-                <span className="sm:hidden">Thought ({Math.max(thinkingDuration / 1000, 0.1).toFixed(1)}s)</span>
-              </button>
-              {isThoughtsOpen && (
-                <div className="mt-2 space-y-1.5 p-2 bg-white/[0.03] rounded-lg">
-                  {thoughts.map((thought, i) => (
-                    <div
-                      key={i}
-                      className={isMetaVariant ? "text-[11px] leading-relaxed text-white/52" : "text-xs text-white/50 leading-relaxed"}
-                      style={{
-                        animation: 'slide-down 0.3s ease-out',
-                        animationDelay: `${i * 50}ms`
-                      }}
-                    >
-                      <span className={isMetaVariant ? "font-mono text-[10px] uppercase tracking-[0.08em] text-white/30" : "font-mono text-white/30"}>{thought.step}:</span>
-                      <p className="mt-0.5">{thought.text}</p>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
+          {(thoughts.length > 0 || isThinking) && (
+            <ThoughtStream thoughts={thoughts} isThinking={isThinking} thinkingDuration={thinkingDuration} />
           )}
 
           {content ? (
-            <p className={isMetaVariant ? "break-words text-[0.88rem] lg:text-[0.94rem] leading-[1.6] lg:leading-[1.72] text-white/90" : "break-words text-[13px] lg:text-sm leading-relaxed text-white/90"}>{content}</p>
-          ) : isThinking ? (
-            <div className={`inline-flex items-center gap-2 ${isMetaVariant ? "text-[0.9rem] text-white/72" : "text-sm text-white/70"}`}>
-              <Loader2 className="h-4 w-4 animate-spin" />
-              <span>{thinkingText?.trim() || "Thinking..."}</span>
+            <div className="markdown-message">
+              <MarkdownRenderer content={content} />
             </div>
-          ) : null}
+          ) : isThinking ? null : (
+            <div className="markdown-message">
+              <p>Thinking...</p>
+            </div>
+          )}
 
           {activeArtifact && (() => {
             const thumbnailUrl = normalizePreviewUrl(activeArtifact.previewUrl);
@@ -518,6 +463,18 @@ export function AIMessage({
               </div>
             );
           })()}
+
+          {/* Inline Scene Preview */}
+          {sceneCode && !isThinking && (
+            <InlineScenePreview
+              code={sceneCode}
+              skill={sceneSkill || "threejs"}
+              sceneId={sceneId || "scene"}
+              versionId={sceneVersionId || ""}
+              onExpand={onSceneExpand}
+              onCode={onSceneCode}
+            />
+          )}
 
         </div>
       </div>

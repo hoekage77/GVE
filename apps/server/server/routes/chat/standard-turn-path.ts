@@ -181,7 +181,8 @@ export async function executeStandardTurnPath(params: {
       ...thoughtContextBase,
       query: content,
       skill: turn.result.skill,
-      llmThoughts
+      llmThoughts,
+      stageDurationMs: stepDurationsMs["generate_code"] ?? null
     });
     setSessionStatus(sessionId, "generating");
 
@@ -218,7 +219,8 @@ export async function executeStandardTurnPath(params: {
         ...thoughtContextBase,
         query: content,
         skill: turn.result.skill,
-        llmThoughts
+        llmThoughts,
+        stageDurationMs: stepDurationsMs["execute_code"] ?? null
       });
       setSessionStatus(sessionId, "executing");
     }
@@ -227,7 +229,8 @@ export async function executeStandardTurnPath(params: {
       ...thoughtContextBase,
       query: content,
       skill: turn.result.skill,
-      llmThoughts
+      llmThoughts,
+      stageDurationMs: stepDurationsMs["sync_state"] ?? null
     });
 
     broadcastEvent(turn.mode === "generate" ? "generation:complete" : "code:update", {

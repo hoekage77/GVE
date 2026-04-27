@@ -2,6 +2,7 @@ import { Daytona } from "@daytonaio/sdk";
 import fs from "node:fs/promises";
 import path from "node:path";
 import crypto from "node:crypto";
+import dns from "node:dns/promises";
 import { fileURLToPath } from "node:url";
 import { toolRegistry } from "./tool-registry.js";
 import { createSandboxFileSystem } from "./filesystem.js";
@@ -554,10 +555,37 @@ export class SandboxPoolManager {
     this.lastAcquireDiagnostics = diagnostics;
   }
 
+  /**
+   * Lightweight DNS pre-flight check.  Resolves the Daytona API hostname
+   * before attempting a full HTTP create call so we can fail fast (< 3 s)
+   * instead of waiting for the SDK's 20 s HTTP timeout when DNS is down.
+   */
+  async _checkDnsHealth(timeoutMs = 3000) {
+    const hostname = this._daytonaHostname ?? "app.daytona.io";
+    try {
+      await Promise.race([
+        dns.resolve4(hostname),
+        new Promise((_, reject) =>
+          setTimeout(() => reject(new Error(`DNS pre-flight timed out after ${timeoutMs}ms for ${hostname}`)), timeoutMs)
+        )
+      ]);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
   async _getDaytonaClient() {
     if (!this.daytona) {
       try {
         this.daytona = new Daytona();
+        // Extract hostname for DNS pre-flight checks
+        try {
+          const targetUrl = process.env.DAYTONA_TARGET_URL || process.env.DAYTONA_SERVER_URL || "";
+          if (targetUrl) {
+            this._daytonaHostname = new URL(targetUrl).hostname;
+          }
+        } catch { /* best-effort hostname extraction */ }
       } catch (err) {
         console.error("[Daytona] Initialization Failed:", err.message);
         throw err;
@@ -568,6 +596,27 @@ export class SandboxPoolManager {
 
   async _provisionWorkspace({ skillId = "unknown", reason = "acquire", turnDeadlineAtMs = null, diagnostics = null } = {}) {
     const daytona = await this._getDaytonaClient();
+
+    // DNS pre-flight: skip both direct and fallback paths early when DNS is
+    // unreachable — avoids burning 40+ seconds on two HTTP timeouts.
+    const dnsHealthy = await this._checkDnsHealth();
+    if (!dnsHealthy) {
+      const dnsError = new Error(
+        `DNS pre-flight failed for Daytona API. Skipping workspace provisioning (skill=${skillId}, reason=${reason}).`
+      );
+      console.warn(`[Daytona] ${dnsError.message}`);
+      if (diagnostics?.direct) {
+        diagnostics.direct.skipped = true;
+        diagnostics.direct.skipReason = "dns_preflight_failed";
+        diagnostics.direct.error = dnsError.message;
+      }
+      if (diagnostics?.fallback) {
+        diagnostics.fallback.skipped = true;
+        diagnostics.fallback.skipReason = "dns_preflight_failed";
+        diagnostics.fallback.error = dnsError.message;
+      }
+      throw dnsError;
+    }
     const acquireStartedAt = Date.now();
     const resolvedDirectImage = this._resolveDirectCreateImageForSkill(skillId);
     let workspace;

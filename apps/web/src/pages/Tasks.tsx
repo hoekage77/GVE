@@ -54,7 +54,8 @@ export default function TasksPage() {
   }, []);
 
   const rows = useMemo(() => {
-    return sessions
+    return (sessions || [])
+      .filter((s) => Boolean(s?.sessionId))
       .map((session) => {
         const progress = taskProgressBySession[session.sessionId];
         const tasks = progress?.tasks ?? [];

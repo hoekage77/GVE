@@ -142,14 +142,16 @@ export default function Sidebar({ forceExpanded = false }: SidebarProps) {
   const navigate = useNavigate();
 
   const sessionRows = useMemo(() => {
-    return sessions.map((session) => {
-      const sessionMessages = messages[session.sessionId] ?? [];
-      return {
-        sessionId: session.sessionId,
-        title: deriveSessionTitle(session, sessionMessages),
-        updatedAt: formatUpdatedAt(session.updatedAt)
-      };
-    });
+    return (sessions || [])
+      .filter((session) => Boolean(session?.sessionId))
+      .map((session) => {
+        const sessionMessages = messages[session.sessionId] ?? [];
+        return {
+          sessionId: session.sessionId,
+          title: deriveSessionTitle(session, sessionMessages),
+          updatedAt: formatUpdatedAt(session.updatedAt)
+        };
+      });
   }, [messages, sessions]);
 
   const closeMobileSidebar = () => {
@@ -245,183 +247,194 @@ export default function Sidebar({ forceExpanded = false }: SidebarProps) {
       )}
 
       {!showMobileLauncher && (
-        <aside className={`${isCollapsed ? 'w-[72px]' : 'w-[260px]'} flex min-h-0 flex-col overflow-hidden border-r border-[#1a1a1a] bg-[#0a0a0a] transition-[width] duration-200`}>
-        <div className="border-b border-[#1a1a1a] p-4">
+        <aside className={`${isCollapsed ? 'w-[68px]' : 'w-[280px]'} flex min-h-0 flex-col overflow-hidden border-r border-white/5 bg-[#0d0d0d] transition-[width] duration-300 ease-in-out`}>
+        <div className="p-4">
           {isCollapsed ? (
-            <div className="grid justify-items-center gap-2">
+            <div className="flex flex-col items-center gap-4">
               <button
                 type="button"
-                className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-[#2a2a2a] bg-[#1a1a1a] text-slate-400 hover:border-[#333333] hover:bg-[#222222] hover:text-slate-300"
+                className="group inline-flex h-10 w-10 items-center justify-center rounded-xl border border-white/10 bg-white/[0.02] text-white/40 transition-all duration-300 hover:border-white/20 hover:bg-white/[0.05] hover:text-white"
                 onClick={() => setIsCollapsed(false)}
                 aria-label="Expand sidebar"
                 title="Open sidebar"
               >
-                <LayoutGrid className="h-4 w-4" />
+                <LayoutGrid className="h-5 w-5 transition-transform duration-300 group-hover:scale-110" />
               </button>
 
-              <p className="text-[10px] uppercase tracking-[0.12em] text-white/45">Main</p>
+              <div className="h-px w-8 bg-white/5" />
 
-              <div className="flex flex-col gap-2">
+              <div className="flex flex-col gap-3">
                 <button
                   type="button"
-                  className={`inline-flex h-9 w-9 items-center justify-center rounded-[0.6rem] border transition-all duration-200 ${activeDestination === 'chat' ? 'border-sky-400/60 bg-sky-400/15 text-sky-200' : 'border-[#2a2a2a] bg-[#1a1a1a] text-[#808080] hover:border-[#333333] hover:bg-[#222222] hover:text-[#a0a0a0]'}`}
+                  className={`relative inline-flex h-10 w-10 items-center justify-center rounded-xl transition-all duration-300 ${activeDestination === 'chat' ? 'bg-sky-500/10 text-sky-400 shadow-[0_0_12px_rgba(14,165,233,0.1)]' : 'text-white/40 hover:bg-white/[0.05] hover:text-white/80'}`}
                   onClick={() => navigateTo('chat')}
                   aria-label="Open studio"
                   title="Studio"
                 >
-                  <LayoutGrid className="h-4 w-4" />
+                  <LayoutGrid className="h-5 w-5" />
+                  {activeDestination === 'chat' && <div className="absolute -left-4 h-5 w-1 rounded-r-full bg-sky-500" />}
                 </button>
 
                 <button
                   type="button"
-                  className={`inline-flex h-9 w-9 items-center justify-center rounded-[0.6rem] border transition-all duration-200 ${activeDestination === 'scenes' ? 'border-sky-400/60 bg-sky-400/15 text-sky-200' : 'border-[#2a2a2a] bg-[#1a1a1a] text-[#808080] hover:border-[#333333] hover:bg-[#222222] hover:text-[#a0a0a0]'}`}
+                  className={`relative inline-flex h-10 w-10 items-center justify-center rounded-xl transition-all duration-300 ${activeDestination === 'scenes' ? 'bg-sky-500/10 text-sky-400 shadow-[0_0_12px_rgba(14,165,233,0.1)]' : 'text-white/40 hover:bg-white/[0.05] hover:text-white/80'}`}
                   onClick={() => navigateTo('scenes')}
                   aria-label="Open scenes"
                   title="Scenes"
                 >
-                  <Clapperboard className="h-4 w-4" />
+                  <Clapperboard className="h-5 w-5" />
+                  {activeDestination === 'scenes' && <div className="absolute -left-4 h-5 w-1 rounded-r-full bg-sky-500" />}
                 </button>
 
                 <button
                   type="button"
-                  className={`inline-flex h-9 w-9 items-center justify-center rounded-[0.6rem] border transition-all duration-200 ${activeDestination === 'tasks' ? 'border-sky-400/60 bg-sky-400/15 text-sky-200' : 'border-[#2a2a2a] bg-[#1a1a1a] text-[#808080] hover:border-[#333333] hover:bg-[#222222] hover:text-[#a0a0a0]'}`}
+                  className={`relative inline-flex h-10 w-10 items-center justify-center rounded-xl transition-all duration-300 ${activeDestination === 'tasks' ? 'bg-sky-500/10 text-sky-400 shadow-[0_0_12px_rgba(14,165,233,0.1)]' : 'text-white/40 hover:bg-white/[0.05] hover:text-white/80'}`}
                   onClick={() => navigateTo('tasks')}
                   aria-label="Open tasks"
                   title="Tasks"
                 >
-                  <ListTodo className="h-4 w-4" />
+                  <ListTodo className="h-5 w-5" />
+                  {activeDestination === 'tasks' && <div className="absolute -left-4 h-5 w-1 rounded-r-full bg-sky-500" />}
                 </button>
 
                 <button
                   type="button"
-                  className={`inline-flex h-9 w-9 items-center justify-center rounded-[0.6rem] border transition-all duration-200 ${activeDestination === 'profile' ? 'border-sky-400/60 bg-sky-400/15 text-sky-200' : 'border-[#2a2a2a] bg-[#1a1a1a] text-[#808080] hover:border-[#333333] hover:bg-[#222222] hover:text-[#a0a0a0]'}`}
+                  className={`relative inline-flex h-10 w-10 items-center justify-center rounded-xl transition-all duration-300 ${activeDestination === 'profile' ? 'bg-sky-500/10 text-sky-400 shadow-[0_0_12px_rgba(14,165,233,0.1)]' : 'text-white/40 hover:bg-white/[0.05] hover:text-white/80'}`}
                   onClick={() => navigateTo('profile')}
                   aria-label="Open profile"
                   title="Profile"
                 >
-                  <User className="h-4 w-4" />
+                  <User className="h-5 w-5" />
+                  {activeDestination === 'profile' && <div className="absolute -left-4 h-5 w-1 rounded-r-full bg-sky-500" />}
                 </button>
               </div>
 
-              <div className="mt-1">
-                <button
-                  type="button"
-                  className="inline-flex h-9 w-9 items-center justify-center rounded-[0.6rem] border border-sky-400/60 bg-sky-400/15 text-sky-200 transition-colors duration-200 hover:bg-sky-400/25"
-                  onClick={handleCreateSession}
-                  aria-label="Add new task"
-                  title={isBootstrapping ? 'Loading...' : 'Add new task'}
-                >
-                  <Plus className="h-4 w-4" />
-                </button>
-              </div>
+              <div className="h-px w-8 bg-white/5" />
+
+              <button
+                type="button"
+                className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-sky-500/20 bg-sky-500/5 text-sky-400 transition-all duration-300 hover:bg-sky-500/15"
+                onClick={handleCreateSession}
+                aria-label="New chat"
+                title={isBootstrapping ? 'Loading...' : 'New chat'}
+              >
+                <Plus className="h-5 w-5" />
+              </button>
             </div>
           ) : (
-            <>
-              <div className="flex items-center justify-between">
-                <h2 className="text-xs font-semibold uppercase tracking-wider text-white/60">Workspace</h2>
-                {!forceExpanded && (
-                  <button
-                    type="button"
-                    className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-sm border border-[#2a2a2a] bg-[#1a1a1a] text-[#808080] transition-all duration-200 hover:border-[#333333] hover:bg-[#222222] hover:text-[#a0a0a0]"
-                    onClick={() => setIsCollapsed(true)}
-                    aria-label="Collapse sidebar"
-                    title="Collapse sidebar"
-                  >
-                    <ChevronLeft className="h-3.5 w-3.5" />
-                  </button>
-                )}
-              </div>
-            </>
+            <div className="flex items-center justify-between px-1">
+              <button
+                onClick={handleCreateSession}
+                className="group flex flex-1 items-center gap-2.5 rounded-xl border border-white/5 bg-white/[0.02] px-3.5 py-2 text-sm font-medium text-white/90 transition-all duration-300 hover:border-white/10 hover:bg-white/[0.05]"
+              >
+                <Plus className="h-4 w-4 text-sky-400 transition-transform duration-300 group-hover:rotate-90" />
+                <span>New Chat</span>
+              </button>
+              {!forceExpanded && (
+                <button
+                  type="button"
+                  className="ml-2 inline-flex h-8 w-8 items-center justify-center rounded-lg border border-white/5 bg-white/[0.02] text-white/40 transition-all duration-300 hover:border-white/10 hover:bg-white/[0.05] hover:text-white"
+                  onClick={() => setIsCollapsed(true)}
+                  aria-label="Collapse sidebar"
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                </button>
+              )}
+            </div>
           )}
         </div>
 
         {!isCollapsed && (
           <>
-            <nav className="px-3 py-3">
-              <p className="px-2 pb-2 text-[10px] uppercase tracking-[0.12em] text-white/45">Workspace</p>
-
+            <nav className="px-3 py-2">
               <button
                 type="button"
-                className={`mb-1 flex w-full items-center gap-2 rounded-lg border px-2.5 py-2 text-left text-sm transition-all duration-200 ${activeDestination === 'chat' ? 'border-sky-400/60 bg-sky-400/15 text-sky-100' : 'border-transparent text-white/65 hover:border-white/10 hover:bg-white/[0.04] hover:text-white/90'}`}
+                className={`group mb-1 flex w-full items-center gap-2.5 rounded-xl border px-3 py-2 text-left transition-all duration-300 ${activeDestination === 'chat' ? 'border-white/10 bg-white/[0.06] text-white' : 'border-transparent text-white/50 hover:bg-white/[0.04] hover:text-white/80'}`}
                 onClick={() => navigateTo('chat')}
               >
-                <LayoutGrid className="h-4 w-4" />
-                <span>Studio</span>
+                <div className={`flex h-7 w-7 items-center justify-center rounded-lg border transition-all duration-300 ${activeDestination === 'chat' ? 'border-sky-500/30 bg-sky-500/10 text-sky-400' : 'border-white/5 bg-white/[0.02] text-white/40 group-hover:border-white/10 group-hover:text-white/60'}`}>
+                  <LayoutGrid className="h-4 w-4" />
+                </div>
+                <span className="text-sm font-medium">Studio</span>
               </button>
 
               <button
                 type="button"
-                className={`mb-1 flex w-full items-center gap-2 rounded-lg border px-2.5 py-2 text-left text-sm transition-all duration-200 ${activeDestination === 'scenes' ? 'border-sky-400/60 bg-sky-400/15 text-sky-100' : 'border-transparent text-white/65 hover:border-white/10 hover:bg-white/[0.04] hover:text-white/90'}`}
+                className={`group mb-1 flex w-full items-center gap-2.5 rounded-xl border px-3 py-2 text-left transition-all duration-300 ${activeDestination === 'scenes' ? 'border-white/10 bg-white/[0.06] text-white' : 'border-transparent text-white/50 hover:bg-white/[0.04] hover:text-white/80'}`}
                 onClick={() => navigateTo('scenes')}
               >
-                <Clapperboard className="h-4 w-4" />
-                <span>Scenes</span>
+                <div className={`flex h-7 w-7 items-center justify-center rounded-lg border transition-all duration-300 ${activeDestination === 'scenes' ? 'border-sky-500/30 bg-sky-500/10 text-sky-400' : 'border-white/5 bg-white/[0.02] text-white/40 group-hover:border-white/10 group-hover:text-white/60'}`}>
+                  <Clapperboard className="h-4 w-4" />
+                </div>
+                <span className="text-sm font-medium">Scenes</span>
               </button>
 
               <button
                 type="button"
-                className={`mb-1 flex w-full items-center gap-2 rounded-lg border px-2.5 py-2 text-left text-sm transition-all duration-200 ${activeDestination === 'tasks' ? 'border-sky-400/60 bg-sky-400/15 text-sky-100' : 'border-transparent text-white/65 hover:border-white/10 hover:bg-white/[0.04] hover:text-white/90'}`}
+                className={`group mb-1 flex w-full items-center gap-2.5 rounded-xl border px-3 py-2 text-left transition-all duration-300 ${activeDestination === 'tasks' ? 'border-white/10 bg-white/[0.06] text-white' : 'border-transparent text-white/50 hover:bg-white/[0.04] hover:text-white/80'}`}
                 onClick={() => navigateTo('tasks')}
               >
-                <ListTodo className="h-4 w-4" />
-                <span>Tasks</span>
+                <div className={`flex h-7 w-7 items-center justify-center rounded-lg border transition-all duration-300 ${activeDestination === 'tasks' ? 'border-sky-500/30 bg-sky-500/10 text-sky-400' : 'border-white/5 bg-white/[0.02] text-white/40 group-hover:border-white/10 group-hover:text-white/60'}`}>
+                  <ListTodo className="h-4 w-4" />
+                </div>
+                <span className="text-sm font-medium">Tasks</span>
               </button>
 
               <button
                 type="button"
-                className={`flex w-full items-center gap-2 rounded-lg border px-2.5 py-2 text-left text-sm transition-all duration-200 ${activeDestination === 'profile' ? 'border-sky-400/60 bg-sky-400/15 text-sky-100' : 'border-transparent text-white/65 hover:border-white/10 hover:bg-white/[0.04] hover:text-white/90'}`}
+                className={`group flex w-full items-center gap-2.5 rounded-xl border px-3 py-2 text-left transition-all duration-300 ${activeDestination === 'profile' ? 'border-white/10 bg-white/[0.06] text-white' : 'border-transparent text-white/50 hover:bg-white/[0.04] hover:text-white/80'}`}
                 onClick={() => navigateTo('profile')}
               >
-                <User className="h-4 w-4" />
-                <span>Profile</span>
+                <div className={`flex h-7 w-7 items-center justify-center rounded-lg border transition-all duration-300 ${activeDestination === 'profile' ? 'border-sky-500/30 bg-sky-500/10 text-sky-400' : 'border-white/5 bg-white/[0.02] text-white/40 group-hover:border-white/10 group-hover:text-white/60'}`}>
+                  <User className="h-4 w-4" />
+                </div>
+                <span className="text-sm font-medium">Profile</span>
               </button>
             </nav>
 
             <section className="flex min-h-0 flex-1 flex-col px-3 pb-3">
-              <div className="mb-2 flex items-center justify-between">
-                <p className="text-[10px] uppercase tracking-[0.12em] text-white/45">Messages</p>
-                <button
-                  type="button"
-                  className="inline-flex h-7 w-7 items-center justify-center rounded-md border border-white/10 bg-white/[0.03] text-white/65 transition-all duration-200 hover:bg-white/[0.08] hover:text-white"
-                  onClick={handleCreateSession}
-                  aria-label="Create new chat"
-                  title={isBootstrapping ? 'Loading...' : 'Create new chat'}
-                >
-                  <Plus className="h-3.5 w-3.5" />
-                </button>
+              <div className="mb-2 flex items-center justify-between px-2">
+                <p className="text-[10px] font-bold uppercase tracking-[0.15em] text-white/20">Recents</p>
               </div>
 
-              <div className="scrollbar min-h-0 flex-1 space-y-1 overflow-y-auto pr-1">
+              <div className="scrollbar min-h-0 flex-1 space-y-0.5 overflow-y-auto pr-1">
                 {sessionRows.length === 0 ? (
-                  <p className="rounded-lg border border-white/10 bg-white/[0.02] px-3 py-2 text-xs text-white/45">No messages yet</p>
+                  <div className="rounded-xl border border-dashed border-white/5 px-3 py-6 text-center">
+                    <p className="text-xs text-white/20">No history yet</p>
+                  </div>
                 ) : (
                   sessionRows.map((session) => (
                     <button
                       key={session.sessionId}
                       type="button"
-                      className={`flex w-full items-center gap-2 rounded-lg border px-2.5 py-2 text-left transition-all duration-200 ${session.sessionId === activeSessionId ? 'border-sky-400/45 bg-sky-400/12 text-sky-100' : 'border-transparent text-white/70 hover:border-white/10 hover:bg-white/[0.04] hover:text-white'}`}
+                      className={`group flex w-full items-center gap-2.5 rounded-xl border px-3 py-2 text-left transition-all duration-300 ${session.sessionId === activeSessionId ? 'border-white/10 bg-white/[0.06] text-white' : 'border-transparent text-white/50 hover:bg-white/[0.04] hover:text-white/80'}`}
                       onClick={() => {
                         void selectSession(session.sessionId);
                         closeMobileSidebar();
                       }}
                     >
-                      <span className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-md border border-white/15 bg-white/[0.05] text-[11px] font-semibold" aria-hidden="true">{getSessionInitial(session.title)}</span>
-                      <span className="truncate text-sm" title={session.title}>{session.title}</span>
+                      <div className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border text-[10px] font-bold transition-all duration-300 ${session.sessionId === activeSessionId ? 'border-sky-500/30 bg-sky-500/10 text-sky-400' : 'border-white/5 bg-white/[0.02] text-white/30 group-hover:border-white/10 group-hover:text-white/50'}`}>
+                        {getSessionInitial(session.title)}
+                      </div>
+                      <div className="flex min-w-0 flex-1 flex-col">
+                        <span className="truncate text-sm font-medium" title={session.title}>{session.title}</span>
+                        <span className="text-[10px] text-white/20 group-hover:text-white/30">{session.updatedAt}</span>
+                      </div>
                     </button>
                   ))
                 )}
               </div>
             </section>
 
-            <div className="border-t border-white/[0.08] p-3">
-              <div className="rounded-xl border border-white/[0.08] bg-white/[0.03] p-3">
-                <p className="text-sm font-semibold text-white/95">Let&apos;s start!</p>
-                <p className="mt-1 text-xs leading-5 text-white/55">Creating or adding new tasks couldn&apos;t be easier</p>
-                <button type="button" className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-lg border border-sky-400/45 bg-sky-400/15 px-3 py-2 text-sm font-medium text-sky-100 transition-all duration-200 hover:bg-sky-400/25" onClick={handleCreateSession}>
-                  <Plus className="h-3.5 w-3.5" />
-                  <span>{isBootstrapping ? 'Loading...' : 'Add New Task'}</span>
-                </button>
-              </div>
+            <div className="p-3">
+              <button
+                type="button"
+                className="group flex w-full items-center justify-center gap-2 rounded-xl border border-white/5 bg-white/[0.02] px-3 py-2.5 text-sm font-medium text-white/60 transition-all duration-300 hover:border-white/10 hover:bg-white/[0.05] hover:text-white"
+                onClick={handleCreateSession}
+              >
+                <Plus className="h-4 w-4 transition-transform duration-300 group-hover:rotate-90" />
+                <span>{isBootstrapping ? 'Loading...' : 'New Chat'}</span>
+              </button>
             </div>
           </>
         )}

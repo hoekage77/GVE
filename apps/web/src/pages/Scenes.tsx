@@ -67,7 +67,8 @@ export default function ScenesPage() {
   const sceneRows = useMemo(() => {
     const rows: SceneRow[] = [];
 
-    for (const session of sessions) {
+    for (const session of (sessions || [])) {
+      if (!session?.sessionId) continue;
       const versions = (session.sceneVersions && session.sceneVersions.length > 0)
         ? session.sceneVersions
         : (session.currentScene ? [session.currentScene] : []);

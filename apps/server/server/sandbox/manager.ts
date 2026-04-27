@@ -166,9 +166,10 @@ async function ensureSandboxImage(): Promise<void> {
 
 function getToolVersion(tool: string): string {
   const versions: Record<string, string> = {
-    three: "^0.160.0",
+    three: "^0.172.0",
     "@react-three/fiber": "^8.15.0",
     "@react-three/drei": "^9.92.0",
+    postprocessing: "^6.36.0",
     p5: "^1.9.0",
     d3: "^7.8.0",
     animejs: "^3.2.0",
@@ -189,13 +190,6 @@ async function ensureSandboxNetwork(): Promise<void> {
 async function installTools(containerId: string, tools: string[], maxRetries = 3): Promise<void> {
   if (tools.length === 0) return;
 
-  const configCmd = `docker exec ${containerId} npm config set cache /tmp/.npm-cache --global`;
-  try {
-    await execAsync(configCmd, { timeout: 10000 });
-  } catch (err: any) {
-    console.warn(`Failed to configure npm cache: ${err.message}`);
-  }
-
   let lastError: any;
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
@@ -205,7 +199,10 @@ async function installTools(containerId: string, tools: string[], maxRetries = 3
         await new Promise((resolve) => setTimeout(resolve, delay));
       }
 
-      const npmInstall = `docker exec ${containerId} npm install ${tools.join(" ")} --save --prefer-offline`;
+      // Use --legacy-peer-deps to avoid ERESOLVE conflicts with transitive peer deps.
+      // The npm cache path is already configured via the npm_config_cache env var
+      // set in the docker run arguments — no need for a global npm config command.
+      const npmInstall = `docker exec ${containerId} npm install ${tools.join(" ")} --save --prefer-offline --legacy-peer-deps`;
       await execAsync(npmInstall, { timeout: 120000 });
       console.log(`npm install succeeded on attempt ${attempt}`);
       return;

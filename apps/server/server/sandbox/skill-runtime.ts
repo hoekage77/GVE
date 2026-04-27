@@ -310,12 +310,19 @@ export async function executeSkillRuntime({ skillId, code, timeoutMs, maxFrames,
     acquireDiagnostics = cloneAcquireDiagnostics(sandboxEnv?._acquireDiagnostics);
 
     if (Array.isArray(tools) && tools.length > 0) {
-      const isCached = toolRegistry.isInstalled(sandboxEnv.workspaceId, tools);
+      // Normalize tools to { name, version } objects expected by the pool's
+      // installTools / toolRegistry.  Plain strings (npm package names) are
+      // wrapped; objects are passed through with defaults.
+      const normalizedTools = tools.map((t: any) => {
+        if (typeof t === "string") return { name: t, version: "latest" };
+        return { name: t?.npmPackage ?? t?.name ?? String(t), version: t?.version ?? "latest" };
+      });
+      const isCached = toolRegistry.isInstalled(sandboxEnv.workspaceId, normalizedTools);
       if (isCached) {
         toolRegistry.recordCacheHit();
       } else {
-        const installResult = await poolManager.installTools(sandboxEnv.workspaceId, tools);
-        if (installResult.success) toolRegistry.markInstalled(sandboxEnv.workspaceId, tools);
+        const installResult = await poolManager.installTools(sandboxEnv.workspaceId, normalizedTools);
+        if (installResult.success) toolRegistry.markInstalled(sandboxEnv.workspaceId, normalizedTools);
         else toolRegistry.markFailed(sandboxEnv.workspaceId, new Error(installResult.errors));
       }
     }

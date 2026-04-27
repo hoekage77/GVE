@@ -1,5 +1,5 @@
 import { ChevronDown, ChevronUp } from 'lucide-react';
-import type { AgentResult } from '../../stores/chatStore';
+import type { AgentResult } from '../../stores/chat';
 
 interface AgentCardProps {
   agent: AgentResult;

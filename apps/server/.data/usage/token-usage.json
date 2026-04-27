@@ -1,0 +1,26 @@
+{
+  "globalTotals": {
+    "promptTokens": 10577,
+    "completionTokens": 55474,
+    "totalTokens": 66051,
+    "requestCount": 18
+  },
+  "sessions": {
+    "c771f043-02af-4278-9ec8-9177b2061bab": {
+      "promptTokens": 6648,
+      "completionTokens": 37499,
+      "totalTokens": 44147,
+      "requestCount": 12,
+      "lastRecordedAt": "2026-04-27T03:03:22.994Z"
+    },
+    "28a23415-84d8-4595-976b-039b0aaf1ca3": {
+      "promptTokens": 3929,
+      "completionTokens": 17975,
+      "totalTokens": 21904,
+      "requestCount": 6,
+      "lastRecordedAt": "2026-04-27T14:33:28.585Z"
+    }
+  },
+  "userDaily": {},
+  "savedAt": "2026-04-27T14:33:32.365Z"
+}

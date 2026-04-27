@@ -1,0 +1,218 @@
+import {
+  type AgentActivityEvent,
+  type GveTask,
+  type GveTaskAction,
+  type GveTaskStatus,
+  type SessionMessage as ApiSessionMessage,
+  type SessionSceneState,
+  type IterationState as SharedIterationState,
+  type QualityReport,
+  type IterationStopReason
+} from '@visual-runtime/shared';
+import type { ActionBlock, TaskCheckpoint } from '../../types/actionBlocks';
+
+export type Session = SessionSceneState;
+export type LiveConnectionState = 'connecting' | 'open' | 'closed' | 'error';
+export type SceneHistoryCommand = 'undo' | 'redo' | 'artifact.previous' | 'artifact.next' | 'version.previous' | 'version.next';
+export type WorkspacePanelView = 'preview' | 'code' | 'files';
+export type TurnLifecycleStatus = 'idle' | 'running' | 'completed' | 'failed';
+export type MediaLifecycleStage = 'idle' | 'queued' | 'generating' | 'executing' | 'syncing' | 'ready' | 'error';
+
+export interface LiveThoughtState {
+  text: string;
+  step: string;
+  updatedAt: string;
+  requestId?: string | null;
+  messageId?: string | null;
+  durationMs?: number | null;
+  stepLabel?: string | null;
+  detail?: string | null;
+  status?: string | null;
+}
+
+export interface StageEventEntry {
+  id: string;
+  source: 'orchestration' | 'activity' | 'task' | 'error';
+  step: string;
+  status: GveTaskStatus;
+  text: string;
+  detail: string | null;
+  createdAt: string;
+}
+
+export type StageEventMap = Record<GveTaskAction, StageEventEntry[]>;
+
+export interface SessionTaskProgress {
+  sessionId: string;
+  planId: string | null;
+  tasks: GveTask[];
+  activities: AgentActivityEvent[];
+  stageEventsByAction: StageEventMap;
+  activeStageAction: GveTaskAction | null;
+  currentStep: string | null;
+  currentStepStatus: GveTaskStatus | null;
+  liveThought: LiveThoughtState | null;
+  turnStatus: TurnLifecycleStatus;
+  activeRequestId: string | null;
+  mediaStage: MediaLifecycleStage;
+  mediaStatusText: string | null;
+  mediaType: string | null;
+  mediaUrl: string | null;
+  lastUpdatedAt: string;
+  lastTerminalAt: string | null;
+}
+
+export type SessionMessage = ApiSessionMessage;
+
+export interface ComposerImageAttachment {
+  name: string;
+  mimeType: string;
+  sizeBytes: number;
+  dataBase64: string;
+  previewUrl: string;
+}
+
+export interface UIIterationState {
+  isIterating: boolean;
+  currentIteration: number;
+  maxIterations: number;
+  currentScore: number;
+  threshold: number;
+  phase: "generating" | "validating" | "scoring" | "patching" | "finalizing";
+  iterations: SharedIterationState[];
+  qualityReport: QualityReport | null;
+  stopReason: IterationStopReason | null;
+  sessionId: string;
+}
+
+export interface AgentResult {
+  id: string;
+  name: string;
+  score: number; // 0-100 confidence
+  findings: string[]; // Top 2-3 key findings
+  recommendations: Array<{
+    action: string;
+    impact: number; // 0-20 (potential score improvement)
+    confidence: number; // 0-100
+    category: 'structure' | 'performance' | 'visual' | 'api' | 'safety';
+  }>;
+}
+
+export interface UIAgentState {
+  isAnalyzing: boolean;
+  results: Record<string, AgentResult>; // architect, materialDesigner, animator, optimizer, tester
+  consensus: number; // 0-100 (% agents agreeing)
+  shouldAutoApply: boolean; // true if consensus >= 80
+  recommendations: Array<{
+    agentId: string;
+    action: string;
+    impact: number;
+    confidence: number;
+    category: string;
+    priority: number;
+  }>;
+  memory: Array<{
+    iteration: number;
+    pattern: string;
+    frequency: number;
+    resolved: boolean;
+  }>;
+  lastAnalyzedAt: string | null;
+}
+
+export interface ChatState {
+  // Sessions
+  sessions: Session[];
+  activeSessionId: string | null;
+  hasInitialized: boolean;
+  isBootstrapping: boolean;
+  sessionsError: string | null;
+  
+  // Messages by session
+  messages: Record<string, SessionMessage[]>;
+
+  // Session task progress
+  taskProgressBySession: Record<string, SessionTaskProgress>;
+  
+  // Action Blocks (per message, keyed by messageId)
+  actionBlocksByMessage: Record<string, ActionBlock[]>;
+  currentTurnCheckpoints: TaskCheckpoint[];
+  currentMessageId: string | null;
+  
+  // UI State
+  connectionState: LiveConnectionState;
+  isSending: boolean;
+  activeRequestId: string | null;
+  thinkingText: string | null;
+  thinkingStep: string;
+  showScrollToLatest: boolean;
+  iterationState: UIIterationState | null;
+  agentState: UIAgentState | null;
+  
+  // Workspace Panel State (new simplified system)
+  panelOpen: boolean;
+  panelView: WorkspacePanelView | null;
+  panelWidth: number;
+  
+  // Theater Mode (New Cinematic Preview)
+  activeArtifactId: string | null;
+  
+  // Composer
+  composerValue: string;
+  composerImage: ComposerImageAttachment | null;
+  isSlashMenuOpen: boolean;
+  
+  // Actions
+  isSidebarCollapsed: boolean;
+  setSidebarCollapsed: (collapsed: boolean) => void;
+  cycleTheaterArtifact: (direction: "next" | "prev") => void;
+  
+  initialize: () => Promise<void>;
+  refreshSessions: () => Promise<void>;
+  createNewSession: () => Promise<Session | null>;
+  selectSession: (sessionId: string) => Promise<void>;
+  loadSessionMessages: (sessionId: string) => Promise<void>;
+  sendMessage: (content?: string, options?: { mode?: 'modify' | 'generate' }) => Promise<void>;
+  sendSceneCommand: (command: SceneHistoryCommand) => Promise<void>;
+  selectSceneVersion: (versionId: string) => Promise<boolean>;
+  rerunScene: (options?: { codeOverride?: string | null }) => Promise<boolean>;
+  stopTurn: () => void;
+  connectWebSocket: () => void;
+  startDraftSession: () => void;
+  setActiveSession: (sessionId: string | null) => void;
+  addSession: (session: Session) => void;
+  addMessage: (sessionId: string, message: SessionMessage) => void;
+  setIsSending: (value: boolean) => void;
+  setThinking: (text: string | null, step?: string) => void;
+  setComposerValue: (value: string) => void;
+  setComposerImage: (image: ComposerImageAttachment | null) => void;
+  clearComposerImage: () => void;
+  
+  // Panel Actions (new)
+  openPanel: (view: WorkspacePanelView) => void;
+  closePanel: () => void;
+  togglePanel: (view: WorkspacePanelView) => void;
+  setPanelWidth: (width: number) => void;
+  
+  // Iteration Actions
+  updateIterationState: (state: UIIterationState | null) => void;
+  abortIteration: () => void;
+  
+  // Agent Actions
+  updateAgentState: (state: UIAgentState | null) => void;
+  setAgentAnalyzing: (isAnalyzing: boolean) => void;
+  clearAgentState: () => void;
+  
+  // Action Block Actions
+  setActionBlocks: (messageId: string, blocks: ActionBlock[]) => void;
+  updateActionBlock: (messageId: string, blockId: string, updates: Partial<ActionBlock>) => void;
+  setCurrentTurnCheckpoints: (checkpoints: TaskCheckpoint[]) => void;
+  setCurrentMessageId: (messageId: string | null) => void;
+  clearActionBlocks: (messageId: string) => void;
+  
+  clearSession: (sessionId: string) => void;
+
+  // Theater Mode Actions
+  openTheaterMode: (artifactId: string) => void;
+  closeTheaterMode: () => void;
+}

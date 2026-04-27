@@ -43,7 +43,7 @@ export function MetaHeader() {
   const startDraftSession = useChatStore((state) => state.startDraftSession);
 
   const activeSession = useMemo(
-    () => sessions.find((session) => session.sessionId === activeSessionId) ?? null,
+    () => (sessions || []).find((session) => session?.sessionId === activeSessionId) ?? null,
     [sessions, activeSessionId]
   );
 

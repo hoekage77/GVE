@@ -8,7 +8,7 @@ export function buildAssistantMessageMeta(turnRequestId: string, turn: any, turn
     return [
       turn?.assistantSource ? `assistantSource:${turn.assistantSource}` : null,
       turn?.assistantWarning ? "assistantWarning:true" : null
-    ].filter(Boolean);
+    ].filter((item): item is string => Boolean(item));
   }
 
   return [
@@ -19,7 +19,7 @@ export function buildAssistantMessageMeta(turnRequestId: string, turn: any, turn
     turnError ? `error:${turnError.code}` : null,
     turn.assistantSource ? `assistantSource:${turn.assistantSource}` : null,
     turn.assistantWarning ? "assistantWarning:true" : null
-  ].filter(Boolean);
+  ].filter((item): item is string => Boolean(item));
 }
 
 export function getRuntimeFailureStage(turn: any): "provisioning" | "execution" {

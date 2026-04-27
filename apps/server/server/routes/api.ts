@@ -257,7 +257,7 @@ apiRouter.post("/api/v1/generate", async (req, res) => {
       sceneVersion: updatedSessionState.currentScene?.version ?? 0
     });
 
-    broadcastEvent("scene:update", buildSceneUpdatePayload(updatedSessionState));
+    broadcastEvent("scene:update", buildSceneUpdatePayload(updatedSessionState.sessionId));
 
     res.json({
       ...result,
@@ -345,7 +345,7 @@ apiRouter.post("/api/v1/generate/from-image", async (req, res) => {
       mode: "image-to-code"
     });
 
-    broadcastEvent("scene:update", buildSceneUpdatePayload(updatedSessionState));
+    broadcastEvent("scene:update", buildSceneUpdatePayload(updatedSessionState.sessionId));
 
     res.json({
       ...result,
@@ -433,7 +433,7 @@ apiRouter.post("/api/v1/sessions/:sessionId/modify", async (req, res) => {
           source: "modify"
         });
 
-    broadcastEvent("code:update", buildCodeUpdatePayload(updatedSessionState, {
+    broadcastEvent("code:update", buildCodeUpdatePayload(updatedSessionState.sessionId, {
       instruction,
       code: result.code,
       diff: result.diff,
@@ -452,7 +452,7 @@ apiRouter.post("/api/v1/sessions/:sessionId/modify", async (req, res) => {
     }));
 
     if (!isRejectedNoopModify) {
-      broadcastEvent("scene:update", buildSceneUpdatePayload(updatedSessionState));
+      broadcastEvent("scene:update", buildSceneUpdatePayload(updatedSessionState.sessionId));
     }
 
     res.json({
@@ -489,7 +489,7 @@ apiRouter.post("/api/v1/sessions/:sessionId/undo", (req, res) => {
     return;
   }
 
-  broadcastEvent("scene:update", buildSceneUpdatePayload(result.state));
+  broadcastEvent("scene:update", buildSceneUpdatePayload(result.state.sessionId));
   broadcastEvent("version:undo", {
     sessionId,
     versionPointer: result.state.versionPointer,
@@ -517,7 +517,7 @@ apiRouter.post("/api/v1/sessions/:sessionId/redo", (req, res) => {
     return;
   }
 
-  broadcastEvent("scene:update", buildSceneUpdatePayload(result.state));
+  broadcastEvent("scene:update", buildSceneUpdatePayload(result.state.sessionId));
   broadcastEvent("version:redo", {
     sessionId,
     versionPointer: result.state.versionPointer,
@@ -545,7 +545,7 @@ apiRouter.post("/api/v1/sessions/:sessionId/artifacts/previous", (req, res) => {
     return;
   }
 
-  broadcastEvent("scene:update", buildSceneUpdatePayload(result.state));
+  broadcastEvent("scene:update", buildSceneUpdatePayload(result.state.sessionId));
   broadcastEvent("artifact:navigate", {
     sessionId,
     direction: "previous",
@@ -575,7 +575,7 @@ apiRouter.post("/api/v1/sessions/:sessionId/artifacts/next", (req, res) => {
     return;
   }
 
-  broadcastEvent("scene:update", buildSceneUpdatePayload(result.state));
+  broadcastEvent("scene:update", buildSceneUpdatePayload(result.state.sessionId));
   broadcastEvent("artifact:navigate", {
     sessionId,
     direction: "next",
@@ -605,7 +605,7 @@ apiRouter.post("/api/v1/sessions/:sessionId/versions/select", (req, res) => {
     return;
   }
 
-  broadcastEvent("scene:update", buildSceneUpdatePayload(result.state));
+  broadcastEvent("scene:update", buildSceneUpdatePayload(result.state.sessionId));
 
   res.json({
     success: true,

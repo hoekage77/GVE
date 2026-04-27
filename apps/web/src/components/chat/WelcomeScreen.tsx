@@ -57,6 +57,31 @@ export function WelcomeScreen({
           <p className="mt-6 text-xl text-white/30 md:text-2xl">What can we build today?</p>
         </motion.div>
 
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.7, delay: 0.2, ease: "easeOut" }}
+          className="mt-10 grid w-full max-w-2xl grid-cols-1 gap-3 sm:grid-cols-2"
+        >
+          {[
+            "Create a 3D solar system",
+            "Build an animated bar chart",
+            "Design a particle system",
+            "Render a rotating cube"
+          ].map((prompt, idx) => (
+            <button
+              key={idx}
+              type="button"
+              onClick={() => handleCreate(prompt)}
+              disabled={isCreating || isBootstrapping}
+              className="flex items-center justify-between rounded-2xl border border-white/5 bg-white/[0.02] px-5 py-4 text-left transition-all duration-200 hover:border-white/10 hover:bg-white/[0.05] disabled:opacity-50"
+            >
+              <span className="text-sm font-medium text-white/70">{prompt}</span>
+              <span className="text-xs text-white/20 transition-colors group-hover:text-white/40">→</span>
+            </button>
+          ))}
+        </motion.div>
+
         {error && (
           <motion.div
             initial={{ opacity: 0, y: 10 }}

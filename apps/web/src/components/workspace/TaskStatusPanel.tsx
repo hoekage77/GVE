@@ -1,7 +1,7 @@
 import { CheckCircle2, ChevronDown, Circle, ListTree, Loader2, XCircle, Radio } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import type { AgentActivityEvent, GveTask, GveTaskAction, GveTaskStatus, SceneAssetPlan } from '@visual-runtime/shared';
-import type { StageEventMap, TurnLifecycleStatus, LiveConnectionState } from '../../stores/chatStore';
+import type { StageEventMap, TurnLifecycleStatus, LiveConnectionState } from '../../stores/chat';
 import { getTurnStepLabel } from '../chat/turnActivity';
 
 interface TaskStatusPanelProps {

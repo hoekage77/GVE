@@ -40,6 +40,7 @@ const config: Config = {
         "meta-border": "#3e3e42",
         "meta-text": "#cccccc",
         "meta-muted": "#9d9d9d",
+        "meta-accent": "#0078d4",
         "ide-accent": "#0078d4",
         "auth-bg": "#0B0D10",
         "auth-surface": "#1A1D23",
@@ -59,7 +60,9 @@ const config: Config = {
         "slide-in-right": "slide-in-right 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
         "pulse-icon": "pulse-icon 3s ease-in-out infinite",
         "blink-dot": "blink-dot 1.2s ease-in-out infinite",
-        "drift-x": "drift-x 30s linear infinite"
+        "drift-x": "drift-x 30s linear infinite",
+        "message-enter": "message-enter 0.4s cubic-bezier(0.16, 1, 0.3, 1)",
+        "grow-textarea": "grow-textarea 0.2s ease-out"
       },
       keyframes: {
         "fade-in": {
@@ -86,6 +89,10 @@ const config: Config = {
           "0%": { transform: "translateX(0) scale(1.05)" },
           "50%": { transform: "translateX(-2%) scale(1.05)" },
           "100%": { transform: "translateX(0) scale(1.05)" }
+        },
+        "message-enter": {
+          from: { opacity: "0", transform: "translateY(12px) scale(0.98)" },
+          to: { opacity: "1", transform: "translateY(0) scale(1)" }
         }
       }
     }

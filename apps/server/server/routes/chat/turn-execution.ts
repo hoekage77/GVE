@@ -2,10 +2,12 @@ import { createSession, createSessionMessageId, updateSessionMessage } from "../
 import {
   generateThinkingAnalysis, planTasks, generateFromImage, generatePostTurnNarration, resolveChatTurn
 } from "../../pipeline/index.js";
+import { parseIntentFromQuery, applySessionAwareIntentOverrides } from "../../pipeline/intent-classifier.js";
 import { handleTurnExecutionError } from "./turn-execution-helpers.js";
 import { bootstrapTurnState, runThinkingAndPlanningBootstrap } from "./turn-bootstrap.js";
 import { executeImageTurnPath } from "./image-turn-path.js";
 import { executeStandardTurnPath } from "./standard-turn-path.js";
+import { executeChatFastPath } from "./chat-fast-path.js";
 import { runWithTraceContext } from "../../trace/context.js";
 
 const fastModeEnabled = process.env.FAST_MODE !== "false" && process.env.FAST_MODE !== "0";
@@ -70,6 +72,29 @@ export async function executeChatTurn(
   updateSessionMessage(sessionId, assistantMessageId, {
     meta: [`requestId:${turnRequestId}`]
   });
+
+  // Early intent classification: skip full pipeline for conversational turns.
+  const forcedMode = String(effectivePreferences?.mode ?? "").trim().toLowerCase();
+  if (!hasImage && forcedMode !== "modify" && forcedMode !== "generate") {
+    const earlyIntent = parseIntentFromQuery(content);
+    const earlyIntentWithOverrides = applySessionAwareIntentOverrides(earlyIntent, content, sessionState);
+    const isChatMode = earlyIntentWithOverrides.intentType === "chat"
+      || earlyIntentWithOverrides.intentType === "explain"
+      || earlyIntentWithOverrides.ambiguous;
+
+    if (isChatMode) {
+      console.log(`[Turn] [TRACE] Chat fast-path for intent=${earlyIntentWithOverrides.intentType} session=${sessionId}`);
+      return executeChatFastPath({
+        sessionId,
+        content,
+        sessionState,
+        effectivePreferences,
+        assistantMessageId,
+        turnRequestId,
+        userMessage
+      });
+    }
+  }
 
   return await runWithTraceContext(
     { requestId: turnRequestId, sessionId, messageId: assistantMessageId },
