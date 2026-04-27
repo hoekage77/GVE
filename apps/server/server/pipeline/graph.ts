@@ -3,15 +3,15 @@ import { Annotation, END, START, StateGraph } from "@langchain/langgraph";
 import { emitPipelineProgress, requestSchema, describeGenerationSource, withTimeout } from "./utils.js";
 import { parseIntentFromQuery } from "./intent-classifier.js";
 import { generateCodeWithPool } from "./code-generator.js";
-import { selectSkillForIntent } from "../skill-registry.js";
-import { validateCode } from "../code-validator.js";
-import { resolveAssetPlan } from "../asset-resolver.js";
-import { warmupSandboxForSkill, executeSkillRuntime } from "../skill-runtime.js";
-import { runSelfDebugSession, runRuntimeDebugSession } from "../agent-runner.js";
-import { getDebugTools, getRuntimeDebugTools, setErrorContext, clearErrorContext } from "../agent-tools.js";
+import { selectSkillForIntent } from "../skills/registry.js";
+import { validateCode } from "../quality/validator.js";
+import { resolveAssetPlan } from "./assets.js";
+import { warmupSandboxForSkill, executeSkillRuntime } from "../sandbox/skill-runtime.js";
+import { runSelfDebugSession, runRuntimeDebugSession } from "../agents/runner.js";
+import { getDebugTools, getRuntimeDebugTools, setErrorContext, clearErrorContext } from "../agents/tools.js";
 import { getGenerationCacheKey, getCachedGeneration, setCachedGeneration } from "../cache-manager.js";
-import { getPool } from "../llm-pool.js";
-import { executeWithQualityLoop } from "../sandbox-execution.js";
+import { getPool } from "../llm/pool.js";
+import { executeWithQualityLoop } from "../sandbox/execution.js";
 import { executeSkillRuntimeWithQualityDecision } from "./runtime-executor.js";
 
 // Import constants from orchestrator (these will be re-exported from utils later if needed)

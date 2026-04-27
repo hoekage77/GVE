@@ -11,7 +11,8 @@ import {
 } from "../routes/chat.js";
 import { runWithTraceContext } from "../trace/context.js";
 import { sendSocketPayload, sendSocketEvent, replayEventsSince, broadcastEvent, wsEventSequence } from "./streaming.js";
-import { listSessionMessages } from "../session-state.js";
+import { listSessionMessages } from "../state/session.js";
+import { checkTokenLimit } from "../state/token-usage.js";
 const completedTurnCacheSize = Number.parseInt(String(process.env.WS_COMPLETED_TURN_CACHE_SIZE ?? "300"), 10);
 
 const activeChatTurns = new Map<string, Promise<any>>();
@@ -335,6 +336,21 @@ export function setupWebSocketHandler(wsServer: any) {
         const turnPromise = (async () => {
           try {
             const userId = String(parsedMessage?.payload?.userId ?? parsedMessage?.payload?.auth?.userId ?? "").trim() || null;
+
+            // Token limit enforcement.
+            const limitCheck = checkTokenLimit(sessionId, userId);
+            if (!limitCheck.allowed) {
+              sendSocketEvent(socket, "token:limit_exceeded", {
+                sessionId,
+                requestId: requestId || null,
+                scope: limitCheck.scope,
+                currentUsage: limitCheck.currentUsage,
+                limit: limitCheck.limit,
+                remaining: 0
+              });
+              return;
+            }
+
             return await runWithTraceContext(
               { sessionId, userId, requestId: requestId || null },
               () =>
@@ -355,6 +371,11 @@ export function setupWebSocketHandler(wsServer: any) {
         activeChatTurns.set(turnKey, turnPromise);
 
         const result = await turnPromise;
+        
+        if (!result) {
+          // Promise returned undefined (e.g. rate limited early return)
+          return;
+        }
 
         rememberCompletedTurn(turnKey, {
           sessionId,

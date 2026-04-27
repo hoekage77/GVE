@@ -3,8 +3,8 @@ import { z } from "zod";
 
 import { parseIntentFromQuery } from "./intent-classifier.js";
 import { emitPipelineProgress, requestSchema, resolveRequestedQuality } from "./utils.js";
-import { selectSkillForIntent } from "../skill-registry.js";
-import { warmupSandboxForSkill } from "../skill-runtime.js";
+import { selectSkillForIntent } from "../skills/registry.js";
+import { warmupSandboxForSkill } from "../sandbox/skill-runtime.js";
 
 const taskSchema = z.object({
   id: z.string(),

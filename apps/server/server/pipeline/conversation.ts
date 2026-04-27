@@ -1,7 +1,8 @@
-import { getPool } from "../llm-pool.js";
+import { getPool } from "../llm/pool.js";
 
 import { executeWithProviderFailover, buildLlmSourceMetadata, createRetryableProviderError } from "./failover.js";
 import { extractChoiceContent, fetchChatCompletion } from "./utils.js";
+import { recordTokenUsage } from "../state/token-usage.js";
 
 import { parseIntentFromQuery, applySessionAwareIntentOverrides } from "./intent-classifier.js";
 import {
@@ -70,6 +71,15 @@ export async function generateThinkingAnalysis(query: any, sessionContext: any =
 
         const payload = await response.json();
         const content = extractChoiceContent(payload?.choices?.[0]?.message?.content ?? "");
+
+        // Record token usage from thinking analysis.
+        if (payload?.usage) {
+          recordTokenUsage(
+            { providerId: provider.id, model: payload.model ?? provider.model ?? null },
+            payload.usage
+          );
+        }
+
         const jsonMatch = content.match(/\{[\s\S]*\}/);
 
         if (!jsonMatch) {
@@ -153,6 +163,14 @@ export async function generatePostTurnNarration(turnResult: any, query: any, opt
 
         const payload = await response.json();
         const content = extractAssistantText(extractChoiceContent(payload?.choices?.[0]?.message?.content ?? ""));
+
+        // Record token usage from narration.
+        if (payload?.usage) {
+          recordTokenUsage(
+            { providerId: provider.id, model: payload.model ?? provider.model ?? null },
+            payload.usage
+          );
+        }
 
         if (!content) {
           throw createRetryableProviderError(`${provider.id} returned empty narration output.`, "PROVIDER_EMPTY_OUTPUT");

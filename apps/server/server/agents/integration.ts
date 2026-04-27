@@ -5,7 +5,7 @@
  * Uses real LLM calls through the PoolBasedLLMProvider.
  */
 
-import "./env.js";
+import "../env.js";
 import {
   createWorkflowCoordinator,
   listAvailableAgents,
@@ -13,8 +13,8 @@ import {
   type WorkflowResult,
   type SynthesizedRecommendation,
 } from "./multi-agent-framework.js";
-import { getPoolBasedProvider } from "./pool-based-llm-provider.js";
-import { AgentMemory } from "./agent-memory.js";
+import { getPoolBasedProvider } from "../llm/fetch.js";
+import { AgentMemory } from "./memory.js";
 
 // ─── Agent Memory Singleton ───────────────────────────────────────────────────
 

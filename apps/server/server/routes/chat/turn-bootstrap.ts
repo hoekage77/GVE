@@ -1,4 +1,4 @@
-import { appendOrchestrationTrace, appendSessionMessage, createSessionMessageId, setSessionStatus } from "../../session-state.js";
+import { appendOrchestrationTrace, appendSessionMessage, createSessionMessageId, setSessionStatus } from "../../state/session.js";
 import { broadcastEvent, broadcastThought } from "../../ws/streaming.js";
 import { buildAgentActivity } from "./agent-activity.js";
 import { extractErrorDiagnostics } from "./error-normalization.js";

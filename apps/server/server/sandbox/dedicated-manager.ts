@@ -1,5 +1,15 @@
 import { SandboxPoolManager } from "@visual-runtime/sandbox-pool";
-import { traceEvent } from "./trace/events.js";
+import { traceEvent } from "../trace/events.js";
+import { existsSync, mkdirSync, readFileSync, writeFileSync, renameSync } from "node:fs";
+import { join, dirname } from "node:path";
+import { fileURLToPath } from "node:url";
+
+const __dirname_dsm = dirname(fileURLToPath(import.meta.url));
+const DSM_DATA_DIR = join(__dirname_dsm, "..", "..", ".data", "dedicated-sandboxes");
+
+if (!existsSync(DSM_DATA_DIR)) {
+  mkdirSync(DSM_DATA_DIR, { recursive: true });
+}
 
 type DedicatedSandboxRecord = {
   key: string;
@@ -162,5 +172,67 @@ export class DedicatedSandboxManager {
       }
     }
   }
+
+  getStatus() {
+    const records: any[] = [];
+    for (const [key, record] of this.records) {
+      records.push({
+        key,
+        workspaceId: record.sandboxEnv?.workspaceId ?? null,
+        createdAt: new Date(record.createdAtMs).toISOString(),
+        lastUsedAt: new Date(record.lastUsedAtMs).toISOString(),
+        hibernated: record.hibernatedAtMs !== null,
+        hibernatedAt: record.hibernatedAtMs ? new Date(record.hibernatedAtMs).toISOString() : null,
+        idleMs: Date.now() - record.lastUsedAtMs
+      });
+    }
+
+    return {
+      enabled: this.enabled,
+      activeRecords: this.records.size,
+      inflightAcquires: this.inflight.size,
+      idleHibernateMs: this.idleHibernateMs,
+      hibernatedTtlMs: this.hibernatedTtlMs,
+      records
+    };
+  }
+
+  persistRecords(): void {
+    if (!this.enabled) return;
+
+    try {
+      const data: any[] = [];
+      for (const [key, record] of this.records) {
+        data.push({
+          key,
+          workspaceId: record.sandboxEnv?.workspaceId ?? null,
+          createdAtMs: record.createdAtMs,
+          lastUsedAtMs: record.lastUsedAtMs,
+          hibernatedAtMs: record.hibernatedAtMs
+        });
+      }
+
+      const filePath = join(DSM_DATA_DIR, "records.json");
+      const tmpPath = `${filePath}.tmp`;
+      writeFileSync(tmpPath, JSON.stringify({ records: data, savedAt: new Date().toISOString() }, null, 2), "utf-8");
+      renameSync(tmpPath, filePath);
+    } catch (err) {
+      console.error("[DedicatedSandbox] Failed to persist records:", (err as Error).message);
+    }
+  }
 }
 
+// ── Module-level singleton accessor for API routes ──
+
+let _instance: DedicatedSandboxManager | null = null;
+
+export function setDedicatedSandboxInstance(instance: DedicatedSandboxManager): void {
+  _instance = instance;
+}
+
+export function getDedicatedSandboxStatus(): any {
+  if (!_instance) {
+    return { enabled: false, activeRecords: 0, inflightAcquires: 0, records: [] };
+  }
+  return _instance.getStatus();
+}

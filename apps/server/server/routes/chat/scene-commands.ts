@@ -10,7 +10,7 @@ import {
   previousSceneVersion,
   redoSceneVersion,
   undoSceneVersion
-} from "../../session-state.js";
+} from "../../state/session.js";
 import { broadcastEvent } from "../../ws/streaming.js";
 
 export type SceneCommand =

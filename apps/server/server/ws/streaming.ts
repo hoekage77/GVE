@@ -1,7 +1,7 @@
 import { wsClients } from "./handler.js";
 
-import { generateThought, tokenizeThought } from "../thought-generator.js";
-import { appendSessionMessage } from "../session-state.js";
+import { generateThought, tokenizeThought } from "../pipeline/thoughts.js";
+import { appendSessionMessage } from "../state/session.js";
 
 const fastModeEnabled = process.env.FAST_MODE !== "false" && process.env.FAST_MODE !== "0";
 const thoughtStreamingMode = (process.env.THOUGHT_STREAM_MODE ?? (fastModeEnabled ? "compact" : "token")).toLowerCase();

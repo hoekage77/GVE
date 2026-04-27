@@ -6,8 +6,8 @@
  * or times out, the pool instantly switches to the next healthy provider.
  */
 
-import { resolveProviders } from "./llm-provider.js";
-import type { ResolvedProvider } from "./types/llm.js";
+import { resolveProviders } from "./provider.js";
+import type { ResolvedProvider } from "../types/llm.js";
 
 // ─── Constants ───────────────────────────────────────────────────────
 

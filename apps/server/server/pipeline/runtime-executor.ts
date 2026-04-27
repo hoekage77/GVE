@@ -1,6 +1,6 @@
-import { executeSkillRuntime } from "../skill-runtime.js";
-import { executeWithQualityLoop } from "../sandbox-execution.js";
-import { determineModeFromQuality } from "../mode-decision-engine.js";
+import { executeSkillRuntime } from "../sandbox/skill-runtime.js";
+import { executeWithQualityLoop } from "../sandbox/execution.js";
+import { determineModeFromQuality } from "../quality/mode-engine.js";
 
 type RuntimeStatus = "ok" | "error" | "degraded" | "quality-loop";
 type RuntimeOutputKind = "code" | "media";

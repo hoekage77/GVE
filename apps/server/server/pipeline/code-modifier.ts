@@ -1,9 +1,9 @@
-import { getPool } from "../llm-pool.js";
+import { getPool } from "../llm/pool.js";
 import { parseIntentFromQuery } from "./intent-classifier.js";
-import { resolveAssetPlan } from "../asset-resolver.js";
+import { resolveAssetPlan } from "./assets.js";
 import { computeBoundedTimeoutMs, executeSkillRuntimeWithQualityDecision, resolveRuntimeExecutionTimeoutMs, shouldDegradeRuntimeFailure, buildDegradedRuntimeResult, runtimeExecutionMaxFrames } from "./runtime-executor.js";
-import { buildModificationPromptBundle } from "../prompt-manager.js";
-import { attemptRuntimeAgentRecovery } from "../agent-runner.js";
+import { buildModificationPromptBundle } from "./prompts.js";
+import { attemptRuntimeAgentRecovery } from "../agents/runner.js";
 import { applyFallbackSceneEdit } from "../sandbox/fallback.js";
 import {
   modifyRequestSchema,
@@ -15,6 +15,7 @@ import {
   describeGenerationSource
 } from "./utils.js";
 import { sleep } from "../lib/utils.js";
+import { recordTokenUsage } from "../state/token-usage.js";
 
 function normalizeCodeForSemanticCompare(code: any) {
   return String(code ?? "")
@@ -603,6 +604,14 @@ async function modifyCodeWithPool(state: any, options: any = {}) {
       const payload = await response.json();
       const content = payload?.choices?.[0]?.message?.content;
       const generatedCode = extractCodeContent(content);
+
+      // Record token usage from modification.
+      if (payload?.usage) {
+        recordTokenUsage(
+          { providerId: provider.id, model: payload.model ?? provider.model ?? null },
+          payload.usage
+        );
+      }
 
       if (!generatedCode) {
         pool.markExhausted(provider.id, "empty-output");

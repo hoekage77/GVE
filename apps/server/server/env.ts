@@ -109,5 +109,17 @@ export function runDaytonaEnvPreflight(logger: Pick<Console, "info" | "warn"> = 
     logger.warn?.(`[Env][Daytona] ${message}`);
   }
 
+  // Log token limit configuration.
+  const sessionLimit = process.env.TOKEN_LIMIT_PER_SESSION;
+  const userDailyLimit = process.env.TOKEN_LIMIT_PER_USER_DAILY;
+  if (sessionLimit || userDailyLimit) {
+    logger.info?.(`[Env][TokenLimits] Session=${sessionLimit ?? "unlimited"}, UserDaily=${userDailyLimit ?? "unlimited"}`);
+  }
+
+  // Log dedicated sandbox configuration.
+  if (hasValue(process.env.DEDICATED_SANDBOX_ENABLED)) {
+    logger.info?.(`[Env][DedicatedSandbox] DEDICATED_SANDBOX_ENABLED=${process.env.DEDICATED_SANDBOX_ENABLED}`);
+  }
+
   return preflight;
 }

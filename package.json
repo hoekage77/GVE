@@ -15,6 +15,7 @@
     "start:web": "npm run start --workspace=@visual-runtime/web"
   },
   "dependencies": {
+    "@mohtasham/md-to-docx": "^2.10.1",
     "p-limit": "^7.3.0",
     "react-syntax-highlighter": "^16.1.1"
   },

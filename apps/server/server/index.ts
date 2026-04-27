@@ -3,8 +3,9 @@ import { createServer } from "node:http";
 import { WebSocketServer } from "ws";
 
 import { createApp } from "./create-app.js";
-import { shutdownSandboxRuntime } from "./skill-runtime.js";
-import { shutdownSessions } from "./session-state.js";
+import { shutdownSandboxRuntime } from "./sandbox/skill-runtime.js";
+import { shutdownSessions } from "./state/session.js";
+import { shutdownTokenUsage } from "./state/token-usage.js";
 import { setupWebSocketHandler } from "./ws/handler.js";
 
 const app = createApp();
@@ -41,6 +42,7 @@ function gracefulShutdown(signal: "SIGTERM" | "SIGINT"): void {
     }
 
     shutdownSessions();
+    shutdownTokenUsage();
     server.close(() => {
       console.log("[Server] Closed.");
       process.exit(0);
@@ -52,3 +54,4 @@ function gracefulShutdown(signal: "SIGTERM" | "SIGINT"): void {
 
 process.on("SIGTERM", () => gracefulShutdown("SIGTERM"));
 process.on("SIGINT", () => gracefulShutdown("SIGINT"));
+

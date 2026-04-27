@@ -2,8 +2,8 @@
  * Agent Tools — Tool definitions for Kimi K2.5 Agent Mode
  */
 
-import { validateCode } from "./code-validator.js";
-import { executeSkillRuntime } from "./skill-runtime.js";
+import { validateCode } from "../quality/validator.js";
+import { executeSkillRuntime } from "../sandbox/skill-runtime.js";
 
 function parsePositiveIntEnv(rawValue: string | undefined | null, fallbackValue: number, minimum = 1): number {
   const parsed = Number.parseInt(String(rawValue ?? ""), 10);

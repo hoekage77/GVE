@@ -1,7 +1,7 @@
 import { existsSync, readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { resolveAssetPlan, buildAssetPolicyText, buildAssetCatalogText, buildQualityContractText, AssetPlan } from "./asset-resolver.js";
+import { resolveAssetPlan, buildAssetPolicyText, buildAssetCatalogText, buildQualityContractText, AssetPlan } from "./assets.js";
 
 const defaultPromptConfig = {
   version: "prompt-config.v1",

@@ -1,5 +1,5 @@
 import { broadcastEvent } from "../../ws/streaming.js";
-import { appendOrchestrationTrace, setSessionStatus, updateSessionMessage } from "../../session-state.js";
+import { appendOrchestrationTrace, setSessionStatus, updateSessionMessage } from "../../state/session.js";
 import { buildAgentActivity } from "./agent-activity.js";
 import { buildStructuredTurnError, extractErrorDiagnostics } from "./error-normalization.js";
 

@@ -2,16 +2,16 @@
  * Sandbox Execution — High-level API for containerized code execution
  */
 
-import { createSandbox, executeInSandbox, buildScenePreview, cleanupSessionSandbox, getSandboxMetrics, getSandboxFile, listSandboxFiles } from "./sandbox-manager.js";
-import { installToolsInSandbox, getRecommendedTools, getInstallTimeEstimate, validateToolCombination } from "./tool-registry.js";
-import { analyzeQuality, generatePatchGoals, shouldStopIteration, getQualityLabel } from "./quality-analyzer.js";
-import { validateCode } from "./code-validator.js";
+import { createSandbox, executeInSandbox, buildScenePreview, cleanupSessionSandbox, getSandboxMetrics, getSandboxFile, listSandboxFiles } from "./manager.js";
+import { installToolsInSandbox, getRecommendedTools, getInstallTimeEstimate, validateToolCombination } from "../agents/tool-registry.js";
+import { analyzeQuality, generatePatchGoals, shouldStopIteration, getQualityLabel } from "../quality/analyzer.js";
+import { validateCode } from "../quality/validator.js";
 import { SandboxPoolManager, createArtifactStorage } from "@visual-runtime/sandbox-pool";
-import { PatchGenerator, applyPatches, summarizePatches } from "./patch-generator.js";
-import { AgentMemory, createMemoryContext } from "./agent-memory.js";
-import { getPoolBasedProvider } from "./pool-based-llm-provider.js";
-import { initializeAgentMemory, analyzeCodeWithAgents, generatePatchGoalsFromAgents, shouldContinueIterating, type IterationDecision } from "./agent-integration.js";
-import { broadcastEvent } from "./ws/streaming.js";
+import { PatchGenerator, applyPatches, summarizePatches } from "../quality/patcher.js";
+import { AgentMemory, createMemoryContext } from "../agents/memory.js";
+import { getPoolBasedProvider } from "../llm/fetch.js";
+import { initializeAgentMemory, analyzeCodeWithAgents, generatePatchGoalsFromAgents, shouldContinueIterating, type IterationDecision } from "../agents/integration.js";
+import { broadcastEvent } from "../ws/streaming.js";
 
 function sanitizeError(error: any, category = "general"): { userMessage: string; logMessage: string } {
   const fullMessage = error instanceof Error ? error.message : String(error);

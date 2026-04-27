@@ -1,3 +1,5 @@
+import { getGlobalTokenTotals } from "../state/token-usage.js";
+
 export const metrics = {
   sessionsCreated: 0,
   plansCreated: 0,
@@ -26,3 +28,8 @@ export function computeP95Latency(): number {
   const index = Math.floor(sorted.length * 0.95);
   return sorted[Math.min(index, sorted.length - 1)] ?? 0;
 }
+
+export function getTokenUsageMetrics() {
+  return getGlobalTokenTotals();
+}
+

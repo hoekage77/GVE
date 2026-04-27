@@ -6,7 +6,7 @@ import {
   recordSceneVersion,
   setSessionStatus,
   updateSessionMessage
-} from "../../session-state.js";
+} from "../../state/session.js";
 import { broadcastCodeStream, broadcastEvent, broadcastThought } from "../../ws/streaming.js";
 import { buildAgentActivity } from "./agent-activity.js";
 import { buildTurnRuntimeError, buildAssistantMessageMeta } from "./turn-execution-helpers.js";

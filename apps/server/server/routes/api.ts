@@ -3,24 +3,26 @@ export const apiRouter = Router();
 
 import { ZodError } from "zod";
 import { getDaytonaEnvPreflight } from "../env.js";
-import { getPool } from "../llm-pool.js";
+import { getPool } from "../llm/pool.js";
 import { 
   createSession, buildSessionResponse, buildWebSocketUrl, listSessions, listSessionMessages, 
   recordSceneVersion, buildSceneUpdatePayload, undoSceneVersion, redoSceneVersion, 
   previousArtifactVersion, nextArtifactVersion, selectSceneVersion, listSceneVersions, 
   initializeSessions, buildCodeUpdatePayload 
-} from "../session-state.js";
+} from "../state/session.js";
 import { executeChatTurn } from "./chat.js";
-import { getSkillCatalog } from "../skill-registry.js";
-import { streamMediaArtifact } from "../media-artifacts.js";
+import { getSkillCatalog } from "../skills/registry.js";
+import { streamMediaArtifact } from "./media.js";
 import { planTasks, executeTask, generateVisual, generateFromImage, modifyVisual } from "../pipeline/index.js";
 import { broadcastEvent, broadcastCodeStream } from "../ws/streaming.js";
 import { getCacheStats } from "../cache-manager.js";
-import { getSandboxRuntimeMetrics } from "../skill-runtime.js";
+import { getSandboxRuntimeMetrics } from "../sandbox/skill-runtime.js";
 import { wsClients } from "../ws/handler.js";
 import { startupDaytonaPreflight } from "../startup-preflight.js";
 import { metrics, computeP95Latency } from "../lib/metrics.js";
 import { runWithTraceContext } from "../trace/context.js";
+import { checkTokenLimit, getSessionUsage, getUserDailyTokenUsage, getGlobalTokenTotals, getTokenLimitConfig } from "../state/token-usage.js";
+import { getDedicatedSandboxStatus } from "../sandbox/dedicated-manager.js";
 apiRouter.get("/healthz", (_req, res) => {
   const daytonaPreflight = getDaytonaEnvPreflight();
   const pool = getPool();
@@ -84,6 +86,20 @@ apiRouter.post("/api/v1/sessions/:sessionId/messages", async (req, res) => {
   const imageData = String(req.body?.imageData ?? "").trim();
   const userId = String(req.header("x-user-id") ?? req.body?.userId ?? "").trim() || null;
   const requestId = String(req.header("x-request-id") ?? req.body?.requestId ?? "").trim() || null;
+
+  // Token limit enforcement.
+  const limitCheck = checkTokenLimit(sessionId, userId);
+  if (!limitCheck.allowed) {
+    res.status(429).json({
+      error: "TOKEN_LIMIT_EXCEEDED",
+      message: `Token limit exceeded (${limitCheck.scope} scope). Current usage: ${limitCheck.currentUsage}, limit: ${limitCheck.limit}.`,
+      scope: limitCheck.scope,
+      currentUsage: limitCheck.currentUsage,
+      limit: limitCheck.limit,
+      remaining: 0
+    });
+    return;
+  }
 
   if (!content && !imageUrl && !imageData) {
     res.status(400).json({
@@ -173,6 +189,21 @@ apiRouter.post("/api/v1/tasks/execute", async (req, res) => {
 apiRouter.post("/api/v1/generate", async (req, res) => {
   const requestId = `req-${Date.now()}-${Math.random().toString(16).slice(2, 8)}`;
   const sessionState = createSession(req.body?.sessionId);
+  const userId = String(req.header("x-user-id") ?? req.body?.userId ?? "").trim() || null;
+
+  // Token limit enforcement.
+  const limitCheck = checkTokenLimit(sessionState.sessionId, userId);
+  if (!limitCheck.allowed) {
+    res.status(429).json({
+      error: "TOKEN_LIMIT_EXCEEDED",
+      message: `Token limit exceeded (${limitCheck.scope} scope). Current usage: ${limitCheck.currentUsage}, limit: ${limitCheck.limit}.`,
+      scope: limitCheck.scope,
+      currentUsage: limitCheck.currentUsage,
+      limit: limitCheck.limit,
+      remaining: 0
+    });
+    return;
+  }
 
   try {
     metrics.generations += 1;
@@ -588,6 +619,50 @@ apiRouter.get("/api/v1/sessions/:sessionId/versions", (req, res) => {
   res.json(result);
 });
 
+// ── Token Usage endpoints ──
+
+apiRouter.get("/api/v1/usage", (req, res) => {
+  const sessionId = String(req.query.sessionId ?? "").trim() || null;
+  const userId = String(req.query.userId ?? req.header("x-user-id") ?? "").trim() || null;
+
+  const response: any = {
+    limits: getTokenLimitConfig(),
+    global: getGlobalTokenTotals()
+  };
+
+  if (sessionId) {
+    response.session = {
+      sessionId,
+      ...getSessionUsage(sessionId)
+    };
+    const limitCheck = checkTokenLimit(sessionId, userId);
+    response.session.limit = limitCheck;
+  }
+
+  if (userId) {
+    response.user = {
+      userId,
+      ...getUserDailyTokenUsage(userId)
+    };
+    const limitCheck = checkTokenLimit(null, userId);
+    response.user.limit = limitCheck;
+  }
+
+  res.json(response);
+});
+
+// ── Sandbox status endpoint ──
+
+apiRouter.get("/api/v1/sandboxes/status", (_req, res) => {
+  const sandboxMetrics = getSandboxRuntimeMetrics();
+  const dedicatedStatus = getDedicatedSandboxStatus();
+
+  res.json({
+    pool: sandboxMetrics,
+    dedicated: dedicatedStatus
+  });
+});
+
 function handleError(error: unknown, res: Response): void {
   metrics.errors += 1;
 
@@ -613,6 +688,8 @@ apiRouter.get("/metrics", (_req, res) => {
     ...metrics,
     latencies: undefined,
     p95LatencyMs: computeP95Latency(),
+    tokenUsage: getGlobalTokenTotals(),
+    tokenLimits: getTokenLimitConfig(),
     cache: cacheStats,
     sandboxPool,
     daytonaPreflight: startupDaytonaPreflight,

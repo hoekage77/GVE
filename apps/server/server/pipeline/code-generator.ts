@@ -1,14 +1,15 @@
-import { getPool } from "../llm-pool.js";
+import { getPool } from "../llm/pool.js";
 import { sleep, truncateDiagnostic } from "../lib/utils.js";
-import { resolveAssetPlan } from "../asset-resolver.js";
-import { validateCode } from "../code-validator.js";
-import { setErrorContext, clearErrorContext, getDebugTools } from "../agent-tools.js";
-import { runSelfDebugSession, attemptRuntimeAgentRecovery } from "../agent-runner.js";
+import { resolveAssetPlan } from "./assets.js";
+import { validateCode } from "../quality/validator.js";
+import { setErrorContext, clearErrorContext, getDebugTools } from "../agents/tools.js";
+import { runSelfDebugSession, attemptRuntimeAgentRecovery } from "../agents/runner.js";
 import { parseIntentFromQuery } from "./intent-classifier.js";
 import { executeWithProviderFailover, createRetryableProviderError } from "./failover.js";
 import { extractChoiceContent, shouldRequireOrbitControls, hasOrbitControlsInCode, buildFallbackGeneratedCode } from "./utils.js";
 import { executeSkillRuntimeWithQualityDecision, runtimeExecutionMaxFrames, resolveRuntimeExecutionTimeoutMs, computeBoundedTimeoutMs, shouldDegradeRuntimeFailure, buildDegradedRuntimeResult, getTurnDeadlineAtMs } from "./runtime-executor.js";
-import { buildGenerationPromptBundle, buildImageToCodePromptBundle } from "../prompt-manager.js";
+import { buildGenerationPromptBundle, buildImageToCodePromptBundle } from "./prompts.js";
+import { recordTokenUsage } from "../state/token-usage.js";
 import { 
   moonshotModel,
   moonshotBaseUrl,
@@ -338,6 +339,14 @@ export async function generateCodeWithPool(state: any) {
       const genDurationMs = Date.now() - genStartMs;
 
       pool.recordRequest(provider.id, genDurationMs);
+
+      // Record token usage if the response includes it.
+      if (payload?.usage) {
+        recordTokenUsage(
+          { providerId: provider.id, model: payload.model ?? provider.model ?? null },
+          payload.usage
+        );
+      }
       console.log(`[GenerateCode] [TRACE] ${provider.id} responded in ${genDurationMs}ms. content length=${content?.length ?? 0}, finishReason=${payload?.choices?.[0]?.finish_reason ?? "unknown"}`);
 
       const generatedCode = extractCodeContent(content);

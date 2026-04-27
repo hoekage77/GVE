@@ -9,8 +9,8 @@
  * by the pool manager and skipped during selection.
  */
 
-import "./env.js";
-import type { ProviderDefinition, ResolvedProvider, ChatCompletionPayload } from "./types/llm.js";
+import "../env.js";
+import type { ProviderDefinition, ResolvedProvider, ChatCompletionPayload } from "../types/llm.js";
 
 // ─── Provider Definitions ────────────────────────────────────────────
 

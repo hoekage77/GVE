@@ -2,7 +2,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync, unlinkSync, readdir
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 
-import type { SessionState } from "./types/session.js";
+import type { SessionState } from "../types/session.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const DATA_DIR = join(__dirname, "..", "..", ".data", "sessions");

@@ -1,4 +1,4 @@
-import { createSession, createSessionMessageId, updateSessionMessage } from "../../session-state.js";
+import { createSession, createSessionMessageId, updateSessionMessage } from "../../state/session.js";
 import {
   generateThinkingAnalysis, planTasks, generateFromImage, generatePostTurnNarration, resolveChatTurn
 } from "../../pipeline/index.js";

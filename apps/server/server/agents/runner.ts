@@ -2,9 +2,10 @@
  * Agent Runner — Core agent loop executor for Kimi K2.5 Agent Mode
  */
 
-import { executeAgentTool } from "./agent-tools.js";
+import { executeAgentTool } from "./tools.js";
 
-import { getPool } from "./llm-pool.js";
+import { getPool } from "../llm/pool.js";
+import { recordTokenUsage } from "../state/token-usage.js";
 
 async function fetchAgentCompletion(messages: any[], tools: any[]) {
   const pool = getPool();
@@ -53,7 +54,17 @@ async function fetchAgentCompletion(messages: any[], tools: any[]) {
 
       pool.recordRequest(provider.id, Date.now() - startMs);
       pool.markHealthy(provider.id);
-      return await response.json();
+
+      const jsonPayload = await response.json();
+
+      if (jsonPayload?.usage) {
+        recordTokenUsage(
+          { providerId: provider.id, model: jsonPayload.model ?? provider.model ?? null },
+          jsonPayload.usage
+        );
+      }
+
+      return jsonPayload;
     } catch (err: any) {
       pool.markExhausted(provider.id, err.message || "network-error");
       attempt++;

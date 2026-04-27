@@ -5,12 +5,12 @@
  * Python/Manim and other specialized tools. Integrates with Daytona Pool Manager.
  */
 
-import { getSkillRuntimeProfile } from "./skill-loader.js";
-import { persistMediaArtifact } from "./media-artifacts.js";
+import { getSkillRuntimeProfile } from "../skills/loader.js";
+import { persistMediaArtifact } from "../routes/media.js";
 import { SandboxPoolManager, toolRegistry } from "@visual-runtime/sandbox-pool";
-import { DedicatedSandboxManager } from "./dedicated-sandbox-manager.js";
-import { traceEvent } from "./trace/events.js";
-import { getTraceContext } from "./trace/context.js";
+import { DedicatedSandboxManager, setDedicatedSandboxInstance } from "./dedicated-manager.js";
+import { traceEvent } from "../trace/events.js";
+import { getTraceContext } from "../trace/context.js";
 
 function parsePositiveIntEnv(rawValue: string | undefined | null, fallbackValue: number, minimum = 1): number {
   const parsed = Number.parseInt(String(rawValue ?? ""), 10);
@@ -40,6 +40,7 @@ function escapeDoubleQuotedShellValue(value: string | undefined | null): string 
 
 const poolManager = new SandboxPoolManager();
 const dedicatedSandboxManager = new DedicatedSandboxManager(poolManager);
+setDedicatedSandboxInstance(dedicatedSandboxManager);
 
 const runtimeAcquireBudgetMs = parsePositiveIntEnv(process.env.RUNTIME_ACQUIRE_BUDGET_MS, 12_000, 1_000);
 const manimRenderWidth = parsePositiveIntEnv(process.env.MANIM_RENDER_WIDTH, 1920, 320);

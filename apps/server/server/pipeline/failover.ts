@@ -1,4 +1,4 @@
-import { getPool } from "../llm-pool.js";
+import { getPool } from "../llm/pool.js";
 import { sleep, truncateDiagnostic } from "../lib/utils.js";
 
 export function providerMatchesFilter(provider: any, filter: any = {}): boolean {

@@ -1,5 +1,6 @@
 import { normalizeQuery } from "./intent-classifier.js";
 import { sleep, truncateDiagnostic } from "../lib/utils.js";
+import { recordTokenUsage } from "../state/token-usage.js";
 import { z } from "zod";
 
 // Moonshot configuration
@@ -492,7 +493,7 @@ export async function generateConversationReplyWithMoonshot(options: any): Promi
   const { sessionState, request, parsedIntent, mode, onChunk } = options;
   
   // Import dependencies dynamically to avoid circular imports
-  const { buildConversationPromptBundle } = await import("../prompt-manager.js");
+  const { buildConversationPromptBundle } = await import("./prompts.js");
   const { executeWithProviderFailover, createRetryableProviderError } = await import("./failover.js");
   const { buildConversationHelpText } = await import("./intent-classifier.js");
   
@@ -524,6 +525,14 @@ export async function generateConversationReplyWithMoonshot(options: any): Promi
         const payload = await response.json();
         const content = payload?.choices?.[0]?.message?.content ?? "";
         const replyText = typeof content === "string" ? content : "";
+
+        // Record token usage from conversation reply.
+        if (payload?.usage) {
+          recordTokenUsage(
+            { providerId: provider.id, model: payload.model ?? provider.model ?? null },
+            payload.usage
+          );
+        }
 
         if (!replyText) {
           throw createRetryableProviderError(`${provider.id} returned empty conversational output.`, "PROVIDER_EMPTY_OUTPUT");

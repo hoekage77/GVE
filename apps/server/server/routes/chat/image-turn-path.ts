@@ -6,7 +6,7 @@ import {
   recordSceneVersion,
   setSessionStatus,
   updateSessionMessage
-} from "../../session-state.js";
+} from "../../state/session.js";
 import { broadcastEvent, broadcastThought } from "../../ws/streaming.js";
 import { buildTurnLifecyclePayload, buildTurnResultSummary } from "./turn-summary.js";
 

@@ -5,11 +5,12 @@
  * Handles auto-failover, rate limiting, and retry logic.
  */
 
-import "./env.js";
-import { getPool, type LLMProviderPool } from "./llm-pool.js";
-import { sleep } from "./lib/utils.js";
-import type { ResolvedProvider, ChatCompletionPayload, ChatCompletionResponse } from "./types/llm.js";
-import { traceEvent } from "./trace/events.js";
+import "../env.js";
+import { getPool, type LLMProviderPool } from "./pool.js";
+import { sleep } from "../lib/utils.js";
+import type { ResolvedProvider, ChatCompletionPayload, ChatCompletionResponse } from "../types/llm.js";
+import { traceEvent } from "../trace/events.js";
+import { recordTokenUsage } from "../state/token-usage.js";
 
 // ─── Helper: Make HTTP Request ──────────────────────────────────────
 
@@ -83,6 +84,11 @@ async function fetchChatCompletionFromProvider(
           total_tokens: json.usage.total_tokens,
           latencyMs: durationMs
         });
+
+        recordTokenUsage(
+          { providerId: provider.id, model: json.model ?? enrichedPayload.model ?? provider.model ?? null },
+          json.usage
+        );
       } else {
         traceEvent("llm.response", {
           providerId: provider.id,
