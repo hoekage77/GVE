@@ -8,7 +8,7 @@ interface AgentActionStreamProps {
   thinkingDuration?: number;
 }
 
-type ActionType = "think" | "file_created" | "read" | "write" | "edit" | "terminal" | "preview" | "generic";
+type ActionType = "think" | "file_created" | "read" | "write" | "edit" | "terminal" | "preview" | "monologue" | "generic";
 
 interface ActionRow {
   id: string;
@@ -64,6 +64,12 @@ const ACTION_CONFIG: Record<ActionType, { color: string; bg: string; icon: React
     icon: FileText,
     label: "Preview",
   },
+  monologue: {
+    color: "#a78bfa",
+    bg: "rgba(167, 139, 250, 0.12)",
+    icon: Brain,
+    label: "Thought",
+  },
   generic: {
     color: "#9ca3af",
     bg: "rgba(156, 163, 175, 0.12)",
@@ -73,6 +79,7 @@ const ACTION_CONFIG: Record<ActionType, { color: string; bg: string; icon: React
 };
 
 function detectActionType(step: string, stepLabel: string, text: string): ActionType {
+  if (step === "monologue" || step === "intent" || step === "turn_started") return "monologue";
   const normalized = `${step} ${stepLabel} ${text}`.toLowerCase();
 
   if (normalized.includes("file_created") || normalized.includes("create file") || normalized.includes("file created") || normalized.includes("new file")) return "file_created";

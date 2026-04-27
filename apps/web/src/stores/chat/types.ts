@@ -7,7 +7,8 @@ import {
   type SessionSceneState,
   type IterationState as SharedIterationState,
   type QualityReport,
-  type IterationStopReason
+  type IterationStopReason,
+  type LlmProviderItem
 } from '@visual-runtime/shared';
 import type { ActionBlock, TaskCheckpoint } from '../../types/actionBlocks';
 
@@ -161,6 +162,10 @@ export interface ChatState {
   composerValue: string;
   composerImage: ComposerImageAttachment | null;
   isSlashMenuOpen: boolean;
+
+  // Provider selection
+  providers: LlmProviderItem[];
+  activeProviderId: string;
   
   // Actions
   isSidebarCollapsed: boolean;
@@ -169,6 +174,7 @@ export interface ChatState {
   
   initialize: () => Promise<void>;
   refreshSessions: () => Promise<void>;
+  fetchProviders: () => Promise<void>;
   createNewSession: () => Promise<Session | null>;
   selectSession: (sessionId: string) => Promise<void>;
   loadSessionMessages: (sessionId: string) => Promise<void>;
@@ -187,6 +193,7 @@ export interface ChatState {
   setComposerValue: (value: string) => void;
   setComposerImage: (image: ComposerImageAttachment | null) => void;
   clearComposerImage: () => void;
+  setActiveProvider: (providerId: string) => void;
   
   // Panel Actions (new)
   openPanel: (view: WorkspacePanelView) => void;

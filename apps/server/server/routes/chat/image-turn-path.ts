@@ -80,6 +80,8 @@ export async function executeImageTurnPath(params: {
     messageId: assistantMessageId
   });
 
+  broadcastEvent("scene:update", buildSceneUpdatePayload(nextSessionState));
+
   const assistantMessage = updateSessionMessage(sessionId, assistantMessageId, {
     content: imageResult.explanation,
     kind: "generate",
@@ -91,6 +93,8 @@ export async function executeImageTurnPath(params: {
     kind: "generate",
     meta: [`requestId:${turnRequestId}`, `scene:${imageResult.sceneId}`, `skill:${imageResult.skill}`, "source:image"]
   });
+
+  broadcastEvent("message:update", { sessionId, message: assistantMessage });
 
   broadcastEvent("generation:complete", {
     sessionId,
@@ -108,7 +112,7 @@ export async function executeImageTurnPath(params: {
     sceneVersion: nextSessionState.currentScene?.version ?? 0,
     mode: "image-to-code"
   });
-  broadcastEvent("scene:update", buildSceneUpdatePayload(nextSessionState));
+
   broadcastEvent("message.append", { sessionId, message: assistantMessage });
 
   await broadcastThought(sessionId, "turn_complete", { ...thoughtContextBase, query: content, llmThoughts });

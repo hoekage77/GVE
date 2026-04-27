@@ -17,6 +17,7 @@ import {
   type GveTaskAction,
   type SessionMessage as ApiSessionMessage,
   type IterationState as SharedIterationState,
+  listProviders,
 } from '@visual-runtime/shared';
 import {
   type ChatState,
@@ -100,6 +101,9 @@ export const useChatStore = create<ChatState>()(
         isSlashMenuOpen: false,
         isSidebarCollapsed: typeof window !== "undefined" ? window.sessionStorage.getItem("terranet.sidebar.collapsed.v2") === "1" : false,
         
+        providers: [],
+        activeProviderId: "auto",
+        
         // === Basic Actions ===
         setSidebarCollapsed: (collapsed: boolean) => {
           set({ isSidebarCollapsed: collapsed });
@@ -141,7 +145,10 @@ export const useChatStore = create<ChatState>()(
           set({ isBootstrapping: true, sessionsError: null });
 
           try {
-            await get().refreshSessions();
+            await Promise.all([
+              get().refreshSessions(),
+              get().fetchProviders()
+            ]);
             set({ hasInitialized: true });
           } catch {
             // refreshSessions handles error state
@@ -182,6 +189,19 @@ export const useChatStore = create<ChatState>()(
             });
             throw error;
           }
+        },
+
+        fetchProviders: async () => {
+          try {
+            const response = await listProviders();
+            set({ providers: response.providers });
+          } catch (error) {
+            console.error("Failed to fetch LLM providers:", error);
+          }
+        },
+
+        setActiveProvider: (providerId: string) => {
+          set({ activeProviderId: providerId });
         },
 
         createNewSession: async () => {
@@ -392,12 +412,14 @@ export const useChatStore = create<ChatState>()(
 
           const activeSocket = await ensureSocketOpen();
           if (activeSocket && activeSocket.readyState === WebSocket.OPEN) {
+            const provider = get().activeProviderId !== "auto" ? get().activeProviderId : undefined;
             const payload: Record<string, unknown> = {
               sessionId,
               content: input,
               clientMessageId: requestId,
               requestId,
-              idempotencyKey: requestId
+              idempotencyKey: requestId,
+              preferences: provider ? { provider } : undefined
             };
             if (requestedMode) payload.mode = requestedMode;
             if (imageData) payload.imageData = imageData;
@@ -407,9 +429,11 @@ export const useChatStore = create<ChatState>()(
           }
 
           try {
+            const provider = get().activeProviderId !== "auto" ? get().activeProviderId : undefined;
             const response = await sendSessionMessage(sessionId, {
               content: input,
-              imageData: imageData ?? undefined
+              imageData: imageData ?? undefined,
+              preferences: provider ? { provider } : undefined
             });
             const incomingMessages = (response.messages ?? []).map(normalizeMessage);
             const mediaReady = isMediaScene(response.sceneState.currentScene) && hasMediaUrl(response.sceneState.currentScene);
@@ -898,8 +922,13 @@ export const useChatStore = create<ChatState>()(
                 const mediaUnavailable = mediaExpected && !mediaReady && (['degraded', 'skipped', 'error'].includes(runtimeStatus!) || runtimeWarning.length > 0 || generationWarning.length > 0);
 
                 set((state) => ({
+                  isSending: false,
+                  activeRequestId: null,
+                  thinkingText: null,
+                  thinkingStep: 'turn_complete',
                   taskProgressBySession: updateTaskProgressMap(state.taskProgressBySession, sessionId, c => ({
                     ...c,
+                    turnStatus: 'completed',
                     mediaStage: mediaExpected ? (mediaReady ? 'ready' : (mediaUnavailable ? 'error' : (c.turnStatus === 'running' ? 'syncing' : 'error'))) : c.mediaStage,
                     mediaStatusText: mediaExpected ? (mediaReady ? 'Video artifact is ready to preview.' : (mediaUnavailable ? (runtimeWarning || generationWarning || 'Video artifact is unavailable for this run.') : (c.turnStatus === 'running' ? 'Video artifact is still syncing.' : 'Video artifact is unavailable for this run.'))) : c.mediaStatusText,
                     mediaType: mediaType ?? c.mediaType,

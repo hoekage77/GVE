@@ -97,6 +97,7 @@ export interface AcquireFilter {
   requireThinking?: boolean;
   requireCodeGeneration?: boolean;
   requireVision?: boolean;
+  preferredProviderId?: string | null;
 }
 
 export interface AcquireResult {
@@ -157,11 +158,32 @@ export class LLMProviderPool {
 
   /**
    * Selects the next healthy provider by priority.
+   * If a preferredProviderId is specified, attempts only that provider.
    * If no providers are healthy, returns the one with the shortest remaining cooldown.
    * Returns null if all providers are disabled.
    */
   acquire(filter: AcquireFilter = {}): AcquireResult | null {
     this._refreshCooldowns();
+    const now = Date.now();
+
+    if (filter.preferredProviderId && filter.preferredProviderId !== "auto") {
+      const preferred = this.providers.find(p => p.id === filter.preferredProviderId);
+      if (preferred) {
+        const health = this.healthMap.get(preferred.id)!;
+        if (health.state === HEALTH_STATES.HEALTHY) {
+          poolLog("trace", `Acquired preferred provider: ${preferred.id}`);
+          return { provider: preferred, waitMs: 0 };
+        } else if (health.state === HEALTH_STATES.COOLDOWN) {
+          const waitMs = Math.max(0, health.cooldownUntilMs - now);
+          poolLog("warn", `Preferred provider ${preferred.id} in cooldown. Wait: ${waitMs}ms.`);
+          return { provider: preferred, waitMs };
+        } else {
+          poolLog("error", `Preferred provider ${preferred.id} is disabled.`);
+          return null;
+        }
+      }
+      poolLog("warn", `Preferred provider ${filter.preferredProviderId} not found. Falling back to default selection.`);
+    }
 
     const candidates = this.providers.filter((p) => {
       const health = this.healthMap.get(p.id)!;
@@ -188,7 +210,6 @@ export class LLMProviderPool {
     }
 
     // All candidates are in cooldown — find the one that recovers soonest
-    const now = Date.now();
     let soonest: ResolvedProvider | null = null;
     let soonestWaitMs = Number.POSITIVE_INFINITY;
 

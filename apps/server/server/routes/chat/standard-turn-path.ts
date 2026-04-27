@@ -58,7 +58,7 @@ export async function executeStandardTurnPath(params: {
   llmThoughts: unknown;
   userMessage: unknown;
   resolveChatTurn: (input: unknown, sessionState: unknown, handlers: ResolveHandlers) => Promise<ResolvedTurn>;
-  generatePostTurnNarration: (input: unknown, content: string, options: { fastMode: boolean }) => Promise<string | null>;
+  generatePostTurnNarration: (input: unknown, content: string, options: { fastMode: boolean; provider?: string }) => Promise<string | null>;
   postTurnNarrationEnabled: boolean;
   fastModeEnabled: boolean;
 }): Promise<StandardTurnResult> {
@@ -94,6 +94,7 @@ export async function executeStandardTurnPath(params: {
         : plan.summary?.includes("animejs")
           ? "animejs"
           : "threejs";
+  /* 
   await broadcastThought(sessionId, "intent_parsed", {
     ...thoughtContextBase,
     query: content,
@@ -109,6 +110,7 @@ export async function executeStandardTurnPath(params: {
     query: content,
     llmThoughts
   });
+  */
 
   broadcastEvent("orchestration:plan", {
     sessionId,
@@ -177,6 +179,7 @@ export async function executeStandardTurnPath(params: {
     }
 
     await streamedCodePromise;
+    /* 
     await broadcastThought(sessionId, turn.mode === "generate" ? "code_generated" : "code_modified", {
       ...thoughtContextBase,
       query: content,
@@ -184,6 +187,7 @@ export async function executeStandardTurnPath(params: {
       llmThoughts,
       stageDurationMs: stepDurationsMs["generate_code"] ?? null
     });
+    */
     setSessionStatus(sessionId, "generating");
 
     broadcastEvent(turn.mode === "generate" ? "generation:started" : "code:started", {
@@ -212,6 +216,8 @@ export async function executeStandardTurnPath(params: {
         source: turn.mode,
         messageId: assistantMessageId
       });
+
+      broadcastEvent("scene:update", buildSceneUpdatePayload(nextSessionState));
     }
 
     if (!isRejectedNoopModify) {
@@ -233,6 +239,15 @@ export async function executeStandardTurnPath(params: {
       stageDurationMs: stepDurationsMs["sync_state"] ?? null
     });
 
+    // Update the assistant message early with scene metadata so the artifact appears in chat immediately
+    const earlyAssistantMessage = updateSessionMessage(sessionId, assistantMessageId, {
+      kind: turn.mode,
+      meta: buildAssistantMessageMeta(turnRequestId, turn, null)
+    });
+    if (earlyAssistantMessage) {
+      broadcastEvent("message:update", { sessionId, message: earlyAssistantMessage });
+    }
+
     broadcastEvent(turn.mode === "generate" ? "generation:complete" : "code:update", {
       sessionId,
       sceneId: turn.result.sceneId,
@@ -252,12 +267,7 @@ export async function executeStandardTurnPath(params: {
       mode: turn.mode,
       explanation: turn.result.explanation,
       modifyOutcome: turn.result.modifyOutcome ?? null,
-      noopReason: turn.result.noopReason ?? null
     });
-
-    if (!isRejectedNoopModify) {
-      broadcastEvent("scene:update", buildSceneUpdatePayload(nextSessionState));
-    }
   }
 
   const turnFailed = Boolean(turn.result?.runtime && turn.result.runtime.success === false);
@@ -294,7 +304,10 @@ export async function executeStandardTurnPath(params: {
   if (postTurnNarrationEnabled && !turnFailed && (turn.mode === "generate" || turn.mode === "modify")) {
     void (async () => {
       try {
-        const postNarration = await generatePostTurnNarration({ result: turn.result }, content, { fastMode: fastModeEnabled });
+        const postNarration = await generatePostTurnNarration({ result: turn.result }, content, { 
+          fastMode: fastModeEnabled,
+          provider: effectivePreferences?.provider as string | undefined 
+        });
         if (postNarration) {
           await broadcastThought(sessionId, "post_narration", {
             ...thoughtContextBase,

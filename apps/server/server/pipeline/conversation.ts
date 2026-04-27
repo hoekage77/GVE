@@ -25,19 +25,13 @@ export async function generateThinkingAnalysis(query: any, sessionContext: any =
     : "The user does not have an active scene yet.";
 
   const systemPrompt = [
-    "You are the internal reasoning voice of a visual generation AI called GVE.",
-    "Given the user's request, produce a JSON object with first-person thoughts for each pipeline stage.",
-    "Write naturally as internal monologue. Be specific about the user's request — mention what they want, which technology fits, and what your approach is.",
-    "Keep each thought to 1-2 sentences. Do NOT use markdown or code blocks. Output ONLY valid JSON.",
+    "You are the internal reasoning voice of GVE (Generative Visual Engine).",
+    "Analyze the user's request and write a brief, natural internal monologue (2-4 sentences) about your problem-solving process.",
+    "Mention the technology you'll use (Three.js, p5.js, etc.) and your specific approach to the visual design.",
+    "Write naturally, as if you are thinking to yourself. Do NOT use markdown or lists. Output ONLY valid JSON.",
     "",
-    "Required keys (all strings):",
-    '  "intent" — your analysis of what the user wants',
-    '  "skill" — which rendering engine (Three.js / p5.js / D3.js) you chose and why',
-    '  "plan" — how many steps you\'ll take and what the approach is',
-    '  "generating" — what code you\'re about to write (mention specific geometries, effects, etc.)',
-    '  "validating" — a brief note about checking the code',
-    '  "executing" — spinning up the sandbox',
-    '  "complete" — a natural summary of the finished result for the user'
+    "Required key (string):",
+    '  "monologue" — your natural internal monologue'
   ].join("\n");
 
   const userPrompt = [
@@ -54,7 +48,10 @@ export async function generateThinkingAnalysis(query: any, sessionContext: any =
 
     const completion = await executeWithProviderFailover({
       operationName: "ThinkingAnalysis",
-      filter: { requireThinking: true },
+      filter: { 
+        requireThinking: true,
+        preferredProviderId: sessionContext?.preferences?.provider
+      },
       mode: "thinking",
       retryDelays: thinkingRetryDelays,
       executeProvider: async ({ provider, mode: providerMode, retryDelays }: any) => {
@@ -118,7 +115,7 @@ export async function generateThinkingAnalysis(query: any, sessionContext: any =
   }
 }
 
-export async function generatePostTurnNarration(turnResult: any, query: any, options: any = {}) {
+export async function generatePostTurnNarration(turnResult: any, query: any, options: { fastMode?: boolean, provider?: string } = {}) {
   const fastNarrationMode = options.fastMode ?? fastModeEnabled;
 
   const skill = turnResult?.result?.skill ?? "unknown";
@@ -146,7 +143,10 @@ export async function generatePostTurnNarration(turnResult: any, query: any, opt
     const narrationRetryDelays = fastNarrationMode ? [] : narrationRetryDelaysMs;
     const completion = await executeWithProviderFailover({
       operationName: "PostTurnNarration",
-      filter: { requireThinking: true },
+      filter: { 
+        requireThinking: true,
+        preferredProviderId: turnResult?.request?.preferences?.provider ?? options.provider
+      },
       mode: "thinking",
       retryDelays: narrationRetryDelays,
       executeProvider: async ({ provider, mode: providerMode, retryDelays }: any) => {

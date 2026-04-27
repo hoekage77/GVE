@@ -298,7 +298,8 @@ export const requestSchema = z.object({
   preferences: z.object({
     quality: z.enum(["draft", "standard", "high"]).optional(),
     skill: z.enum(["threejs", "p5js", "d3js", "animejs", "manim", "auto"]).optional(),
-    mode: z.enum(["generate", "modify"]).optional()
+    mode: z.enum(["generate", "modify"]).optional(),
+    provider: z.string().optional()
   }).optional()
 }).passthrough();
 
@@ -308,7 +309,8 @@ export const modifyRequestSchema = z.object({
   preferences: z.object({
     quality: z.enum(["draft", "standard", "high"]).optional(),
     skill: z.enum(["threejs", "p5js", "d3js", "animejs", "manim", "auto"]).optional(),
-    mode: z.enum(["generate", "modify", "rerun"]).optional()
+    mode: z.enum(["generate", "modify", "rerun"]).optional(),
+    provider: z.string().optional()
   }).optional(),
   sceneState: z.object({
     currentScene: z.object({
@@ -507,7 +509,10 @@ export async function generateConversationReplyWithMoonshot(options: any): Promi
   try {
     const completion = await executeWithProviderFailover({
       operationName: "ConversationReply",
-      filter: { requireThinking: true },
+      filter: { 
+        requireThinking: true,
+        preferredProviderId: request?.preferences?.provider
+      },
       mode: "thinking",
       retryDelays: moonshotRetryDelaysMs,
       executeProvider: async ({ provider, mode: providerMode, retryDelays }: any) => {

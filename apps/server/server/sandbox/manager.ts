@@ -92,6 +92,9 @@ export async function createSandbox(options: { sessionId: string; tools?: string
     const { stdout: containerId } = await execAsync(`docker ${dockerArgs.join(" ")}`);
     const trimmedContainerId = containerId.trim();
 
+    // Fix permissions so the non-root container user can write to the mounted workspace
+    await execAsync(`docker exec -u root ${trimmedContainerId} chown -R terranet:terranet /workspace`);
+
     const containerInfo: ContainerInfo = {
       containerId: trimmedContainerId,
       sessionId,

@@ -303,7 +303,10 @@ export async function generateCodeWithPool(state: any) {
   const triedProviders = new Set();
 
   for (let attempt = 0; attempt < maxAttempts; attempt++) {
-    const acquired = pool.acquire({ requireCodeGeneration: true });
+    const acquired = pool.acquire({
+      requireCodeGeneration: true,
+      preferredProviderId: state?.request?.preferences?.provider
+    });
     if (!acquired) {
       break;
     }
@@ -514,7 +517,11 @@ export async function generateFromImage(input: any) {
   try {
     const completion = await executeWithProviderFailover({
       operationName: "ImageToCode",
-      filter: { requireCodeGeneration: true, requireVision: true },
+      filter: { 
+        requireCodeGeneration: true, 
+        requireVision: true,
+        preferredProviderId: input.preferences?.provider
+      },
       mode: "thinking",
       retryDelays: moonshotRetryDelaysMs,
       executeProvider: async ({ provider, mode: providerMode, retryDelays }: any) => {

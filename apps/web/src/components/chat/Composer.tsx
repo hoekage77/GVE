@@ -1,5 +1,6 @@
 import { useRef, useState, useEffect } from "react";
-import { Send, X, Plus } from "lucide-react";
+import { Send, X, Plus, ChevronDown, Cpu } from "lucide-react";
+import { type LlmProviderItem } from "@visual-runtime/shared";
 
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
 
@@ -24,6 +25,9 @@ interface ComposerProps {
   variant?: "legacy" | "meta";
   participantLabel?: string;
   modelLabel?: string;
+  providers?: LlmProviderItem[];
+  activeProviderId?: string;
+  onProviderChange?: (id: string) => void;
 }
 
 export function Composer({ 
@@ -32,9 +36,13 @@ export function Composer({
   onSubmit, 
   attachedImage,
   onImageSelected,
+  onRemoveImage,
   isSending, 
   onStop,
-  placeholder = "Message GenVis..."
+  placeholder = "Message GenVis...",
+  providers = [],
+  activeProviderId = "auto",
+  onProviderChange
 }: ComposerProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -47,7 +55,7 @@ export function Composer({
     const textarea = textareaRef.current;
     if (textarea) {
       textarea.style.height = "auto";
-      textarea.style.height = `${textarea.scrollHeight}px`;
+      textarea.style.height = `${Math.min(textarea.scrollHeight, 200)}px`;
     }
   }, [value]);
 
@@ -119,8 +127,29 @@ export function Composer({
     }
   };
 
+  const activeProvider = providers.find(p => p.id === activeProviderId);
+
   return (
-    <div className="relative">
+    <div className="relative flex flex-col gap-2">
+      {/* Attached Image Preview */}
+      {attachedImage && (
+        <div className="flex px-1">
+          <div className="relative group rounded-xl overflow-hidden border border-white/10 bg-white/5 shadow-lg">
+            <img 
+              src={attachedImage.previewUrl} 
+              alt="Attachment" 
+              className="h-20 w-20 object-cover opacity-90 transition-opacity group-hover:opacity-100" 
+            />
+            <button 
+              onClick={onRemoveImage}
+              className="absolute top-1 right-1 h-5 w-5 flex items-center justify-center rounded-full bg-black/60 text-white/80 hover:bg-black/80 hover:text-white transition-all scale-90 group-hover:scale-100"
+            >
+              <X className="h-3 w-3" />
+            </button>
+          </div>
+        </div>
+      )}
+
       <div className="flex min-h-[52px] items-end gap-2 rounded-2xl border border-white/10 bg-white/[0.04] p-2 shadow-lg transition-all duration-200 focus-within:composer-glow focus-within:border-ide-accent/40 focus-within:bg-white/[0.06] lg:min-h-[56px] lg:p-2.5">
         <input
           ref={fileInputRef}
@@ -145,7 +174,7 @@ export function Composer({
             onChange={(e) => onChange(e.target.value)}
             onKeyDown={handleKeyDown}
             placeholder={placeholder}
-            className="composer-textarea w-full bg-transparent text-[15px] text-white/90 outline-none placeholder:text-meta-muted/60"
+            className="composer-textarea w-full bg-transparent text-[15px] text-white/90 outline-none placeholder:text-meta-muted/60 resize-none overflow-y-auto"
             disabled={isSending}
             rows={1}
           />
@@ -170,12 +199,35 @@ export function Composer({
           </button>
         )}
       </div>
-      
-      {attachmentError && (
-        <div className="absolute -top-10 left-0 rounded-lg bg-red-950/80 px-3 py-1.5 text-xs text-red-300 shadow-md backdrop-blur-md">
-          {attachmentError}
+
+      <div className="flex items-center justify-between px-1">
+        {/* Model Selector */}
+        <div className="relative group">
+          <div className="flex items-center gap-1.5 px-2 py-1 rounded-lg hover:bg-white/5 transition-colors cursor-pointer text-[11px] font-medium text-white/40 group-hover:text-white/60">
+            <Cpu className="h-3 w-3" />
+            <span>{activeProvider?.name || "Auto (Recommended)"}</span>
+            <ChevronDown className="h-3 w-3" />
+          </div>
+          <select
+            value={activeProviderId}
+            onChange={(e) => onProviderChange?.(e.target.value)}
+            className="absolute inset-0 opacity-0 cursor-pointer"
+          >
+            <option value="auto">Auto (Recommended)</option>
+            {providers.map(p => (
+              <option key={p.id} value={p.id} disabled={p.state === 'disabled'}>
+                {p.name} {p.state === 'cooldown' ? '(Cooldown)' : ''}
+              </option>
+            ))}
+          </select>
         </div>
-      )}
+
+        {attachmentError && (
+          <div className="rounded-lg bg-red-950/40 px-2 py-1 text-[10px] text-red-400 shadow-sm border border-red-500/20">
+            {attachmentError}
+          </div>
+        )}
+      </div>
     </div>
   );
 }

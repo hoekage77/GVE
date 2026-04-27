@@ -248,31 +248,32 @@ function buildDisplayMessages(messages: SessionMessage[]): DisplayMessage[] {
     }
   }
 
-  if (displayMessages.length === 0) {
-    return displayMessages;
+  const unmatchedGroups: ThoughtItem[][] = [
+    ...Array.from(deferredThoughtsByMessageId.values()),
+    ...Array.from(deferredThoughtsByRequestId.values()),
+    orphanThoughts.length > 0 ? orphanThoughts : []
+  ].filter(group => group.length > 0);
+
+  for (const group of unmatchedGroups) {
+    group.sort((a, b) => a.timestamp - b.timestamp);
+    const lastTimestamp = group[group.length - 1].timestamp;
+
+    displayMessages.push({
+      message: {
+        id: `synthetic-${Date.now()}-${Math.random()}`,
+        role: "assistant",
+        content: "",
+        kind: "message",
+        createdAt: new Date(lastTimestamp).toISOString(),
+        updatedAt: new Date(lastTimestamp).toISOString(),
+        meta: ["synthetic:true"]
+      },
+      thoughts: [...group],
+      promptContext: undefined
+    });
   }
 
-  let lastAssistantIndex = -1;
-  for (let index = displayMessages.length - 1; index >= 0; index -= 1) {
-    if (displayMessages[index].message.role === "assistant") {
-      lastAssistantIndex = index;
-      break;
-    }
-  }
-
-  if (lastAssistantIndex >= 0) {
-    for (const deferredThoughts of deferredThoughtsByMessageId.values()) {
-      displayMessages[lastAssistantIndex].thoughts.push(...deferredThoughts);
-    }
-
-    for (const deferredThoughts of deferredThoughtsByRequestId.values()) {
-      displayMessages[lastAssistantIndex].thoughts.push(...deferredThoughts);
-    }
-
-    if (orphanThoughts.length > 0) {
-      displayMessages[lastAssistantIndex].thoughts.push(...orphanThoughts);
-    }
-  }
+  displayMessages.sort((a, b) => Date.parse(a.message.createdAt) - Date.parse(b.message.createdAt));
 
   return displayMessages;
 }
@@ -438,7 +439,8 @@ export function ChatContainer() {
   const lastDisplayMsg = displayMessages[displayMessages.length - 1];
   const lastMsgIsAssistant = lastDisplayMsg?.message.role === "assistant";
   const lastMsgRequestId = lastMsgIsAssistant ? getMetaValue(lastDisplayMsg?.message.meta, "requestId:") : null;
-  const lastMsgBelongsToCurrentTurn = Boolean(lastMsgRequestId && activeRequestId && lastMsgRequestId === activeRequestId);
+  const lastMsgIsSynthetic = lastMsgIsAssistant && hasMetaFlag(lastDisplayMsg?.message.meta, "synthetic:true");
+  const lastMsgBelongsToCurrentTurn = Boolean(lastMsgRequestId && activeRequestId && lastMsgRequestId === activeRequestId) || lastMsgIsSynthetic;
   const shouldShowInlineThinking =
     isSending &&
     Boolean(thinkingText) &&
@@ -519,6 +521,10 @@ export function ChatContainer() {
   const debugLayout =
     typeof window !== "undefined"
     && new URLSearchParams(window.location.search).get("chatDebug") === "1";
+
+  const providers = useChatStore((state) => state.providers);
+  const activeProviderId = useChatStore((state) => state.activeProviderId);
+  const setActiveProvider = useChatStore((state) => state.setActiveProvider);
 
   return (
     <>
@@ -608,9 +614,16 @@ export function ChatContainer() {
               };
             });
 
-            const displayContent = message.role === "assistant"
-              ? getAssistantDisplayContent(message.content, promptContext, resolvedSceneId)
-              : message.content;
+            const isSynthetic = hasMetaFlag(message.meta, "synthetic:true");
+            const turnFailed = isSynthetic && !isSending;
+            
+            const displayContent = turnFailed 
+              ? "The agent encountered a critical error before completing the response." 
+              : (message.role === "assistant"
+                ? getAssistantDisplayContent(message.content, promptContext, resolvedSceneId)
+                : message.content);
+            const displayErrorCode = turnFailed ? "Turn Incomplete" : errorCode;
+            const displayAssistantWarning = turnFailed ? true : assistantWarning;
 
             if (message.role === "user") {
               return (
@@ -637,8 +650,8 @@ export function ChatContainer() {
                 sceneId={resolvedSceneId}
                 skill={skill}
                 assistantSource={assistantSource}
-                assistantWarning={assistantWarning}
-                errorCode={errorCode}
+                assistantWarning={displayAssistantWarning}
+                errorCode={displayErrorCode}
                 meta={message.meta}
                 isPreviewActive={isPreviewActive}
                 isCodeActive={isCodeActive}
@@ -685,21 +698,23 @@ export function ChatContainer() {
 
         </div>
         
-            {isTaskOperationActive && activeTaskProgress && (
-              <div className="w-full p-0 px-4 pb-3 max-w-3xl mx-auto">
-                <div className="w-full">
-                  <TaskStatusBar
-                    taskProgress={activeTaskProgress}
-                    statusStep={activeStatusStep}
-                    statusText={activeStatusText}
-                    assetPlan={activeSession?.currentScene?.assetPlan ?? null}
-                    isExpanded={isTasksExpanded}
-                    onToggle={handleOpenTasks}
-                    connectionState={connectionState}
-                  />
+            {/* 
+              {isTaskOperationActive && activeTaskProgress && (
+                <div className="w-full p-0 px-4 pb-3 max-w-3xl mx-auto">
+                  <div className="w-full">
+                    <TaskStatusBar
+                      taskProgress={activeTaskProgress}
+                      statusStep={activeStatusStep}
+                      statusText={activeStatusText}
+                      assetPlan={activeSession?.currentScene?.assetPlan ?? null}
+                      isExpanded={isTasksExpanded}
+                      onToggle={handleOpenTasks}
+                      connectionState={connectionState}
+                    />
+                  </div>
                 </div>
-              </div>
-            )}
+              )}
+            */}
 
             {/* Input */}
             <div className="shrink-0 bg-transparent pb-4 lg:pb-8 pt-2">
@@ -716,6 +731,9 @@ export function ChatContainer() {
                   onStop={handleStop}
                   variant="meta"
                   placeholder="Send a message..."
+                  providers={providers}
+                  activeProviderId={activeProviderId}
+                  onProviderChange={setActiveProvider}
                 />
                 <div className="mt-2 text-center text-[11px] text-white/30 hidden lg:block">
                   Press Enter to send, Shift+Enter for new line

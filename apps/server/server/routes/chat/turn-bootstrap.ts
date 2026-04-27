@@ -82,8 +82,8 @@ export async function runThinkingAndPlanningBootstrap(params: {
     status: "running"
   }));
 
-  if (asyncThinkingEnabled) {
-    void generateThinkingAnalysis(content, sessionState, {
+  try {
+    const analysis = await generateThinkingAnalysis(content, sessionState, {
       onError: (diagnostics) => {
         appendOrchestrationTrace(sessionId, {
           step: "thinking_analysis_failed",
@@ -96,28 +96,25 @@ export async function runThinkingAndPlanningBootstrap(params: {
           error: diagnostics
         });
       }
-    })
-      .then((analysis) => {
-        if (analysis) llmThoughts = analysis;
-      })
-      .catch((error) => {
-        const diagnostics = extractErrorDiagnostics(error, {
-          stage: "thinking_analysis",
-          requestId: turnRequestId,
-          sessionId,
-          messageId: assistantMessageId
-        });
-        appendOrchestrationTrace(sessionId, {
-          step: "thinking_analysis_failed",
-          payload: { sessionId, requestId: turnRequestId, diagnostics }
-        });
-        broadcastEvent("thinking:analysis_failed", {
-          sessionId,
-          requestId: turnRequestId,
-          messageId: assistantMessageId,
-          error: diagnostics
-        });
-      });
+    });
+    if (analysis) llmThoughts = analysis;
+  } catch (error) {
+    const diagnostics = extractErrorDiagnostics(error, {
+      stage: "thinking_analysis",
+      requestId: turnRequestId,
+      sessionId,
+      messageId: assistantMessageId
+    });
+    appendOrchestrationTrace(sessionId, {
+      step: "thinking_analysis_failed",
+      payload: { sessionId, requestId: turnRequestId, diagnostics }
+    });
+    broadcastEvent("thinking:analysis_failed", {
+      sessionId,
+      requestId: turnRequestId,
+      messageId: assistantMessageId,
+      error: diagnostics
+    });
   }
 
   await broadcastThought(sessionId, "turn_started", { ...thoughtContextBase, query: content, llmThoughts });

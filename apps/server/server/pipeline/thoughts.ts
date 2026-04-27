@@ -180,8 +180,8 @@ const thoughtTemplates: Record<string, string[] | Record<string, string[]>> = {
  * the given step, it takes priority over the template pool.
  */
 const stepToLlmKey: Record<string, string | null> = {
-  turn_started: "intent",
-  intent_parsed: "intent",
+  turn_started: "monologue",
+  intent_parsed: "monologue",
   skill_selected: "skill",
   plan_created: "plan",
   code_generated: "generating",

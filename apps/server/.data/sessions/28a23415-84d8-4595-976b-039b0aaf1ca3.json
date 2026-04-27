@@ -1,6 +1,6 @@
 {
   "sessionId": "28a23415-84d8-4595-976b-039b0aaf1ca3",
-  "status": "executing",
+  "status": "generating",
   "artifacts": [
     {
       "artifactId": "artifact-1777299279035-8ffdd0",
@@ -205,13 +205,81 @@
         }
       ],
       "revisionPointer": 0
+    },
+    {
+      "artifactId": "artifact-1777332460332-a72ecf",
+      "title": "scene-1777332460314",
+      "createdAt": "2026-04-27T23:27:40.332Z",
+      "updatedAt": "2026-04-27T23:27:40.332Z",
+      "revisions": [
+        {
+          "sessionId": "28a23415-84d8-4595-976b-039b0aaf1ca3",
+          "sceneId": "scene-1777332460314",
+          "code": "const clock = new THREE.Clock();\n\nscene.background = new THREE.Color(0x030308);\nscene.fog = new THREE.FogExp2(0x030308, 0.015);\n\nrenderer.toneMapping = THREE.ACESFilmicToneMapping;\nrenderer.toneMappingExposure = 1.1;\nrenderer.shadowMap.enabled = true;\nrenderer.shadowMap.type = THREE.PCFSoftShadowMap;\n\nconst ambient = new THREE.AmbientLight(0x1a1a2e, 0.12);\nconst keyLight = new THREE.DirectionalLight(0xfffcd1, 2.4);\nkeyLight.position.set(12, 8, 10);\nkeyLight.castShadow = true;\nkeyLight.shadow.mapSize.width = 2048;\nkeyLight.shadow.mapSize.height = 2048;\nkeyLight.shadow.bias = -0.0001;\n\nconst fillLight = new THREE.DirectionalLight(0x6fa8dc, 0.6);\nfillLight.position.set(-10, -6, 6);\n\nconst rimLight = new THREE.SpotLight(0xffaa55, 1.8);\nrimLight.position.set(-8, 4, -12);\nrimLight.lookAt(0, 0, 0);\nrimLight.penumbra = 0.5;\n\nscene.add(ambient, keyLight, fillLight, rimLight);\n\nconst starGeo = new THREE.BufferGeometry();\nconst starCount = 4000;\nconst starPos = new Float32Array(starCount * 3);\nfor (let i = 0; i < starCount * 3; i++) {\n  starPos[i] = (Math.random() - 0.5) * 180;\n}\nstarGeo.setAttribute('position', new THREE.BufferAttribute(starPos, 3));\nconst starMat = new THREE.PointsMaterial({ color: 0xffffff, size: 0.12, transparent: true, opacity: 0.9 });\nconst starField = new THREE.Points(starGeo, starMat);\nscene.add(starField);\n\nconst apolloGroup = new THREE.Group();\nscene.add(apolloGroup);\n\nconst goldFoilMat = new THREE.MeshPhysicalMaterial({\n  color: 0xcfb53b,\n  metalness: 0.85,\n  roughness: 0.35,\n  clearcoat: 0.6,\n  clearcoatRoughness: 0.25,\n  reflectivity: 0.8,\n  side: THREE.DoubleSide\n});\n\nconst silverMat = new THREE.MeshStandardMaterial({\n  color: 0xd4d4d4,\n  metalness: 0.75,\n  roughness: 0.25\n});\n\nconst heatShieldMat = new THREE.MeshStandardMaterial({\n  color: 0x080808,\n  roughness: 0.95,\n  metalness: 0.1\n});\n\nconst windowMat = new THREE.MeshPhysicalMaterial({\n  color: 0x000000,\n  metalness: 0.9,\n  roughness: 0.05,\n  clearcoat: 1.0\n});\n\nconst cmLathePoints = [];\nfor (let i = 0; i <= 32; i++) {\n  const t = i / 32;\n  const angle = t * Math.PI * 0.48;\n  const r = Math.sin(angle) * 1.9;\n  const y = Math.cos(angle) * 1.9 + 0.4;\n  cmLathePoints.push(new THREE.Vector2(r * 0.55, y * 0.55));\n}\nconst cmGeo = new THREE.LatheGeometry(cmLathePoints, 64);\nconst cmMesh = new THREE.Mesh(cmGeo, silverMat);\ncmMesh.castShadow = true;\ncmMesh.receiveShadow = true;\napolloGroup.add(cmMesh);\n\nconst heatShieldGeo = new THREE.SphereGeometry(1.05, 64, 32, 0, Math.PI * 2, 0, Math.PI * 0.35);\nconst heatShield = new THREE.Mesh(heatShieldGeo, heatShieldMat);\nheatShield.rotation.x = Math.PI;\nheatShield.position.y = 0.05;\nheatShield.castShadow = true;\napolloGroup.add(heatShield);\n\nconst smLength = 3.6;\nconst smRadius = 0.9;\nconst smGeo = new THREE.CylinderGeometry(smRadius, smRadius, smLength, 64);\nconst smMesh = new THREE.Mesh(smGeo, goldFoilMat);\nsmMesh.position.y = -smLength / 2 - 0.85;\nsmMesh.castShadow = true;\nsmMesh.receiveShadow = true;\napolloGroup.add(smMesh);\n\nfor (let i = 0; i < 4; i++) {\n  const panelGeo = new THREE.BoxGeometry(0.12, smLength * 0.75, 0.08);\n  const panel = new THREE.Mesh(panelGeo, goldFoilMat);\n  const angle = (i / 4) * Math.PI * 2 + Math.PI / 4;\n  panel.position.set(\n    Math.cos(angle) * (smRadius + 0.04),\n    smMesh.position.y,\n    Math.sin(angle) * (smRadius + 0.04)\n  );\n  panel.lookAt(0, smMesh.position.y, 0);\n  apolloGroup.add(panel);\n}\n\nconst engineBellGeo = new THREE.ConeGeometry(0.35, 0.6, 32, 1, true);\nconst engineBell = new THREE.Mesh(engineBellGeo, new THREE.MeshStandardMaterial({ color: 0x222222, roughness: 0.7 }));\nengineBell.position.y = -smLength / 2 - 0.85 - smLength / 2 - 0.3;\napolloGroup.add(engineBell);\n\nconst glowLight = new THREE.PointLight(0xff4400, 0.8, 4);\nglowLight.position.y = -2.8;\napolloGroup.add(glowLight);\n\n[0, Math.PI / 2, Math.PI, Math.PI * 1.5].forEach((angle) => {\n  const cluster = new THREE.Group();\n  cluster.position.set(Math.cos(angle) * 0.75, 0.2, Math.sin(angle) * 0.75);\n  cluster.lookAt(0, 0.2, 0);\n  for (let r = 0; r < 4; r++) {\n    const thruster = new THREE.Mesh(\n      new THREE.CylinderGeometry(0.035, 0.035, 0.12, 8),\n      silverMat\n    );\n    thruster.rotation.x = Math.PI / 2;\n    thruster.position.set((r % 2) * 0.08 - 0.04, Math.floor(r / 2) * 0.08 - 0.04, 0.04);\n    cluster.add(thruster);\n  }\n  apolloGroup.add(cluster);\n});\n\nconst windowGeo = new THREE.CircleGeometry(0.08, 16);\n[0, Math.PI * 2 / 3, Math.PI * 4 / 3].forEach((angle) => {\n  const win = new THREE.Mesh(windowGeo, windowMat);\n  const r = 0.5;\n  win.position.set(Math.cos(angle) * r, 0.6, Math.sin(angle) * r);\n  win.lookAt(0, 0.6, 0);\n  win.rotateY(Math.PI);\n  apolloGroup.add(win);\n});\n\nconst antennaGroup = new THREE.Group();\nantennaGroup.position.set(1.1, -1.4, 0);\nantennaGroup.rotation.z = Math.PI / 2.5;\nantennaGroup.rotation.y = Math.PI / 6;\napolloGroup.add(antennaGroup);\n\nconst boom = new THREE.Mesh(new THREE.CylinderGeometry(0.015, 0.015, 1.2, 8), silverMat);\nboom.position.y = 0.6;\nantennaGroup.add(boom);\n\nconst dishGeo = new THREE.CylinderGeometry(0.35, 0.08, 0.08, 32, 1, false, 0, Math.PI);\nconst dish = new THREE.Mesh(dishGeo, goldFoilMat);\ndish.position.y = 1.2;\ndish.rotation.x = 0.2;\nantennaGroup.add(dish);\n\nconst controls = new OrbitControls(camera, renderer.domElement);\ncontrols.enableDamping = true;\ncontrols.dampingFactor = 0.05;\ncontrols.minDistance = 3;\ncontrols.maxDistance = 20;\n\ncamera.position.set(5.5, 2.0, 6.5);\ncamera.lookAt(0, -0.5, 0);\n\nfunction animate() {\n  requestAnimationFrame(animate);\n  const t = clock.getElapsedTime();\n\n  apolloGroup.rotation.y = t * 0.08;\n  apolloGroup.rotation.z = Math.sin(t * 0.05) * 0.03;\n  apolloGroup.position.y = Math.sin(t * 0.3) * 0.08;\n\n  antennaGroup.rotation.y = Math.sin(t * 0.5) * 0.2;\n\n  rimLight.intensity = 1.5 + Math.sin(t * 1.1) * 0.4;\n  glowLight.intensity = 0.6 + Math.sin(t * 3.0) * 0.2;\n\n  starField.rotation.y = t * 0.005;\n\n  controls.update();\n  renderer.render(scene, camera);\n}\n\nanimate();",
+          "previewUrl": null,
+          "skill": "threejs",
+          "outputKind": "code",
+          "mediaType": null,
+          "mediaUrl": null,
+          "mediaArtifactId": null,
+          "mediaDurationMs": null,
+          "mediaFps": null,
+          "mediaResolution": null,
+          "mediaBytes": null,
+          "assetPlan": {
+            "manifestVersion": "asset-plan.v1",
+            "skill": "threejs",
+            "requestedQuality": "standard",
+            "strategy": "hybrid",
+            "subjectNeedsModel": false,
+            "categories": [
+              "animals"
+            ],
+            "catalog": {
+              "animals": [
+                {
+                  "id": "fox",
+                  "url": "https://rawcdn.githack.com/mrdoob/three.js/r128/examples/models/gltf/Fox.glb",
+                  "note": "Animated quadruped model"
+                }
+              ]
+            },
+            "curatedCandidates": [
+              {
+                "id": "fox",
+                "url": "https://rawcdn.githack.com/mrdoob/three.js/r128/examples/models/gltf/Fox.glb",
+                "note": "Animated quadruped model"
+              }
+            ],
+            "fallbackPolicy": {
+              "allowInternetFallback": true,
+              "requireFallbackWarning": true,
+              "requireInlineFallbackComment": true
+            },
+            "runtimeHelpers": [
+              "createGveGltfLoader",
+              "resolveGveModelCandidates"
+            ]
+          },
+          "explanation": "Generated scene code for live preview. Live preview executed successfully.",
+          "messageId": "message-26",
+          "source": "generate",
+          "createdAt": "2026-04-27T23:27:40.332Z",
+          "updatedAt": "2026-04-27T23:27:40.332Z",
+          "versionId": "version-4",
+          "version": 4,
+          "artifactId": "artifact-1777332460332-a72ecf",
+          "artifactVersion": 1
+        }
+      ],
+      "revisionPointer": 0
     }
   ],
-  "artifactPointer": 2,
+  "artifactPointer": 3,
   "currentScene": {
     "sessionId": "28a23415-84d8-4595-976b-039b0aaf1ca3",
-    "sceneId": "scene-failed-1777300420333",
-    "code": "const clock = new THREE.Clock();\n\n// Renderer: cinematic tone mapping for high fidelity\nrenderer.toneMapping = THREE.ACESFilmicToneMapping;\nrenderer.toneMappingExposure = 1.08;\nrenderer.shadowMap.enabled = true;\nrenderer.shadowMap.type = THREE.PCFSoftShadowMap;\n\n// Light neutral background per quality contract\nscene.background = new THREE.Color(0xeef2ff);\n\n// OrbitControls interaction\nconst controls = new OrbitControls(camera, renderer.domElement);\ncontrols.enableDamping = true;\ncontrols.dampingFactor = 0.05;\ncontrols.minDistance = 4;\ncontrols.maxDistance = 20;\n\n// Lighting: Key-Fill-Rim style with Ambient base\nconst ambientLight = new THREE.AmbientLight(0x7f8aa6, 0.32);\nscene.add(ambientLight);\n\nconst keyLight = new THREE.DirectionalLight(0xfff5e6, 1.35);\nkeyLight.position.set(6, 10, 8);\nkeyLight.castShadow = true;\nkeyLight.shadow.mapSize.set(2048, 2048);\nkeyLight.shadow.bias = -0.0001;\nscene.add(keyLight);\n\nconst fillLight = new THREE.DirectionalLight(0xc2daff, 0.55);\nfillLight.position.set(-7, 4, 5);\nscene.add(fillLight);\n\nconst rimLight = new THREE.SpotLight(0xaaddff, 0.85);\nrimLight.position.set(-4, 8, -6);\nrimLight.lookAt(0, 0, 0);\nscene.add(rimLight);\n\n// Earth Group\nconst earthGroup = new THREE.Group();\nscene.add(earthGroup);\n\n// Fallback: Using direct texture URLs for Earth assets (not in curated catalog)\nconst textureLoader = new THREE.TextureLoader();\nconst earthMapUrl = 'https://rawcdn.githack.com/mrdoob/three.js/r128/examples/textures/planets/earth_atmos_2048.jpg';\nconst earthSpecularUrl = 'https://rawcdn.githack.com/mrdoob/three.js/r128/examples/textures/planets/earth_specular_2048.jpg';\nconst earthNormalUrl = 'https://rawcdn.githack.com/mrdoob/three.js/r128/examples/textures/planets/earth_normal_2048.jpg';\nconst cloudUrl = 'https://rawcdn.githack.com/mrdoob/three.js/r128/examples/textures/planets/earth_clouds_1024.png';\n\n// High-resolution layered geometry\nconst earthGeometry = new THREE.SphereGeometry(2, 128, 128);\nconst cloudGeometry = new THREE.SphereGeometry(2.03, 128, 128);\nconst atmosphereGeometry = new THREE.SphereGeometry(2.15, 64, 64);\n\n// Earth material: Physical for realistic light response\nconst earthMaterial = new THREE.MeshPhysicalMaterial({\n  color: 0xffffff,\n  roughness: 0.65,\n  metalness: 0.1,\n  clearcoat: 0.4,\n  clearcoatRoughness: 0.4,\n  sheen: 0.1,\n  specularIntensity: 0.5\n});\n\nconst earthMesh = new THREE.Mesh(earthGeometry, earthMaterial);\nearthMesh.castShadow = true;\nearthMesh.receiveShadow = true;\nearthGroup.add(earthMesh);\n\n// Cloud layer material\nconst cloudMaterial = new THREE.MeshStandardMaterial({\n  color: 0xffffff,\n  transparent: true,\n  opacity: 0.85,\n  roughness: 0.9,\n  metalness: 0.0,\n  side: THREE.DoubleSide,\n  depthWrite: false\n});\n\nconst cloudMesh = new THREE.Mesh(cloudGeometry, cloudMaterial);\nearthGroup.add(cloudMesh);\n\n// Atmospheric glow shader\nconst atmosphereMaterial = new THREE.ShaderMaterial({\n  transparent: true,\n  side: THREE.BackSide,\n  uniforms: {\n    c: { value: 0.4 },\n    p: { value: 4.5 },\n    glowColor: { value: new THREE.Color(0x4488ff) },\n    viewVector: { value: new THREE.Vector3() }\n  },\n  vertexShader: `\n    uniform vec3 viewVector;\n    varying float intensity;\n    void main() {\n      vec3 vNormal = normalize(normalMatrix * normal);\n      vec3 vNormel = normalize(normalMatrix * viewVector);\n      intensity = pow(0.6 - dot(vNormal, vNormel), 4.0);\n      gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);\n    }\n  `,\n  fragmentShader: `\n    uniform vec3 glowColor;\n    uniform float c;\n    uniform float p;\n    varying float intensity;\n    void main() {\n      float glow = c * pow(intensity, p);\n      gl_FragColor = vec4(glowColor, glow * 0.5);\n    }\n  `\n});\n\nconst atmosphere = new THREE.Mesh(atmosphereGeometry, atmosphereMaterial);\nearthGroup.add(atmosphere);\n\n// Load textures asynchronously\ntextureLoader.load(earthMapUrl, (texture) => {\n  texture.colorSpace = THREE.SRGBColorSpace;\n  earthMaterial.map = texture;\n  earthMaterial.needsUpdate = true;\n});\n\ntextureLoader.load(earthSpecularUrl, (texture) => {\n  earthMaterial.roughnessMap = texture;\n  earthMaterial.roughness = 1.0;\n  earthMaterial.needsUpdate = true;\n});\n\ntextureLoader.load(earthNormalUrl, (texture) => {\n  earthMaterial.normalMap = texture;\n  earthMaterial.normalScale.set(0.85, 0.85);\n  earthMaterial.needsUpdate = true;\n});\n\ntextureLoader.load(cloudUrl, (texture) => {\n  texture.colorSpace = THREE.SRGBColorSpace;\n  cloudMaterial.map = texture;\n  cloudMaterial.alphaMap = texture;\n  cloudMaterial.needsUpdate = true;\n});\n\n// Subtle starfield (dark grey for visibility on light background)\nconst starGeometry = new THREE.BufferGeometry();\nconst starCount = 1500;\nconst starPositions = new Float32Array(starCount * 3);\nfor (let i = 0; i < starCount * 3; i++) {\n  starPositions[i] = (Math.random() - 0.5) * 60;\n}\nstarGeometry.setAttribute('position', new THREE.BufferAttribute(starPositions, 3));\nconst starMaterial = new THREE.PointsMaterial({\n  color: 0x556677,\n  size: 0.05,\n  transparent: true,\n  opacity: 0.5\n});\nconst stars = new THREE.Points(starGeometry, starMaterial);\nscene.add(stars);\n\n// Camera position\ncamera.position.set(4.5, 2.0, 6.0);\ncamera.lookAt(0, 0, 0);\n\n// Animation loop\nfunction animate() {\n  requestAnimationFrame(animate);\n  const t = clock.getElapsedTime();\n\n  // Layered rotation: Earth and clouds at different speeds\n  earthGroup.rotation.y = t * 0.08;\n  cloudMesh.rotation.y = t * 0.12 + 0.2;\n\n  // Update atmosphere fresnel\n  atmosphereMaterial.uniforms.viewVector.value.copy(camera.position).sub(earthGroup.position);\n\n  // Nuanced light animation\n  rimLight.intensity = 0.85 + Math.sin(t * 0.6) * 0.15;\n  \n  controls.update();\n  renderer.render(scene, camera);\n}\nanimate();",
+    "sceneId": "scene-1777332460314",
+    "code": "const clock = new THREE.Clock();\n\nscene.background = new THREE.Color(0x030308);\nscene.fog = new THREE.FogExp2(0x030308, 0.015);\n\nrenderer.toneMapping = THREE.ACESFilmicToneMapping;\nrenderer.toneMappingExposure = 1.1;\nrenderer.shadowMap.enabled = true;\nrenderer.shadowMap.type = THREE.PCFSoftShadowMap;\n\nconst ambient = new THREE.AmbientLight(0x1a1a2e, 0.12);\nconst keyLight = new THREE.DirectionalLight(0xfffcd1, 2.4);\nkeyLight.position.set(12, 8, 10);\nkeyLight.castShadow = true;\nkeyLight.shadow.mapSize.width = 2048;\nkeyLight.shadow.mapSize.height = 2048;\nkeyLight.shadow.bias = -0.0001;\n\nconst fillLight = new THREE.DirectionalLight(0x6fa8dc, 0.6);\nfillLight.position.set(-10, -6, 6);\n\nconst rimLight = new THREE.SpotLight(0xffaa55, 1.8);\nrimLight.position.set(-8, 4, -12);\nrimLight.lookAt(0, 0, 0);\nrimLight.penumbra = 0.5;\n\nscene.add(ambient, keyLight, fillLight, rimLight);\n\nconst starGeo = new THREE.BufferGeometry();\nconst starCount = 4000;\nconst starPos = new Float32Array(starCount * 3);\nfor (let i = 0; i < starCount * 3; i++) {\n  starPos[i] = (Math.random() - 0.5) * 180;\n}\nstarGeo.setAttribute('position', new THREE.BufferAttribute(starPos, 3));\nconst starMat = new THREE.PointsMaterial({ color: 0xffffff, size: 0.12, transparent: true, opacity: 0.9 });\nconst starField = new THREE.Points(starGeo, starMat);\nscene.add(starField);\n\nconst apolloGroup = new THREE.Group();\nscene.add(apolloGroup);\n\nconst goldFoilMat = new THREE.MeshPhysicalMaterial({\n  color: 0xcfb53b,\n  metalness: 0.85,\n  roughness: 0.35,\n  clearcoat: 0.6,\n  clearcoatRoughness: 0.25,\n  reflectivity: 0.8,\n  side: THREE.DoubleSide\n});\n\nconst silverMat = new THREE.MeshStandardMaterial({\n  color: 0xd4d4d4,\n  metalness: 0.75,\n  roughness: 0.25\n});\n\nconst heatShieldMat = new THREE.MeshStandardMaterial({\n  color: 0x080808,\n  roughness: 0.95,\n  metalness: 0.1\n});\n\nconst windowMat = new THREE.MeshPhysicalMaterial({\n  color: 0x000000,\n  metalness: 0.9,\n  roughness: 0.05,\n  clearcoat: 1.0\n});\n\nconst cmLathePoints = [];\nfor (let i = 0; i <= 32; i++) {\n  const t = i / 32;\n  const angle = t * Math.PI * 0.48;\n  const r = Math.sin(angle) * 1.9;\n  const y = Math.cos(angle) * 1.9 + 0.4;\n  cmLathePoints.push(new THREE.Vector2(r * 0.55, y * 0.55));\n}\nconst cmGeo = new THREE.LatheGeometry(cmLathePoints, 64);\nconst cmMesh = new THREE.Mesh(cmGeo, silverMat);\ncmMesh.castShadow = true;\ncmMesh.receiveShadow = true;\napolloGroup.add(cmMesh);\n\nconst heatShieldGeo = new THREE.SphereGeometry(1.05, 64, 32, 0, Math.PI * 2, 0, Math.PI * 0.35);\nconst heatShield = new THREE.Mesh(heatShieldGeo, heatShieldMat);\nheatShield.rotation.x = Math.PI;\nheatShield.position.y = 0.05;\nheatShield.castShadow = true;\napolloGroup.add(heatShield);\n\nconst smLength = 3.6;\nconst smRadius = 0.9;\nconst smGeo = new THREE.CylinderGeometry(smRadius, smRadius, smLength, 64);\nconst smMesh = new THREE.Mesh(smGeo, goldFoilMat);\nsmMesh.position.y = -smLength / 2 - 0.85;\nsmMesh.castShadow = true;\nsmMesh.receiveShadow = true;\napolloGroup.add(smMesh);\n\nfor (let i = 0; i < 4; i++) {\n  const panelGeo = new THREE.BoxGeometry(0.12, smLength * 0.75, 0.08);\n  const panel = new THREE.Mesh(panelGeo, goldFoilMat);\n  const angle = (i / 4) * Math.PI * 2 + Math.PI / 4;\n  panel.position.set(\n    Math.cos(angle) * (smRadius + 0.04),\n    smMesh.position.y,\n    Math.sin(angle) * (smRadius + 0.04)\n  );\n  panel.lookAt(0, smMesh.position.y, 0);\n  apolloGroup.add(panel);\n}\n\nconst engineBellGeo = new THREE.ConeGeometry(0.35, 0.6, 32, 1, true);\nconst engineBell = new THREE.Mesh(engineBellGeo, new THREE.MeshStandardMaterial({ color: 0x222222, roughness: 0.7 }));\nengineBell.position.y = -smLength / 2 - 0.85 - smLength / 2 - 0.3;\napolloGroup.add(engineBell);\n\nconst glowLight = new THREE.PointLight(0xff4400, 0.8, 4);\nglowLight.position.y = -2.8;\napolloGroup.add(glowLight);\n\n[0, Math.PI / 2, Math.PI, Math.PI * 1.5].forEach((angle) => {\n  const cluster = new THREE.Group();\n  cluster.position.set(Math.cos(angle) * 0.75, 0.2, Math.sin(angle) * 0.75);\n  cluster.lookAt(0, 0.2, 0);\n  for (let r = 0; r < 4; r++) {\n    const thruster = new THREE.Mesh(\n      new THREE.CylinderGeometry(0.035, 0.035, 0.12, 8),\n      silverMat\n    );\n    thruster.rotation.x = Math.PI / 2;\n    thruster.position.set((r % 2) * 0.08 - 0.04, Math.floor(r / 2) * 0.08 - 0.04, 0.04);\n    cluster.add(thruster);\n  }\n  apolloGroup.add(cluster);\n});\n\nconst windowGeo = new THREE.CircleGeometry(0.08, 16);\n[0, Math.PI * 2 / 3, Math.PI * 4 / 3].forEach((angle) => {\n  const win = new THREE.Mesh(windowGeo, windowMat);\n  const r = 0.5;\n  win.position.set(Math.cos(angle) * r, 0.6, Math.sin(angle) * r);\n  win.lookAt(0, 0.6, 0);\n  win.rotateY(Math.PI);\n  apolloGroup.add(win);\n});\n\nconst antennaGroup = new THREE.Group();\nantennaGroup.position.set(1.1, -1.4, 0);\nantennaGroup.rotation.z = Math.PI / 2.5;\nantennaGroup.rotation.y = Math.PI / 6;\napolloGroup.add(antennaGroup);\n\nconst boom = new THREE.Mesh(new THREE.CylinderGeometry(0.015, 0.015, 1.2, 8), silverMat);\nboom.position.y = 0.6;\nantennaGroup.add(boom);\n\nconst dishGeo = new THREE.CylinderGeometry(0.35, 0.08, 0.08, 32, 1, false, 0, Math.PI);\nconst dish = new THREE.Mesh(dishGeo, goldFoilMat);\ndish.position.y = 1.2;\ndish.rotation.x = 0.2;\nantennaGroup.add(dish);\n\nconst controls = new OrbitControls(camera, renderer.domElement);\ncontrols.enableDamping = true;\ncontrols.dampingFactor = 0.05;\ncontrols.minDistance = 3;\ncontrols.maxDistance = 20;\n\ncamera.position.set(5.5, 2.0, 6.5);\ncamera.lookAt(0, -0.5, 0);\n\nfunction animate() {\n  requestAnimationFrame(animate);\n  const t = clock.getElapsedTime();\n\n  apolloGroup.rotation.y = t * 0.08;\n  apolloGroup.rotation.z = Math.sin(t * 0.05) * 0.03;\n  apolloGroup.position.y = Math.sin(t * 0.3) * 0.08;\n\n  antennaGroup.rotation.y = Math.sin(t * 0.5) * 0.2;\n\n  rimLight.intensity = 1.5 + Math.sin(t * 1.1) * 0.4;\n  glowLight.intensity = 0.6 + Math.sin(t * 3.0) * 0.2;\n\n  starField.rotation.y = t * 0.005;\n\n  controls.update();\n  renderer.render(scene, camera);\n}\n\nanimate();",
     "previewUrl": null,
     "skill": "threejs",
     "outputKind": "code",
@@ -257,14 +325,14 @@
         "resolveGveModelCandidates"
       ]
     },
-    "explanation": "Generated scene code for live preview. Live preview is currently unavailable (Failed to install required dependencies.). The generated code is saved and can be re-run.",
-    "messageId": "message-18",
+    "explanation": "Generated scene code for live preview. Live preview executed successfully.",
+    "messageId": "message-26",
     "source": "generate",
-    "createdAt": "2026-04-27T14:33:40.335Z",
-    "updatedAt": "2026-04-27T14:33:40.335Z",
-    "versionId": "version-3",
-    "version": 3,
-    "artifactId": "artifact-1777300420335-e6f3fb",
+    "createdAt": "2026-04-27T23:27:40.332Z",
+    "updatedAt": "2026-04-27T23:27:40.332Z",
+    "versionId": "version-4",
+    "version": 4,
+    "artifactId": "artifact-1777332460332-a72ecf",
     "artifactVersion": 1
   },
   "messages": [
@@ -666,6 +734,45 @@
       ],
       "createdAt": "2026-04-27T14:33:40.337Z",
       "updatedAt": "2026-04-27T14:33:40.337Z"
+    },
+    {
+      "messageId": "client-52816f35-ebd3-48bb-aa3d-0f63fef06de7",
+      "role": "user",
+      "content": "show me the apoolo space lie",
+      "kind": "input",
+      "metadata": {},
+      "createdAt": "2026-04-27T23:24:47.073Z",
+      "updatedAt": "2026-04-27T23:24:47.073Z"
+    },
+    {
+      "messageId": "message-26",
+      "role": "assistant",
+      "content": "",
+      "kind": "streaming",
+      "meta": [
+        "requestId:client-52816f35-ebd3-48bb-aa3d-0f63fef06de7"
+      ],
+      "metadata": [],
+      "createdAt": "2026-04-27T23:24:47.075Z",
+      "updatedAt": "2026-04-27T23:24:47.077Z"
+    },
+    {
+      "messageId": "thought-turn_started-1777332316802",
+      "role": "thought",
+      "content": "Looking at 'apoolo space lie,' I'm betting that's a typo for 'Apollo space light' or maybe 'space line.' Since we're already in Three.js, I'll build out a translunar injection scene with dramatically harsh directional lighting—no atmospheric diffusion means razor-sharp shadows across a wireframe Apollo module. I'll add glowing trajectory lines arcing from Earth to Moon to visualize that historic flight path.",
+      "kind": "thought",
+      "meta": [
+        "turn_started",
+        "requestId:client-52816f35-ebd3-48bb-aa3d-0f63fef06de7",
+        "messageId:message-26"
+      ],
+      "metadata": [
+        "turn_started",
+        "requestId:client-52816f35-ebd3-48bb-aa3d-0f63fef06de7",
+        "messageId:message-26"
+      ],
+      "createdAt": "2026-04-27T23:25:16.802Z",
+      "updatedAt": "2026-04-27T23:25:16.802Z"
     }
   ],
   "orchestrationTrace": [
@@ -971,8 +1078,139 @@
         "stageDurationMs": 11684
       },
       "timestamp": "2026-04-27T14:33:40.328Z"
+    },
+    {
+      "step": "intent_parsed",
+      "payload": {
+        "sessionId": "28a23415-84d8-4595-976b-039b0aaf1ca3",
+        "content": "show me the apoolo space lie"
+      },
+      "timestamp": "2026-04-27T23:25:16.803Z"
+    },
+    {
+      "step": "parse_intent",
+      "payload": {
+        "sessionId": "28a23415-84d8-4595-976b-039b0aaf1ca3",
+        "status": "running"
+      },
+      "timestamp": "2026-04-27T23:25:17.013Z"
+    },
+    {
+      "step": "select_skill",
+      "payload": {
+        "sessionId": "28a23415-84d8-4595-976b-039b0aaf1ca3",
+        "status": "running"
+      },
+      "timestamp": "2026-04-27T23:25:17.025Z"
+    },
+    {
+      "step": "build_prompt",
+      "payload": {
+        "sessionId": "28a23415-84d8-4595-976b-039b0aaf1ca3",
+        "status": "running"
+      },
+      "timestamp": "2026-04-27T23:25:17.033Z"
+    },
+    {
+      "step": "generate_code",
+      "payload": {
+        "sessionId": "28a23415-84d8-4595-976b-039b0aaf1ca3",
+        "status": "running"
+      },
+      "timestamp": "2026-04-27T23:25:17.049Z"
+    },
+    {
+      "step": "generate_code",
+      "payload": {
+        "sessionId": "28a23415-84d8-4595-976b-039b0aaf1ca3",
+        "status": "completed",
+        "selectedSkill": "threejs",
+        "source": "gradient-kimi",
+        "code": "const clock = new THREE.Clock();\n\nscene.background = new THREE.Color(0x030308);\nscene.fog = new THREE.FogExp2(0x030308, 0.015);\n\nrenderer.toneMapping = THREE.ACESFilmicToneMapping;\nrenderer.toneMappingExposure = 1.1;\nrenderer.shadowMap.enabled = true;\nrenderer.shadowMap.type = THREE.PCFSoftShadowMap;\n\nconst ambient = new THREE.AmbientLight(0x1a1a2e, 0.12);\nconst keyLight = new THREE.DirectionalLight(0xfffcd1, 2.4);\nkeyLight.position.set(12, 8, 10);\nkeyLight.castShadow = true;\nkeyLight.shadow.mapSize.width = 2048;\nkeyLight.shadow.mapSize.height = 2048;\nkeyLight.shadow.bias = -0.0001;\n\nconst fillLight = new THREE.DirectionalLight(0x6fa8dc, 0.6);\nfillLight.position.set(-10, -6, 6);\n\nconst rimLight = new THREE.SpotLight(0xffaa55, 1.8);\nrimLight.position.set(-8, 4, -12);\nrimLight.lookAt(0, 0, 0);\nrimLight.penumbra = 0.5;\n\nscene.add(ambient, keyLight, fillLight, rimLight);\n\nconst starGeo = new THREE.BufferGeometry();\nconst starCount = 4000;\nconst starPos = new Float32Array(starCount * 3);\nfor (let i = 0; i < starCount * 3; i++) {\n  starPos[i] = (Math.random() - 0.5) * 180;\n}\nstarGeo.setAttribute('position', new THREE.BufferAttribute(starPos, 3));\nconst starMat = new THREE.PointsMaterial({ color: 0xffffff, size: 0.12, transparent: true, opacity: 0.9 });\nconst starField = new THREE.Points(starGeo, starMat);\nscene.add(starField);\n\nconst apolloGroup = new THREE.Group();\nscene.add(apolloGroup);\n\nconst goldFoilMat = new THREE.MeshPhysicalMaterial({\n  color: 0xcfb53b,\n  metalness: 0.85,\n  roughness: 0.35,\n  clearcoat: 0.6,\n  clearcoatRoughness: 0.25,\n  reflectivity: 0.8,\n  side: THREE.DoubleSide\n});\n\nconst silverMat = new THREE.MeshStandardMaterial({\n  color: 0xd4d4d4,\n  metalness: 0.75,\n  roughness: 0.25\n});\n\nconst heatShieldMat = new THREE.MeshStandardMaterial({\n  color: 0x080808,\n  roughness: 0.95,\n  metalness: 0.1\n});\n\nconst windowMat = new THREE.MeshPhysicalMaterial({\n  color: 0x000000,\n  metalness: 0.9,\n  roughness: 0.05,\n  clearcoat: 1.0\n});\n\nconst cmLathePoints = [];\nfor (let i = 0; i <= 32; i++) {\n  const t = i / 32;\n  const angle = t * Math.PI * 0.48;\n  const r = Math.sin(angle) * 1.9;\n  const y = Math.cos(angle) * 1.9 + 0.4;\n  cmLathePoints.push(new THREE.Vector2(r * 0.55, y * 0.55));\n}\nconst cmGeo = new THREE.LatheGeometry(cmLathePoints, 64);\nconst cmMesh = new THREE.Mesh(cmGeo, silverMat);\ncmMesh.castShadow = true;\ncmMesh.receiveShadow = true;\napolloGroup.add(cmMesh);\n\nconst heatShieldGeo = new THREE.SphereGeometry(1.05, 64, 32, 0, Math.PI * 2, 0, Math.PI * 0.35);\nconst heatShield = new THREE.Mesh(heatShieldGeo, heatShieldMat);\nheatShield.rotation.x = Math.PI;\nheatShield.position.y = 0.05;\nheatShield.castShadow = true;\napolloGroup.add(heatShield);\n\nconst smLength = 3.6;\nconst smRadius = 0.9;\nconst smGeo = new THREE.CylinderGeometry(smRadius, smRadius, smLength, 64);\nconst smMesh = new THREE.Mesh(smGeo, goldFoilMat);\nsmMesh.position.y = -smLength / 2 - 0.85;\nsmMesh.castShadow = true;\nsmMesh.receiveShadow = true;\napolloGroup.add(smMesh);\n\nfor (let i = 0; i < 4; i++) {\n  const panelGeo = new THREE.BoxGeometry(0.12, smLength * 0.75, 0.08);\n  const panel = new THREE.Mesh(panelGeo, goldFoilMat);\n  const angle = (i / 4) * Math.PI * 2 + Math.PI / 4;\n  panel.position.set(\n    Math.cos(angle) * (smRadius + 0.04),\n    smMesh.position.y,\n    Math.sin(angle) * (smRadius + 0.04)\n  );\n  panel.lookAt(0, smMesh.position.y, 0);\n  apolloGroup.add(panel);\n}\n\nconst engineBellGeo = new THREE.ConeGeometry(0.35, 0.6, 32, 1, true);\nconst engineBell = new THREE.Mesh(engineBellGeo, new THREE.MeshStandardMaterial({ color: 0x222222, roughness: 0.7 }));\nengineBell.position.y = -smLength / 2 - 0.85 - smLength / 2 - 0.3;\napolloGroup.add(engineBell);\n\nconst glowLight = new THREE.PointLight(0xff4400, 0.8, 4);\nglowLight.position.y = -2.8;\napolloGroup.add(glowLight);\n\n[0, Math.PI / 2, Math.PI, Math.PI * 1.5].forEach((angle) => {\n  const cluster = new THREE.Group();\n  cluster.position.set(Math.cos(angle) * 0.75, 0.2, Math.sin(angle) * 0.75);\n  cluster.lookAt(0, 0.2, 0);\n  for (let r = 0; r < 4; r++) {\n    const thruster = new THREE.Mesh(\n      new THREE.CylinderGeometry(0.035, 0.035, 0.12, 8),\n      silverMat\n    );\n    thruster.rotation.x = Math.PI / 2;\n    thruster.position.set((r % 2) * 0.08 - 0.04, Math.floor(r / 2) * 0.08 - 0.04, 0.04);\n    cluster.add(thruster);\n  }\n  apolloGroup.add(cluster);\n});\n\nconst windowGeo = new THREE.CircleGeometry(0.08, 16);\n[0, Math.PI * 2 / 3, Math.PI * 4 / 3].forEach((angle) => {\n  const win = new THREE.Mesh(windowGeo, windowMat);\n  const r = 0.5;\n  win.position.set(Math.cos(angle) * r, 0.6, Math.sin(angle) * r);\n  win.lookAt(0, 0.6, 0);\n  win.rotateY(Math.PI);\n  apolloGroup.add(win);\n});\n\nconst antennaGroup = new THREE.Group();\nantennaGroup.position.set(1.1, -1.4, 0);\nantennaGroup.rotation.z = Math.PI / 2.5;\nantennaGroup.rotation.y = Math.PI / 6;\napolloGroup.add(antennaGroup);\n\nconst boom = new THREE.Mesh(new THREE.CylinderGeometry(0.015, 0.015, 1.2, 8), silverMat);\nboom.position.y = 0.6;\nantennaGroup.add(boom);\n\nconst dishGeo = new THREE.CylinderGeometry(0.35, 0.08, 0.08, 32, 1, false, 0, Math.PI);\nconst dish = new THREE.Mesh(dishGeo, goldFoilMat);\ndish.position.y = 1.2;\ndish.rotation.x = 0.2;\nantennaGroup.add(dish);\n\nconst controls = new OrbitControls(camera, renderer.domElement);\ncontrols.enableDamping = true;\ncontrols.dampingFactor = 0.05;\ncontrols.minDistance = 3;\ncontrols.maxDistance = 20;\n\ncamera.position.set(5.5, 2.0, 6.5);\ncamera.lookAt(0, -0.5, 0);\n\nfunction animate() {\n  requestAnimationFrame(animate);\n  const t = clock.getElapsedTime();\n\n  apolloGroup.rotation.y = t * 0.08;\n  apolloGroup.rotation.z = Math.sin(t * 0.05) * 0.03;\n  apolloGroup.position.y = Math.sin(t * 0.3) * 0.08;\n\n  antennaGroup.rotation.y = Math.sin(t * 0.5) * 0.2;\n\n  rimLight.intensity = 1.5 + Math.sin(t * 1.1) * 0.4;\n  glowLight.intensity = 0.6 + Math.sin(t * 3.0) * 0.2;\n\n  starField.rotation.y = t * 0.005;\n\n  controls.update();\n  renderer.render(scene, camera);\n}\n\nanimate();",
+        "stageDurationMs": 95376
+      },
+      "timestamp": "2026-04-27T23:26:52.429Z"
+    },
+    {
+      "step": "validate_code",
+      "payload": {
+        "sessionId": "28a23415-84d8-4595-976b-039b0aaf1ca3",
+        "status": "running"
+      },
+      "timestamp": "2026-04-27T23:26:52.441Z"
+    },
+    {
+      "step": "validate_code",
+      "payload": {
+        "sessionId": "28a23415-84d8-4595-976b-039b0aaf1ca3",
+        "status": "completed",
+        "valid": true,
+        "passable": true,
+        "warnings": [],
+        "stageDurationMs": 90
+      },
+      "timestamp": "2026-04-27T23:26:52.531Z"
+    },
+    {
+      "step": "execute_code",
+      "payload": {
+        "sessionId": "28a23415-84d8-4595-976b-039b0aaf1ca3",
+        "status": "running"
+      },
+      "timestamp": "2026-04-27T23:26:52.547Z"
+    },
+    {
+      "step": "execute_code",
+      "payload": {
+        "sessionId": "28a23415-84d8-4595-976b-039b0aaf1ca3",
+        "status": "sandbox:creating",
+        "type": "sandbox:creating",
+        "stageDurationMs": 6
+      },
+      "timestamp": "2026-04-27T23:26:52.553Z"
+    },
+    {
+      "step": "execute_code",
+      "payload": {
+        "sessionId": "28a23415-84d8-4595-976b-039b0aaf1ca3",
+        "status": "sandbox:executing",
+        "type": "sandbox:executing",
+        "iteration": 1,
+        "stageDurationMs": 42062
+      },
+      "timestamp": "2026-04-27T23:27:34.609Z"
+    },
+    {
+      "step": "execute_code",
+      "payload": {
+        "sessionId": "28a23415-84d8-4595-976b-039b0aaf1ca3",
+        "status": "sandbox:analyzing",
+        "type": "sandbox:analyzing",
+        "iteration": 1,
+        "stageDurationMs": 42115
+      },
+      "timestamp": "2026-04-27T23:27:34.662Z"
+    },
+    {
+      "step": "execute_code",
+      "payload": {
+        "sessionId": "28a23415-84d8-4595-976b-039b0aaf1ca3",
+        "status": "quality-loop",
+        "error": null,
+        "runtimeRecoveryUsed": false,
+        "stageDurationMs": 47728
+      },
+      "timestamp": "2026-04-27T23:27:40.275Z"
+    },
+    {
+      "step": "sync_state",
+      "payload": {
+        "sessionId": "28a23415-84d8-4595-976b-039b0aaf1ca3",
+        "status": "running"
+      },
+      "timestamp": "2026-04-27T23:27:40.313Z"
     }
   ],
   "createdAt": "2026-04-27T01:57:17.878Z",
-  "updatedAt": "2026-04-27T14:33:40.337Z"
+  "updatedAt": "2026-04-27T23:27:40.332Z"
 }

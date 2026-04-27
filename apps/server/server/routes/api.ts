@@ -132,6 +132,16 @@ apiRouter.get("/api/v1/skills", (_req, res) => {
   });
 });
 
+apiRouter.get("/api/v1/providers", (_req, res) => {
+  const poolStatus = getPool().getStatus();
+  const providers = poolStatus.providers.map(p => ({
+    id: p.id,
+    name: p.name,
+    state: p.state
+  }));
+  res.json({ providers });
+});
+
 apiRouter.get("/api/v1/media/:mediaKey", (req, res) => {
   streamMediaArtifact(req, res, req.params.mediaKey);
 });

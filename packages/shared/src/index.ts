@@ -7,6 +7,7 @@ export interface GenerateRequest {
   preferences?: {
     skill?: SkillPreference;
     quality?: "draft" | "standard" | "high";
+    provider?: string;
   };
 }
 
@@ -140,6 +141,7 @@ export interface ChatTurnRequest {
   preferences?: {
     skill?: SkillPreference;
     quality?: "draft" | "standard" | "high";
+    provider?: string;
   };
 }
 
@@ -201,6 +203,16 @@ export interface SkillCatalogItem {
 
 export interface SkillCatalogResponse {
   skills: SkillCatalogItem[];
+}
+
+export interface LlmProviderItem {
+  id: string;
+  name: string;
+  state: "healthy" | "cooldown" | "disabled";
+}
+
+export interface ProviderListResponse {
+  providers: LlmProviderItem[];
 }
 
 export type GveTaskAction =
@@ -333,6 +345,7 @@ export interface ModifyRequest {
   preferences?: {
     skill?: SkillPreference;
     quality?: "draft" | "standard" | "high";
+    provider?: string;
   };
 }
 
@@ -547,6 +560,17 @@ export async function listSkills(): Promise<SkillCatalogResponse> {
       };
     }
 
+    throw error;
+  }
+}
+
+export async function listProviders(): Promise<ProviderListResponse> {
+  try {
+    return await requestJson<ProviderListResponse>("/api/v1/providers", { method: "GET" }, "Providers list request failed");
+  } catch (error) {
+    if (USE_DEV_MOCKS) {
+      return { providers: [{ id: "auto", name: "Auto (Recommended)", state: "healthy" }] };
+    }
     throw error;
   }
 }

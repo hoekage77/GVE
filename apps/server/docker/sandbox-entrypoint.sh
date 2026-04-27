@@ -20,6 +20,21 @@ fi
 echo "Verifying graphics support..."
 glxinfo -B 2>/dev/null || echo "GLX info not available (this is OK for headless)"
 
+# Fix permissions on /workspace to allow terranet user to create node_modules
+# This is critical for runtime npm installs, as Daytona may mount the volume with different ownership
+if [ -d /workspace ]; then
+    CURRENT_OWNER=$(stat -c '%U:%G' /workspace 2>/dev/null || echo 'unknown')
+    if [ "$CURRENT_OWNER" != "terranet:terranet" ]; then
+        echo "Fixing /workspace permissions from $CURRENT_OWNER to terranet:terranet..."
+        chown -R terranet:terranet /workspace 2>/dev/null || \
+            echo "Warning: Could not fix /workspace ownership. Filesystem may be read-only or mounted with restrictions."
+    fi
+fi
+
+# Ensure npm cache directory exists and is writable
+mkdir -p /home/terranet/.npm /tmp/npm-cache
+chown -R terranet:terranet /home/terranet/.npm /tmp/npm-cache 2>/dev/null || true
+
 # Set up workspace
 if [ ! -f /workspace/package.json ]; then
     echo "Initializing workspace..."

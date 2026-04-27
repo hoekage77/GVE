@@ -1333,35 +1333,41 @@ export class SandboxPoolManager {
         })
         .join(' ');
       
-      const command = `npm install --save ${packages}`;
+      // Use explicit cache and tmp directories to avoid permission issues
+      // Prevents npm from trying to use system-wide cache locations that may not be writable
+      const command = `npm install --save ${packages} --cache=/home/terranet/.npm --tmp=/tmp/npm-cache --prefer-offline`;
       
       console.log(`[Daytona] Installing tools in sandbox ${sandboxId}: ${packages}`);
       
-      // Execute install via process command (simple approach first)
-      // Note: This will work if the sandbox has a working npm setup
+      // Execute install via process command with proper environment setup
+      // Ensures npm has access to writable cache and temp directories
       try {
         const result = await targetWorkspace.process.executeCommand(
-          `bash -c "cd /workspace && ${command} 2>&1"`
+          `bash -c "mkdir -p /home/terranet/.npm /tmp/npm-cache && cd /workspace && ${command} 2>&1"`
         );
         
+        const exitCode = result && result.exitCode !== undefined ? result.exitCode : (result ? 0 : 1);
+        const output = String(result || 'Tools installed successfully');
+        
         console.log(
-          `[Daytona] Tool installation completed for ${sandboxId}. exitCode=${result ? 0 : 1}`
+          `[Daytona] Tool installation completed for ${sandboxId}. exitCode=${exitCode}`
         );
         
         return {
-          success: true,
-          output: String(result || 'Tools installed successfully'),
-          errors: ''
+          success: exitCode === 0,
+          output: output,
+          errors: exitCode === 0 ? '' : output
         };
       } catch (execError) {
+        const errorMsg = execError instanceof Error ? execError.message : String(execError);
         console.warn(
-          `[Daytona] Tool installation command failed for ${sandboxId}: ${execError.message}`
+          `[Daytona] Tool installation command failed for ${sandboxId}: ${errorMsg}`
         );
         
         return {
           success: false,
           output: '',
-          errors: execError instanceof Error ? execError.message : String(execError)
+          errors: errorMsg
         };
       }
     } catch (error) {
