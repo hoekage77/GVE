@@ -10,7 +10,6 @@ import { SandboxPoolManager, createArtifactStorage } from "@visual-runtime/sandb
 import { PatchGenerator, applyPatches, summarizePatches } from "../quality/patcher.js";
 import { AgentMemory, createMemoryContext } from "../agents/memory.js";
 import { getPoolBasedProvider } from "../llm/fetch.js";
-import { initializeAgentMemory, analyzeCodeWithAgents, generatePatchGoalsFromAgents, shouldContinueIterating, type IterationDecision } from "../agents/integration.js";
 import { broadcastEvent } from "../ws/streaming.js";
 
 function sanitizeError(error: any, category = "general"): { userMessage: string; logMessage: string } {
@@ -61,7 +60,6 @@ export async function executeWithQualityLoop(request: ExecutionRequest, onProgre
   await artifactStorage.initialize();
 
   const agentMemory = new AgentMemory(sessionId, skill);
-  const frameworkMemory = initializeAgentMemory(sessionId, skill);
   const patchGenerator = new PatchGenerator(getPoolBasedProvider(), { maxPatchRetries: 2, patchTimeoutMs: 120000 });
 
   onProgress?.({ type: "sandbox:creating", sessionId });
@@ -93,28 +91,25 @@ export async function executeWithQualityLoop(request: ExecutionRequest, onProgre
     const qualitySignals = analyzeQuality({ code: currentCode, skill, prompt, executionResult });
     const patchGoals = generatePatchGoals(qualitySignals, iterationConfig.qualityThreshold);
     onProgress?.({ type: "sandbox:analyzing", sessionId, iteration: iter });
-    const agentAnalysis: any = await analyzeCodeWithAgents(currentCode, prompt, { skill, quality: qualitySignals.composite, iteration: iter, maxIterations: iterationConfig.maxIterations });
-    const agentPatchGoals = generatePatchGoalsFromAgents(agentAnalysis, currentCode);
 
     const iterationResult = { iterationNumber: iter, code: currentCode, quality: qualitySignals, score: qualitySignals.composite, patchGoals, durationMs: Date.now() - iterationStart };
     iterations.push(iterationResult);
 
-    const agentDecision: IterationDecision = shouldContinueIterating(qualitySignals.composite ?? 0, iter, iterationConfig.maxIterations, iterationConfig.qualityThreshold, agentAnalysis.totalPotentialImprovement ?? 0);
+    const isSuccess = (qualitySignals.composite ?? 0) >= iterationConfig.qualityThreshold;
+    const shouldContinue = !isSuccess && iter < iterationConfig.maxIterations && patchGoals.length > 0;
 
-    // Broadcast real agent analysis results to frontend panels
+    // Broadcast analysis results to frontend panels
     broadcastEvent("agent:analysis_complete", {
       sessionId,
-      results: agentAnalysis.results || {},
-      consensus: typeof agentAnalysis.agents === "number" && agentAnalysis.agents > 0 
-        ? Math.round(Object.values(agentAnalysis.results || {}).reduce((sum: number, a: any) => sum + (a.confidence || a.score || 0) * 100, 0) / agentAnalysis.agents)
-        : 0,
-      recommendations: agentAnalysis.recommendations ?? [],
+      results: {},
+      consensus: 0,
+      recommendations: patchGoals.map(g => ({ action: g.description, category: g.category, impact: 0 })),
       iteration: iter,
       score: qualitySignals.composite,
-      totalPotentialImprovement: agentAnalysis.totalPotentialImprovement ?? 0,
-      durationMs: agentAnalysis.durationMs ?? 0,
-      shouldContinue: agentDecision.shouldContinue,
-      stopReason: agentDecision.shouldContinue ? null : agentDecision.reason
+      totalPotentialImprovement: 0,
+      durationMs: Date.now() - iterationStart,
+      shouldContinue,
+      stopReason: shouldContinue ? null : (isSuccess ? "quality-threshold-met" : (patchGoals.length === 0 ? "no-improvement-possible" : "max-iterations-reached"))
     });
 
     broadcastEvent("iteration:update", {
@@ -122,27 +117,26 @@ export async function executeWithQualityLoop(request: ExecutionRequest, onProgre
       iteration: {
         iterationNumber: iter,
         qualitySignals,
-        isFinal: !agentDecision.shouldContinue,
-        generationDurationMs: agentAnalysis.durationMs,
+        isFinal: !shouldContinue,
+        generationDurationMs: 0,
         validationDurationMs: Date.now() - iterationStart,
         patchGoals
       },
       progress: {
         current: iter,
         total: iterationConfig.maxIterations,
-        phase: agentDecision.shouldContinue ? "patching" : "finalizing"
+        phase: shouldContinue ? "patching" : "finalizing"
       }
     });
 
-    if (!agentDecision.shouldContinue) {
+    if (!shouldContinue) {
       await cleanupSessionSandbox(sessionId);
-      const isSuccess = (qualitySignals.composite ?? 0) >= iterationConfig.qualityThreshold;
       return { 
         success: isSuccess, 
         sessionId, 
         finalIteration: iter, 
         finalScore: qualitySignals.composite, 
-        stopReason: agentDecision.reason, 
+        stopReason: isSuccess ? "quality-threshold-met" : "max-iterations-reached", 
         iterations,
         error: isSuccess ? undefined : `Quality threshold not met (Score: ${qualitySignals.composite}/${iterationConfig.qualityThreshold})`
       };
@@ -150,8 +144,7 @@ export async function executeWithQualityLoop(request: ExecutionRequest, onProgre
 
     // Attempt to patch the code for the next iteration using combined goals
     if (iterationConfig.enableAutoPatch && iter < iterationConfig.maxIterations) {
-      const allGoals = [...agentPatchGoals, ...patchGoals];
-      if (allGoals.length > 0) {
+      if (patchGoals.length > 0) {
         onProgress?.({ type: "sandbox:patching", sessionId, iteration: iter });
         broadcastEvent("agent:activity", {
           sessionId,
@@ -159,14 +152,14 @@ export async function executeWithQualityLoop(request: ExecutionRequest, onProgre
           status: "running",
           tone: "progress",
           text: `Self-correcting code (Iteration ${iter})...`,
-          technicalDetail: `Applying patches for ${allGoals.length} improvement goals.`
+          technicalDetail: `Applying patches for ${patchGoals.length} improvement goals.`
         });
         try {
           const projectState = { files: [{ path: "index.js", content: currentCode }] };
           const patches = await patchGenerator.generatePatches(
             currentCode,
             projectState,
-            allGoals as any[],
+            patchGoals as any[],
             undefined,
             { currentScore: qualitySignals.composite, skill }
           );
