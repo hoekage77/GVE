@@ -1,8 +1,8 @@
-# Generative Visual Engine Knowledgebase
+# Lumina Knowledgebase
 
-A comprehensive, browseable documentation of the DOSCO Visual Engine (GVE) project.
+A comprehensive, browsable documentation of the Lumina AI STEM Tutoring Platform.
 
-## 📚 Knowledgebase Contents
+## Contents
 
 ### Core Documentation
 - **[index.html](index.html)** - Main entry point with project overview
@@ -21,46 +21,31 @@ A comprehensive, browseable documentation of the DOSCO Visual Engine (GVE) proje
 - **[configuration.html](configuration.html)** - Environment variables and deployment
 - **[troubleshooting.html](troubleshooting.html)** - Common issues and solutions
 
-## 🚀 Browse the Knowledgebase
+## Browse
 
-### Option 1: Python Server (Recommended)
 ```bash
 cd knowledgebase
 python3 serve.py
 ```
-Opens the knowledgebase at http://localhost:8080
 
-### Option 2: Using Node.js
-```bash
-cd knowledgebase
-npx serve -p 8080
-```
+Opens at http://localhost:8080
 
-### Option 3: Direct File Open
-Simply open `index.html` in your web browser.
+## Project Overview
 
-### Option 4: VS Code Live Server
-1. Open the `knowledgebase` folder in VS Code
-2. Install "Live Server" extension
-3. Right-click `index.html` → "Open with Live Server"
-
-## 📊 Project Overview
-
-**Generative Visual Engine (GVE)** is a skill-based visual generation platform that transforms natural language into interactive 3D/2D visualizations.
+**Lumina** is an AI STEM tutoring platform that helps users learn concepts through a visual-first paradigm.
 
 ### Key Features
-- **Multi-Skill Support**: Three.js (3D), p5.js (2D), D3.js (data viz), Anime.js (animation)
-- **AI-Powered**: LangGraph-based orchestration with intent parsing and code generation
+- **Multi-Skill Support**: Three.js (3D), p5.js (2D), D3.js (data viz)
+- **Multi-Agent Swarm**: Conductor, Planner, Diagnosis, Pedagogy, Content, Visual agents
 - **Real-Time**: WebSocket-first with streaming updates
 - **Secure**: Daytona sandbox execution with circuit breaker protection
-- **Version Control**: Artifact-based versioning with undo/redo
 
 ### Architecture
 ```
-Client (React) ←→ WebSocket Gateway ←→ Orchestrator (LangGraph) ←→ Sandbox Pool (Daytona)
+Client (React) ←→ WebSocket Gateway ←→ Swarm Orchestrator ←→ Sandbox Pool (Daytona)
 ```
 
-## 🔧 Technology Stack
+## Technology Stack
 
 | Layer | Technology |
 |-------|-----------|
@@ -70,65 +55,21 @@ Client (React) ←→ WebSocket Gateway ←→ Orchestrator (LangGraph) ←→ S
 | Sandboxes | Daytona SDK |
 | 3D | Three.js 0.180.0 |
 
-## 📁 Project Structure
+## Project Structure
 
 ```
-dosco-visual-engine/
+lumina/
 ├── apps/
 │   ├── web/              # React frontend
 │   └── server/           # Express + WebSocket backend
 ├── packages/
-│   ├── sandbox-pool/     # Daytona SDK integration
-│   └── shared/           # Shared types & utilities
-├── docs/                 # Original documentation
-└── knowledgebase/        # This knowledgebase
-    ├── index.html
-    ├── architecture.html
-    ├── api-rest.html
-    ├── api-websocket.html
-    ├── data-models.html
-    ├── skills.html
-    ├── configuration.html
-    ├── troubleshooting.html
-    ├── quickstart.html
-    ├── assets/
-    │   ├── styles.css
-    │   └── navigation.js
-    └── serve.py
+│   ├── sandbox-pool/    # Daytona SDK integration
+│   └── shared/          # Shared types & utilities
+├── docs/                # Architecture documents
+├── knowledgebase/       # This knowledgebase
+└── sdp/              # System design document
 ```
 
-## 🎯 Quick Links
+## License
 
-- [Architecture Overview](architecture.html#high-level)
-- [REST API Endpoints](api-rest.html)
-- [WebSocket Events](api-websocket.html)
-- [Data Models](data-models.html)
-- [Skill System](skills.html)
-- [Environment Variables](configuration.html)
-- [Troubleshooting](troubleshooting.html)
-
-## 📝 Generated From Source
-
-This knowledgebase was automatically generated from source code analysis including:
-- `apps/server/server/` - Backend modules
-- `apps/web/src/` - Frontend components
-- `packages/sandbox-pool/src/` - Sandbox management
-- `packages/shared/src/` - Type definitions
-- `docs/` - Architecture and design documents
-
-## 🤝 Contributing
-
-To update the knowledgebase after code changes:
-1. Modify the relevant HTML files
-2. Maintain consistent styling with existing pages
-3. Test navigation between pages
-4. Verify mobile responsiveness
-
-## 📄 License
-
-This knowledgebase is part of the Generative Visual Engine project.
-
----
-
-**Version**: 1.0.0  
-**Last Updated**: 2024-03-26
+Part of the Lumina project.

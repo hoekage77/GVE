@@ -1,7 +1,7 @@
 import { useMemo, useState, useEffect } from "react";
-import { Sparkles, ChevronDown, Eye, Loader2, AlertTriangle, Code2, Film, Image as ImageIcon, ChevronLeft, ChevronRight } from "lucide-react";
+import { Sparkles, Eye, Loader2, AlertTriangle, Code2, Film, Image as ImageIcon, ChevronLeft, ChevronRight } from "lucide-react";
 import MarkdownRenderer from "./MarkdownRenderer";
-import { ThoughtStream } from "./ThoughtStream";
+import { AgentActionStream } from "./AgentActionStream";
 import { SourceResultsList, type SourceResult } from "./meta/SourceResultsList";
 import { InlineScenePreview } from "./InlineScenePreview";
 
@@ -245,7 +245,7 @@ export function MetaAIMessage({
     <div className={`mb-4 flex min-w-0 gap-3 ${isThinking ? 'opacity-95' : ''}`}>
       <div className="min-w-0 flex-1">
         {thoughts.length > 0 && (
-          <ThoughtStream thoughts={thoughts} isThinking={isThinking} thinkingDuration={thinkingDuration} />
+          <AgentActionStream thoughts={thoughts} isThinking={isThinking} thinkingDuration={thinkingDuration} />
         )}
 
         {sceneId && !isThinking && (
@@ -367,7 +367,7 @@ export function AIMessage({
         <div className="space-y-2 lg:space-y-3 w-full min-w-0">
           {/* Thoughts section */}
           {(thoughts.length > 0 || isThinking) && (
-            <ThoughtStream thoughts={thoughts} isThinking={isThinking} thinkingDuration={thinkingDuration} />
+            <AgentActionStream thoughts={thoughts} isThinking={isThinking} thinkingDuration={thinkingDuration} />
           )}
 
           {content ? (
@@ -380,7 +380,20 @@ export function AIMessage({
             </div>
           )}
 
-          {activeArtifact && (() => {
+          {/* Inline Scene Preview — unified, inline, never separated */}
+          {sceneCode && !isThinking && (
+            <InlineScenePreview
+              code={sceneCode}
+              skill={sceneSkill || "threejs"}
+              sceneId={sceneId || "scene"}
+              versionId={sceneVersionId || ""}
+              onExpand={onSceneExpand}
+              onCode={onSceneCode}
+            />
+          )}
+
+          {/* Artifact thumbnails — only for non-scene media or when no inline preview */}
+          {activeArtifact && !sceneCode && (() => {
             const thumbnailUrl = normalizePreviewUrl(activeArtifact.previewUrl);
             const showVideo = isVideoThumbnail(thumbnailUrl, activeArtifact.mediaType);
             const skillLabel = (activeArtifact.skill || "scene").toUpperCase();
@@ -463,18 +476,6 @@ export function AIMessage({
               </div>
             );
           })()}
-
-          {/* Inline Scene Preview */}
-          {sceneCode && !isThinking && (
-            <InlineScenePreview
-              code={sceneCode}
-              skill={sceneSkill || "threejs"}
-              sceneId={sceneId || "scene"}
-              versionId={sceneVersionId || ""}
-              onExpand={onSceneExpand}
-              onCode={onSceneCode}
-            />
-          )}
 
         </div>
       </div>
