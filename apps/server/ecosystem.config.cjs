@@ -16,12 +16,8 @@ module.exports = {
       time: true,
       env: {
         NODE_ENV: 'production',
-        PORT: 8000,
-        MOONSHOT_API_KEY: process.env.MOONSHOT_API_KEY || '',
-        DAYTONA_API_KEY: process.env.DAYTONA_API_KEY || '',
-        GROQ_API_KEY: process.env.GROQ_API_KEY || '',
-        GEMINI_API_KEY: process.env.GEMINI_API_KEY || '',
-        FIREWORKS_API_KEY: process.env.FIREWORKS_API_KEY || ''
+        PORT: 8000
+        // API keys are loaded from dist/.env file
       }
     }
   ]
