@@ -1,5 +1,5 @@
 import { useMemo, useState, useEffect, useRef } from "react";
-import { ChevronDown, Share2, X, SquarePen, Maximize2, MoreHorizontal, Lock, ArrowLeft, Clapperboard, ListTodo, User, PanelLeftOpen } from "lucide-react";
+import { ChevronDown, Share2, X, SquarePen, Maximize2, MoreHorizontal, Lock, ArrowLeft, Clapperboard, ListTodo, User, Menu } from "lucide-react";
 import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import { useChatStore, type Session, type SessionMessage } from "../../stores";
 
@@ -107,7 +107,7 @@ export function MetaHeader() {
               onClick={() => setSidebarCollapsed(!isSidebarCollapsed)}
               aria-label="Open sidebar"
             >
-              <PanelLeftOpen className="h-4 w-4" />
+              <Menu className="h-4 w-4" />
             </button>
           )}
 

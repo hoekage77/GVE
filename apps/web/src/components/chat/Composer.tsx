@@ -1,5 +1,5 @@
 import { useRef, useState, useEffect } from "react";
-import { Send, X, Plus, ChevronDown, Cpu } from "lucide-react";
+import { Send, X, Plus, ChevronDown } from "lucide-react";
 import { type LlmProviderItem } from "@visual-runtime/shared";
 
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
@@ -158,14 +158,26 @@ export function Composer({
           className="hidden"
           onChange={handleImageInputChange}
         />
-        <button
-          type="button"
-          className="mb-1 rounded-full p-1.5 text-meta-muted/80 transition-colors hover:bg-white/10 hover:text-meta-text"
-          onClick={() => fileInputRef.current?.click()}
-          title="Attach image"
-        >
-          <Plus className="h-5 w-5" />
-        </button>
+        
+        {/* Model Selector */}
+        <div className="relative group">
+          <div className="flex items-center gap-1 px-2 py-1.5 rounded-md text-xs font-medium text-meta-muted/80 hover:text-meta-text cursor-pointer transition-colors">
+            <span>{activeProvider?.name || "Auto"}</span>
+            <ChevronDown className="h-3 w-3 opacity-70" />
+          </div>
+          <select
+            value={activeProviderId}
+            onChange={(e) => onProviderChange?.(e.target.value)}
+            className="absolute inset-0 opacity-0 cursor-pointer"
+          >
+            <option value="auto">Auto (Recommended)</option>
+            {providers.map(p => (
+              <option key={p.id} value={p.id} disabled={p.state === 'disabled'}>
+                {p.name} {p.state === 'cooldown' ? '(Cooldown)' : ''}
+              </option>
+            ))}
+          </select>
+        </div>
         
         <div className="flex min-w-0 flex-1 flex-col justify-center pb-1.5 pt-1.5">
           <textarea
@@ -198,36 +210,24 @@ export function Composer({
             <Send className="h-[18px] w-[18px] translate-x-[1px]" strokeWidth={2.5} />
           </button>
         )}
+
+        <button
+          type="button"
+          className="mb-1 rounded-full p-1.5 text-meta-muted/80 transition-colors hover:bg-white/10 hover:text-meta-text"
+          onClick={() => fileInputRef.current?.click()}
+          title="Attach image"
+        >
+          <Plus className="h-5 w-5" />
+        </button>
       </div>
 
-      <div className="flex items-center justify-between px-1">
-        {/* Model Selector */}
-        <div className="relative group">
-          <div className="flex items-center gap-1.5 px-2 py-1 rounded-lg hover:bg-white/5 transition-colors cursor-pointer text-[11px] font-medium text-white/40 group-hover:text-white/60">
-            <Cpu className="h-3 w-3" />
-            <span>{activeProvider?.name || "Auto (Recommended)"}</span>
-            <ChevronDown className="h-3 w-3" />
-          </div>
-          <select
-            value={activeProviderId}
-            onChange={(e) => onProviderChange?.(e.target.value)}
-            className="absolute inset-0 opacity-0 cursor-pointer"
-          >
-            <option value="auto">Auto (Recommended)</option>
-            {providers.map(p => (
-              <option key={p.id} value={p.id} disabled={p.state === 'disabled'}>
-                {p.name} {p.state === 'cooldown' ? '(Cooldown)' : ''}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        {attachmentError && (
+      {attachmentError && (
+        <div className="flex items-center justify-center px-1">
           <div className="rounded-lg bg-red-950/40 px-2 py-1 text-[10px] text-red-400 shadow-sm border border-red-500/20">
             {attachmentError}
           </div>
-        )}
-      </div>
+        </div>
+      )}
     </div>
   );
 }

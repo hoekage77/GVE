@@ -28,7 +28,7 @@ export function MainLayout({ children }: MainLayoutProps) {
       <Sidebar />
       <div className={`flex min-h-0 flex-1 flex-col overflow-hidden transition-[padding] duration-300 ${isWorkspaceRoute ? "relative isolate" : ""}`}>
         <MetaHeader />
-        <main className={`flex min-h-0 w-full flex-1 bg-grid ${isWorkspaceRoute ? 'max-w-none flex-col' : ''}`}>
+        <main className={`flex min-h-0 w-full flex-1 ${isWorkspaceRoute ? 'max-w-none flex-col' : ''}`}>
           {children || <Outlet />}
         </main>
       </div>

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { ChevronLeft, Clapperboard, LayoutGrid, ListTodo, Plus, User } from 'lucide-react';
+import { ChevronLeft, Clapperboard, LayoutGrid, ListTodo, Menu, Plus, User } from 'lucide-react';
 import { useNavigate, useRouterState } from '@tanstack/react-router';
 import { useChatStore, type Session, type SessionMessage } from '../../stores';
 
@@ -228,12 +228,11 @@ export default function Sidebar({ forceExpanded = false }: SidebarProps) {
       {showMobileLauncher && (
         <button
           type="button"
-          className="fixed right-3 top-[calc(env(safe-area-inset-top)+0.5rem)] z-[100] inline-flex h-7 w-7 items-center justify-center rounded-md border border-slate-600/50 bg-slate-800/90 text-slate-200 shadow-lg backdrop-blur transition-colors duration-200 hover:border-slate-400 hover:bg-slate-700 hover:text-white"
+          className="fixed right-3 top-[calc(env(safe-area-inset-top)+0.5rem)] z-[100] flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-surface-3 text-meta-muted transition-colors hover:bg-surface hover:text-meta-text"
           onClick={() => setIsCollapsed(false)}
-          aria-label="Open chat sidebar"
-          title="Open sidebar"
+          aria-label="Open sidebar"
         >
-          <LayoutGrid className="h-3.5 w-3.5" />
+          <Menu className="h-4 w-4" />
         </button>
       )}
 
@@ -247,18 +246,17 @@ export default function Sidebar({ forceExpanded = false }: SidebarProps) {
       )}
 
       {!showMobileLauncher && (
-        <aside className={`${isCollapsed ? 'w-[68px]' : 'w-[280px]'} flex min-h-0 flex-col overflow-hidden border-r border-white/5 bg-[#0d0d0d] transition-[width] duration-300 ease-in-out`}>
+        <aside className={`${isCollapsed ? 'w-[68px]' : 'w-[280px]'} flex min-h-0 flex-col overflow-hidden border-r border-white/5 bg-surface-2 transition-[width] duration-300 ease-in-out`}>
         <div className="p-4">
           {isCollapsed ? (
             <div className="flex flex-col items-center gap-4">
               <button
                 type="button"
-                className="group inline-flex h-10 w-10 items-center justify-center rounded-xl border border-white/10 bg-white/[0.02] text-white/40 transition-all duration-300 hover:border-white/20 hover:bg-white/[0.05] hover:text-white"
+                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-surface-3 text-meta-muted transition-colors hover:bg-surface hover:text-meta-text"
                 onClick={() => setIsCollapsed(false)}
-                aria-label="Expand sidebar"
-                title="Open sidebar"
+                aria-label="Open sidebar"
               >
-                <LayoutGrid className="h-5 w-5 transition-transform duration-300 group-hover:scale-110" />
+                <Menu className="h-4 w-4" />
               </button>
 
               <div className="h-px w-8 bg-white/5" />
@@ -266,46 +264,38 @@ export default function Sidebar({ forceExpanded = false }: SidebarProps) {
               <div className="flex flex-col gap-3">
                 <button
                   type="button"
-                  className={`relative inline-flex h-10 w-10 items-center justify-center rounded-xl transition-all duration-300 ${activeDestination === 'chat' ? 'bg-sky-500/10 text-sky-400 shadow-[0_0_12px_rgba(14,165,233,0.1)]' : 'text-white/40 hover:bg-white/[0.05] hover:text-white/80'}`}
-                  onClick={() => navigateTo('chat')}
-                  aria-label="Open studio"
-                  title="Studio"
-                >
-                  <LayoutGrid className="h-5 w-5" />
-                  {activeDestination === 'chat' && <div className="absolute -left-4 h-5 w-1 rounded-r-full bg-sky-500" />}
-                </button>
-
-                <button
-                  type="button"
-                  className={`relative inline-flex h-10 w-10 items-center justify-center rounded-xl transition-all duration-300 ${activeDestination === 'scenes' ? 'bg-sky-500/10 text-sky-400 shadow-[0_0_12px_rgba(14,165,233,0.1)]' : 'text-white/40 hover:bg-white/[0.05] hover:text-white/80'}`}
+                  className={`relative flex h-8 w-8 shrink-0 items-center justify-center rounded-md transition-colors ${activeDestination === 'scenes' ? 'bg-surface text-meta-text' : 'text-meta-muted hover:bg-surface hover:text-meta-text'}`}
                   onClick={() => navigateTo('scenes')}
-                  aria-label="Open scenes"
-                  title="Scenes"
+                  aria-label="Scenes"
                 >
-                  <Clapperboard className="h-5 w-5" />
-                  {activeDestination === 'scenes' && <div className="absolute -left-4 h-5 w-1 rounded-r-full bg-sky-500" />}
+                  <Clapperboard className="h-4 w-4" />
                 </button>
 
                 <button
                   type="button"
-                  className={`relative inline-flex h-10 w-10 items-center justify-center rounded-xl transition-all duration-300 ${activeDestination === 'tasks' ? 'bg-sky-500/10 text-sky-400 shadow-[0_0_12px_rgba(14,165,233,0.1)]' : 'text-white/40 hover:bg-white/[0.05] hover:text-white/80'}`}
+                  className={`relative flex h-8 w-8 shrink-0 items-center justify-center rounded-md transition-colors ${activeDestination === 'chat' ? 'bg-surface text-meta-text' : 'text-meta-muted hover:bg-surface hover:text-meta-text'}`}
+                  onClick={() => navigateTo('chat')}
+                  aria-label="Studio"
+                >
+                  <LayoutGrid className="h-4 w-4" />
+                </button>
+
+                <button
+                  type="button"
+                  className={`relative flex h-8 w-8 shrink-0 items-center justify-center rounded-md transition-colors ${activeDestination === 'tasks' ? 'bg-surface text-meta-text' : 'text-meta-muted hover:bg-surface hover:text-meta-text'}`}
                   onClick={() => navigateTo('tasks')}
-                  aria-label="Open tasks"
-                  title="Tasks"
+                  aria-label="Tasks"
                 >
-                  <ListTodo className="h-5 w-5" />
-                  {activeDestination === 'tasks' && <div className="absolute -left-4 h-5 w-1 rounded-r-full bg-sky-500" />}
+                  <ListTodo className="h-4 w-4" />
                 </button>
 
                 <button
                   type="button"
-                  className={`relative inline-flex h-10 w-10 items-center justify-center rounded-xl transition-all duration-300 ${activeDestination === 'profile' ? 'bg-sky-500/10 text-sky-400 shadow-[0_0_12px_rgba(14,165,233,0.1)]' : 'text-white/40 hover:bg-white/[0.05] hover:text-white/80'}`}
+                  className={`relative flex h-8 w-8 shrink-0 items-center justify-center rounded-md transition-colors ${activeDestination === 'profile' ? 'bg-surface text-meta-text' : 'text-meta-muted hover:bg-surface hover:text-meta-text'}`}
                   onClick={() => navigateTo('profile')}
-                  aria-label="Open profile"
-                  title="Profile"
+                  aria-label="Profile"
                 >
-                  <User className="h-5 w-5" />
-                  {activeDestination === 'profile' && <div className="absolute -left-4 h-5 w-1 rounded-r-full bg-sky-500" />}
+                  <User className="h-4 w-4" />
                 </button>
               </div>
 
@@ -313,27 +303,26 @@ export default function Sidebar({ forceExpanded = false }: SidebarProps) {
 
               <button
                 type="button"
-                className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-sky-500/20 bg-sky-500/5 text-sky-400 transition-all duration-300 hover:bg-sky-500/15"
+                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-surface-3 text-meta-muted transition-colors hover:bg-surface hover:text-meta-text"
                 onClick={handleCreateSession}
                 aria-label="New chat"
-                title={isBootstrapping ? 'Loading...' : 'New chat'}
               >
-                <Plus className="h-5 w-5" />
+                <Plus className="h-4 w-4" />
               </button>
             </div>
           ) : (
             <div className="flex items-center justify-between px-1">
               <button
                 onClick={handleCreateSession}
-                className="group flex flex-1 items-center gap-2.5 rounded-xl border border-white/5 bg-white/[0.02] px-3.5 py-2 text-sm font-medium text-white/90 transition-all duration-300 hover:border-white/10 hover:bg-white/[0.05]"
+                className="flex flex-1 items-center gap-2 rounded-md bg-surface-3 px-3 py-2 text-sm font-medium text-meta-text transition-colors hover:bg-surface"
               >
-                <Plus className="h-4 w-4 text-sky-400 transition-transform duration-300 group-hover:rotate-90" />
+                <Plus className="h-4 w-4 text-meta-muted" />
                 <span>New Chat</span>
               </button>
               {!forceExpanded && (
                 <button
                   type="button"
-                  className="ml-2 inline-flex h-8 w-8 items-center justify-center rounded-lg border border-white/5 bg-white/[0.02] text-white/40 transition-all duration-300 hover:border-white/10 hover:bg-white/[0.05] hover:text-white"
+                  className="ml-2 flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-surface-3 text-meta-muted transition-colors hover:bg-surface hover:text-meta-text"
                   onClick={() => setIsCollapsed(true)}
                   aria-label="Collapse sidebar"
                 >
@@ -349,21 +338,10 @@ export default function Sidebar({ forceExpanded = false }: SidebarProps) {
             <nav className="px-3 py-2">
               <button
                 type="button"
-                className={`group mb-1 flex w-full items-center gap-2.5 rounded-xl border px-3 py-2 text-left transition-all duration-300 ${activeDestination === 'chat' ? 'border-white/10 bg-white/[0.06] text-white' : 'border-transparent text-white/50 hover:bg-white/[0.04] hover:text-white/80'}`}
-                onClick={() => navigateTo('chat')}
-              >
-                <div className={`flex h-7 w-7 items-center justify-center rounded-lg border transition-all duration-300 ${activeDestination === 'chat' ? 'border-sky-500/30 bg-sky-500/10 text-sky-400' : 'border-white/5 bg-white/[0.02] text-white/40 group-hover:border-white/10 group-hover:text-white/60'}`}>
-                  <LayoutGrid className="h-4 w-4" />
-                </div>
-                <span className="text-sm font-medium">Studio</span>
-              </button>
-
-              <button
-                type="button"
-                className={`group mb-1 flex w-full items-center gap-2.5 rounded-xl border px-3 py-2 text-left transition-all duration-300 ${activeDestination === 'scenes' ? 'border-white/10 bg-white/[0.06] text-white' : 'border-transparent text-white/50 hover:bg-white/[0.04] hover:text-white/80'}`}
+                className={`group mb-1 flex w-full items-center gap-2.5 rounded-md px-3 py-2 text-left transition-colors ${activeDestination === 'scenes' ? 'bg-surface text-meta-text' : 'text-meta-muted hover:bg-surface hover:text-meta-text'}`}
                 onClick={() => navigateTo('scenes')}
               >
-                <div className={`flex h-7 w-7 items-center justify-center rounded-lg border transition-all duration-300 ${activeDestination === 'scenes' ? 'border-sky-500/30 bg-sky-500/10 text-sky-400' : 'border-white/5 bg-white/[0.02] text-white/40 group-hover:border-white/10 group-hover:text-white/60'}`}>
+                <div className={`flex h-7 w-7 items-center justify-center rounded-md bg-surface-3 text-meta-muted transition-colors ${activeDestination === 'scenes' ? 'bg-surface text-meta-text' : ''}`}>
                   <Clapperboard className="h-4 w-4" />
                 </div>
                 <span className="text-sm font-medium">Scenes</span>
@@ -371,10 +349,21 @@ export default function Sidebar({ forceExpanded = false }: SidebarProps) {
 
               <button
                 type="button"
-                className={`group mb-1 flex w-full items-center gap-2.5 rounded-xl border px-3 py-2 text-left transition-all duration-300 ${activeDestination === 'tasks' ? 'border-white/10 bg-white/[0.06] text-white' : 'border-transparent text-white/50 hover:bg-white/[0.04] hover:text-white/80'}`}
+                className={`group mb-1 flex w-full items-center gap-2.5 rounded-md px-3 py-2 text-left transition-colors ${activeDestination === 'chat' ? 'bg-surface text-meta-text' : 'text-meta-muted hover:bg-surface hover:text-meta-text'}`}
+                onClick={() => navigateTo('chat')}
+              >
+                <div className={`flex h-7 w-7 items-center justify-center rounded-md bg-surface-3 text-meta-muted transition-colors ${activeDestination === 'chat' ? 'bg-surface text-meta-text' : ''}`}>
+<LayoutGrid className="h-4 w-4" />
+                </div>
+                <span className="text-sm font-medium">Studio</span>
+              </button>
+
+              <button
+                type="button"
+                className={`group mb-1 flex w-full items-center gap-2.5 rounded-md px-3 py-2 text-left transition-colors ${activeDestination === 'tasks' ? 'bg-surface text-meta-text' : 'text-meta-muted hover:bg-surface hover:text-meta-text'}`}
                 onClick={() => navigateTo('tasks')}
               >
-                <div className={`flex h-7 w-7 items-center justify-center rounded-lg border transition-all duration-300 ${activeDestination === 'tasks' ? 'border-sky-500/30 bg-sky-500/10 text-sky-400' : 'border-white/5 bg-white/[0.02] text-white/40 group-hover:border-white/10 group-hover:text-white/60'}`}>
+                <div className={`flex h-7 w-7 items-center justify-center rounded-md bg-surface-3 text-meta-muted transition-colors ${activeDestination === 'tasks' ? 'bg-surface text-meta-text' : ''}`}>
                   <ListTodo className="h-4 w-4" />
                 </div>
                 <span className="text-sm font-medium">Tasks</span>
@@ -382,10 +371,10 @@ export default function Sidebar({ forceExpanded = false }: SidebarProps) {
 
               <button
                 type="button"
-                className={`group flex w-full items-center gap-2.5 rounded-xl border px-3 py-2 text-left transition-all duration-300 ${activeDestination === 'profile' ? 'border-white/10 bg-white/[0.06] text-white' : 'border-transparent text-white/50 hover:bg-white/[0.04] hover:text-white/80'}`}
+                className={`group flex w-full items-center gap-2.5 rounded-md px-3 py-2 text-left transition-colors ${activeDestination === 'profile' ? 'bg-surface text-meta-text' : 'text-meta-muted hover:bg-surface hover:text-meta-text'}`}
                 onClick={() => navigateTo('profile')}
               >
-                <div className={`flex h-7 w-7 items-center justify-center rounded-lg border transition-all duration-300 ${activeDestination === 'profile' ? 'border-sky-500/30 bg-sky-500/10 text-sky-400' : 'border-white/5 bg-white/[0.02] text-white/40 group-hover:border-white/10 group-hover:text-white/60'}`}>
+                <div className={`flex h-7 w-7 items-center justify-center rounded-md bg-surface-3 text-meta-muted transition-colors ${activeDestination === 'profile' ? 'bg-surface text-meta-text' : ''}`}>
                   <User className="h-4 w-4" />
                 </div>
                 <span className="text-sm font-medium">Profile</span>
@@ -394,31 +383,31 @@ export default function Sidebar({ forceExpanded = false }: SidebarProps) {
 
             <section className="flex min-h-0 flex-1 flex-col px-3 pb-3">
               <div className="mb-2 flex items-center justify-between px-2">
-                <p className="text-[10px] font-bold uppercase tracking-[0.15em] text-white/20">Recents</p>
+                <p className="text-[10px] font-bold uppercase tracking-[0.15em] text-meta-muted">Recents</p>
               </div>
 
               <div className="scrollbar min-h-0 flex-1 space-y-0.5 overflow-y-auto pr-1">
                 {sessionRows.length === 0 ? (
-                  <div className="rounded-xl border border-dashed border-white/5 px-3 py-6 text-center">
-                    <p className="text-xs text-white/20">No history yet</p>
+                  <div className="rounded-md border border-dashed border-white/5 px-3 py-6 text-center">
+                    <p className="text-xs text-meta-muted">No history yet</p>
                   </div>
                 ) : (
                   sessionRows.map((session) => (
                     <button
                       key={session.sessionId}
                       type="button"
-                      className={`group flex w-full items-center gap-2.5 rounded-xl border px-3 py-2 text-left transition-all duration-300 ${session.sessionId === activeSessionId ? 'border-white/10 bg-white/[0.06] text-white' : 'border-transparent text-white/50 hover:bg-white/[0.04] hover:text-white/80'}`}
+                      className={`group flex w-full items-center gap-2.5 rounded-md px-3 py-2 text-left transition-colors ${session.sessionId === activeSessionId ? 'bg-surface text-meta-text' : 'text-meta-muted hover:bg-surface hover:text-meta-text'}`}
                       onClick={() => {
                         void selectSession(session.sessionId);
                         closeMobileSidebar();
                       }}
                     >
-                      <div className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border text-[10px] font-bold transition-all duration-300 ${session.sessionId === activeSessionId ? 'border-sky-500/30 bg-sky-500/10 text-sky-400' : 'border-white/5 bg-white/[0.02] text-white/30 group-hover:border-white/10 group-hover:text-white/50'}`}>
+                      <div className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-surface-3 text-[10px] font-medium transition-colors ${session.sessionId === activeSessionId ? 'text-meta-text' : 'text-meta-muted group-hover:text-meta-text'}`}>
                         {getSessionInitial(session.title)}
                       </div>
                       <div className="flex min-w-0 flex-1 flex-col">
                         <span className="truncate text-sm font-medium" title={session.title}>{session.title}</span>
-                        <span className="text-[10px] text-white/20 group-hover:text-white/30">{session.updatedAt}</span>
+                        <span className="text-[10px] text-meta-muted">{session.updatedAt}</span>
                       </div>
                     </button>
                   ))
@@ -429,10 +418,10 @@ export default function Sidebar({ forceExpanded = false }: SidebarProps) {
             <div className="p-3">
               <button
                 type="button"
-                className="group flex w-full items-center justify-center gap-2 rounded-xl border border-white/5 bg-white/[0.02] px-3 py-2.5 text-sm font-medium text-white/60 transition-all duration-300 hover:border-white/10 hover:bg-white/[0.05] hover:text-white"
+                className="flex w-full items-center justify-center gap-2 rounded-md bg-surface-3 px-3 py-2.5 text-sm font-medium text-meta-text transition-colors hover:bg-surface"
                 onClick={handleCreateSession}
               >
-                <Plus className="h-4 w-4 transition-transform duration-300 group-hover:rotate-90" />
+                <Plus className="h-4 w-4" />
                 <span>{isBootstrapping ? 'Loading...' : 'New Chat'}</span>
               </button>
             </div>
