@@ -2,9 +2,8 @@ module.exports = {
   apps: [
     {
       name: 'dosco-api',
-      script: 'npm',
-      args: 'run start',
-      cwd: '/root/GVE/apps/server',
+      script: 'node',
+      args: 'dist/index.js',
       env: {
         NODE_ENV: 'production',
         PORT: 8000
