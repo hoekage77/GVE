@@ -248,6 +248,91 @@ export class PoolBasedLLMProvider {
     }
   }
 
+  /**
+   * Generate with reasoning chain support (DeepSeek V4 Pro, etc.).
+   * Returns both the final content and the reasoning trace.
+   */
+  async generateWithReasoning(
+    prompt: string,
+    options: { mode?: string; onReasoningChunk?: (chunk: string) => void | Promise<void> } = {}
+  ): Promise<{ content: string; reasoning: string | null; providerId: string }> {
+    const startMs = Date.now();
+    this._stats.totalRequests += 1;
+    this._stats.lastRequestMs = startMs;
+
+    try {
+      const selection = this._selectProvider();
+
+      if (!selection) {
+        const msg = "No LLM providers available (all disabled or filtered)";
+        console.error(`[PoolAdapter] ${msg}`);
+        throw new Error(msg);
+      }
+
+      const { provider, waitMs } = selection;
+
+      if (waitMs > 0) {
+        console.log(`[PoolAdapter] Waiting ${waitMs}ms for ${provider.id} to recover`);
+        await sleep(waitMs);
+      }
+
+      const payload: ChatCompletionPayload = {
+        messages: [{ role: "user", content: prompt }]
+      };
+
+      const requestOptions: FetchOptions = {
+        mode: options.mode ?? this.mode,
+        retryDelays: [100, 250]
+      };
+
+      const resolvedModel = payload.model ?? provider.model;
+      const resolvedPayload = { max_tokens: 8192, ...payload, model: resolvedModel };
+
+      console.log(`[LLMPool] [TRACE] fetchChatCompletion (with reasoning) called. provider=${provider.id}, model=${resolvedModel}`);
+
+      const response = await fetchChatCompletionFromProvider(provider, resolvedPayload, this.pool, requestOptions);
+
+      if (!this._stats.providerUsage[provider.id]) {
+        this._stats.providerUsage[provider.id] = 0;
+      }
+      this._stats.providerUsage[provider.id]! += 1;
+
+      const choice = response?.choices?.[0];
+      const content = choice?.message?.content ?? "";
+      const reasoning = (choice?.message as any)?.reasoning_content ?? null;
+
+      if (!content) {
+        throw new Error("Empty response from provider");
+      }
+
+      // Stream reasoning chunks if callback provided
+      if (reasoning && options.onReasoningChunk) {
+        const chunks = reasoning.split(/\n{2,}/);
+        for (const chunk of chunks) {
+          if (chunk.trim()) {
+            await options.onReasoningChunk(chunk.trim());
+          }
+        }
+      }
+
+      this._stats.successfulRequests += 1;
+      const latency = Date.now() - startMs;
+      this._stats.totalLatencyMs += latency;
+
+      console.log(`[PoolAdapter] Generated with reasoning (${latency}ms via ${provider.id}): ${content.slice(0, 60)}...`);
+      return { content, reasoning, providerId: provider.id };
+
+    } catch (error) {
+      this._stats.failedRequests += 1;
+      this._stats.lastErrorMs = Date.now();
+
+      const msg = error instanceof Error ? error.message : String(error);
+      console.error(`[PoolAdapter] Generation with reasoning failed: ${msg}`);
+
+      throw error;
+    }
+  }
+
   async generateJson(prompt: string, options: { mode?: string } = {}): Promise<unknown> {
     const text = await this.generate(prompt, options);
 

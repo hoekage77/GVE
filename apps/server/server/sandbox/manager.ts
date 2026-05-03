@@ -220,8 +220,8 @@ async function installTools(containerId: string, tools: string[], maxRetries = 3
   throw lastError;
 }
 
-export async function executeInSandbox(options: { sessionId: string; code: string; skill: string; timeoutMs?: number }): Promise<SandboxExecutionResult> {
-  const { sessionId, code, skill, timeoutMs = CONTAINER_TIMEOUT_MS } = options;
+export async function executeInSandbox(options: { sessionId: string; code: string; skill: string; timeoutMs?: number; files?: Record<string, string> }): Promise<SandboxExecutionResult> {
+  const { sessionId, code, skill, timeoutMs = CONTAINER_TIMEOUT_MS, files } = options;
   const container = activeContainers.get(sessionId);
 
   if (!container || container.status !== "running") {
@@ -231,7 +231,17 @@ export async function executeInSandbox(options: { sessionId: string; code: strin
   const entryFile = skill === "p5js" ? "sketch.js" : "index.js";
   const htmlFile = "index.html";
 
-  await writeFile(join(container.workspacePath, entryFile), code);
+  if (files && Object.keys(files).length > 0) {
+    for (const [path, content] of Object.entries(files)) {
+      const safePath = path.startsWith("/") ? path.slice(1) : path;
+      if (safePath.includes("..")) continue;
+      const fullPath = join(container.workspacePath, safePath);
+      await writeFile(fullPath, content);
+    }
+  }
+
+  const wrappedCode = wrapUserCodeWithImports(code, skill);
+  await writeFile(join(container.workspacePath, entryFile), wrappedCode);
 
   const htmlContent = generateHTMLWrapper(skill, entryFile);
   await writeFile(join(container.workspacePath, htmlFile), htmlContent);
@@ -247,28 +257,49 @@ export async function executeInSandbox(options: { sessionId: string; code: strin
   };
 }
 
+function wrapUserCodeWithImports(code: string, skill: string): string {
+  const importPreambles: Record<string, string> = {
+    threejs: `import * as THREE from 'three';\nwindow.THREE = THREE;\ntry { const { OrbitControls } = await import('three/addons/controls/OrbitControls.js'); window.OrbitControls = OrbitControls; } catch(_e) {}\ntry { const { GLTFLoader } = await import('three/addons/loaders/GLTFLoader.js'); window.THREE.GLTFLoader = GLTFLoader; } catch(_e) {}\ntry { const { DRACOLoader } = await import('three/addons/loaders/DRACOLoader.js'); window.THREE.DRACOLoader = DRACOLoader; } catch(_e) {}\ntry { const { RGBELoader } = await import('three/addons/loaders/RGBELoader.js'); window.THREE.RGBELoader = RGBELoader; } catch(_e) {}\n`,
+    p5js: `import p5 from 'p5';\nwindow.p5 = p5;\n`,
+    d3js: `import * as d3 from 'd3';\nwindow.d3 = d3;\n`,
+    animejs: `import anime from 'animejs';\nanime = anime.default || anime;\nwindow.anime = anime;\n`
+  };
+
+  const preamble = importPreambles[skill] || '';
+  if (!preamble) return code;
+
+  return `${preamble}\n${code}`;
+}
+
 function generateHTMLWrapper(skill: string, entryFile: string): string {
-  const skillConfigs: Record<string, { scripts: string[]; init: string }> = {
+  const skillConfigs: Record<string, { scripts: string[]; init: string; useModuleEntry: boolean }> = {
     threejs: {
-      scripts: ["https://cdnjs.cloudflare.com/ajax/libs/three.js/r160/three.min.js"],
-      init: ""
+      scripts: [],
+      init: "",
+      useModuleEntry: true
     },
     p5js: {
-      scripts: ["https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.0/p5.min.js"],
-      init: ""
+      scripts: [],
+      init: "",
+      useModuleEntry: true
     },
     d3js: {
-      scripts: ["https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"],
-      init: ""
+      scripts: [],
+      init: "",
+      useModuleEntry: true
     },
     animejs: {
-      scripts: ["https://cdnjs.cloudflare.com/ajax/libs/animejs/3.2.2/anime.min.js"],
-      init: ""
+      scripts: [],
+      init: "",
+      useModuleEntry: true
     }
   };
 
   const config = skillConfigs[skill] || skillConfigs.threejs;
   const scriptTags = config!.scripts.map((src) => `<script src="${src}"></script>`).join("\n  ");
+  const entryTag = config!.useModuleEntry
+    ? `<script type="module" src="./${entryFile}"></script>`
+    : `<script src="./${entryFile}"></script>`;
 
   return `<!DOCTYPE html>
 <html lang="en">
@@ -285,7 +316,7 @@ function generateHTMLWrapper(skill: string, entryFile: string): string {
 </head>
 <body>
   <div id="canvas-container"></div>
-  <script type="module" src="./${entryFile}"></script>
+  ${entryTag}
 </body>
 </html>`;
 }
@@ -368,7 +399,14 @@ export async function cleanupSessionSandbox(sessionId: string): Promise<void> {
     try {
       await execAsync(`docker stop -t 5 ${container.containerId}`).catch(() => {});
       await execAsync(`docker rm -f ${container.containerId}`).catch(() => {});
-      await rm(container.workspacePath, { recursive: true, force: true });
+      await rm(container.workspacePath, { recursive: true, force: true }).catch(async (rmErr) => {
+        // EACCES on node_modules — try chmod + force rm, then give up gracefully
+        if ((rmErr as NodeJS.ErrnoException).code === "EACCES") {
+          console.warn(`[Sandbox] Permission denied removing ${container.workspacePath}, attempting chmod...`);
+          await execAsync(`chmod -R +w "${container.workspacePath}" 2>/dev/null || true`).catch(() => {});
+          await rm(container.workspacePath, { recursive: true, force: true }).catch(() => {});
+        }
+      });
     } catch (error) {
       console.error(`Failed to cleanup sandbox for ${sessionId}:`, error);
     }

@@ -63,6 +63,15 @@ export async function executeChatTurn(
 
   content = turnContent;
   const effectivePreferences = normalizeTurnPreferences(preferences, normalizeRequestedTurnMode(options.forcedMode));
+
+  // Intent-based provider routing: DeepSeek V4 Pro for explanations, Kimi 2.6 for code
+  const earlyIntent = parseIntentFromQuery(content);
+  const earlyIntentWithOverrides = applySessionAwareIntentOverrides(earlyIntent, content, sessionState);
+  if (earlyIntentWithOverrides.recommendedProvider && !effectivePreferences.provider) {
+    (effectivePreferences as any).provider = earlyIntentWithOverrides.recommendedProvider;
+    console.log(`[Turn] [TRACE] Provider routed via intent: ${earlyIntentWithOverrides.recommendedProvider} (intent=${earlyIntentWithOverrides.intentType})`);
+  }
+
   const { userMessage, assistantMessageId } = await bootstrapTurnState(
     { sessionId, content, userMessageId, asyncThinkingEnabled },
     sessionState,
@@ -76,8 +85,6 @@ export async function executeChatTurn(
   // Early intent classification: skip full pipeline for conversational turns.
   const forcedMode = String(effectivePreferences?.mode ?? "").trim().toLowerCase();
   if (!hasImage && forcedMode !== "modify" && forcedMode !== "generate") {
-    const earlyIntent = parseIntentFromQuery(content);
-    const earlyIntentWithOverrides = applySessionAwareIntentOverrides(earlyIntent, content, sessionState);
     const isChatMode = earlyIntentWithOverrides.intentType === "chat"
       || earlyIntentWithOverrides.intentType === "explain"
       || earlyIntentWithOverrides.ambiguous;

@@ -2,6 +2,16 @@
  * Session domain types — the source of truth for session/artifact/version shapes.
  */
 
+export type SkillId = "threejs" | "p5js" | "d3js" | "animejs" | "manim";
+
+export interface WorkspaceRecord {
+  files: Record<string, { path: string; content: string; purpose: string; skill: SkillId; generatedAt: string }>;
+  entryPoint: string;
+  dependencies: string[];
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface SceneVersion {
   versionId: string;
   version: number;
@@ -52,10 +62,12 @@ export interface TraceEntry {
 
 export interface InternalSessionState {
   sessionId: string;
+  ownerId?: string | null;
   status: SessionStatus;
   artifacts: Artifact[];
   artifactPointer: number;
   currentScene: SceneVersion | null;
+  workspace: WorkspaceRecord | null;
   messages: SessionMessage[];
   orchestrationTrace: TraceEntry[];
   createdAt: string;

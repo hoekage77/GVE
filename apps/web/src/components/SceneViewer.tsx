@@ -19,22 +19,10 @@ interface SceneViewerProps {
 
 // CDN imports for different skills
 const SKILL_CDNS: Record<string, string[]> = {
-  threejs: [
-    'https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js',
-    'https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js',
-    'https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js',
-    'https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/DRACOLoader.js',
-    'https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/RGBELoader.js'
-  ],
-  p5js: [
-    'https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.0/p5.min.js'
-  ],
-  d3js: [
-    'https://cdnjs.cloudflare.com/ajax/libs/d3/7.9.0/d3.min.js'
-  ],
-  animejs: [
-    'https://cdnjs.cloudflare.com/ajax/libs/animejs/3.2.2/anime.min.js'
-  ]
+  threejs: [],
+  p5js: ['/vendor/p5/p5.min.js'],
+  d3js: ['/vendor/d3/d3.min.js'],
+  animejs: ['/vendor/animejs/anime.min.js']
 };
 
 const SCENE_GRID_STORAGE_KEY = "terranet.scene.grid.enabled";
@@ -54,8 +42,21 @@ function getInitialGridEnabled(): boolean {
 
 function buildSceneHTML(code: string, skill: string): string {
   const cdns = SKILL_CDNS[skill] || [];
-  const cdnScripts = cdns.map(url => `<script src="${url}"></script>`).join('\n');
+  const cdnScripts = cdns.map(url => `<script src="${url}"><\/script>`).join('\n');
   const userCodeSource = JSON.stringify(code ?? "");
+
+  const threejsImportMap = skill === 'threejs' ? `
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "/vendor/three/three.min.js",
+        "three/addons/controls/OrbitControls.js": "/vendor/three/OrbitControls.js",
+        "three/addons/loaders/GLTFLoader.js": "/vendor/three/GLTFLoader.js",
+        "three/addons/loaders/DRACOLoader.js": "/vendor/three/DRACOLoader.js",
+        "three/addons/loaders/RGBELoader.js": "/vendor/three/RGBELoader.js"
+      }
+    }
+  </script>` : '';
 
   // Skill-specific initialization
   const skillInit: Record<string, string> = {
@@ -304,50 +305,52 @@ function buildSceneHTML(code: string, skill: string): string {
     `
   };
 
+  const isThreejs = skill === 'threejs';
+  const scriptType = isThreejs ? ' type="module"' : '';
+  const threejsModulePreamble = isThreejs ? `
+    import * as THREE from 'three';
+    import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+    import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+    import { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js';
+    import { RGBELoader } from 'three/addons/loaders/RGBELoader.js';
+    window.THREE = THREE;
+    window.OrbitControls = OrbitControls;
+    window.THREE.GLTFLoader = GLTFLoader;
+    window.THREE.DRACOLoader = DRACOLoader;
+    window.THREE.RGBELoader = RGBELoader;
+  ` : '';
+
   return `<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>GenVis Scene</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { 
-      overflow: hidden; 
-      background-color: #050507;
-      background-image:
-        linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px),
-        linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
-      background-size: 32px 32px;
-      font-family: system-ui, -apple-system, sans-serif;
-    }
-    #scene-container { 
-      width: 100vw; 
-      height: 100vh; 
-      background: radial-gradient(circle at 25% 20%, rgba(255, 255, 255, 0.05), transparent);
-    }
+    body { overflow: hidden; background: #0a0a0a; }
+    #scene-container { width: 100vw; height: 100vh; }
     #error-display {
       position: fixed;
-      top: 50%;
-      left: 50%;
-      transform: translate(-50%, -50%);
-      background: rgba(239, 68, 68, 0.1);
-      border: 1px solid rgba(239, 68, 68, 0.3);
-      color: #fca5a5;
-      padding: 1rem;
-      border-radius: 0.5rem;
-      font-family: monospace;
+      bottom: 12px;
+      left: 12px;
+      background: rgba(220, 38, 38, 0.9);
+      color: white;
+      padding: 8px 16px;
+      border-radius: 8px;
+      font-family: system-ui, sans-serif;
       font-size: 0.875rem;
       max-width: 80%;
       display: none;
     }
   </style>
+  ${threejsImportMap}
   ${cdnScripts}
 </head>
 <body>
   <div id="scene-container"></div>
   <div id="error-display"></div>
-  <script>
+  <script${scriptType}>
+    ${threejsModulePreamble}
     window.addEventListener('error', function(e) {
       const errorDisplay = document.getElementById('error-display');
       errorDisplay.textContent = 'Error: ' + e.message;
@@ -923,7 +926,7 @@ const SceneViewer = forwardRef<SceneViewerRef, SceneViewerProps>(({ code, skill,
               <iframe
                 ref={iframeRef}
                 className="h-full w-full border-none bg-transparent"
-                sandbox="allow-scripts allow-pointer-lock"
+                sandbox="allow-scripts allow-same-origin allow-pointer-lock"
                 tabIndex={0}
                 title="Scene preview"
               />

@@ -32,7 +32,6 @@ const moveMap = {
   "asset-resolver.ts": "pipeline/assets.ts",
   "prompt-manager.ts": "pipeline/prompts.ts",
   "media-artifacts.ts": "routes/media.ts",
-  "multi-agent-framework.ts": "agents/multi-agent-framework.ts"
 };
 
 // 1. Gather all files in server directory

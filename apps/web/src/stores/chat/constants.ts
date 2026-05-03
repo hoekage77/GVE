@@ -143,4 +143,6 @@ export const PANEL_WIDTH_RATIO_BY_VIEW: Record<WorkspacePanelView, number> = {
   preview: 0.6,
   code: 0.6,
   files: 0.44,
+  workspace: 0.5,
+  diff: 0.5,
 };

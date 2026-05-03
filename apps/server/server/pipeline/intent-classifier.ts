@@ -168,6 +168,14 @@ export function parseIntentFromQuery(query: string): any {
   const conversationalConfidence = conversationQuery ? 0.96 : confidence;
   const conversationalAmbiguous = conversationQuery ? false : ambiguous;
 
+  // Provider routing: DeepSeek V4 Pro for reasoning/explanation, Kimi 2.6 for code
+  const recommendedProvider =
+    intentType === "explain" || intentType === "chat"
+      ? "deepseek-v4-pro"
+      : intentType === "modify" || intentType === "create" || intentType === "animate"
+        ? "moonshot"
+        : null;
+
   return {
     rawQuery: query,
     intentType,
@@ -180,6 +188,7 @@ export function parseIntentFromQuery(query: string): any {
     isCapabilityQuestion: capabilityQuestion,
     isSmallTalk: smallTalk,
     isConversation: conversationQuery,
+    recommendedProvider,
     clarificationPrompt: conversationalAmbiguous
       ? "I can generate a new scene, modify the current one, or explain the existing result. Which should I do?"
       : null

@@ -50,6 +50,8 @@ function loadEnvFile(envPath: string): void {
 
 const currentDir = dirname(fileURLToPath(import.meta.url));
 loadEnvFile(join(currentDir, ".env"));
+console.log("[Env] Loaded .env from", join(currentDir, ".env"));
+// Removed secret indicator logging
 
 function hasValue(value: string | undefined | null): boolean {
   return value !== undefined && value !== null && String(value).trim() !== "";

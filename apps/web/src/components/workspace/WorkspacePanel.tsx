@@ -1,7 +1,10 @@
-import { X, RotateCcw, SkipBack, SkipForward, Redo2, Undo2 } from 'lucide-react';
+import { X, RotateCcw, SkipBack, SkipForward, Redo2, Undo2, FolderGit2, GitBranch } from 'lucide-react';
 import SceneViewer from '../SceneViewer';
 import CodeEditor from '../CodeEditor';
 import MediaViewer from './MediaViewer';
+import WorkspaceFileTree from './WorkspaceFileTree';
+import WorkspaceFileViewer from './WorkspaceFileViewer';
+import DiffViewer from './DiffViewer';
 import { useChatStore } from '../../stores';
 import { useEffect, useMemo, useState } from 'react';
 
@@ -26,7 +29,7 @@ export default function WorkspacePanel() {
   const [isRerunning, setIsRerunning] = useState(false);
   const [isMounted, setIsMounted] = useState(isPanelVisible);
   const [isVisible, setIsVisible] = useState(isPanelVisible);
-  const [displayedView, setDisplayedView] = useState<'preview' | 'code' | 'files'>(() => panelView ?? 'preview');
+  const [displayedView, setDisplayedView] = useState<'preview' | 'code' | 'files' | 'workspace' | 'diff'>(() => panelView ?? 'preview');
 
   const currentSession = useMemo(() =>
     sessions.find(s => s.sessionId === activeSessionId),
@@ -143,6 +146,20 @@ export default function WorkspacePanel() {
                 >
                   Code
                 </button>
+                <button
+                  onClick={() => openPanel('workspace')}
+                  className={`rounded-full px-2 py-0.5 text-[9px] font-semibold uppercase tracking-[0.08em] transition whitespace-nowrap ${activeView === 'workspace' ? 'bg-white/12 text-white' : 'text-white/50 hover:bg-white/5 hover:text-white/90'}`}
+                >
+                  <FolderGit2 className="inline h-3 w-3 mr-0.5" />
+                  Files
+                </button>
+                <button
+                  onClick={() => openPanel('diff')}
+                  className={`rounded-full px-2 py-0.5 text-[9px] font-semibold uppercase tracking-[0.08em] transition whitespace-nowrap ${activeView === 'diff' ? 'bg-white/12 text-white' : 'text-white/50 hover:bg-white/5 hover:text-white/90'}`}
+                >
+                  <GitBranch className="inline h-3 w-3 mr-0.5" />
+                  Diff
+                </button>
               </div>
 
               <div className="flex items-center gap-0.5 shrink-0">
@@ -190,7 +207,7 @@ export default function WorkspacePanel() {
                       <SceneViewer code={currentCode} skill={currentSkill} />
                     )}
                   </div>
-                ) : (
+                ) : activeView === 'code' ? (
                   <div className="absolute inset-0 z-20 bg-[#111]">
                     <CodeEditor
                       code={currentCode}
@@ -199,6 +216,19 @@ export default function WorkspacePanel() {
                       runPending={isRerunning}
                       onRun={(code) => { void handleRunScene(code); }}
                     />
+                  </div>
+                ) : activeView === 'workspace' ? (
+                  <div className="absolute inset-0 z-20 flex">
+                    <div className="w-[220px] shrink-0 border-r border-white/5 overflow-hidden">
+                      <WorkspaceFileTree />
+                    </div>
+                    <div className="min-h-0 flex-1 overflow-hidden bg-[#111]">
+                      <WorkspaceFileViewer />
+                    </div>
+                  </div>
+                ) : (
+                  <div className="absolute inset-0 z-20">
+                    <DiffViewer />
                   </div>
                 )}
 

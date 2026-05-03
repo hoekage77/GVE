@@ -98,6 +98,22 @@ export interface SessionSceneState {
   updatedAt: string;
 }
 
+export interface WorkspaceFileEntry {
+  path: string;
+  content: string;
+  purpose: string;
+  skill: string;
+  generatedAt?: string;
+}
+
+export interface WorkspaceRecord {
+  files: Record<string, WorkspaceFileEntry>;
+  entryPoint: string;
+  dependencies: string[];
+  createdAt?: string;
+  updatedAt?: string;
+}
+
 export interface SessionMessage {
   id: string;
   role: "user" | "assistant" | "system" | "thought";
@@ -1009,6 +1025,14 @@ export async function generateVisual(input: GenerateRequest): Promise<GenerateRe
 
     throw error;
   }
+}
+
+
+export async function analyzeQuality(sessionId: string): Promise<{ success: boolean; consensus: number }> {
+  return await requestJson<{ success: boolean; consensus: number }>(`/api/v1/sessions/${sessionId}/analyze`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" }
+  }, "Quality analysis request failed");
 }
 
 export async function modifyVisual(input: ModifyRequest): Promise<ModifyResponse> {

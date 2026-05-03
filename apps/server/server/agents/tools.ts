@@ -121,8 +121,6 @@ export const toolDefinitions: Record<string, any> = {
   }
 };
 
-export const agentToolDefinitions = Object.values(toolDefinitions);
-
 export function getDebugTools() {
   return [toolDefinitions.validate_code, toolDefinitions.fix_code, toolDefinitions.get_error_context];
 }
@@ -136,14 +134,6 @@ export function getRuntimeDebugTools() {
   ];
 }
 
-export function getGenerationTools() {
-  return [toolDefinitions.validate_code, toolDefinitions.execute_code];
-}
-
-export function getAllTools() {
-  return agentToolDefinitions;
-}
-
 export interface ErrorContext {
   originalQuery: string;
   failedCode: string;
@@ -155,6 +145,7 @@ export interface ErrorContext {
   runtimeHints?: string[];
   compatibilityMode?: string;
   runtimeDebugDeadlineAtMs?: number;
+  sessionId?: string | null;
 }
 
 let _currentErrorContext: ErrorContext | null = null;
@@ -233,12 +224,17 @@ async function handleExecuteCode({ code, skill }: { code: string; skill?: string
       };
     }
 
+    const { getTraceContext } = await import("../trace/context.js");
+    const traceCtx = getTraceContext();
+    const effectiveSessionId = _currentErrorContext?.sessionId ?? traceCtx.sessionId ?? null;
+
     const runtimeResult: any = await executeSkillRuntime({
       skillId: resolvedSkill,
       code,
       timeoutMs,
       maxFrames: resolvedSkill === "manim" ? 1 : runtimeExecutionMaxFrames,
-      turnDeadlineAtMs: _currentErrorContext?.runtimeDebugDeadlineAtMs
+      turnDeadlineAtMs: _currentErrorContext?.runtimeDebugDeadlineAtMs,
+      sessionId: effectiveSessionId
     });
 
     return {

@@ -5,7 +5,12 @@ import { fileURLToPath } from "node:url";
 import type { SessionState } from "../types/session.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const DATA_DIR = join(__dirname, "..", "..", ".data", "sessions");
+
+// Allow overriding the data directory via env var. Fallback walks from the
+// source file up to the workspace root (apps/server/server/state → apps/).
+const DATA_DIR = process.env.SESSION_DATA_DIR
+  ? process.env.SESSION_DATA_DIR
+  : join(__dirname, "..", "..", "..", ".data", "sessions");
 const INDEX_PATH = join(DATA_DIR, "..", "index.json");
 
 // Ensure data directory exists

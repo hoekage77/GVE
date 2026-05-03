@@ -97,6 +97,7 @@ export interface AcquireFilter {
   requireThinking?: boolean;
   requireCodeGeneration?: boolean;
   requireVision?: boolean;
+  requireReasoning?: boolean;
   preferredProviderId?: string | null;
 }
 
@@ -191,6 +192,7 @@ export class LLMProviderPool {
       if (filter.requireThinking && !p.capabilities?.thinking) return false;
       if (filter.requireCodeGeneration && !p.capabilities?.codeGeneration) return false;
       if (filter.requireVision && !p.capabilities?.vision) return false;
+      if (filter.requireReasoning && !p.capabilities?.reasoning) return false;
       return true;
     });
 

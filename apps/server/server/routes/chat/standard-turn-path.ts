@@ -94,7 +94,6 @@ export async function executeStandardTurnPath(params: {
         : plan.summary?.includes("animejs")
           ? "animejs"
           : "threejs";
-  /* 
   await broadcastThought(sessionId, "intent_parsed", {
     ...thoughtContextBase,
     query: content,
@@ -110,7 +109,6 @@ export async function executeStandardTurnPath(params: {
     query: content,
     llmThoughts
   });
-  */
 
   broadcastEvent("orchestration:plan", {
     sessionId,
@@ -179,7 +177,7 @@ export async function executeStandardTurnPath(params: {
     }
 
     await streamedCodePromise;
-    /* 
+
     await broadcastThought(sessionId, turn.mode === "generate" ? "code_generated" : "code_modified", {
       ...thoughtContextBase,
       query: content,
@@ -187,7 +185,6 @@ export async function executeStandardTurnPath(params: {
       llmThoughts,
       stageDurationMs: stepDurationsMs["generate_code"] ?? null
     });
-    */
     setSessionStatus(sessionId, "generating");
 
     broadcastEvent(turn.mode === "generate" ? "generation:started" : "code:started", {

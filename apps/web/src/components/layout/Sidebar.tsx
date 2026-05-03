@@ -392,25 +392,50 @@ export default function Sidebar({ forceExpanded = false }: SidebarProps) {
                     <p className="text-xs text-meta-muted">No history yet</p>
                   </div>
                 ) : (
-                  sessionRows.map((session) => (
-                    <button
-                      key={session.sessionId}
-                      type="button"
-                      className={`group flex w-full items-center gap-2.5 rounded-md px-3 py-2 text-left transition-colors ${session.sessionId === activeSessionId ? 'bg-surface text-meta-text' : 'text-meta-muted hover:bg-surface hover:text-meta-text'}`}
-                      onClick={() => {
-                        void selectSession(session.sessionId);
-                        closeMobileSidebar();
-                      }}
-                    >
-                      <div className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-surface-3 text-[10px] font-medium transition-colors ${session.sessionId === activeSessionId ? 'text-meta-text' : 'text-meta-muted group-hover:text-meta-text'}`}>
-                        {getSessionInitial(session.title)}
-                      </div>
-                      <div className="flex min-w-0 flex-1 flex-col">
-                        <span className="truncate text-sm font-medium" title={session.title}>{session.title}</span>
-                        <span className="text-[10px] text-meta-muted">{session.updatedAt}</span>
-                      </div>
-                    </button>
-                  ))
+                  sessionRows.map((session) => {
+                    const isActive = session.sessionId === activeSessionId;
+                    return (
+                      <button
+                        key={session.sessionId}
+                        type="button"
+                        ref={isActive ? (el) => {
+                          if (el) {
+                            el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                          }
+                        } : undefined}
+                        className={`group relative flex w-full items-center gap-2.5 rounded-md px-3 py-2 text-left transition-all duration-200 ${
+                          isActive
+                            ? 'bg-white/[0.06] text-white shadow-[inset_0_0_0_1px_rgba(255,255,255,0.06)]'
+                            : 'text-meta-muted hover:bg-white/[0.04] hover:text-white/80'
+                        }`}
+                        onClick={() => {
+                          void selectSession(session.sessionId);
+                          closeMobileSidebar();
+                        }}
+                      >
+                        {/* Active indicator strip */}
+                        {isActive && (
+                          <span className="absolute left-0 top-1/2 h-5 w-[2px] -translate-y-1/2 rounded-r-full bg-meta-accent shadow-[0_0_8px_rgba(255,106,61,0.6)]" />
+                        )}
+
+                        <div className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-[10px] font-semibold transition-colors ${
+                          isActive
+                            ? 'bg-meta-accent/15 text-meta-accent'
+                            : 'bg-surface-3 text-meta-muted group-hover:bg-white/[0.06] group-hover:text-white/70'
+                        }`}>
+                          {getSessionInitial(session.title)}
+                        </div>
+                        <div className="flex min-w-0 flex-1 flex-col">
+                          <span className={`truncate text-sm font-medium ${isActive ? 'text-white' : ''}`} title={session.title}>
+                            {session.title}
+                          </span>
+                          <span className={`text-[10px] ${isActive ? 'text-white/40' : 'text-meta-muted'}`}>
+                            {session.updatedAt}
+                          </span>
+                        </div>
+                      </button>
+                    );
+                  })
                 )}
               </div>
             </section>

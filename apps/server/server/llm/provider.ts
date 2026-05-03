@@ -110,6 +110,28 @@ const PROVIDER_DEFINITIONS: ProviderDefinition[] = [
   },
 
   {
+    id: "deepseek-v4-pro",
+    name: "DeepSeek via Fireworks",
+    baseUrl: "https://api.fireworks.ai/inference/v1",
+    model: "accounts/fireworks/models/deepseek-r1",
+    apiKeyEnv: "FIREWORKS_API_KEY",
+    priority: 2,
+    capabilities: {
+      codeGeneration: false,
+      thinking: true,
+      vision: false,
+      streaming: true,
+      reasoning: true,
+    },
+    limits: {
+      rpm: 30,
+      concurrency: 5,
+    },
+    cooldownMs: 60_000,
+    payloadTransform: null,
+  },
+
+  {
     id: "gradient-deepseek",
     name: "DigitalOcean Gradient - DeepSeek R1 Distill Llama 70B",
     baseUrl: process.env.GRADIENT_BASE_URL ?? "https://inference.do-ai.run/v1",

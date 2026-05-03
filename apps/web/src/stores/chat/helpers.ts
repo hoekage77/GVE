@@ -19,6 +19,7 @@ import {
   type WorkspacePanelView,
   type SessionTaskProgress
 } from './types';
+import { MEDIA_READY_TEXT, MEDIA_SYNCING_TEXT, MEDIA_UNAVAILABLE_TEXT } from './media-strings';
 
 export function nowIso(): string {
   return new Date().toISOString();
@@ -300,6 +301,8 @@ export function getPanelWidthPreset(view: WorkspacePanelView): number {
     preview: 840,
     code: 840,
     files: 620,
+    workspace: 840,
+    diff: 840,
   };
 
   if (typeof window === 'undefined') {
@@ -311,6 +314,8 @@ export function getPanelWidthPreset(view: WorkspacePanelView): number {
     preview: 360,
     code: 360,
     files: 360,
+    workspace: 360,
+    diff: 360,
   };
   const minimumWidth = minimumWidthByView[view] ?? 360;
   const preservedChatWidth = viewportWidth < 980 ? 280 : 360;
@@ -388,15 +393,15 @@ export function patchTaskProgressFromScene(
     next.mediaUrl = hasMediaUrl(scene) ? scene?.mediaUrl ?? null : null;
     if (hasMediaUrl(scene)) {
       next.mediaStage = 'ready';
-      next.mediaStatusText = 'Video artifact is ready to preview.';
+      next.mediaStatusText = MEDIA_READY_TEXT;
     } else if (next.turnStatus === 'running') {
       next.mediaStage = next.mediaStage === 'idle' ? 'syncing' : next.mediaStage;
       if (!next.mediaStatusText) {
-        next.mediaStatusText = 'Runtime output is syncing.';
+        next.mediaStatusText = MEDIA_SYNCING_TEXT;
       }
     } else {
       next.mediaStage = 'error';
-      next.mediaStatusText = 'Video artifact is unavailable for this run.';
+      next.mediaStatusText = MEDIA_UNAVAILABLE_TEXT;
     }
   } else if (next.turnStatus === 'idle') {
     next.mediaStage = 'idle';
@@ -522,6 +527,41 @@ export function createClientMessageId(prefix: string): string {
     ? crypto.randomUUID()
     : `${Date.now()}-${Math.random().toString(16).slice(2, 8)}`;
   return `${prefix}-${randomId}`;
+}
+
+export function buildClientSession(raw: any): Session | null {
+  if (!raw || typeof raw !== "object") return null;
+
+  const sessionId =
+    typeof raw.sessionId === "string" && raw.sessionId.trim()
+      ? raw.sessionId.trim()
+      : raw.id?.trim() ?? null;
+  if (!sessionId) return null;
+
+  return {
+    sessionId,
+    sceneId: raw.sceneId ?? null,
+    versionCount: Number.isFinite(raw.versionCount) ? raw.versionCount : 0,
+    versionPointer: Number.isFinite(raw.versionPointer) ? raw.versionPointer : undefined,
+    revisionCount: Number.isFinite(raw.revisionCount) ? raw.revisionCount : undefined,
+    revisionPointer: Number.isFinite(raw.revisionPointer) ? raw.revisionPointer : undefined,
+    artifactCount: Number.isFinite(raw.artifactCount) ? raw.artifactCount : undefined,
+    artifactPointer: Number.isFinite(raw.artifactPointer) ? raw.artifactPointer : undefined,
+    currentArtifactId: raw.currentArtifactId ?? null,
+    canUndo: raw.canUndo ?? false,
+    canRedo: raw.canRedo ?? false,
+    canPreviousArtifact: raw.canPreviousArtifact ?? false,
+    canNextArtifact: raw.canNextArtifact ?? false,
+    currentScene: raw.currentScene ?? null,
+    versions: Array.isArray(raw.versions) ? raw.versions : [],
+    sceneVersions: Array.isArray(raw.sceneVersions) ? raw.sceneVersions : undefined,
+    artifacts: Array.isArray(raw.artifacts) ? raw.artifacts : undefined,
+    messages: Array.isArray(raw.messages) ? raw.messages : undefined,
+    orchestrationTrace: Array.isArray(raw.orchestrationTrace) ? raw.orchestrationTrace : undefined,
+    status: raw.status ?? undefined,
+    createdAt: raw.createdAt ?? nowIso(),
+    updatedAt: raw.updatedAt ?? raw.createdAt ?? nowIso(),
+  } satisfies Session;
 }
 
 export function isThoughtMessage(message: SessionMessage): boolean {

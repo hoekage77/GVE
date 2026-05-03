@@ -388,7 +388,6 @@ export function AIMessage({
               sceneId={sceneId || "scene"}
               versionId={sceneVersionId || ""}
               onExpand={onSceneExpand}
-              onCode={onSceneCode}
             />
           )}
 

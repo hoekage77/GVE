@@ -312,6 +312,21 @@ export class SandboxPoolManager {
       return;
     }
 
+    // Skip prewarm entirely if no Daytona credentials are configured
+    const hasCredentials = Boolean(
+      process.env.DAYTONA_API_KEY ||
+      process.env.DAYTONA_API_TOKEN ||
+      process.env.DAYTONA_JWT ||
+      process.env.DAYTONA_TOKEN ||
+      process.env.DAYTONA_SERVER_URL ||
+      process.env.DAYTONA_API_URL
+    );
+    if (!hasCredentials) {
+      console.log("[Daytona] No credentials configured; prewarm disabled.");
+      this.prewarmSize = 0;
+      return;
+    }
+
     const intervalMs = this.prewarmCheckIntervalSec * 1000;
     this._maintenanceTimer = setInterval(() => {
       this.metrics.maintenanceRunsTotal += 1;
@@ -575,9 +590,57 @@ export class SandboxPoolManager {
     }
   }
 
+  async _resolveOrganizationId() {
+    const existing = process.env.DAYTONA_ORGANIZATION_ID
+      || process.env.DAYTONA_ORG_ID
+      || process.env.DAYTONA_ORG;
+    if (existing && existing.trim()) {
+      process.env.DAYTONA_ORGANIZATION_ID = existing.trim();
+      return;
+    }
+
+    // Daytona accepts either an API key or a JWT token in the Bearer header
+    const apiKey = process.env.DAYTONA_API_KEY || process.env.DAYTONA_API_TOKEN;
+    const jwt = process.env.DAYTONA_JWT || process.env.DAYTONA_TOKEN;
+    const token = (apiKey || jwt || "").trim();
+    if (!token) return;
+
+    try {
+      const apiBase = (process.env.DAYTONA_API_URL || process.env.DAYTONA_SERVER_URL || "https://app.daytona.io/api")
+        .replace(/\/+$/, "");
+      const response = await fetch(`${apiBase}/organizations`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        signal: AbortSignal.timeout(8000),
+      });
+
+      if (response.ok) {
+        const payload = await response.json();
+        // Daytona list responses are typically { items: [...] } or just [...]
+        const orgs = Array.isArray(payload) ? payload : (payload.items || []);
+        const org = orgs[0];
+        const orgId = org?.id ?? org?.organizationId ?? null;
+        if (orgId && String(orgId).trim()) {
+          process.env.DAYTONA_ORGANIZATION_ID = String(orgId).trim();
+          console.log(`[Daytona] Auto-resolved organization ID via API: ${process.env.DAYTONA_ORGANIZATION_ID}`);
+        } else {
+          console.warn("[Daytona] API returned organizations list but no id field found in first entry.");
+        }
+      } else {
+        const errText = await response.text().catch(() => "unknown");
+        console.warn(`[Daytona] Organization API returned ${response.status}: ${errText}`);
+      }
+    } catch (err) {
+      console.warn("[Daytona] Failed to auto-resolve organization ID from API:", err.message);
+    }
+  }
+
   async _getDaytonaClient() {
     if (!this.daytona) {
       try {
+        await this._resolveOrganizationId();
         this.daytona = new Daytona();
         // Extract hostname for DNS pre-flight checks
         try {

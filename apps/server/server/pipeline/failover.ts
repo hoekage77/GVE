@@ -1,7 +1,7 @@
 import { getPool } from "../llm/pool.js";
 import { sleep, truncateDiagnostic } from "../lib/utils.js";
 
-export function providerMatchesFilter(provider: any, filter: any = {}): boolean {
+function providerMatchesFilter(provider: any, filter: any = {}): boolean {
   if (!provider?.hasApiKey) {
     return false;
   }
@@ -21,7 +21,7 @@ export function providerMatchesFilter(provider: any, filter: any = {}): boolean 
   return true;
 }
 
-export function countEligibleProviders(pool: any, filter: any = {}): number {
+function countEligibleProviders(pool: any, filter: any = {}): number {
   return pool.providers.filter((provider: any) => providerMatchesFilter(provider, filter)).length;
 }
 

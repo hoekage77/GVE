@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useUser } from "@clerk/clerk-react";
+import { useUser } from "../../lib/clerk";
 import { Sparkles } from "lucide-react";
 import { motion } from "framer-motion";
 

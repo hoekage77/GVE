@@ -1,9 +1,11 @@
 import { getPool } from "../llm/pool.js";
+import { fetchChatCompletion } from "./utils.js";
+
 import { parseIntentFromQuery } from "./intent-classifier.js";
 import { resolveAssetPlan } from "./assets.js";
 import { computeBoundedTimeoutMs, executeSkillRuntimeWithQualityDecision, resolveRuntimeExecutionTimeoutMs, shouldDegradeRuntimeFailure, buildDegradedRuntimeResult, runtimeExecutionMaxFrames } from "./runtime-executor.js";
 import { buildModificationPromptBundle } from "./prompts.js";
-import { attemptRuntimeAgentRecovery } from "../agents/runner.js";
+import { attemptRuntimeAgentRecovery } from "./graph.js";
 import { applyFallbackSceneEdit } from "../sandbox/fallback.js";
 import {
   modifyRequestSchema,
@@ -594,7 +596,7 @@ async function modifyCodeWithPool(state: any, options: any = {}) {
     triedProviders.add(provider.id);
 
     try {
-      const response = await fetchChatCompletionLocal(provider, {
+      const response = await fetchChatCompletion(provider, {
         messages: [
           { role: "system", content: systemPrompt },
           { role: "user", content: userPrompt },
@@ -649,17 +651,4 @@ async function modifyCodeWithPool(state: any, options: any = {}) {
     generationWarning: `All ${triedProviders.size} LLM providers exhausted; used fallback modifier.`,
     changeSummary: fallback.changeSummary,
   };
-}
-
-async function fetchChatCompletionLocal(provider: any, payload: any, options = {}) {
-  const endpoint = `${provider.baseUrl.replace(/\/$/, "")}/chat/completions`;
-  const response = await fetch(endpoint, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${provider.apiKey}`,
-    },
-    body: JSON.stringify(payload),
-  });
-  return response;
 }

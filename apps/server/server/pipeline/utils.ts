@@ -528,7 +528,9 @@ export async function generateConversationReplyWithMoonshot(options: any): Promi
         );
 
         const payload = await response.json();
-        const content = payload?.choices?.[0]?.message?.content ?? "";
+        const message = payload?.choices?.[0]?.message ?? {};
+        const content = message.content ?? "";
+        const reasoningContent = (message as any).reasoning_content ?? null;
         const replyText = typeof content === "string" ? content : "";
 
         // Record token usage from conversation reply.
@@ -543,11 +545,35 @@ export async function generateConversationReplyWithMoonshot(options: any): Promi
           throw createRetryableProviderError(`${provider.id} returned empty conversational output.`, "PROVIDER_EMPTY_OUTPUT");
         }
 
-        return { replyText };
+        return { replyText, reasoningContent };
       }
     });
 
     const replyText = completion?.value?.replyText ?? "";
+    const reasoningContent = completion?.value?.reasoningContent ?? null;
+
+    // Emit reasoning chain as thought events (DeepSeek V4 Pro, etc.)
+    if (reasoningContent && request?.sessionId) {
+      const { broadcastEvent } = await import("../ws/streaming.js");
+      const reasoningSteps = reasoningContent
+        .split(/\n{2,}/)
+        .map((s: string) => s.trim())
+        .filter(Boolean);
+
+      for (const step of reasoningSteps) {
+        try {
+          broadcastEvent("thought:stream", {
+            sessionId: request.sessionId,
+            step: "reasoning",
+            text: step,
+            timestamp: Date.now(),
+          });
+        } catch {
+          // Best-effort broadcast
+        }
+      }
+    }
+
     // Simple text emission - onChunk is best-effort
     if (typeof onChunk === "function" && replyText) {
       try {

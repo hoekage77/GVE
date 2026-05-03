@@ -28,6 +28,7 @@ interface ComposerProps {
   providers?: LlmProviderItem[];
   activeProviderId?: string;
   onProviderChange?: (id: string) => void;
+  connectionState?: "connecting" | "open" | "closed" | "error";
 }
 
 export function Composer({ 
@@ -42,7 +43,8 @@ export function Composer({
   placeholder = "Message GenVis...",
   providers = [],
   activeProviderId = "auto",
-  onProviderChange
+  onProviderChange,
+  connectionState = "closed"
 }: ComposerProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -158,6 +160,20 @@ export function Composer({
           className="hidden"
           onChange={handleImageInputChange}
         />
+
+        {/* Connection status + Model Selector */}
+        <div className="flex items-center gap-1.5 pb-1">
+          <div
+            className={`h-2 w-2 rounded-full transition-all duration-300 ${
+              connectionState === "open"
+                ? "bg-emerald-400 shadow-[0_0_6px_rgba(52,211,153,0.5)]"
+                : connectionState === "connecting"
+                ? "bg-amber-400 animate-pulse"
+                : "bg-red-400/80"
+            }`}
+            title={connectionState === "open" ? "Connected" : connectionState === "connecting" ? "Connecting..." : "Disconnected"}
+          />
+        </div>
         
         {/* Model Selector */}
         <div className="relative group">

@@ -361,10 +361,6 @@ function buildThreejsReferenceTemplate(selectedSkill: string, quality: string): 
   ].join("\n");
 }
 
-export function getPromptConfig(): any {
-  return promptConfig;
-}
-
 export function buildConversationPromptBundle({ sessionState, request, parsedIntent, mode }: any): { systemPrompt: string; userPrompt: string } {
   return buildPromptBundle(promptConfig.conversation, {
     mode,

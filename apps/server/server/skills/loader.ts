@@ -128,7 +128,3 @@ function cloneSkillRuntimeProfile(profile: SkillRuntimeProfile): SkillRuntimePro
 export function getSkillRuntimeProfile(skillId: string): SkillRuntimeProfile {
   return cloneSkillRuntimeProfile(skillRuntimeProfiles[skillId] ?? skillRuntimeProfiles.threejs!);
 }
-
-export function listSkillRuntimeProfiles(): SkillRuntimeProfile[] {
-  return Object.values(skillRuntimeProfiles).map(cloneSkillRuntimeProfile);
-}

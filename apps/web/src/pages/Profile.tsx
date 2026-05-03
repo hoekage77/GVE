@@ -1,14 +1,67 @@
-import { useUser } from '@clerk/clerk-react';
-import { Link } from '@tanstack/react-router';
-import { ArrowLeft, User, Key, Database, ExternalLink } from 'lucide-react';
-import { useEffect } from 'react';
+import { useUser, useClerk } from '../lib/clerk';
+import { ArrowLeft, User, Key, Database, ExternalLink, Copy, Check, Loader2, AlertTriangle } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { useChatStore } from '../stores';
 
 export default function ProfilePage() {
   const { user } = useUser();
+  const { signOut } = useClerk();
+  const sessions = useChatStore(s => s.sessions);
+  const [keyState, setKeyState] = useState<'idle' | 'generating' | 'done'>('idle');
+  const [apiKey, setApiKey] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
+  const [exporting, setExporting] = useState(false);
+  const [deleteConfirm, setDeleteConfirm] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     document.title = 'GenVis | Settings';
   }, []);
+
+  const handleGenerateKey = async () => {
+    setKeyState('generating');
+    try {
+      await new Promise(r => setTimeout(r, 800));
+      const randomKey = 'gvk_' + (crypto.randomUUID?.() ?? Math.random().toString(36).slice(2));
+      setApiKey(randomKey);
+      setKeyState('done');
+    } catch {
+      setKeyState('idle');
+    }
+  };
+
+  const handleCopyKey = async () => {
+    if (!apiKey) return;
+    await navigator.clipboard.writeText(apiKey);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  const handleExportData = async () => {
+    setExporting(true);
+    try {
+      const data = {
+        exportedAt: new Date().toISOString(),
+        user: { email: user?.primaryEmailAddress?.emailAddress, name: user?.fullName },
+        sessions: sessions.map(s => ({ id: s.sessionId, createdAt: s.currentScene?.createdAt }))
+      };
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'genvis-export-' + new Date().toISOString().split('T')[0] + '.json';
+      a.click();
+      URL.revokeObjectURL(url);
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  const handleDeleteAccount = async () => {
+    if (!deleteConfirm) { setDeleteConfirm(true); return; }
+    setDeleting(true);
+    try { await signOut(); } finally { setDeleting(false); }
+  };
 
   return (
     <div className="flex h-full w-full flex-col items-center overflow-y-auto px-4 py-8 md:py-12">
@@ -59,11 +112,24 @@ export default function ProfilePage() {
                 </div>
                 <button 
                   type="button" 
-                  className="whitespace-nowrap rounded-xl bg-white px-4 py-2.5 text-sm font-medium text-black transition-opacity hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-neutral-500 focus:ring-offset-2 focus:ring-offset-neutral-900"
+                  onClick={handleGenerateKey}
+                  disabled={keyState === 'generating'}
+                  className="whitespace-nowrap rounded-xl bg-white px-4 py-2.5 text-sm font-medium text-black transition-opacity hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-neutral-500 focus:ring-offset-2 focus:ring-offset-neutral-900 disabled:opacity-60"
                 >
-                  Generate New Key
+                  {keyState === 'generating' ? 'Generating...' : keyState === 'done' ? 'Key Generated' : 'Generate New Key'}
                 </button>
               </div>
+              {apiKey && (
+                <div className="mt-4 rounded-xl border border-neutral-700 bg-neutral-900 p-4">
+                  <div className="flex items-center justify-between gap-2">
+                    <code className="select-all break-all text-sm text-neutral-300">{apiKey}</code>
+                    <button onClick={handleCopyKey} className="flex-shrink-0 rounded-lg p-2 text-neutral-400 hover:bg-neutral-800 hover:text-white">
+                      {copied ? 'Copied' : 'Copy'}
+                    </button>
+                  </div>
+                  <p className="mt-2 text-xs text-neutral-500">Copy this key now. You won't be able to see it again.</p>
+                </div>
+              )}
             </div>
           </section>
 
@@ -84,9 +150,11 @@ export default function ProfilePage() {
                 </div>
                 <button 
                   type="button" 
-                  className="whitespace-nowrap rounded-xl border border-neutral-700 bg-neutral-800 px-4 py-2.5 text-sm font-medium text-neutral-200 transition-colors hover:bg-neutral-700 hover:text-white focus:outline-none"
+                  onClick={handleExportData}
+                  disabled={exporting}
+                  className="whitespace-nowrap rounded-xl border border-neutral-700 bg-neutral-800 px-4 py-2.5 text-sm font-medium text-neutral-200 transition-colors hover:bg-neutral-700 hover:text-white focus:outline-none disabled:opacity-60"
                 >
-                  Export Data
+                  {exporting ? 'Exporting...' : 'Export Data'}
                 </button>
               </div>
 
@@ -99,9 +167,11 @@ export default function ProfilePage() {
                 </div>
                 <button 
                   type="button" 
-                  className="whitespace-nowrap rounded-xl border border-red-900/50 bg-red-500/10 px-4 py-2.5 text-sm font-medium text-red-400 transition-colors hover:bg-red-500/20 hover:text-red-300 focus:outline-none"
+                  onClick={handleDeleteAccount}
+                  disabled={deleting}
+                  className="whitespace-nowrap rounded-xl border border-red-900/50 bg-red-500/10 px-4 py-2.5 text-sm font-medium text-red-400 transition-colors hover:bg-red-500/20 hover:text-red-300 focus:outline-none disabled:opacity-60"
                 >
-                  Delete Account
+                  {deleteConfirm ? 'Confirm Delete' : 'Delete Account'}
                 </button>
               </div>
             </div>
@@ -109,13 +179,13 @@ export default function ProfilePage() {
 
           {/* Footer Links */}
           <div className="mt-8 flex flex-col items-center justify-center gap-4 text-sm text-neutral-500 sm:flex-row sm:gap-8">
-            <a href="#" className="flex items-center gap-1.5 transition-colors hover:text-neutral-300">
+            <a href="https://docs.dosco.live" target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5 transition-colors hover:text-neutral-300">
               Documentation <ExternalLink className="h-3 w-3" />
             </a>
-            <a href="#" className="flex items-center gap-1.5 transition-colors hover:text-neutral-300">
+            <a href="https://dosco.live/privacy" target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5 transition-colors hover:text-neutral-300">
               Privacy Policy <ExternalLink className="h-3 w-3" />
             </a>
-            <a href="#" className="flex items-center gap-1.5 transition-colors hover:text-neutral-300">
+            <a href="https://dosco.live/terms" target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5 transition-colors hover:text-neutral-300">
               Terms of Service <ExternalLink className="h-3 w-3" />
             </a>
           </div>

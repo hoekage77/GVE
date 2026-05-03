@@ -19,6 +19,7 @@ const activeChatTurns = new Map<string, Promise<any>>();
 const completedChatTurns = new Map<string, any>();
 const activeSceneCommands = new Map<string, Promise<any>>();
 const completedSceneCommands = new Map<string, any>();
+const abortedChatTurns = new Set<string>();
 
 function pruneCompletedTurnCache() {
   if (completedChatTurns.size <= completedTurnCacheSize) return;
@@ -68,9 +69,23 @@ export function setupWebSocketHandler(wsServer: any) {
         const parsedMessage = JSON.parse(rawMessage.toString());
 
         if (parsedMessage?.type === "turn.abort") {
+          const abortSessionId = String(parsedMessage?.payload?.sessionId ?? "").trim();
+          const abortRequestId = String(parsedMessage?.payload?.requestId ?? "").trim() || null;
+
+          if (abortRequestId && abortSessionId) {
+            // Remove from active so duplicate requests can start fresh
+            for (const [key, _promise] of activeChatTurns.entries()) {
+              if (key.startsWith(`${abortSessionId}:`) && key.endsWith(`:${abortRequestId}`)) {
+                activeChatTurns.delete(key);
+                abortedChatTurns.add(key);
+                break;
+              }
+            }
+          }
+
           sendSocketEvent(socket, "turn:aborted", {
-            sessionId: String(parsedMessage?.payload?.sessionId ?? "").trim(),
-            requestId: String(parsedMessage?.payload?.requestId ?? "").trim() || null
+            sessionId: abortSessionId,
+            requestId: abortRequestId
           });
           return;
         }
@@ -371,6 +386,17 @@ export function setupWebSocketHandler(wsServer: any) {
         activeChatTurns.set(turnKey, turnPromise);
 
         const result = await turnPromise;
+
+        // If the turn was aborted while running, skip completion events
+        if (abortedChatTurns.has(turnKey)) {
+          abortedChatTurns.delete(turnKey);
+          sendSocketEvent(socket, "turn:aborted", {
+            sessionId,
+            requestId: requestId || null,
+            reason: "client_aborted"
+          });
+          return;
+        }
         
         if (!result) {
           // Promise returned undefined (e.g. rate limited early return)

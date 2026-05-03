@@ -1,4 +1,4 @@
-export interface CuratedAsset {
+interface CuratedAsset {
   id: string;
   url: string;
   note: string;

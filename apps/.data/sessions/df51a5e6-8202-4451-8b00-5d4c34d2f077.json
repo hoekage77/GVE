@@ -1,0 +1,35 @@
+{
+  "sessionId": "df51a5e6-8202-4451-8b00-5d4c34d2f077",
+  "ownerId": null,
+  "createdAt": "2026-05-03T12:50:54.406Z",
+  "updatedAt": "2026-05-03T12:51:14.595Z",
+  "status": "idle",
+  "currentScene": null,
+  "workspace": null,
+  "artifacts": [],
+  "artifactPointer": -1,
+  "messages": [
+    {
+      "messageId": "message-1",
+      "role": "user",
+      "content": "Create a 3D particle physics simulation showing proton-proton collisions with debris trails, photon emissions, and energy field visualization using threejs",
+      "kind": "input",
+      "metadata": {},
+      "createdAt": "2026-05-03T12:51:14.571Z",
+      "updatedAt": "2026-05-03T12:51:14.571Z"
+    },
+    {
+      "messageId": "message-2",
+      "role": "assistant",
+      "content": "",
+      "kind": "streaming",
+      "meta": [
+        "requestId:df51a5e6-8202-4451-8b00-5d4c34d2f077:message-2"
+      ],
+      "metadata": [],
+      "createdAt": "2026-05-03T12:51:14.586Z",
+      "updatedAt": "2026-05-03T12:51:14.595Z"
+    }
+  ],
+  "orchestrationTrace": []
+}

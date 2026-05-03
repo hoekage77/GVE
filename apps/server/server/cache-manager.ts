@@ -115,7 +115,6 @@ class LRUCache<T = unknown> {
 }
 
 const generationCache = new LRUCache({ max: 500, ttlMs: 3600000 });
-const skillCache = new LRUCache({ max: 50, ttlMs: 7200000 });
 
 export function getGenerationCacheKey(query: string, skill: string, quality: string): string {
   return createHash({ query: query.trim().toLowerCase(), skill, quality });
@@ -129,22 +128,9 @@ export function setCachedGeneration(key: string, result: unknown): void {
   generationCache.set(key, result);
 }
 
-export function getCachedSkill(skillId: string): unknown | undefined {
-  return skillCache.get(skillId);
-}
-
-export function setCachedSkill(skillId: string, profile: unknown): void {
-  skillCache.set(skillId, profile);
-}
-
 export function getCacheStats(): { generation: CacheStats; skill: CacheStats } {
   return {
     generation: generationCache.stats,
-    skill: skillCache.stats
+    skill: { size: 0, max: 0, hits: 0, misses: 0, hitRate: 0 }
   };
-}
-
-export function clearAllCaches(): void {
-  generationCache.clear();
-  skillCache.clear();
 }

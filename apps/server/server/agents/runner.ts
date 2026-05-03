@@ -119,7 +119,7 @@ function extractCodeFromFinalText(finalText: string | undefined | null, skill: s
   return jsMatch ? jsMatch[1]?.trim() ?? null : null;
 }
 
-export async function runAgentLoop({
+async function runAgentLoop({
   messages,
   tools,
   maxIterations = 5,
@@ -365,16 +365,4 @@ export async function runRuntimeDebugSession({
   }
 
   return { fixedCode, success, toolCallHistory: result.toolCallHistory, iterations: result.iterations, aborted: result.aborted, finalText: result.finalText };
-}
-
-export async function attemptRuntimeAgentRecovery(options: any): Promise<any> {
-  // Stub - will be fully extracted from orchestrator.ts later
-  return {
-    recovered: false,
-    debugUsed: false,
-    recoveredCode: options.failedCode,
-    recoveredRuntime: options.runtimeResult,
-    warning: "Runtime recovery not yet implemented",
-    iterations: 0
-  };
 }

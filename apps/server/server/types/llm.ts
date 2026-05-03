@@ -7,6 +7,7 @@ export interface ProviderCapabilities {
   thinking: boolean;
   vision: boolean;
   streaming: boolean;
+  reasoning?: boolean;
 }
 
 export interface ProviderLimits {
@@ -84,7 +85,7 @@ export interface ChatCompletionResponse {
   model: string;
   choices: Array<{
     index: number;
-    message: ChatMessage;
+    message: ChatMessage & { reasoning_content?: string };
     finish_reason: string | null;
   }>;
   usage?: {

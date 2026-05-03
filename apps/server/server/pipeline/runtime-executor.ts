@@ -1,4 +1,3 @@
-import { executeSkillRuntime } from "../sandbox/skill-runtime.js";
 import { executeWithQualityLoop } from "../sandbox/execution.js";
 import { determineModeFromQuality } from "../quality/mode-engine.js";
 
@@ -168,39 +167,20 @@ export function buildRuntimeFailureResult({
   };
 }
 
-async function withTimeout(promise: Promise<any>, timeoutMs: number, timeoutMessage: string): Promise<any> {
-  if (!Number.isFinite(timeoutMs) || timeoutMs <= 0) throw new Error(timeoutMessage);
-  let timeoutHandle: any;
-  const timeoutPromise = new Promise((_, reject) => {
-    timeoutHandle = setTimeout(() => reject(new Error(timeoutMessage)), timeoutMs);
-  });
-  try {
-    return await Promise.race([promise, timeoutPromise]);
-  } finally {
-    clearTimeout(timeoutHandle);
-  }
-}
-
-export async function executeSkillRuntimeBounded({ skillId, code, timeoutMs, maxFrames, turnDeadlineAtMs, sessionId = null, tools = [] }: any): Promise<any> {
-  if (!Number.isFinite(timeoutMs) || timeoutMs <= 0) {
-    return buildRuntimeFailureResult({ skillId, errorMessage: "Turn budget exhausted before runtime execution.", errorCode: "RUNTIME_BUDGET_EXHAUSTED" });
-  }
-  const envelopeTimeoutMs = timeoutMs + 1500;
-  try {
-    return await withTimeout(
-      executeSkillRuntime({ skillId, code, timeoutMs, maxFrames, turnDeadlineAtMs, sessionId, tools }),
-      envelopeTimeoutMs,
-      `Runtime execution timed out after ${envelopeTimeoutMs}ms.`
-    );
-  } catch (error: any) {
-    return buildRuntimeFailureResult({ skillId, errorMessage: error instanceof Error ? error.message : "Unknown runtime execution timeout", errorCode: error?.code ? String(error.code) : "RUNTIME_EXEC_TIMEOUT" });
-  }
-}
 
 export async function executeSkillRuntimeWithQualityDecision({ skillId, code, timeoutMs, maxFrames, turnDeadlineAtMs, sessionId = null, quality = "standard", originalQuery = null, onProgress = null, tools = [] }: any): Promise<any> {
-  const shouldUseQualityLoop = quality !== "draft" && sessionId && originalQuery;
-  if (!shouldUseQualityLoop) {
-    return executeSkillRuntimeBounded({ skillId, code, timeoutMs, maxFrames, turnDeadlineAtMs, sessionId, tools });
+  if (!sessionId) {
+    const { getTraceContext } = await import("../trace/context.js");
+    const traceCtx = getTraceContext();
+    if (traceCtx.sessionId) {
+      sessionId = traceCtx.sessionId;
+    }
+  }
+  if (!sessionId || !originalQuery) {
+    return buildRuntimeFailureResult({
+      skillId,
+      errorMessage: "Session ID and original query are required for quality-loop execution."
+    });
   }
 
   try {
@@ -231,6 +211,9 @@ export async function executeSkillRuntimeWithQualityDecision({ skillId, code, ti
       iterations: qualityLoopResult.iterations ?? [], qualityReport: qualityLoopResult.qualityReport
     };
   } catch (error) {
-    return executeSkillRuntimeBounded({ skillId, code, timeoutMs, maxFrames, turnDeadlineAtMs, sessionId });
+    return buildRuntimeFailureResult({
+      skillId,
+      errorMessage: error instanceof Error ? error.message : "Quality-loop execution failed unexpectedly."
+    });
   }
 }

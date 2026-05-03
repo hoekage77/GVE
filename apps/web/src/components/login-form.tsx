@@ -1,4 +1,4 @@
-import { SignIn, SignUp } from '@clerk/clerk-react';
+import { SignIn, SignUp } from '../lib/clerk';
 import { useMemo, useState } from 'react';
 
 export function LoginForm() {

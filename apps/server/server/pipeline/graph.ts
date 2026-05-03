@@ -507,7 +507,7 @@ async function executeSkillRuntimeBounded(options: any): Promise<any> {
   return result;
 }
 
-async function attemptRuntimeAgentRecovery({
+export async function attemptRuntimeAgentRecovery({
   originalQuery,
   failedCode,
   runtimeResult,
@@ -641,7 +641,8 @@ async function attemptRuntimeAgentRecovery({
     failedCode: workingCode,
     runtimeError: workingRuntime?.error ?? workingRuntime?.warning,
     skill,
-    runtimeHints: compatibilityHints
+    runtimeHints: compatibilityHints,
+    sessionId
   });
 
   try {

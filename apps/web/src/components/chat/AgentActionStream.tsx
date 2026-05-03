@@ -264,9 +264,13 @@ export function AgentActionStream({ thoughts, isThinking = false }: AgentActionS
           {isThinking && (
             <div className="flex items-center gap-3 rounded-lg px-2 py-2.5 animate-[row-fade_0.25s_ease-out]">
               <div className="relative z-10 flex h-[18px] w-[18px] shrink-0 items-center justify-center">
-                <div className="h-[10px] w-[10px] animate-pulse rounded-full bg-white/40" />
+                <div className="flex items-center gap-0.5">
+                  <span className="h-1.5 w-1.5 rounded-full bg-ide-accent animate-[typing-bounce_1s_infinite]" style={{ animationDelay: "0ms" }} />
+                  <span className="h-1.5 w-1.5 rounded-full bg-ide-accent animate-[typing-bounce_1s_infinite]" style={{ animationDelay: "150ms" }} />
+                  <span className="h-1.5 w-1.5 rounded-full bg-ide-accent animate-[typing-bounce_1s_infinite]" style={{ animationDelay: "300ms" }} />
+                </div>
               </div>
-              <span className="text-[13px] text-white/40">Thinking...</span>
+              <span className="text-[13px] font-medium text-white/70">Agent is working</span>
               <Loader2 className="h-3 w-3 animate-spin text-white/30" />
             </div>
           )}

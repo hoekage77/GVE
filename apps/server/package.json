@@ -21,6 +21,7 @@
     "test:threejs:deepdive": "node ./scripts/threejs-constructor-deepdive.mjs"
   },
   "dependencies": {
+    "@clerk/express": "^2.1.12",
     "@langchain/core": "^1.1.36",
     "@langchain/langgraph": "^1.2.5",
     "@visual-runtime/sandbox-pool": "*",
@@ -28,6 +29,7 @@
     "acorn": "^8.16.0",
     "cors": "^2.8.6",
     "express": "^5.2.1",
+    "express-rate-limit": "^8.4.1",
     "ws": "^8.20.0"
   },
   "devDependencies": {

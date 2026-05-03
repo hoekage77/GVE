@@ -6,6 +6,7 @@
  */
 
 import { createHash } from "crypto";
+import { parse as parseAcorn } from "acorn";
 
 // ─── Types ───────────────────────────────────────────────────────────
 
@@ -333,12 +334,11 @@ After code, add: "EXPLANATION: [one sentence describing changes]"`;
 
   private _isValidCode(code: string, skill?: string): boolean {
     if (skill === "manim") {
-      // Basic check for python bracket balance, or just return true if we can't reliably validate syntax
       return true;
     }
     
     try {
-      new Function(code);
+      parseAcorn(code, { ecmaVersion: "latest", sourceType: "module" });
       return true;
     } catch {
       return false;

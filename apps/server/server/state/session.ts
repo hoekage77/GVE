@@ -279,6 +279,7 @@ function migrateToInternalState(rawSession: any): InternalSessionState {
     artifacts: typedArtifacts,
     artifactPointer: clamp(artifactPointer, -1, typedArtifacts.length - 1),
     currentScene: null, // synced below
+    workspace: rawSession.workspace ?? null,
     messages: Array.isArray(rawSession.messages) ? rawSession.messages.map((m: any) => ({...m})) : [],
     orchestrationTrace: Array.isArray(rawSession.orchestrationTrace) ? rawSession.orchestrationTrace.map((t: any) => ({...t})) : [],
     createdAt: rawSession.createdAt ?? now,
@@ -297,6 +298,7 @@ function cloneSessionState(session: InternalSessionState): SessionState {
 
   return {
     sessionId: session.sessionId,
+    ownerId: session.ownerId,
     status: session.status,
     createdAt: session.createdAt,
     updatedAt: session.updatedAt,
@@ -308,6 +310,7 @@ function cloneSessionState(session: InternalSessionState): SessionState {
     })),
     artifactPointer: session.artifactPointer,
     currentScene: cloneSceneVersion(session.currentScene),
+    workspace: session.workspace ? { ...session.workspace, files: {...session.workspace.files} } : null,
     messages: session.messages.map(m => ({ ...m })),
     orchestrationTrace: session.orchestrationTrace.map(t => ({ ...t })),
 
@@ -328,14 +331,16 @@ function cloneSessionState(session: InternalSessionState): SessionState {
   };
 }
 
-function createInternalSession(sessionId: string): InternalSessionState {
+function createInternalSession(sessionId: string, ownerId: string | null = null): InternalSessionState {
   const now = isoNow();
   return {
     sessionId,
+    ownerId,
     createdAt: now,
     updatedAt: now,
     status: "idle",
     currentScene: null,
+    workspace: null,
     artifacts: [],
     artifactPointer: -1,
     messages: [],
@@ -343,8 +348,8 @@ function createInternalSession(sessionId: string): InternalSessionState {
   };
 }
 
-function getOrCreateInternalSession(sessionId: string): InternalSessionState {
-  const resolvedSessionId = sessionId?.trim();
+export function getOrCreateInternalSession(sessionId: string, ownerId: string | null = null): InternalSessionState {
+  const resolvedSessionId = typeof sessionId === "string" ? sessionId.trim() : "";
   if (!resolvedSessionId) {
     throw new Error("Session ID is required.");
   }
@@ -354,12 +359,12 @@ function getOrCreateInternalSession(sessionId: string): InternalSessionState {
     return existing;
   }
 
-  const session = createInternalSession(resolvedSessionId);
+  const session = createInternalSession(resolvedSessionId, ownerId);
   sessions.set(resolvedSessionId, session);
   return session;
 }
 
-export function createSession(sessionId?: string): SessionState {
+export function createSession(sessionId?: string, ownerId: string | null = null): SessionState {
   const resolvedSessionId = sessionId?.trim() || randomUUID();
   const existing = sessions.get(resolvedSessionId);
 
@@ -367,14 +372,20 @@ export function createSession(sessionId?: string): SessionState {
     return cloneSessionState(existing);
   }
 
-  const session = createInternalSession(resolvedSessionId);
+  const session = createInternalSession(resolvedSessionId, ownerId);
   sessions.set(resolvedSessionId, session);
   saveSessionSync(resolvedSessionId, session as any);
   return cloneSessionState(session);
 }
 
-export function listSessions(): SessionState[] {
+export function isSessionOwner(session: SessionState | InternalSessionState, userId: string | null): boolean {
+  if (!session.ownerId) return true; // Public or unowned session
+  return session.ownerId === userId;
+}
+
+export function listSessions(userId: string | null = null): SessionState[] {
   return Array.from(sessions.values())
+    .filter(s => isSessionOwner(s, userId))
     .sort((left, right) => right.updatedAt.localeCompare(left.updatedAt))
     .map(cloneSessionState);
 }
@@ -750,8 +761,9 @@ export function buildSessionResponse(sessionState: SessionState, websocketUrl?: 
 }
 
 export function buildWebSocketUrl(req: any): string {
-  const protocol = req.headers["x-forwarded-proto"] === "https" ? "wss" : "ws";
-  const host = req.headers["x-forwarded-host"] || req.headers.host;
+  const headers = req?.headers ?? {};
+  const protocol = headers["x-forwarded-proto"] === "https" ? "wss" : "ws";
+  const host = headers["x-forwarded-host"] || headers.host || "localhost:8000";
   return `${protocol}://${host}/ws`;
 }
 

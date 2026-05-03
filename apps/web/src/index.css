@@ -52,6 +52,15 @@
   to { opacity: 1; max-height: 1000px; transform: translateY(0); }
 }
 
+@keyframes message-enter {
+  from { opacity: 0; transform: translateY(12px) scale(0.98); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.animate-message-enter {
+  animation: message-enter 0.35s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
 .scrollbar::-webkit-scrollbar { width: 6px; height: 6px; }
 .scrollbar::-webkit-scrollbar-track { background: transparent; }
 .scrollbar::-webkit-scrollbar-thumb { background: rgba(121, 121, 121, 0.4); border-radius: 4px; }
@@ -130,6 +139,23 @@
   --muted: 115 129 150;
   --accent: 89 146 255;
   --sidebar-width: 3rem;
+  --surface: #1e1e1e;
+  --surface-2: #252526;
+  --surface-3: #2d2d30;
+  --meta-dim: #6a6a6a;
+  --accent-primary: #0078d4;
+  --accent-glow: rgba(0, 120, 212, 0.15);
+  --border-subtle: rgba(255, 255, 255, 0.05);
+  --border-normal: rgba(255, 255, 255, 0.10);
+  --duration-fast: 150ms;
+  --duration-normal: 200ms;
+  --duration-slow: 300ms;
+  --duration-slower: 400ms;
+  --duration-breath: 3000ms;
+  --ease-out-quint: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-in-quint: cubic-bezier(0.4, 0, 0.2, 1);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --ease-smooth: cubic-bezier(0.45, 0, 0.45, 1);
 }
 
 * {
@@ -163,4 +189,62 @@ textarea {
     linear-gradient(rgba(255, 255, 255, 0.015) 1px, transparent 1px),
     linear-gradient(90deg, rgba(255, 255, 255, 0.015) 1px, transparent 1px);
   background-size: 32px 32px;
+}
+
+@keyframes breathe {
+  0%, 100% { opacity: 0.3; }
+  50% { opacity: 0.8; }
+}
+
+@keyframes ripple-out {
+  from { transform: scale(0); opacity: 0.5; }
+  to { transform: scale(4); opacity: 0; }
+}
+
+@keyframes slide-up-fade {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes scale-in {
+  from { opacity: 0; transform: scale(0.95); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+@keyframes agent-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(6, 182, 212, 0.4); }
+  50% { box-shadow: 0 0 0 6px rgba(6, 182, 212, 0); }
+}
+
+.animate-breathe {
+  animation: breathe 3s ease-in-out infinite;
+}
+
+.animate-ripple-out {
+  animation: ripple-out 0.6s var(--ease-out-quint) forwards;
+}
+
+.animate-slide-up-fade {
+  animation: slide-up-fade 0.3s var(--ease-out-quint) both;
+}
+
+.animate-scale-in {
+  animation: scale-in 0.3s var(--ease-spring) both;
+}
+
+.animate-agent-pulse {
+  animation: agent-pulse 2s ease-in-out infinite;
+}
+
+.resize-handle {
+  width: 4px;
+  cursor: col-resize;
+  transition: background 0.15s ease;
+}
+.resize-handle:hover {
+  background: rgba(0, 120, 212, 0.2);
+}
+.resize-handle:active {
+  background: rgba(0, 120, 212, 0.5);
+  box-shadow: 0 0 8px rgba(0, 120, 212, 0.3);
 }

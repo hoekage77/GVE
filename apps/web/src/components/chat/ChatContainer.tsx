@@ -471,12 +471,7 @@ export function ChatContainer() {
     }
   }, [displayMessages, thinkingText]);
 
-  // Workspace panel auto-close logic removed - split screen deprecated
-  useEffect(() => {
-    if (panelOpen) {
-      closePanel();
-    }
-  }, [panelOpen, closePanel]);
+  // No panel auto-open; inline artifact cards within messages handle preview display
 
   const handleSend = async () => {
     await sendMessage(composerValue);
@@ -698,23 +693,21 @@ export function ChatContainer() {
 
         </div>
         
-            {/* 
-              {isTaskOperationActive && activeTaskProgress && (
-                <div className="w-full p-0 px-4 pb-3 max-w-3xl mx-auto">
-                  <div className="w-full">
-                    <TaskStatusBar
-                      taskProgress={activeTaskProgress}
-                      statusStep={activeStatusStep}
-                      statusText={activeStatusText}
-                      assetPlan={activeSession?.currentScene?.assetPlan ?? null}
-                      isExpanded={isTasksExpanded}
-                      onToggle={handleOpenTasks}
-                      connectionState={connectionState}
-                    />
-                  </div>
+            {isTaskOperationActive && activeTaskProgress && (
+              <div className="w-full p-0 px-4 pb-3 max-w-3xl mx-auto">
+                <div className="w-full">
+                  <TaskStatusBar
+                    taskProgress={activeTaskProgress}
+                    statusStep={activeStatusStep}
+                    statusText={activeStatusText}
+                    assetPlan={activeSession?.currentScene?.assetPlan ?? null}
+                    isExpanded={isTasksExpanded}
+                    onToggle={handleOpenTasks}
+                    connectionState={connectionState}
+                  />
                 </div>
-              )}
-            */}
+              </div>
+            )}
 
             {/* Input */}
             <div className="shrink-0 bg-transparent pb-4 lg:pb-8 pt-2">
@@ -734,6 +727,7 @@ export function ChatContainer() {
                   providers={providers}
                   activeProviderId={activeProviderId}
                   onProviderChange={setActiveProvider}
+                  connectionState={connectionState}
                 />
                 <div className="mt-2 text-center text-[11px] text-white/30 hidden lg:block">
                   Press Enter to send, Shift+Enter for new line

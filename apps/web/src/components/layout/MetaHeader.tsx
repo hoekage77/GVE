@@ -2,6 +2,7 @@ import { useMemo, useState, useEffect, useRef } from "react";
 import { ChevronDown, Share2, X, SquarePen, Maximize2, MoreHorizontal, Lock, ArrowLeft, Clapperboard, ListTodo, User, Menu } from "lucide-react";
 import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import { useChatStore, type Session, type SessionMessage } from "../../stores";
+import { CodebaseAgentTrigger } from "../agents";
 
 function compactSceneName(sceneId: string | undefined): string {
   const normalized = String(sceneId ?? "").trim();
@@ -147,6 +148,7 @@ export function MetaHeader() {
 
         {/* Right Section - Actions */}
         <div className="flex flex-1 items-center justify-end gap-1 overflow-hidden">
+          <CodebaseAgentTrigger />
           {isChatRoute ? (
             <>
               <button type="button" className="hidden h-8 w-8 items-center justify-center rounded-md bg-surface-3 text-meta-muted transition-colors hover:bg-surface hover:text-meta-text md:inline-flex" aria-label="Rename chat">

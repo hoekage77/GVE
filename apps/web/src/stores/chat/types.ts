@@ -8,14 +8,16 @@ import {
   type IterationState as SharedIterationState,
   type QualityReport,
   type IterationStopReason,
-  type LlmProviderItem
+  type LlmProviderItem,
+  type WorkspaceRecord,
+  type WorkspaceFileEntry
 } from '@visual-runtime/shared';
 import type { ActionBlock, TaskCheckpoint } from '../../types/actionBlocks';
 
 export type Session = SessionSceneState;
 export type LiveConnectionState = 'connecting' | 'open' | 'closed' | 'error';
 export type SceneHistoryCommand = 'undo' | 'redo' | 'artifact.previous' | 'artifact.next' | 'version.previous' | 'version.next';
-export type WorkspacePanelView = 'preview' | 'code' | 'files';
+export type WorkspacePanelView = 'preview' | 'code' | 'files' | 'workspace' | 'diff';
 export type TurnLifecycleStatus = 'idle' | 'running' | 'completed' | 'failed';
 export type MediaLifecycleStage = 'idle' | 'queued' | 'generating' | 'executing' | 'syncing' | 'ready' | 'error';
 
@@ -154,6 +156,10 @@ export interface ChatState {
   panelOpen: boolean;
   panelView: WorkspacePanelView | null;
   panelWidth: number;
+
+  // Multi-File Workspace State
+  workspaceRecord: WorkspaceRecord | null;
+  selectedWorkspaceFile: string | null;
   
   // Theater Mode (New Cinematic Preview)
   activeArtifactId: string | null;
@@ -167,6 +173,10 @@ export interface ChatState {
   providers: LlmProviderItem[];
   activeProviderId: string;
   
+  // WebSocket
+  _ws: WebSocket | null;
+  _wsSeq: number;
+
   // Actions
   isSidebarCollapsed: boolean;
   setSidebarCollapsed: (collapsed: boolean) => void;
@@ -222,4 +232,8 @@ export interface ChatState {
   // Theater Mode Actions
   openTheaterMode: (artifactId: string) => void;
   closeTheaterMode: () => void;
+
+  // Workspace Actions
+  setWorkspaceRecord: (record: WorkspaceRecord | null) => void;
+  selectWorkspaceFile: (path: string) => void;
 }
