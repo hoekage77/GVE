@@ -51,6 +51,27 @@ export function SignedOut({ children }: { children: ReactNode }) {
   return null;
 }
 
+/* ── useAuth hook ── */
+export function useAuth() {
+  if (clerkEnabled) {
+    const { useAuth: real } = require("@clerk/clerk-react");
+    return real();
+  }
+  return {
+    isLoaded: true,
+    isSignedIn: true,
+    userId: devUser.id,
+    sessionId: "dev-session",
+    getToken: async () => "dev-token",
+    orgId: null,
+    orgRole: null,
+    orgSlug: null,
+    signOut: async () => {
+      window.location.reload();
+    },
+  } as any;
+}
+
 /* ── useUser hook ── */
 export function useUser() {
   if (clerkEnabled) {

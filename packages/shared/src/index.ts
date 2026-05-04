@@ -462,6 +462,16 @@ function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => window.setTimeout(resolve, ms));
 }
 
+let authTokenProvider: (() => Promise<string | null | undefined>) | null = null;
+
+export function setAuthTokenProvider(provider: () => Promise<string | null | undefined>) {
+  authTokenProvider = provider;
+}
+
+export function clearAuthTokenProvider() {
+  authTokenProvider = null;
+}
+
 async function readApiError(response: Response, fallbackMessage: string): Promise<string> {
   const contentType = response.headers.get("content-type") ?? "";
 
@@ -490,6 +500,19 @@ async function requestJson<T>(
     ...init,
     credentials: init.credentials ?? "include",
   };
+
+  if (authTokenProvider) {
+    try {
+      const token = await authTokenProvider();
+      if (token) {
+        const headers = new Headers(initWithCredentials.headers ?? {});
+        headers.set("Authorization", `Bearer ${token}`);
+        initWithCredentials.headers = headers;
+      }
+    } catch {
+      // ignore token retrieval errors; let the request proceed without a token
+    }
+  }
 
   for (let attempt = 0; attempt <= retryCount; attempt += 1) {
     try {

@@ -3,12 +3,15 @@ import { useEffect } from 'react';
 import Sidebar from './Sidebar';
 import { MetaHeader } from './MetaHeader';
 import { useChatStore } from '../../stores';
+import { useAuth } from '../../lib/clerk';
+import { setAuthTokenProvider } from '../../api';
 
 interface MainLayoutProps {
   children?: React.ReactNode;
 }
 
 export function MainLayout({ children }: MainLayoutProps) {
+  const { isLoaded, isSignedIn, getToken } = useAuth();
   const initialize = useChatStore((state) => state.initialize);
   const pathname = useRouterState({
     select: (state) => state.location.pathname
@@ -18,8 +21,16 @@ export function MainLayout({ children }: MainLayoutProps) {
     || pathname.startsWith('/tasks');
 
   useEffect(() => {
+    if (!isLoaded || !isSignedIn) return;
+
+    // Register the token provider so every API request carries the Clerk JWT.
+    setAuthTokenProvider(() => getToken());
+
+    // Clear any stale auth error before retrying initialization.
+    useChatStore.setState({ sessionsError: null });
+
     void initialize();
-  }, [initialize]);
+  }, [isLoaded, isSignedIn, getToken, initialize]);
 
   const isSidebarCollapsed = useChatStore((state) => state.isSidebarCollapsed);
 

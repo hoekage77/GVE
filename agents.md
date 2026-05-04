@@ -65,4 +65,18 @@ Strong success criteria let you loop independently. Weak criteria ("make it work
 
 **These guidelines are working if:** fewer unnecessary changes in diffs, fewer rewrites due to overcomplication, and clarifying questions come before implementation rather than after mistakes.
 
+## Project-Specific Guidelines: Clerk Authentication
+
+This project uses Clerk for authentication. The backend (`apps/server`) uses `@clerk/express` and the frontend (`apps/web`) uses `@clerk/clerk-react` (conditionally loaded via `apps/web/src/lib/clerk.tsx`).
+
+**Critical rules:**
+- Every API request from the web app MUST include a Clerk JWT token in the `Authorization: Bearer <token>` header. The shared `requestJson` helper (`packages/shared/src/index.ts`) reads from a global auth token provider that is set by the web app.
+- The global auth token provider is set via `setAuthTokenProvider(() => getToken())` in `MainLayout.tsx` (or equivalent root component). This must happen BEFORE any API calls.
+- Use `useAuth()` from `apps/web/src/lib/clerk.tsx` to get `getToken`. Do NOT use `useUser()` for API authentication — `useUser` only reflects cached UI state, not a valid session token. A cached user object can exist while the session cookie/token is missing or expired.
+- `MainLayout` must wait for `useAuth().isLoaded && useAuth().isSignedIn` before calling `initialize()` and making API requests. This prevents 401 race conditions on first load.
+- `sessionsError` must be cleared (`useChatStore.setState({ sessionsError: null })`) before retrying initialization after an auth error. The `sessionSlice` already clears it on `refreshSessions` success.
+- In dev mode (when Clerk keys are missing or set to the dummy fallback), both frontend and backend bypass real auth. The token provider still sends a mock token, which the server ignores.
+- The server CORS config (`apps/server/server/create-app.ts`) already allows the `Authorization` header.
+- If you add a new API function in `packages/shared/src/index.ts`, ensure it routes through `requestJson` so the auth token is attached automatically.
+
 NOTE: examples are in the examples.md folder. 

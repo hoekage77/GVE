@@ -23,6 +23,8 @@ export {
   listTools,
   resolveApiUrl,
   resolveWebSocketUrl,
+  setAuthTokenProvider,
+  clearAuthTokenProvider,
   CURATED_THREEJS_ASSETS,
   getModelCandidateUrls,
   resolveModelCategories,
