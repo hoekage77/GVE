@@ -129,10 +129,10 @@ export function getModelCandidateUrls(subject: string): CuratedAsset[] {
   }
 
   return [
-    ...CURATED_THREEJS_ASSETS.humans,
-    ...CURATED_THREEJS_ASSETS.animals,
-    ...CURATED_THREEJS_ASSETS.birds,
-    ...CURATED_THREEJS_ASSETS.vehicles,
-    ...CURATED_THREEJS_ASSETS.objects
+    ...(CURATED_THREEJS_ASSETS.humans as CuratedAsset[]),
+    ...(CURATED_THREEJS_ASSETS.animals as CuratedAsset[]),
+    ...(CURATED_THREEJS_ASSETS.birds as CuratedAsset[]),
+    ...(CURATED_THREEJS_ASSETS.vehicles as CuratedAsset[]),
+    ...(CURATED_THREEJS_ASSETS.objects as CuratedAsset[])
   ] as CuratedAsset[];
 }
