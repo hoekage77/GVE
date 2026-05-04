@@ -1,5 +1,6 @@
 import { createRouter, RootRoute, Route, Outlet } from '@tanstack/react-router';
 import { ConditionalClerkProvider, SignedIn, SignedOut } from '../lib/clerk';
+import { RequireAuth } from '../components/RequireAuth';
 import AuthPage from '../pages/Auth';
 import ChatPage from '../pages/Chat';
 import ProfilePage from '../pages/Profile';
@@ -8,10 +9,8 @@ import TasksPage from '../pages/Tasks';
 import { MainLayout } from '../components/layout/MainLayout';
 import { ToastContainer } from '../components/ToastContainer';
 
-// Test Clerk key - replace with production key in deployment
-const FALLBACK_CLERK_KEY = 'pk_test_dGVzdC10ZXJyYW5ldC1jbGVyay5jbGVyay5hY2NvdW50cy5kZXYk';
+const FALLBACK_CLERK_KEY = "pk_test_dGVzdC10ZXJyYW5ldC1jbGVyay5jbGVyay5hY2NvdW50cy5kZXYk";
 
-// Root route with providers
 const rootRoute = new RootRoute({
   component: () => (
     <ConditionalClerkProvider fallbackKey={FALLBACK_CLERK_KEY}>
@@ -21,18 +20,11 @@ const rootRoute = new RootRoute({
   ),
 });
 
-function ProtectedAppShell() {
+function ProtectedAppShell({ children }: { children: React.ReactNode }) {
   return (
-    <>
-      <SignedIn>
-        <MainLayout>
-          <ChatPage />
-        </MainLayout>
-      </SignedIn>
-      <SignedOut>
-        <RedirectToAuth />
-      </SignedOut>
-    </>
+    <RequireAuth>
+      <MainLayout>{children}</MainLayout>
+    </RequireAuth>
   );
 }
 
@@ -49,78 +41,55 @@ function AuthEntryShell() {
   );
 }
 
-// App home (auth entry)
 const homeRoute = new Route({
   getParentRoute: () => rootRoute,
   path: '/',
   component: AuthEntryShell,
 });
 
-// Auth page (public)
 const authRoute = new Route({
   getParentRoute: () => rootRoute,
   path: '/auth',
   component: AuthEntryShell,
 });
 
-// Chat page (protected)
 const chatRoute = new Route({
   getParentRoute: () => rootRoute,
   path: '/chat',
-  component: ProtectedAppShell,
+  component: () => (
+    <ProtectedAppShell>
+      <ChatPage />
+    </ProtectedAppShell>
+  ),
 });
 
-// Scenes page (protected)
 const scenesRoute = new Route({
   getParentRoute: () => rootRoute,
   path: '/scenes',
   component: () => (
-    <>
-      <SignedIn>
-        <MainLayout>
-          <ScenesPage />
-        </MainLayout>
-      </SignedIn>
-      <SignedOut>
-        <RedirectToAuth />
-      </SignedOut>
-    </>
+    <ProtectedAppShell>
+      <ScenesPage />
+    </ProtectedAppShell>
   ),
 });
 
-// Tasks page (protected)
 const tasksRoute = new Route({
   getParentRoute: () => rootRoute,
   path: '/tasks',
   component: () => (
-    <>
-      <SignedIn>
-        <MainLayout>
-          <TasksPage />
-        </MainLayout>
-      </SignedIn>
-      <SignedOut>
-        <RedirectToAuth />
-      </SignedOut>
-    </>
+    <ProtectedAppShell>
+      <TasksPage />
+    </ProtectedAppShell>
   ),
 });
 
-// Profile page (protected)
 const profileRoute = new Route({
   getParentRoute: () => rootRoute,
   path: '/profile',
   component: () => (
-    <>
-      <SignedIn>
-        <MainLayout>
-          <ProfilePage />
-        </MainLayout>
-      </SignedIn>
-      <SignedOut>
-        <RedirectToAuth />
-      </SignedOut>
-    </>
+    <ProtectedAppShell>
+      <ProfilePage />
+    </ProtectedAppShell>
   ),
 });
 
@@ -134,7 +103,6 @@ function RedirectToChat() {
   return null;
 }
 
-// Create the route tree
 const routeTree = rootRoute.addChildren([
   homeRoute,
   authRoute,
@@ -144,10 +112,8 @@ const routeTree = rootRoute.addChildren([
   profileRoute,
 ]);
 
-// Create the router
 export const router = createRouter({ routeTree });
 
-// Register types
 declare module '@tanstack/react-router' {
   interface Register {
     router: typeof router;

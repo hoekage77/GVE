@@ -1,0 +1,484 @@
+{
+  "sessionId": "8c4016b4-0975-44bc-b556-5f2022196377",
+  "createdAt": "2026-04-22T13:04:32.039Z",
+  "updatedAt": "2026-04-25T12:27:46.394Z",
+  "status": "idle",
+  "currentScene": {
+    "sessionId": "8c4016b4-0975-44bc-b556-5f2022196377",
+    "sceneId": "scene-failed-1776863201283",
+    "code": "const clock = new THREE.Clock();\nscene.background = new THREE.Color(0xf4f7fb);\nrenderer.toneMapping = THREE.ACESFilmicToneMapping;\nrenderer.toneMappingExposure = 1.08;\nrenderer.shadowMap.enabled = true;\nrenderer.shadowMap.type = THREE.PCFSoftShadowMap;\n\nconst keyLight = new THREE.DirectionalLight(0xffffff, 1.35);\nkeyLight.position.set(6, 10, 8);\nkeyLight.castShadow = true;\nkeyLight.shadow.mapSize.width = 2048;\nkeyLight.shadow.mapSize.height = 2048;\nkeyLight.shadow.camera.near = 0.1;\nkeyLight.shadow.camera.far = 50;\nkeyLight.shadow.bias = -0.001;\n\nconst fillLight = new THREE.DirectionalLight(0xbfd7ff, 0.55);\nfillLight.position.set(-7, 4, 5);\n\nconst rimLight = new THREE.PointLight(0xaad6ff, 0.45, 22);\nrimLight.position.set(-4, 3, -5);\n\nconst warmAccent = new THREE.PointLight(0xffaa77, 0.6, 15);\nwarmAccent.position.set(2, 6, -3);\n\nscene.add(new THREE.AmbientLight(0x7f8aa6, 0.32), keyLight, fillLight, rimLight, warmAccent);\n\nconst floor = new THREE.Mesh(\n  new THREE.CircleGeometry(18, 96),\n  new THREE.MeshStandardMaterial({ color: 0xe6ecf5, roughness: 0.92, metalness: 0.02 })\n);\nfloor.rotation.x = -Math.PI / 2;\nfloor.position.y = -3.5;\nfloor.receiveShadow = true;\nscene.add(floor);\n\nconst hypothesisGroup = new THREE.Group();\nscene.add(hypothesisGroup);\n\nconst surfaceMaterial = new THREE.MeshPhysicalMaterial({\n  color: 0xffffff,\n  metalness: 0.1,\n  roughness: 0.2,\n  transmission: 0.15,\n  thickness: 0.5,\n  clearcoat: 0.8,\n  clearcoatRoughness: 0.1,\n  side: THREE.DoubleSide\n});\n\nconst geometry = new THREE.PlaneGeometry(16, 12, 128, 96);\nconst positions = geometry.attributes.position;\nconst colors = [];\nconst color1 = new THREE.Color(0x4a90e2);\nconst color2 = new THREE.Color(0x7b68ee);\nconst color3 = new THREE.Color(0xff6b6b);\n\nfor (let i = 0; i < positions.count; i++) {\n  const x = positions.getX(i);\n  const y = positions.getY(i);\n  \n  const dist = Math.sqrt(x * x + y * y);\n  const zetaHeight = Math.sin(x * 2) * Math.cos(y * 1.5) * Math.exp(-dist * 0.15) * 2.5;\n  const criticalMod = Math.exp(-Math.pow(x - 2, 2) * 4) * Math.sin(y * 3) * 1.5;\n  \n  positions.setZ(i, zetaHeight + criticalMod);\n  \n  const mixFactor = (zetaHeight + 2.5) / 5;\n  const vertexColor = new THREE.Color().lerpColors(color1, color2, mixFactor);\n  if (Math.abs(x - 2) < 0.3) vertexColor.lerp(color3, 0.6);\n  colors.push(vertexColor.r, vertexColor.g, vertexColor.b);\n}\n\ngeometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));\ngeometry.computeVertexNormals();\n\nconst zetaSurface = new THREE.Mesh(geometry, surfaceMaterial);\nzetaSurface.rotation.x = -Math.PI / 2;\nzetaSurface.position.y = 0;\nzetaSurface.castShadow = true;\nzetaSurface.receiveShadow = true;\nhypothesisGroup.add(zetaSurface);\n\nconst criticalLineGeo = new THREE.BoxGeometry(0.15, 0.15, 12);\nconst criticalLineMat = new THREE.MeshPhysicalMaterial({\n  color: 0xff4757,\n  emissive: 0xff4757,\n  emissiveIntensity: 0.4,\n  metalness: 0.8,\n  roughness: 0.2\n});\nconst criticalLine = new THREE.Mesh(criticalLineGeo, criticalLineMat);\ncriticalLine.position.set(2, 0.1, 0);\ncriticalLine.castShadow = true;\nhypothesisGroup.add(criticalLine);\n\nconst zeroGroup = new THREE.Group();\nhypothesisGroup.add(zeroGroup);\n\nconst zeroMaterial = new THREE.MeshPhysicalMaterial({\n  color: 0xff2e63,\n  emissive: 0xff2e63,\n  emissiveIntensity: 0.6,\n  metalness: 0.9,\n  roughness: 0.1,\n  clearcoat: 1.0\n});\n\nconst zeroPositions = [\n  { y: -4.5, scale: 0.4 },\n  { y: -2.8, scale: 0.5 },\n  { y: -1.2, scale: 0.45 },\n  { y: 0.8, scale: 0.55 },\n  { y: 2.5, scale: 0.48 },\n  { y: 4.2, scale: 0.52 }\n];\n\nzeroPositions.forEach((pos, idx) => {\n  const sphere = new THREE.Mesh(\n    new THREE.SphereGeometry(pos.scale, 32, 32),\n    zeroMaterial.clone()\n  );\n  sphere.position.set(2, 0.2, pos.y);\n  sphere.castShadow = true;\n  sphere.userData = { originalScale: pos.scale, index: idx };\n  zeroGroup.add(sphere);\n  \n  const glow = new THREE.Mesh(\n    new THREE.SphereGeometry(pos.scale * 1.8, 16, 16),\n    new THREE.MeshBasicMaterial({\n      color: 0xff2e63,\n      transparent: true,\n      opacity: 0.15\n    })\n  );\n  glow.position.copy(sphere.position);\n  zeroGroup.add(glow);\n});\n\nconst implicationNodes = [];\nconst implications = [\n  { label: \"Cryptography\", pos: new THREE.Vector3(-5, 3, -3), color: 0x2ed573 },\n  { label: \"Quantum Chaos\", pos: new THREE.Vector3(6, 4, 2), color: 0x1e90ff },\n  { label: \"Prime Distribution\", pos: new THREE.Vector3(-4, 2, 4), color: 0xffa502 },\n  { label: \"Random Matrices\", pos: new THREE.Vector3(5, 3.5, -4), color: 0x9b59b6 }\n];\n\nimplications.forEach((imp, i) => {\n  const nodeGroup = new THREE.Group();\n  nodeGroup.position.copy(imp.pos);\n  \n  const core = new THREE.Mesh(\n    new THREE.IcosahedronGeometry(0.6, 2),\n    new THREE.MeshPhysicalMaterial({\n      color: imp.color,\n      emissive: imp.color,\n      emissiveIntensity: 0.3,\n      metalness: 0.7,\n      roughness: 0.3,\n      clearcoat: 0.8\n    })\n  );\n  core.castShadow = true;\n  nodeGroup.add(core);\n  \n  const ring = new THREE.Mesh(\n    new THREE.TorusGeometry(1.0, 0.05, 16, 64),\n    new THREE.MeshBasicMaterial({ color: imp.color, transparent: true, opacity: 0.6 })\n  );\n  ring.rotation.x = Math.PI / 2;\n  nodeGroup.add(ring);\n  \n  const particleCount = 20;\n  const particles = new THREE.InstancedMesh(\n    new THREE.SphereGeometry(0.08, 8, 8),\n    new THREE.MeshBasicMaterial({ color: imp.color }),\n    particleCount\n  );\n  \n  const dummy = new THREE.Object3D();\n  for (let j = 0; j < particleCount; j++) {\n    const angle = (j / particleCount) * Math.PI * 2;\n    const radius = 1.2 + Math.random() * 0.5;\n    dummy.position.set(Math.cos(angle) * radius, Math.sin(angle) * radius * 0.3, Math.sin(angle) * radius);\n    dummy.updateMatrix();\n    particles.setMatrixAt(j, dummy.matrix);\n  }\n  nodeGroup.add(particles);\n  \n  const lineMaterial = new THREE.LineBasicMaterial({ \n    color: imp.color, \n    transparent: true, \n    opacity: 0.4,\n    linewidth: 2 \n  });\n  const lineGeo = new THREE.BufferGeometry().setFromPoints([\n    imp.pos,\n    new THREE.Vector3(2, 0.2, imp.pos.z * 0.3)\n  ]);\n  const connection = new THREE.Line(lineGeo, lineMaterial);\n  hypothesisGroup.add(connection);\n  \n  implicationNodes.push({ \n    group: nodeGroup, \n    core: core, \n    ring: ring, \n    particles: particles,\n    basePos: imp.pos.clone(),\n    phase: i * Math.PI / 2\n  });\n  hypothesisGroup.add(nodeGroup);\n});\n\nconst particleCount = 200;\nconst numberFlow = new THREE.InstancedMesh(\n  new THREE.OctahedronGeometry(0.08, 0),\n  new THREE.MeshStandardMaterial({ \n    color: 0x6c7ae0, \n    metalness: 0.6, \n    roughness: 0.4,\n    emissive: 0x4a90e2,\n    emissiveIntensity: 0.2\n  }),\n  particleCount\n);\nconst dummy = new THREE.Object3D();\nfor (let i = 0; i < particleCount; i++) {\n  dummy.position.set(\n    (Math.random() - 0.5) * 20,\n    Math.random() * 8 - 2,\n    (Math.random() - 0.5) * 16\n  );\n  dummy.rotation.set(Math.random() * Math.PI, Math.random() * Math.PI, 0);\n  const scale = 0.5 + Math.random() * 0.8;\n  dummy.scale.set(scale, scale, scale);\n  dummy.updateMatrix();\n  numberFlow.setMatrixAt(i, dummy.matrix);\n}\nhypothesisGroup.add(numberFlow);\n\ncamera.position.set(8, 5, 10);\ncamera.lookAt(0, 0, 0);\n\nconst controls = new OrbitControls(camera, renderer.domElement);\ncontrols.enableDamping = true;\ncontrols.dampingFactor = 0.05;\ncontrols.minDistance = 5;\ncontrols.maxDistance = 20;\ncontrols.maxPolarAngle = Math.PI / 2 - 0.1;\n\nfunction animate() {\n  requestAnimationFrame(animate);\n  const t = clock.getElapsedTime();\n  \n  hypothesisGroup.rotation.y = Math.sin(t * 0.05) * 0.1;\n  \n  zeroGroup.children.forEach((child, i) => {\n    if (child.userData.originalScale) {\n      const pulse = 1 + Math.sin(t * 2 + i * 0.8) * 0.15;\n      child.scale.setScalar(child.userData.originalScale * pulse);\n      child.material.emissiveIntensity = 0.6 + Math.sin(t * 3 + i) * 0.2;\n    }\n  });\n  \n  implicationNodes.forEach((node, i) => {\n    node.group.position.y = node.basePos.y + Math.sin(t * 0.8 + node.phase) * 0.3;\n    node.core.rotation.x = t * 0.3;\n    node.core.rotation.y = t * 0.5;\n    node.ring.rotation.z = t * 0.2;\n    node.ring.scale.setScalar(1 + Math.sin(t * 2 + node.phase) * 0.1);\n  });\n  \n  numberFlow.rotation.y = t * 0.05;\n  \n  rimLight.intensity = 0.35 + Math.sin(t * 1.2) * 0.08;\n  warmAccent.intensity = 0.6 + Math.sin(t * 0.7) * 0.1;\n  \n  controls.update();\n  renderer.render(scene, camera);\n}\nanimate();",
+    "previewUrl": null,
+    "skill": "threejs",
+    "outputKind": "code",
+    "mediaType": null,
+    "mediaUrl": null,
+    "mediaArtifactId": null,
+    "mediaDurationMs": null,
+    "mediaFps": null,
+    "mediaResolution": null,
+    "mediaBytes": null,
+    "explanation": "Show me the implications of the reiman hypothesis. Live preview is currently unavailable, but the animation concept has been prepared.",
+    "messageId": "message-2",
+    "source": "generate",
+    "createdAt": "2026-04-22T13:06:41.286Z",
+    "updatedAt": "2026-04-22T13:06:41.286Z",
+    "versionId": "version-1",
+    "version": 1,
+    "artifactId": "artifact-1776863201286-daded2",
+    "artifactVersion": 1
+  },
+  "artifacts": [
+    {
+      "artifactId": "artifact-1776863201286-daded2",
+      "title": "scene-failed-1776863201283",
+      "createdAt": "2026-04-22T13:06:41.286Z",
+      "updatedAt": "2026-04-22T13:06:41.286Z",
+      "revisions": [
+        {
+          "sessionId": "8c4016b4-0975-44bc-b556-5f2022196377",
+          "sceneId": "scene-failed-1776863201283",
+          "code": "const clock = new THREE.Clock();\nscene.background = new THREE.Color(0xf4f7fb);\nrenderer.toneMapping = THREE.ACESFilmicToneMapping;\nrenderer.toneMappingExposure = 1.08;\nrenderer.shadowMap.enabled = true;\nrenderer.shadowMap.type = THREE.PCFSoftShadowMap;\n\nconst keyLight = new THREE.DirectionalLight(0xffffff, 1.35);\nkeyLight.position.set(6, 10, 8);\nkeyLight.castShadow = true;\nkeyLight.shadow.mapSize.width = 2048;\nkeyLight.shadow.mapSize.height = 2048;\nkeyLight.shadow.camera.near = 0.1;\nkeyLight.shadow.camera.far = 50;\nkeyLight.shadow.bias = -0.001;\n\nconst fillLight = new THREE.DirectionalLight(0xbfd7ff, 0.55);\nfillLight.position.set(-7, 4, 5);\n\nconst rimLight = new THREE.PointLight(0xaad6ff, 0.45, 22);\nrimLight.position.set(-4, 3, -5);\n\nconst warmAccent = new THREE.PointLight(0xffaa77, 0.6, 15);\nwarmAccent.position.set(2, 6, -3);\n\nscene.add(new THREE.AmbientLight(0x7f8aa6, 0.32), keyLight, fillLight, rimLight, warmAccent);\n\nconst floor = new THREE.Mesh(\n  new THREE.CircleGeometry(18, 96),\n  new THREE.MeshStandardMaterial({ color: 0xe6ecf5, roughness: 0.92, metalness: 0.02 })\n);\nfloor.rotation.x = -Math.PI / 2;\nfloor.position.y = -3.5;\nfloor.receiveShadow = true;\nscene.add(floor);\n\nconst hypothesisGroup = new THREE.Group();\nscene.add(hypothesisGroup);\n\nconst surfaceMaterial = new THREE.MeshPhysicalMaterial({\n  color: 0xffffff,\n  metalness: 0.1,\n  roughness: 0.2,\n  transmission: 0.15,\n  thickness: 0.5,\n  clearcoat: 0.8,\n  clearcoatRoughness: 0.1,\n  side: THREE.DoubleSide\n});\n\nconst geometry = new THREE.PlaneGeometry(16, 12, 128, 96);\nconst positions = geometry.attributes.position;\nconst colors = [];\nconst color1 = new THREE.Color(0x4a90e2);\nconst color2 = new THREE.Color(0x7b68ee);\nconst color3 = new THREE.Color(0xff6b6b);\n\nfor (let i = 0; i < positions.count; i++) {\n  const x = positions.getX(i);\n  const y = positions.getY(i);\n  \n  const dist = Math.sqrt(x * x + y * y);\n  const zetaHeight = Math.sin(x * 2) * Math.cos(y * 1.5) * Math.exp(-dist * 0.15) * 2.5;\n  const criticalMod = Math.exp(-Math.pow(x - 2, 2) * 4) * Math.sin(y * 3) * 1.5;\n  \n  positions.setZ(i, zetaHeight + criticalMod);\n  \n  const mixFactor = (zetaHeight + 2.5) / 5;\n  const vertexColor = new THREE.Color().lerpColors(color1, color2, mixFactor);\n  if (Math.abs(x - 2) < 0.3) vertexColor.lerp(color3, 0.6);\n  colors.push(vertexColor.r, vertexColor.g, vertexColor.b);\n}\n\ngeometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));\ngeometry.computeVertexNormals();\n\nconst zetaSurface = new THREE.Mesh(geometry, surfaceMaterial);\nzetaSurface.rotation.x = -Math.PI / 2;\nzetaSurface.position.y = 0;\nzetaSurface.castShadow = true;\nzetaSurface.receiveShadow = true;\nhypothesisGroup.add(zetaSurface);\n\nconst criticalLineGeo = new THREE.BoxGeometry(0.15, 0.15, 12);\nconst criticalLineMat = new THREE.MeshPhysicalMaterial({\n  color: 0xff4757,\n  emissive: 0xff4757,\n  emissiveIntensity: 0.4,\n  metalness: 0.8,\n  roughness: 0.2\n});\nconst criticalLine = new THREE.Mesh(criticalLineGeo, criticalLineMat);\ncriticalLine.position.set(2, 0.1, 0);\ncriticalLine.castShadow = true;\nhypothesisGroup.add(criticalLine);\n\nconst zeroGroup = new THREE.Group();\nhypothesisGroup.add(zeroGroup);\n\nconst zeroMaterial = new THREE.MeshPhysicalMaterial({\n  color: 0xff2e63,\n  emissive: 0xff2e63,\n  emissiveIntensity: 0.6,\n  metalness: 0.9,\n  roughness: 0.1,\n  clearcoat: 1.0\n});\n\nconst zeroPositions = [\n  { y: -4.5, scale: 0.4 },\n  { y: -2.8, scale: 0.5 },\n  { y: -1.2, scale: 0.45 },\n  { y: 0.8, scale: 0.55 },\n  { y: 2.5, scale: 0.48 },\n  { y: 4.2, scale: 0.52 }\n];\n\nzeroPositions.forEach((pos, idx) => {\n  const sphere = new THREE.Mesh(\n    new THREE.SphereGeometry(pos.scale, 32, 32),\n    zeroMaterial.clone()\n  );\n  sphere.position.set(2, 0.2, pos.y);\n  sphere.castShadow = true;\n  sphere.userData = { originalScale: pos.scale, index: idx };\n  zeroGroup.add(sphere);\n  \n  const glow = new THREE.Mesh(\n    new THREE.SphereGeometry(pos.scale * 1.8, 16, 16),\n    new THREE.MeshBasicMaterial({\n      color: 0xff2e63,\n      transparent: true,\n      opacity: 0.15\n    })\n  );\n  glow.position.copy(sphere.position);\n  zeroGroup.add(glow);\n});\n\nconst implicationNodes = [];\nconst implications = [\n  { label: \"Cryptography\", pos: new THREE.Vector3(-5, 3, -3), color: 0x2ed573 },\n  { label: \"Quantum Chaos\", pos: new THREE.Vector3(6, 4, 2), color: 0x1e90ff },\n  { label: \"Prime Distribution\", pos: new THREE.Vector3(-4, 2, 4), color: 0xffa502 },\n  { label: \"Random Matrices\", pos: new THREE.Vector3(5, 3.5, -4), color: 0x9b59b6 }\n];\n\nimplications.forEach((imp, i) => {\n  const nodeGroup = new THREE.Group();\n  nodeGroup.position.copy(imp.pos);\n  \n  const core = new THREE.Mesh(\n    new THREE.IcosahedronGeometry(0.6, 2),\n    new THREE.MeshPhysicalMaterial({\n      color: imp.color,\n      emissive: imp.color,\n      emissiveIntensity: 0.3,\n      metalness: 0.7,\n      roughness: 0.3,\n      clearcoat: 0.8\n    })\n  );\n  core.castShadow = true;\n  nodeGroup.add(core);\n  \n  const ring = new THREE.Mesh(\n    new THREE.TorusGeometry(1.0, 0.05, 16, 64),\n    new THREE.MeshBasicMaterial({ color: imp.color, transparent: true, opacity: 0.6 })\n  );\n  ring.rotation.x = Math.PI / 2;\n  nodeGroup.add(ring);\n  \n  const particleCount = 20;\n  const particles = new THREE.InstancedMesh(\n    new THREE.SphereGeometry(0.08, 8, 8),\n    new THREE.MeshBasicMaterial({ color: imp.color }),\n    particleCount\n  );\n  \n  const dummy = new THREE.Object3D();\n  for (let j = 0; j < particleCount; j++) {\n    const angle = (j / particleCount) * Math.PI * 2;\n    const radius = 1.2 + Math.random() * 0.5;\n    dummy.position.set(Math.cos(angle) * radius, Math.sin(angle) * radius * 0.3, Math.sin(angle) * radius);\n    dummy.updateMatrix();\n    particles.setMatrixAt(j, dummy.matrix);\n  }\n  nodeGroup.add(particles);\n  \n  const lineMaterial = new THREE.LineBasicMaterial({ \n    color: imp.color, \n    transparent: true, \n    opacity: 0.4,\n    linewidth: 2 \n  });\n  const lineGeo = new THREE.BufferGeometry().setFromPoints([\n    imp.pos,\n    new THREE.Vector3(2, 0.2, imp.pos.z * 0.3)\n  ]);\n  const connection = new THREE.Line(lineGeo, lineMaterial);\n  hypothesisGroup.add(connection);\n  \n  implicationNodes.push({ \n    group: nodeGroup, \n    core: core, \n    ring: ring, \n    particles: particles,\n    basePos: imp.pos.clone(),\n    phase: i * Math.PI / 2\n  });\n  hypothesisGroup.add(nodeGroup);\n});\n\nconst particleCount = 200;\nconst numberFlow = new THREE.InstancedMesh(\n  new THREE.OctahedronGeometry(0.08, 0),\n  new THREE.MeshStandardMaterial({ \n    color: 0x6c7ae0, \n    metalness: 0.6, \n    roughness: 0.4,\n    emissive: 0x4a90e2,\n    emissiveIntensity: 0.2\n  }),\n  particleCount\n);\nconst dummy = new THREE.Object3D();\nfor (let i = 0; i < particleCount; i++) {\n  dummy.position.set(\n    (Math.random() - 0.5) * 20,\n    Math.random() * 8 - 2,\n    (Math.random() - 0.5) * 16\n  );\n  dummy.rotation.set(Math.random() * Math.PI, Math.random() * Math.PI, 0);\n  const scale = 0.5 + Math.random() * 0.8;\n  dummy.scale.set(scale, scale, scale);\n  dummy.updateMatrix();\n  numberFlow.setMatrixAt(i, dummy.matrix);\n}\nhypothesisGroup.add(numberFlow);\n\ncamera.position.set(8, 5, 10);\ncamera.lookAt(0, 0, 0);\n\nconst controls = new OrbitControls(camera, renderer.domElement);\ncontrols.enableDamping = true;\ncontrols.dampingFactor = 0.05;\ncontrols.minDistance = 5;\ncontrols.maxDistance = 20;\ncontrols.maxPolarAngle = Math.PI / 2 - 0.1;\n\nfunction animate() {\n  requestAnimationFrame(animate);\n  const t = clock.getElapsedTime();\n  \n  hypothesisGroup.rotation.y = Math.sin(t * 0.05) * 0.1;\n  \n  zeroGroup.children.forEach((child, i) => {\n    if (child.userData.originalScale) {\n      const pulse = 1 + Math.sin(t * 2 + i * 0.8) * 0.15;\n      child.scale.setScalar(child.userData.originalScale * pulse);\n      child.material.emissiveIntensity = 0.6 + Math.sin(t * 3 + i) * 0.2;\n    }\n  });\n  \n  implicationNodes.forEach((node, i) => {\n    node.group.position.y = node.basePos.y + Math.sin(t * 0.8 + node.phase) * 0.3;\n    node.core.rotation.x = t * 0.3;\n    node.core.rotation.y = t * 0.5;\n    node.ring.rotation.z = t * 0.2;\n    node.ring.scale.setScalar(1 + Math.sin(t * 2 + node.phase) * 0.1);\n  });\n  \n  numberFlow.rotation.y = t * 0.05;\n  \n  rimLight.intensity = 0.35 + Math.sin(t * 1.2) * 0.08;\n  warmAccent.intensity = 0.6 + Math.sin(t * 0.7) * 0.1;\n  \n  controls.update();\n  renderer.render(scene, camera);\n}\nanimate();",
+          "previewUrl": null,
+          "skill": "threejs",
+          "outputKind": "code",
+          "mediaType": null,
+          "mediaUrl": null,
+          "mediaArtifactId": null,
+          "mediaDurationMs": null,
+          "mediaFps": null,
+          "mediaResolution": null,
+          "mediaBytes": null,
+          "explanation": "Show me the implications of the reiman hypothesis. Live preview is currently unavailable, but the animation concept has been prepared.",
+          "messageId": "message-2",
+          "source": "generate",
+          "createdAt": "2026-04-22T13:06:41.286Z",
+          "updatedAt": "2026-04-22T13:06:41.286Z",
+          "versionId": "version-1",
+          "version": 1,
+          "artifactId": "artifact-1776863201286-daded2",
+          "artifactVersion": 1
+        }
+      ],
+      "revisionPointer": 0
+    }
+  ],
+  "artifactPointer": 0,
+  "versions": [
+    {
+      "sessionId": "8c4016b4-0975-44bc-b556-5f2022196377",
+      "sceneId": "scene-failed-1776863201283",
+      "code": "const clock = new THREE.Clock();\nscene.background = new THREE.Color(0xf4f7fb);\nrenderer.toneMapping = THREE.ACESFilmicToneMapping;\nrenderer.toneMappingExposure = 1.08;\nrenderer.shadowMap.enabled = true;\nrenderer.shadowMap.type = THREE.PCFSoftShadowMap;\n\nconst keyLight = new THREE.DirectionalLight(0xffffff, 1.35);\nkeyLight.position.set(6, 10, 8);\nkeyLight.castShadow = true;\nkeyLight.shadow.mapSize.width = 2048;\nkeyLight.shadow.mapSize.height = 2048;\nkeyLight.shadow.camera.near = 0.1;\nkeyLight.shadow.camera.far = 50;\nkeyLight.shadow.bias = -0.001;\n\nconst fillLight = new THREE.DirectionalLight(0xbfd7ff, 0.55);\nfillLight.position.set(-7, 4, 5);\n\nconst rimLight = new THREE.PointLight(0xaad6ff, 0.45, 22);\nrimLight.position.set(-4, 3, -5);\n\nconst warmAccent = new THREE.PointLight(0xffaa77, 0.6, 15);\nwarmAccent.position.set(2, 6, -3);\n\nscene.add(new THREE.AmbientLight(0x7f8aa6, 0.32), keyLight, fillLight, rimLight, warmAccent);\n\nconst floor = new THREE.Mesh(\n  new THREE.CircleGeometry(18, 96),\n  new THREE.MeshStandardMaterial({ color: 0xe6ecf5, roughness: 0.92, metalness: 0.02 })\n);\nfloor.rotation.x = -Math.PI / 2;\nfloor.position.y = -3.5;\nfloor.receiveShadow = true;\nscene.add(floor);\n\nconst hypothesisGroup = new THREE.Group();\nscene.add(hypothesisGroup);\n\nconst surfaceMaterial = new THREE.MeshPhysicalMaterial({\n  color: 0xffffff,\n  metalness: 0.1,\n  roughness: 0.2,\n  transmission: 0.15,\n  thickness: 0.5,\n  clearcoat: 0.8,\n  clearcoatRoughness: 0.1,\n  side: THREE.DoubleSide\n});\n\nconst geometry = new THREE.PlaneGeometry(16, 12, 128, 96);\nconst positions = geometry.attributes.position;\nconst colors = [];\nconst color1 = new THREE.Color(0x4a90e2);\nconst color2 = new THREE.Color(0x7b68ee);\nconst color3 = new THREE.Color(0xff6b6b);\n\nfor (let i = 0; i < positions.count; i++) {\n  const x = positions.getX(i);\n  const y = positions.getY(i);\n  \n  const dist = Math.sqrt(x * x + y * y);\n  const zetaHeight = Math.sin(x * 2) * Math.cos(y * 1.5) * Math.exp(-dist * 0.15) * 2.5;\n  const criticalMod = Math.exp(-Math.pow(x - 2, 2) * 4) * Math.sin(y * 3) * 1.5;\n  \n  positions.setZ(i, zetaHeight + criticalMod);\n  \n  const mixFactor = (zetaHeight + 2.5) / 5;\n  const vertexColor = new THREE.Color().lerpColors(color1, color2, mixFactor);\n  if (Math.abs(x - 2) < 0.3) vertexColor.lerp(color3, 0.6);\n  colors.push(vertexColor.r, vertexColor.g, vertexColor.b);\n}\n\ngeometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));\ngeometry.computeVertexNormals();\n\nconst zetaSurface = new THREE.Mesh(geometry, surfaceMaterial);\nzetaSurface.rotation.x = -Math.PI / 2;\nzetaSurface.position.y = 0;\nzetaSurface.castShadow = true;\nzetaSurface.receiveShadow = true;\nhypothesisGroup.add(zetaSurface);\n\nconst criticalLineGeo = new THREE.BoxGeometry(0.15, 0.15, 12);\nconst criticalLineMat = new THREE.MeshPhysicalMaterial({\n  color: 0xff4757,\n  emissive: 0xff4757,\n  emissiveIntensity: 0.4,\n  metalness: 0.8,\n  roughness: 0.2\n});\nconst criticalLine = new THREE.Mesh(criticalLineGeo, criticalLineMat);\ncriticalLine.position.set(2, 0.1, 0);\ncriticalLine.castShadow = true;\nhypothesisGroup.add(criticalLine);\n\nconst zeroGroup = new THREE.Group();\nhypothesisGroup.add(zeroGroup);\n\nconst zeroMaterial = new THREE.MeshPhysicalMaterial({\n  color: 0xff2e63,\n  emissive: 0xff2e63,\n  emissiveIntensity: 0.6,\n  metalness: 0.9,\n  roughness: 0.1,\n  clearcoat: 1.0\n});\n\nconst zeroPositions = [\n  { y: -4.5, scale: 0.4 },\n  { y: -2.8, scale: 0.5 },\n  { y: -1.2, scale: 0.45 },\n  { y: 0.8, scale: 0.55 },\n  { y: 2.5, scale: 0.48 },\n  { y: 4.2, scale: 0.52 }\n];\n\nzeroPositions.forEach((pos, idx) => {\n  const sphere = new THREE.Mesh(\n    new THREE.SphereGeometry(pos.scale, 32, 32),\n    zeroMaterial.clone()\n  );\n  sphere.position.set(2, 0.2, pos.y);\n  sphere.castShadow = true;\n  sphere.userData = { originalScale: pos.scale, index: idx };\n  zeroGroup.add(sphere);\n  \n  const glow = new THREE.Mesh(\n    new THREE.SphereGeometry(pos.scale * 1.8, 16, 16),\n    new THREE.MeshBasicMaterial({\n      color: 0xff2e63,\n      transparent: true,\n      opacity: 0.15\n    })\n  );\n  glow.position.copy(sphere.position);\n  zeroGroup.add(glow);\n});\n\nconst implicationNodes = [];\nconst implications = [\n  { label: \"Cryptography\", pos: new THREE.Vector3(-5, 3, -3), color: 0x2ed573 },\n  { label: \"Quantum Chaos\", pos: new THREE.Vector3(6, 4, 2), color: 0x1e90ff },\n  { label: \"Prime Distribution\", pos: new THREE.Vector3(-4, 2, 4), color: 0xffa502 },\n  { label: \"Random Matrices\", pos: new THREE.Vector3(5, 3.5, -4), color: 0x9b59b6 }\n];\n\nimplications.forEach((imp, i) => {\n  const nodeGroup = new THREE.Group();\n  nodeGroup.position.copy(imp.pos);\n  \n  const core = new THREE.Mesh(\n    new THREE.IcosahedronGeometry(0.6, 2),\n    new THREE.MeshPhysicalMaterial({\n      color: imp.color,\n      emissive: imp.color,\n      emissiveIntensity: 0.3,\n      metalness: 0.7,\n      roughness: 0.3,\n      clearcoat: 0.8\n    })\n  );\n  core.castShadow = true;\n  nodeGroup.add(core);\n  \n  const ring = new THREE.Mesh(\n    new THREE.TorusGeometry(1.0, 0.05, 16, 64),\n    new THREE.MeshBasicMaterial({ color: imp.color, transparent: true, opacity: 0.6 })\n  );\n  ring.rotation.x = Math.PI / 2;\n  nodeGroup.add(ring);\n  \n  const particleCount = 20;\n  const particles = new THREE.InstancedMesh(\n    new THREE.SphereGeometry(0.08, 8, 8),\n    new THREE.MeshBasicMaterial({ color: imp.color }),\n    particleCount\n  );\n  \n  const dummy = new THREE.Object3D();\n  for (let j = 0; j < particleCount; j++) {\n    const angle = (j / particleCount) * Math.PI * 2;\n    const radius = 1.2 + Math.random() * 0.5;\n    dummy.position.set(Math.cos(angle) * radius, Math.sin(angle) * radius * 0.3, Math.sin(angle) * radius);\n    dummy.updateMatrix();\n    particles.setMatrixAt(j, dummy.matrix);\n  }\n  nodeGroup.add(particles);\n  \n  const lineMaterial = new THREE.LineBasicMaterial({ \n    color: imp.color, \n    transparent: true, \n    opacity: 0.4,\n    linewidth: 2 \n  });\n  const lineGeo = new THREE.BufferGeometry().setFromPoints([\n    imp.pos,\n    new THREE.Vector3(2, 0.2, imp.pos.z * 0.3)\n  ]);\n  const connection = new THREE.Line(lineGeo, lineMaterial);\n  hypothesisGroup.add(connection);\n  \n  implicationNodes.push({ \n    group: nodeGroup, \n    core: core, \n    ring: ring, \n    particles: particles,\n    basePos: imp.pos.clone(),\n    phase: i * Math.PI / 2\n  });\n  hypothesisGroup.add(nodeGroup);\n});\n\nconst particleCount = 200;\nconst numberFlow = new THREE.InstancedMesh(\n  new THREE.OctahedronGeometry(0.08, 0),\n  new THREE.MeshStandardMaterial({ \n    color: 0x6c7ae0, \n    metalness: 0.6, \n    roughness: 0.4,\n    emissive: 0x4a90e2,\n    emissiveIntensity: 0.2\n  }),\n  particleCount\n);\nconst dummy = new THREE.Object3D();\nfor (let i = 0; i < particleCount; i++) {\n  dummy.position.set(\n    (Math.random() - 0.5) * 20,\n    Math.random() * 8 - 2,\n    (Math.random() - 0.5) * 16\n  );\n  dummy.rotation.set(Math.random() * Math.PI, Math.random() * Math.PI, 0);\n  const scale = 0.5 + Math.random() * 0.8;\n  dummy.scale.set(scale, scale, scale);\n  dummy.updateMatrix();\n  numberFlow.setMatrixAt(i, dummy.matrix);\n}\nhypothesisGroup.add(numberFlow);\n\ncamera.position.set(8, 5, 10);\ncamera.lookAt(0, 0, 0);\n\nconst controls = new OrbitControls(camera, renderer.domElement);\ncontrols.enableDamping = true;\ncontrols.dampingFactor = 0.05;\ncontrols.minDistance = 5;\ncontrols.maxDistance = 20;\ncontrols.maxPolarAngle = Math.PI / 2 - 0.1;\n\nfunction animate() {\n  requestAnimationFrame(animate);\n  const t = clock.getElapsedTime();\n  \n  hypothesisGroup.rotation.y = Math.sin(t * 0.05) * 0.1;\n  \n  zeroGroup.children.forEach((child, i) => {\n    if (child.userData.originalScale) {\n      const pulse = 1 + Math.sin(t * 2 + i * 0.8) * 0.15;\n      child.scale.setScalar(child.userData.originalScale * pulse);\n      child.material.emissiveIntensity = 0.6 + Math.sin(t * 3 + i) * 0.2;\n    }\n  });\n  \n  implicationNodes.forEach((node, i) => {\n    node.group.position.y = node.basePos.y + Math.sin(t * 0.8 + node.phase) * 0.3;\n    node.core.rotation.x = t * 0.3;\n    node.core.rotation.y = t * 0.5;\n    node.ring.rotation.z = t * 0.2;\n    node.ring.scale.setScalar(1 + Math.sin(t * 2 + node.phase) * 0.1);\n  });\n  \n  numberFlow.rotation.y = t * 0.05;\n  \n  rimLight.intensity = 0.35 + Math.sin(t * 1.2) * 0.08;\n  warmAccent.intensity = 0.6 + Math.sin(t * 0.7) * 0.1;\n  \n  controls.update();\n  renderer.render(scene, camera);\n}\nanimate();",
+      "previewUrl": null,
+      "skill": "threejs",
+      "outputKind": "code",
+      "mediaType": null,
+      "mediaUrl": null,
+      "mediaArtifactId": null,
+      "mediaDurationMs": null,
+      "mediaFps": null,
+      "mediaResolution": null,
+      "mediaBytes": null,
+      "explanation": "Show me the implications of the reiman hypothesis. Live preview is currently unavailable, but the animation concept has been prepared.",
+      "messageId": "message-2",
+      "source": "generate",
+      "createdAt": "2026-04-22T13:06:41.286Z",
+      "updatedAt": "2026-04-22T13:06:41.286Z",
+      "versionId": "version-1",
+      "version": 1,
+      "artifactId": "artifact-1776863201286-daded2",
+      "artifactVersion": 1
+    }
+  ],
+  "sceneVersions": [
+    {
+      "sessionId": "8c4016b4-0975-44bc-b556-5f2022196377",
+      "sceneId": "scene-failed-1776863201283",
+      "code": "const clock = new THREE.Clock();\nscene.background = new THREE.Color(0xf4f7fb);\nrenderer.toneMapping = THREE.ACESFilmicToneMapping;\nrenderer.toneMappingExposure = 1.08;\nrenderer.shadowMap.enabled = true;\nrenderer.shadowMap.type = THREE.PCFSoftShadowMap;\n\nconst keyLight = new THREE.DirectionalLight(0xffffff, 1.35);\nkeyLight.position.set(6, 10, 8);\nkeyLight.castShadow = true;\nkeyLight.shadow.mapSize.width = 2048;\nkeyLight.shadow.mapSize.height = 2048;\nkeyLight.shadow.camera.near = 0.1;\nkeyLight.shadow.camera.far = 50;\nkeyLight.shadow.bias = -0.001;\n\nconst fillLight = new THREE.DirectionalLight(0xbfd7ff, 0.55);\nfillLight.position.set(-7, 4, 5);\n\nconst rimLight = new THREE.PointLight(0xaad6ff, 0.45, 22);\nrimLight.position.set(-4, 3, -5);\n\nconst warmAccent = new THREE.PointLight(0xffaa77, 0.6, 15);\nwarmAccent.position.set(2, 6, -3);\n\nscene.add(new THREE.AmbientLight(0x7f8aa6, 0.32), keyLight, fillLight, rimLight, warmAccent);\n\nconst floor = new THREE.Mesh(\n  new THREE.CircleGeometry(18, 96),\n  new THREE.MeshStandardMaterial({ color: 0xe6ecf5, roughness: 0.92, metalness: 0.02 })\n);\nfloor.rotation.x = -Math.PI / 2;\nfloor.position.y = -3.5;\nfloor.receiveShadow = true;\nscene.add(floor);\n\nconst hypothesisGroup = new THREE.Group();\nscene.add(hypothesisGroup);\n\nconst surfaceMaterial = new THREE.MeshPhysicalMaterial({\n  color: 0xffffff,\n  metalness: 0.1,\n  roughness: 0.2,\n  transmission: 0.15,\n  thickness: 0.5,\n  clearcoat: 0.8,\n  clearcoatRoughness: 0.1,\n  side: THREE.DoubleSide\n});\n\nconst geometry = new THREE.PlaneGeometry(16, 12, 128, 96);\nconst positions = geometry.attributes.position;\nconst colors = [];\nconst color1 = new THREE.Color(0x4a90e2);\nconst color2 = new THREE.Color(0x7b68ee);\nconst color3 = new THREE.Color(0xff6b6b);\n\nfor (let i = 0; i < positions.count; i++) {\n  const x = positions.getX(i);\n  const y = positions.getY(i);\n  \n  const dist = Math.sqrt(x * x + y * y);\n  const zetaHeight = Math.sin(x * 2) * Math.cos(y * 1.5) * Math.exp(-dist * 0.15) * 2.5;\n  const criticalMod = Math.exp(-Math.pow(x - 2, 2) * 4) * Math.sin(y * 3) * 1.5;\n  \n  positions.setZ(i, zetaHeight + criticalMod);\n  \n  const mixFactor = (zetaHeight + 2.5) / 5;\n  const vertexColor = new THREE.Color().lerpColors(color1, color2, mixFactor);\n  if (Math.abs(x - 2) < 0.3) vertexColor.lerp(color3, 0.6);\n  colors.push(vertexColor.r, vertexColor.g, vertexColor.b);\n}\n\ngeometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));\ngeometry.computeVertexNormals();\n\nconst zetaSurface = new THREE.Mesh(geometry, surfaceMaterial);\nzetaSurface.rotation.x = -Math.PI / 2;\nzetaSurface.position.y = 0;\nzetaSurface.castShadow = true;\nzetaSurface.receiveShadow = true;\nhypothesisGroup.add(zetaSurface);\n\nconst criticalLineGeo = new THREE.BoxGeometry(0.15, 0.15, 12);\nconst criticalLineMat = new THREE.MeshPhysicalMaterial({\n  color: 0xff4757,\n  emissive: 0xff4757,\n  emissiveIntensity: 0.4,\n  metalness: 0.8,\n  roughness: 0.2\n});\nconst criticalLine = new THREE.Mesh(criticalLineGeo, criticalLineMat);\ncriticalLine.position.set(2, 0.1, 0);\ncriticalLine.castShadow = true;\nhypothesisGroup.add(criticalLine);\n\nconst zeroGroup = new THREE.Group();\nhypothesisGroup.add(zeroGroup);\n\nconst zeroMaterial = new THREE.MeshPhysicalMaterial({\n  color: 0xff2e63,\n  emissive: 0xff2e63,\n  emissiveIntensity: 0.6,\n  metalness: 0.9,\n  roughness: 0.1,\n  clearcoat: 1.0\n});\n\nconst zeroPositions = [\n  { y: -4.5, scale: 0.4 },\n  { y: -2.8, scale: 0.5 },\n  { y: -1.2, scale: 0.45 },\n  { y: 0.8, scale: 0.55 },\n  { y: 2.5, scale: 0.48 },\n  { y: 4.2, scale: 0.52 }\n];\n\nzeroPositions.forEach((pos, idx) => {\n  const sphere = new THREE.Mesh(\n    new THREE.SphereGeometry(pos.scale, 32, 32),\n    zeroMaterial.clone()\n  );\n  sphere.position.set(2, 0.2, pos.y);\n  sphere.castShadow = true;\n  sphere.userData = { originalScale: pos.scale, index: idx };\n  zeroGroup.add(sphere);\n  \n  const glow = new THREE.Mesh(\n    new THREE.SphereGeometry(pos.scale * 1.8, 16, 16),\n    new THREE.MeshBasicMaterial({\n      color: 0xff2e63,\n      transparent: true,\n      opacity: 0.15\n    })\n  );\n  glow.position.copy(sphere.position);\n  zeroGroup.add(glow);\n});\n\nconst implicationNodes = [];\nconst implications = [\n  { label: \"Cryptography\", pos: new THREE.Vector3(-5, 3, -3), color: 0x2ed573 },\n  { label: \"Quantum Chaos\", pos: new THREE.Vector3(6, 4, 2), color: 0x1e90ff },\n  { label: \"Prime Distribution\", pos: new THREE.Vector3(-4, 2, 4), color: 0xffa502 },\n  { label: \"Random Matrices\", pos: new THREE.Vector3(5, 3.5, -4), color: 0x9b59b6 }\n];\n\nimplications.forEach((imp, i) => {\n  const nodeGroup = new THREE.Group();\n  nodeGroup.position.copy(imp.pos);\n  \n  const core = new THREE.Mesh(\n    new THREE.IcosahedronGeometry(0.6, 2),\n    new THREE.MeshPhysicalMaterial({\n      color: imp.color,\n      emissive: imp.color,\n      emissiveIntensity: 0.3,\n      metalness: 0.7,\n      roughness: 0.3,\n      clearcoat: 0.8\n    })\n  );\n  core.castShadow = true;\n  nodeGroup.add(core);\n  \n  const ring = new THREE.Mesh(\n    new THREE.TorusGeometry(1.0, 0.05, 16, 64),\n    new THREE.MeshBasicMaterial({ color: imp.color, transparent: true, opacity: 0.6 })\n  );\n  ring.rotation.x = Math.PI / 2;\n  nodeGroup.add(ring);\n  \n  const particleCount = 20;\n  const particles = new THREE.InstancedMesh(\n    new THREE.SphereGeometry(0.08, 8, 8),\n    new THREE.MeshBasicMaterial({ color: imp.color }),\n    particleCount\n  );\n  \n  const dummy = new THREE.Object3D();\n  for (let j = 0; j < particleCount; j++) {\n    const angle = (j / particleCount) * Math.PI * 2;\n    const radius = 1.2 + Math.random() * 0.5;\n    dummy.position.set(Math.cos(angle) * radius, Math.sin(angle) * radius * 0.3, Math.sin(angle) * radius);\n    dummy.updateMatrix();\n    particles.setMatrixAt(j, dummy.matrix);\n  }\n  nodeGroup.add(particles);\n  \n  const lineMaterial = new THREE.LineBasicMaterial({ \n    color: imp.color, \n    transparent: true, \n    opacity: 0.4,\n    linewidth: 2 \n  });\n  const lineGeo = new THREE.BufferGeometry().setFromPoints([\n    imp.pos,\n    new THREE.Vector3(2, 0.2, imp.pos.z * 0.3)\n  ]);\n  const connection = new THREE.Line(lineGeo, lineMaterial);\n  hypothesisGroup.add(connection);\n  \n  implicationNodes.push({ \n    group: nodeGroup, \n    core: core, \n    ring: ring, \n    particles: particles,\n    basePos: imp.pos.clone(),\n    phase: i * Math.PI / 2\n  });\n  hypothesisGroup.add(nodeGroup);\n});\n\nconst particleCount = 200;\nconst numberFlow = new THREE.InstancedMesh(\n  new THREE.OctahedronGeometry(0.08, 0),\n  new THREE.MeshStandardMaterial({ \n    color: 0x6c7ae0, \n    metalness: 0.6, \n    roughness: 0.4,\n    emissive: 0x4a90e2,\n    emissiveIntensity: 0.2\n  }),\n  particleCount\n);\nconst dummy = new THREE.Object3D();\nfor (let i = 0; i < particleCount; i++) {\n  dummy.position.set(\n    (Math.random() - 0.5) * 20,\n    Math.random() * 8 - 2,\n    (Math.random() - 0.5) * 16\n  );\n  dummy.rotation.set(Math.random() * Math.PI, Math.random() * Math.PI, 0);\n  const scale = 0.5 + Math.random() * 0.8;\n  dummy.scale.set(scale, scale, scale);\n  dummy.updateMatrix();\n  numberFlow.setMatrixAt(i, dummy.matrix);\n}\nhypothesisGroup.add(numberFlow);\n\ncamera.position.set(8, 5, 10);\ncamera.lookAt(0, 0, 0);\n\nconst controls = new OrbitControls(camera, renderer.domElement);\ncontrols.enableDamping = true;\ncontrols.dampingFactor = 0.05;\ncontrols.minDistance = 5;\ncontrols.maxDistance = 20;\ncontrols.maxPolarAngle = Math.PI / 2 - 0.1;\n\nfunction animate() {\n  requestAnimationFrame(animate);\n  const t = clock.getElapsedTime();\n  \n  hypothesisGroup.rotation.y = Math.sin(t * 0.05) * 0.1;\n  \n  zeroGroup.children.forEach((child, i) => {\n    if (child.userData.originalScale) {\n      const pulse = 1 + Math.sin(t * 2 + i * 0.8) * 0.15;\n      child.scale.setScalar(child.userData.originalScale * pulse);\n      child.material.emissiveIntensity = 0.6 + Math.sin(t * 3 + i) * 0.2;\n    }\n  });\n  \n  implicationNodes.forEach((node, i) => {\n    node.group.position.y = node.basePos.y + Math.sin(t * 0.8 + node.phase) * 0.3;\n    node.core.rotation.x = t * 0.3;\n    node.core.rotation.y = t * 0.5;\n    node.ring.rotation.z = t * 0.2;\n    node.ring.scale.setScalar(1 + Math.sin(t * 2 + node.phase) * 0.1);\n  });\n  \n  numberFlow.rotation.y = t * 0.05;\n  \n  rimLight.intensity = 0.35 + Math.sin(t * 1.2) * 0.08;\n  warmAccent.intensity = 0.6 + Math.sin(t * 0.7) * 0.1;\n  \n  controls.update();\n  renderer.render(scene, camera);\n}\nanimate();",
+      "previewUrl": null,
+      "skill": "threejs",
+      "outputKind": "code",
+      "mediaType": null,
+      "mediaUrl": null,
+      "mediaArtifactId": null,
+      "mediaDurationMs": null,
+      "mediaFps": null,
+      "mediaResolution": null,
+      "mediaBytes": null,
+      "explanation": "Show me the implications of the reiman hypothesis. Live preview is currently unavailable, but the animation concept has been prepared.",
+      "messageId": "message-2",
+      "source": "generate",
+      "createdAt": "2026-04-22T13:06:41.286Z",
+      "updatedAt": "2026-04-22T13:06:41.286Z",
+      "versionId": "version-1",
+      "version": 1,
+      "artifactId": "artifact-1776863201286-daded2",
+      "artifactVersion": 1
+    }
+  ],
+  "versionPointer": 0,
+  "revisionPointer": 0,
+  "messages": [
+    {
+      "id": "client-a3e72de4-bee9-4712-b2d5-3039fcb68e9e",
+      "role": "user",
+      "content": "Show me the implications of the reiman hypothesis",
+      "kind": "input",
+      "meta": [],
+      "error": null,
+      "createdAt": "2026-04-22T13:04:56.134Z",
+      "updatedAt": "2026-04-22T13:04:56.134Z"
+    },
+    {
+      "id": "message-2",
+      "role": "assistant",
+      "content": "Show me the implications of the reiman hypothesis. Live preview is currently unavailable, but the animation concept has been prepared.",
+      "kind": "generate",
+      "meta": [
+        "requestId:client-a3e72de4-bee9-4712-b2d5-3039fcb68e9e",
+        "scene:scene-failed-1776863201283",
+        "skill:threejs",
+        "error:RUNTIME_API_MISMATCH"
+      ],
+      "error": {
+        "code": "RUNTIME_API_MISMATCH",
+        "title": "Runtime API mismatch",
+        "userMessage": "The generated scene called an API that failed at runtime.",
+        "retryable": true,
+        "suggestedAction": "Retry generation or ask for a compatibility-safe version.",
+        "technicalDetail": "positions.getX is not a function | code:error",
+        "stage": "execution",
+        "diagnostics": {
+          "stage": "execution",
+          "requestId": "client-a3e72de4-bee9-4712-b2d5-3039fcb68e9e",
+          "sessionId": "8c4016b4-0975-44bc-b556-5f2022196377",
+          "messageId": "message-2",
+          "message": "positions.getX is not a function",
+          "name": null,
+          "code": "error",
+          "status": null,
+          "cause": null,
+          "stack": null,
+          "timestamp": "2026-04-22T13:06:41.288Z",
+          "runtime": {
+            "status": "error",
+            "warningCode": null,
+            "acquireDiagnostics": {
+              "skillId": "threejs",
+              "reason": "acquire",
+              "startedAt": "2026-04-22T13:06:40.512Z",
+              "startedAtMs": 1776863200512,
+              "initialRemainingBudgetMs": 12000,
+              "turnDeadlineAtMs": 1776863212512,
+              "retryAttempts": 0,
+              "retryDelaysMs": [],
+              "directAttemptedAny": false,
+              "prewarmHit": true,
+              "success": true,
+              "acquireDurationMs": 260,
+              "completedAt": "2026-04-22T13:06:40.772Z",
+              "creationMode": "prewarm",
+              "source": "prewarm",
+              "direct": {
+                "attempted": false,
+                "skipped": false,
+                "skipReason": null,
+                "timeoutSec": null,
+                "durationMs": null,
+                "error": null,
+                "circuitOpenAtStart": false,
+                "circuitOpened": false,
+                "circuitOpenUntil": null
+              },
+              "fallback": {
+                "attempted": false,
+                "skipped": false,
+                "skipReason": null,
+                "timeoutSec": null,
+                "durationMs": null,
+                "error": null
+              },
+              "livenessPingMs": 260,
+              "internalFirstAttempt": true
+            }
+          }
+        }
+      },
+      "createdAt": "2026-04-22T13:04:56.134Z",
+      "updatedAt": "2026-04-22T13:06:41.289Z"
+    },
+    {
+      "id": "thought-turn_started-1776863096142",
+      "role": "thought",
+      "content": "Let me think about this... I need to understand what you're asking for.",
+      "kind": "thought",
+      "meta": [
+        "turn_started",
+        "requestId:client-a3e72de4-bee9-4712-b2d5-3039fcb68e9e",
+        "messageId:message-2"
+      ],
+      "error": null,
+      "createdAt": "2026-04-22T13:04:56.142Z",
+      "updatedAt": "2026-04-22T13:04:56.142Z"
+    },
+    {
+      "id": "thought-intent_parsed-1776863096165",
+      "role": "thought",
+      "content": "I understand — this is a visual creation task. Let me pick the most suitable skill.",
+      "kind": "thought",
+      "meta": [
+        "intent_parsed",
+        "requestId:client-a3e72de4-bee9-4712-b2d5-3039fcb68e9e",
+        "messageId:message-2"
+      ],
+      "error": null,
+      "createdAt": "2026-04-22T13:04:56.165Z",
+      "updatedAt": "2026-04-22T13:04:56.165Z"
+    },
+    {
+      "id": "thought-plan_created-1776863096166",
+      "role": "thought",
+      "content": "I've mapped out 7 steps to build this. Starting the generation pipeline now.",
+      "kind": "thought",
+      "meta": [
+        "plan_created",
+        "requestId:client-a3e72de4-bee9-4712-b2d5-3039fcb68e9e",
+        "messageId:message-2"
+      ],
+      "error": null,
+      "createdAt": "2026-04-22T13:04:56.166Z",
+      "updatedAt": "2026-04-22T13:04:56.166Z"
+    },
+    {
+      "id": "thought-code_generated-1776863201285",
+      "role": "thought",
+      "content": "I'm writing Three.js code with a PlaneGeometry for the complex plane base, a BufferGeometry line for the critical line at x=0.5 with emissive material, InstancedMesh spheres positioned at coordinates (0.5, 14.1347, 0), (0.5, 21.022, 0), etc. for the zeros, and a ShaderMaterial surface representing log|ζ(s)| to show the dramatic dips at each zero.",
+      "kind": "thought",
+      "meta": [
+        "code_generated",
+        "requestId:client-a3e72de4-bee9-4712-b2d5-3039fcb68e9e",
+        "messageId:message-2"
+      ],
+      "error": null,
+      "createdAt": "2026-04-22T13:06:41.285Z",
+      "updatedAt": "2026-04-22T13:06:41.285Z"
+    },
+    {
+      "id": "thought-executing-1776863201286",
+      "role": "thought",
+      "content": "Spinning up the sandbox with Three.js WebGLRenderer, adding ambient and directional lighting to emphasize the depth of the zeta landscape, and enabling OrbitControls so the user can rotate around the critical line to see the zeros align perfectly.",
+      "kind": "thought",
+      "meta": [
+        "executing",
+        "requestId:client-a3e72de4-bee9-4712-b2d5-3039fcb68e9e",
+        "messageId:message-2"
+      ],
+      "error": null,
+      "createdAt": "2026-04-22T13:06:41.286Z",
+      "updatedAt": "2026-04-22T13:06:41.286Z"
+    },
+    {
+      "id": "thought-sync_state-1776863201287",
+      "role": "thought",
+      "content": "The visualization reveals the elegant mystery of the Riemann Hypothesis—the non-trivial zeros align like pearls on a string along the critical line at 1/2, showing how this unsolved problem connects the abstract world of complex analysis to the fundamental distribution of prime numbers.",
+      "kind": "thought",
+      "meta": [
+        "sync_state",
+        "requestId:client-a3e72de4-bee9-4712-b2d5-3039fcb68e9e",
+        "messageId:message-2"
+      ],
+      "error": null,
+      "createdAt": "2026-04-22T13:06:41.287Z",
+      "updatedAt": "2026-04-22T13:06:41.287Z"
+    },
+    {
+      "id": "thought-turn_error-1776863201289",
+      "role": "thought",
+      "content": "I hit an error in the pipeline. Here are the details...",
+      "kind": "thought",
+      "meta": [
+        "turn_error",
+        "requestId:client-a3e72de4-bee9-4712-b2d5-3039fcb68e9e",
+        "messageId:message-2"
+      ],
+      "error": null,
+      "createdAt": "2026-04-22T13:06:41.289Z",
+      "updatedAt": "2026-04-22T13:06:41.289Z"
+    }
+  ],
+  "orchestrationTrace": [
+    {
+      "id": "trace-1",
+      "step": "intent_parsed",
+      "payload": {
+        "sessionId": "8c4016b4-0975-44bc-b556-5f2022196377",
+        "content": "Show me the implications of the reiman hypothesis"
+      },
+      "createdAt": "2026-04-22T13:04:56.144Z"
+    },
+    {
+      "id": "trace-2",
+      "step": "parse_intent",
+      "payload": {
+        "sessionId": "8c4016b4-0975-44bc-b556-5f2022196377",
+        "status": "running"
+      },
+      "createdAt": "2026-04-22T13:04:56.170Z"
+    },
+    {
+      "id": "trace-3",
+      "step": "select_skill",
+      "payload": {
+        "sessionId": "8c4016b4-0975-44bc-b556-5f2022196377",
+        "status": "running"
+      },
+      "createdAt": "2026-04-22T13:04:56.174Z"
+    },
+    {
+      "id": "trace-4",
+      "step": "build_prompt",
+      "payload": {
+        "sessionId": "8c4016b4-0975-44bc-b556-5f2022196377",
+        "status": "running"
+      },
+      "createdAt": "2026-04-22T13:04:56.180Z"
+    },
+    {
+      "id": "trace-5",
+      "step": "generate_code",
+      "payload": {
+        "sessionId": "8c4016b4-0975-44bc-b556-5f2022196377",
+        "status": "running"
+      },
+      "createdAt": "2026-04-22T13:04:56.185Z"
+    },
+    {
+      "id": "trace-6",
+      "step": "generate_code",
+      "payload": {
+        "sessionId": "8c4016b4-0975-44bc-b556-5f2022196377",
+        "status": "completed",
+        "selectedSkill": "threejs",
+        "source": "moonshot",
+        "code": "const clock = new THREE.Clock();\nscene.background = new THREE.Color(0xf4f7fb);\nrenderer.toneMapping = THREE.ACESFilmicToneMapping;\nrenderer.toneMappingExposure = 1.08;\nrenderer.shadowMap.enabled = true;\nrenderer.shadowMap.type = THREE.PCFSoftShadowMap;\n\nconst keyLight = new THREE.DirectionalLight(0xffffff, 1.35);\nkeyLight.position.set(6, 10, 8);\nkeyLight.castShadow = true;\nkeyLight.shadow.mapSize.width = 2048;\nkeyLight.shadow.mapSize.height = 2048;\nkeyLight.shadow.camera.near = 0.1;\nkeyLight.shadow.camera.far = 50;\nkeyLight.shadow.bias = -0.001;\n\nconst fillLight = new THREE.DirectionalLight(0xbfd7ff, 0.55);\nfillLight.position.set(-7, 4, 5);\n\nconst rimLight = new THREE.PointLight(0xaad6ff, 0.45, 22);\nrimLight.position.set(-4, 3, -5);\n\nconst warmAccent = new THREE.PointLight(0xffaa77, 0.6, 15);\nwarmAccent.position.set(2, 6, -3);\n\nscene.add(new THREE.AmbientLight(0x7f8aa6, 0.32), keyLight, fillLight, rimLight, warmAccent);\n\nconst floor = new THREE.Mesh(\n  new THREE.CircleGeometry(18, 96),\n  new THREE.MeshStandardMaterial({ color: 0xe6ecf5, roughness: 0.92, metalness: 0.02 })\n);\nfloor.rotation.x = -Math.PI / 2;\nfloor.position.y = -3.5;\nfloor.receiveShadow = true;\nscene.add(floor);\n\nconst hypothesisGroup = new THREE.Group();\nscene.add(hypothesisGroup);\n\nconst surfaceMaterial = new THREE.MeshPhysicalMaterial({\n  color: 0xffffff,\n  metalness: 0.1,\n  roughness: 0.2,\n  transmission: 0.15,\n  thickness: 0.5,\n  clearcoat: 0.8,\n  clearcoatRoughness: 0.1,\n  side: THREE.DoubleSide\n});\n\nconst geometry = new THREE.PlaneGeometry(16, 12, 128, 96);\nconst positions = geometry.attributes.position;\nconst colors = [];\nconst color1 = new THREE.Color(0x4a90e2);\nconst color2 = new THREE.Color(0x7b68ee);\nconst color3 = new THREE.Color(0xff6b6b);\n\nfor (let i = 0; i < positions.count; i++) {\n  const x = positions.getX(i);\n  const y = positions.getY(i);\n  \n  const dist = Math.sqrt(x * x + y * y);\n  const zetaHeight = Math.sin(x * 2) * Math.cos(y * 1.5) * Math.exp(-dist * 0.15) * 2.5;\n  const criticalMod = Math.exp(-Math.pow(x - 2, 2) * 4) * Math.sin(y * 3) * 1.5;\n  \n  positions.setZ(i, zetaHeight + criticalMod);\n  \n  const mixFactor = (zetaHeight + 2.5) / 5;\n  const vertexColor = new THREE.Color().lerpColors(color1, color2, mixFactor);\n  if (Math.abs(x - 2) < 0.3) vertexColor.lerp(color3, 0.6);\n  colors.push(vertexColor.r, vertexColor.g, vertexColor.b);\n}\n\ngeometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));\ngeometry.computeVertexNormals();\n\nconst zetaSurface = new THREE.Mesh(geometry, surfaceMaterial);\nzetaSurface.rotation.x = -Math.PI / 2;\nzetaSurface.position.y = 0;\nzetaSurface.castShadow = true;\nzetaSurface.receiveShadow = true;\nhypothesisGroup.add(zetaSurface);\n\nconst criticalLineGeo = new THREE.BoxGeometry(0.15, 0.15, 12);\nconst criticalLineMat = new THREE.MeshPhysicalMaterial({\n  color: 0xff4757,\n  emissive: 0xff4757,\n  emissiveIntensity: 0.4,\n  metalness: 0.8,\n  roughness: 0.2\n});\nconst criticalLine = new THREE.Mesh(criticalLineGeo, criticalLineMat);\ncriticalLine.position.set(2, 0.1, 0);\ncriticalLine.castShadow = true;\nhypothesisGroup.add(criticalLine);\n\nconst zeroGroup = new THREE.Group();\nhypothesisGroup.add(zeroGroup);\n\nconst zeroMaterial = new THREE.MeshPhysicalMaterial({\n  color: 0xff2e63,\n  emissive: 0xff2e63,\n  emissiveIntensity: 0.6,\n  metalness: 0.9,\n  roughness: 0.1,\n  clearcoat: 1.0\n});\n\nconst zeroPositions = [\n  { y: -4.5, scale: 0.4 },\n  { y: -2.8, scale: 0.5 },\n  { y: -1.2, scale: 0.45 },\n  { y: 0.8, scale: 0.55 },\n  { y: 2.5, scale: 0.48 },\n  { y: 4.2, scale: 0.52 }\n];\n\nzeroPositions.forEach((pos, idx) => {\n  const sphere = new THREE.Mesh(\n    new THREE.SphereGeometry(pos.scale, 32, 32),\n    zeroMaterial.clone()\n  );\n  sphere.position.set(2, 0.2, pos.y);\n  sphere.castShadow = true;\n  sphere.userData = { originalScale: pos.scale, index: idx };\n  zeroGroup.add(sphere);\n  \n  const glow = new THREE.Mesh(\n    new THREE.SphereGeometry(pos.scale * 1.8, 16, 16),\n    new THREE.MeshBasicMaterial({\n      color: 0xff2e63,\n      transparent: true,\n      opacity: 0.15\n    })\n  );\n  glow.position.copy(sphere.position);\n  zeroGroup.add(glow);\n});\n\nconst implicationNodes = [];\nconst implications = [\n  { label: \"Cryptography\", pos: new THREE.Vector3(-5, 3, -3), color: 0x2ed573 },\n  { label: \"Quantum Chaos\", pos: new THREE.Vector3(6, 4, 2), color: 0x1e90ff },\n  { label: \"Prime Distribution\", pos: new THREE.Vector3(-4, 2, 4), color: 0xffa502 },\n  { label: \"Random Matrices\", pos: new THREE.Vector3(5, 3.5, -4), color: 0x9b59b6 }\n];\n\nimplications.forEach((imp, i) => {\n  const nodeGroup = new THREE.Group();\n  nodeGroup.position.copy(imp.pos);\n  \n  const core = new THREE.Mesh(\n    new THREE.IcosahedronGeometry(0.6, 2),\n    new THREE.MeshPhysicalMaterial({\n      color: imp.color,\n      emissive: imp.color,\n      emissiveIntensity: 0.3,\n      metalness: 0.7,\n      roughness: 0.3,\n      clearcoat: 0.8\n    })\n  );\n  core.castShadow = true;\n  nodeGroup.add(core);\n  \n  const ring = new THREE.Mesh(\n    new THREE.TorusGeometry(1.0, 0.05, 16, 64),\n    new THREE.MeshBasicMaterial({ color: imp.color, transparent: true, opacity: 0.6 })\n  );\n  ring.rotation.x = Math.PI / 2;\n  nodeGroup.add(ring);\n  \n  const particleCount = 20;\n  const particles = new THREE.InstancedMesh(\n    new THREE.SphereGeometry(0.08, 8, 8),\n    new THREE.MeshBasicMaterial({ color: imp.color }),\n    particleCount\n  );\n  \n  const dummy = new THREE.Object3D();\n  for (let j = 0; j < particleCount; j++) {\n    const angle = (j / particleCount) * Math.PI * 2;\n    const radius = 1.2 + Math.random() * 0.5;\n    dummy.position.set(Math.cos(angle) * radius, Math.sin(angle) * radius * 0.3, Math.sin(angle) * radius);\n    dummy.updateMatrix();\n    particles.setMatrixAt(j, dummy.matrix);\n  }\n  nodeGroup.add(particles);\n  \n  const lineMaterial = new THREE.LineBasicMaterial({ \n    color: imp.color, \n    transparent: true, \n    opacity: 0.4,\n    linewidth: 2 \n  });\n  const lineGeo = new THREE.BufferGeometry().setFromPoints([\n    imp.pos,\n    new THREE.Vector3(2, 0.2, imp.pos.z * 0.3)\n  ]);\n  const connection = new THREE.Line(lineGeo, lineMaterial);\n  hypothesisGroup.add(connection);\n  \n  implicationNodes.push({ \n    group: nodeGroup, \n    core: core, \n    ring: ring, \n    particles: particles,\n    basePos: imp.pos.clone(),\n    phase: i * Math.PI / 2\n  });\n  hypothesisGroup.add(nodeGroup);\n});\n\nconst particleCount = 200;\nconst numberFlow = new THREE.InstancedMesh(\n  new THREE.OctahedronGeometry(0.08, 0),\n  new THREE.MeshStandardMaterial({ \n    color: 0x6c7ae0, \n    metalness: 0.6, \n    roughness: 0.4,\n    emissive: 0x4a90e2,\n    emissiveIntensity: 0.2\n  }),\n  particleCount\n);\nconst dummy = new THREE.Object3D();\nfor (let i = 0; i < particleCount; i++) {\n  dummy.position.set(\n    (Math.random() - 0.5) * 20,\n    Math.random() * 8 - 2,\n    (Math.random() - 0.5) * 16\n  );\n  dummy.rotation.set(Math.random() * Math.PI, Math.random() * Math.PI, 0);\n  const scale = 0.5 + Math.random() * 0.8;\n  dummy.scale.set(scale, scale, scale);\n  dummy.updateMatrix();\n  numberFlow.setMatrixAt(i, dummy.matrix);\n}\nhypothesisGroup.add(numberFlow);\n\ncamera.position.set(8, 5, 10);\ncamera.lookAt(0, 0, 0);\n\nconst controls = new OrbitControls(camera, renderer.domElement);\ncontrols.enableDamping = true;\ncontrols.dampingFactor = 0.05;\ncontrols.minDistance = 5;\ncontrols.maxDistance = 20;\ncontrols.maxPolarAngle = Math.PI / 2 - 0.1;\n\nfunction animate() {\n  requestAnimationFrame(animate);\n  const t = clock.getElapsedTime();\n  \n  hypothesisGroup.rotation.y = Math.sin(t * 0.05) * 0.1;\n  \n  zeroGroup.children.forEach((child, i) => {\n    if (child.userData.originalScale) {\n      const pulse = 1 + Math.sin(t * 2 + i * 0.8) * 0.15;\n      child.scale.setScalar(child.userData.originalScale * pulse);\n      child.material.emissiveIntensity = 0.6 + Math.sin(t * 3 + i) * 0.2;\n    }\n  });\n  \n  implicationNodes.forEach((node, i) => {\n    node.group.position.y = node.basePos.y + Math.sin(t * 0.8 + node.phase) * 0.3;\n    node.core.rotation.x = t * 0.3;\n    node.core.rotation.y = t * 0.5;\n    node.ring.rotation.z = t * 0.2;\n    node.ring.scale.setScalar(1 + Math.sin(t * 2 + node.phase) * 0.1);\n  });\n  \n  numberFlow.rotation.y = t * 0.05;\n  \n  rimLight.intensity = 0.35 + Math.sin(t * 1.2) * 0.08;\n  warmAccent.intensity = 0.6 + Math.sin(t * 0.7) * 0.1;\n  \n  controls.update();\n  renderer.render(scene, camera);\n}\nanimate();",
+        "stageDurationMs": 104285
+      },
+      "createdAt": "2026-04-22T13:06:40.478Z"
+    },
+    {
+      "id": "trace-7",
+      "step": "validate_code",
+      "payload": {
+        "sessionId": "8c4016b4-0975-44bc-b556-5f2022196377",
+        "status": "running"
+      },
+      "createdAt": "2026-04-22T13:06:40.485Z"
+    },
+    {
+      "id": "trace-8",
+      "step": "validate_code",
+      "payload": {
+        "sessionId": "8c4016b4-0975-44bc-b556-5f2022196377",
+        "status": "completed",
+        "valid": true,
+        "passable": true,
+        "stageDurationMs": 20
+      },
+      "createdAt": "2026-04-22T13:06:40.505Z"
+    },
+    {
+      "id": "trace-9",
+      "step": "execute_code",
+      "payload": {
+        "sessionId": "8c4016b4-0975-44bc-b556-5f2022196377",
+        "status": "running"
+      },
+      "createdAt": "2026-04-22T13:06:40.511Z"
+    },
+    {
+      "id": "trace-10",
+      "step": "execute_code",
+      "payload": {
+        "sessionId": "8c4016b4-0975-44bc-b556-5f2022196377",
+        "status": "error",
+        "error": "positions.getX is not a function",
+        "runtimeRecoveryUsed": false,
+        "stageDurationMs": 767
+      },
+      "createdAt": "2026-04-22T13:06:41.278Z"
+    },
+    {
+      "id": "trace-11",
+      "step": "turn_error",
+      "payload": {
+        "sessionId": "8c4016b4-0975-44bc-b556-5f2022196377",
+        "mode": "generate",
+        "messageCount": 9,
+        "error": {
+          "code": "RUNTIME_API_MISMATCH",
+          "title": "Runtime API mismatch",
+          "userMessage": "The generated scene called an API that failed at runtime.",
+          "retryable": true,
+          "suggestedAction": "Retry generation or ask for a compatibility-safe version.",
+          "technicalDetail": "positions.getX is not a function | code:error",
+          "stage": "execution",
+          "diagnostics": {
+            "stage": "execution",
+            "requestId": "client-a3e72de4-bee9-4712-b2d5-3039fcb68e9e",
+            "sessionId": "8c4016b4-0975-44bc-b556-5f2022196377",
+            "messageId": "message-2",
+            "message": "positions.getX is not a function",
+            "name": null,
+            "code": "error",
+            "status": null,
+            "cause": null,
+            "stack": null,
+            "timestamp": "2026-04-22T13:06:41.288Z",
+            "runtime": {
+              "status": "error",
+              "warningCode": null,
+              "acquireDiagnostics": {
+                "skillId": "threejs",
+                "reason": "acquire",
+                "startedAt": "2026-04-22T13:06:40.512Z",
+                "startedAtMs": 1776863200512,
+                "initialRemainingBudgetMs": 12000,
+                "turnDeadlineAtMs": 1776863212512,
+                "retryAttempts": 0,
+                "retryDelaysMs": [],
+                "directAttemptedAny": false,
+                "prewarmHit": true,
+                "success": true,
+                "acquireDurationMs": 260,
+                "completedAt": "2026-04-22T13:06:40.772Z",
+                "creationMode": "prewarm",
+                "source": "prewarm",
+                "direct": {
+                  "attempted": false,
+                  "skipped": false,
+                  "skipReason": null,
+                  "timeoutSec": null,
+                  "durationMs": null,
+                  "error": null,
+                  "circuitOpenAtStart": false,
+                  "circuitOpened": false,
+                  "circuitOpenUntil": null
+                },
+                "fallback": {
+                  "attempted": false,
+                  "skipped": false,
+                  "skipReason": null,
+                  "timeoutSec": null,
+                  "durationMs": null,
+                  "error": null
+                },
+                "livenessPingMs": 260,
+                "internalFirstAttempt": true
+              }
+            }
+          }
+        }
+      },
+      "createdAt": "2026-04-22T13:06:41.290Z"
+    }
+  ]
+}

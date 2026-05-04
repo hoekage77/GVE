@@ -1,22 +1,30 @@
 {
   "sessionId": "7c2cf271-a98b-4e1c-b102-bf6df85d4ae3",
   "createdAt": "2026-03-28T02:28:48.151Z",
-  "updatedAt": "2026-03-28T02:39:24.910Z",
+  "updatedAt": "2026-04-19T02:20:29.138Z",
   "status": "idle",
   "currentScene": {
     "sessionId": "7c2cf271-a98b-4e1c-b102-bf6df85d4ae3",
-    "sceneId": "scene-failed-1774665564900",
-    "code": "const clock = new THREE.Clock();\nscene.background = new THREE.Color(0x1a1a2e);\nscene.fog = new THREE.Fog(0x1a1a2e, 2, 22);\nrenderer.toneMapping = THREE.ACESFilmicToneMapping;\nrenderer.toneMappingExposure = 1.15;\nrenderer.shadowMap.enabled = true;\nrenderer.shadowMap.type = THREE.PCFSoftShadowMap;\n\n// Procedural texture generator using DataTexture (no canvas needed)\nfunction createIndustrialTexture(baseColorHex, noiseIntensity = 20) {\n  const size = 256;\n  const data = new Uint8Array(size * size * 4);\n  const baseColor = new THREE.Color(baseColorHex);\n  \n  for (let i = 0; i < size * size; i++) {\n    const i4 = i * 4;\n    const noise = (Math.random() - 0.5) * noiseIntensity / 255;\n    data[i4] = Math.max(0, Math.min(255, (baseColor.r + noise) * 255));\n    data[i4 + 1] = Math.max(0, Math.min(255, (baseColor.g + noise) * 255));\n    data[i4 + 2] = Math.max(0, Math.min(255, (baseColor.b + noise) * 255));\n    data[i4 + 3] = 255;\n  }\n  \n  const tex = new THREE.DataTexture(data, size, size, THREE.RGBAFormat);\n  tex.wrapS = THREE.RepeatWrapping;\n  tex.wrapT = THREE.RepeatWrapping;\n  tex.needsUpdate = true;\n  return tex;\n}\n\n// Materials\nconst wallMat = new THREE.MeshStandardMaterial({\n  map: createIndustrialTexture('#3a3a4a', 40),\n  roughness: 0.85,\n  metalness: 0.3\n});\nconst floorMat = new THREE.MeshStandardMaterial({\n  map: createIndustrialTexture('#2a2a35', 30),\n  roughness: 0.7,\n  metalness: 0.4,\n  color: 0x555566\n});\nconst enemyMat = new THREE.MeshStandardMaterial({\n  color: 0xcc2222,\n  emissive: 0x440000,\n  emissiveIntensity: 0.4,\n  roughness: 0.4,\n  metalness: 0.1\n});\nconst gunMetal = new THREE.MeshStandardMaterial({\n  color: 0x2a2a2a,\n  roughness: 0.3,\n  metalness: 0.8\n});\n\n// Level geometry\nconst levelGroup = new THREE.Group();\nscene.add(levelGroup);\n\n// Floor\nconst floor = new THREE.Mesh(new THREE.PlaneGeometry(24, 24), floorMat);\nfloor.rotation.x = -Math.PI / 2;\nfloor.receiveShadow = true;\nlevelGroup.add(floor);\n\n// Ceiling\nconst ceiling = new THREE.Mesh(new THREE.PlaneGeometry(24, 24), new THREE.MeshStandardMaterial({ color: 0x1a1a24, roughness: 0.9 }));\nceiling.rotation.x = Math.PI / 2;\nceiling.position.y = 4;\nlevelGroup.add(ceiling);\n\n// Walls (maze layout)\nconst walls = [\n  { x: 0, z: -10, w: 24, d: 2 }, { x: 0, z: 10, w: 24, d: 2 },\n  { x: -10, z: 0, w: 2, d: 24 }, { x: 10, z: 0, w: 2, d: 24 },\n  { x: -5, z: -5, w: 4, d: 4 }, { x: 5, z: 5, w: 4, d: 4 },\n  { x: 5, z: -5, w: 3, d: 3 }, { x: -5, z: 5, w: 3, d: 3 },\n  { x: 0, z: 0, w: 2, d: 6 }\n];\nwalls.forEach(w => {\n  const mesh = new THREE.Mesh(new THREE.BoxGeometry(w.w, 4, w.d), wallMat);\n  mesh.position.set(w.x, 2, w.z);\n  mesh.castShadow = true;\n  mesh.receiveShadow = true;\n  levelGroup.add(mesh);\n});\n\n// Atmospheric lighting\nconst ambient = new THREE.AmbientLight(0x202035, 0.4);\nscene.add(ambient);\n\nconst hellLight = new THREE.PointLight(0xff3300, 1.5, 12);\nhellLight.position.set(6, 3, 6);\nhellLight.castShadow = true;\nhellLight.shadow.bias = -0.001;\nscene.add(hellLight);\n\nconst toxicLight = new THREE.PointLight(0x33ff33, 0.8, 10);\ntoxicLight.position.set(-6, 3, -6);\nscene.add(toxicLight);\n\nconst keyLight = new THREE.DirectionalLight(0xffaa77, 0.8);\nkeyLight.position.set(8, 10, 4);\nkeyLight.castShadow = true;\nscene.add(keyLight);\n\n// Flashlight attached to camera\nconst flashLight = new THREE.SpotLight(0xffffff, 3, 18, Math.PI/5, 0.4, 1);\nflashLight.position.set(0, 0, 0);\nflashLight.target.position.set(0, 0, -1);\ncamera.add(flashLight);\ncamera.add(flashLight.target);\nscene.add(camera);\n\n// Player weapon\nconst gunGroup = new THREE.Group();\nconst gunBody = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.25, 0.6), gunMetal);\ngunBody.position.z = -0.3;\ngunBody.castShadow = true;\nconst gunBarrel = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 0.4), new THREE.MeshStandardMaterial({ color: 0x111111 }));\ngunBarrel.rotation.x = Math.PI/2;\ngunBarrel.position.set(0, 0.05, -0.5);\ngunGroup.add(gunBody, gunBarrel);\ncamera.add(gunGroup);\ngunGroup.position.set(0.25, -0.2, -0.4);\ngunGroup.rotation.y = -0.1;\n\n// Enemies\nconst enemies = [];\nfunction createEnemy(x, z) {\n  const group = new THREE.Group();\n  const body = new THREE.Mesh(new THREE.IcosahedronGeometry(0.5, 1), enemyMat);\n  body.position.y = 0.5;\n  body.castShadow = true;\n  const eyeL = new THREE.Mesh(new THREE.SphereGeometry(0.08), new THREE.MeshBasicMaterial({ color: 0xffff00 }));\n  eyeL.position.set(-0.15, 0.6, 0.35);\n  const eyeR = eyeL.clone();\n  eyeR.position.set(0.15, 0.6, 0.35);\n  const spike = new THREE.Mesh(new THREE.ConeGeometry(0.1, 0.4), enemyMat);\n  spike.position.set(0, 0.8, 0);\n  group.add(body, eyeL, eyeR, spike);\n  group.position.set(x, 0, z);\n  group.userData = { hp: 3, dead: false, initialY: 0, bobOffset: Math.random() * Math.PI };\n  scene.add(group);\n  enemies.push(group);\n}\ncreateEnemy(7, 7);\ncreateEnemy(-7, -7);\ncreateEnemy(7, -7);\n\n// Particles (blood)\nconst particles = [];\nfunction createBlood(position) {\n  for (let i = 0; i < 8; i++) {\n    const mesh = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.08, 0.08), new THREE.MeshBasicMaterial({ color: 0x880000 }));\n    mesh.position.copy(position);\n    mesh.position.x += (Math.random() - 0.5) * 0.5;\n    mesh.position.y += (Math.random() - 0.5) * 0.5;\n    mesh.position.z += (Math.random() - 0.5) * 0.5;\n    mesh.userData = {\n      vel: new THREE.Vector3((Math.random()-0.5)*0.1, Math.random()*0.1, (Math.random()-0.5)*0.1),\n      life: 1.0\n    };\n    scene.add(mesh);\n    particles.push(mesh);\n  }\n}\n\n// Controls\nconst keys = { w: false, a: false, s: false, d: false };\nconst playerVel = new THREE.Vector3();\nconst playerPos = new THREE.Vector3(0, 1.7, 8);\ncamera.position.copy(playerPos);\nconst euler = new THREE.Euler(0, 0, 0, 'YXZ');\nlet isLocked = false;\n\ndocument.addEventListener('keydown', e => {\n  const k = e.key.toLowerCase();\n  if (keys.hasOwnProperty(k)) keys[k] = true;\n});\ndocument.addEventListener('keyup', e => {\n  const k = e.key.toLowerCase();\n  if (keys.hasOwnProperty(k)) keys[k] = false;\n});\ndocument.addEventListener('click', () => document.body.requestPointerLock());\ndocument.addEventListener('pointerlockchange', () => isLocked = document.pointerLockElement === document.body);\ndocument.addEventListener('mousemove', e => {\n  if (!isLocked) return;\n  euler.y -= e.movementX * 0.002;\n  euler.x -= e.movementY * 0.002;\n  euler.x = Math.max(-Math.PI/2.2, Math.min(Math.PI/2.2, euler.x));\n  camera.quaternion.setFromEuler(euler);\n});\n\n// Shooting\nconst raycaster = new THREE.Raycaster();\ndocument.addEventListener('mousedown', () => {\n  if (!isLocked) return;\n  // Recoil\n  gunGroup.position.z += 0.15;\n  gunGroup.rotation.x += 0.2;\n  setTimeout(() => {\n    gunGroup.position.z -= 0.15;\n    gunGroup.rotation.x -= 0.2;\n  }, 80);\n  \n  // Muzzle flash\n  flashLight.intensity = 6;\n  setTimeout(() => flashLight.intensity = 3, 50);\n  \n  // Hit detection\n  raycaster.setFromCamera(new THREE.Vector2(0, 0), camera);\n  const intersects = raycaster.intersectObjects(enemies, true);\n  if (intersects.length > 0) {\n    const hitObj = intersects[0].object.parent;\n    if (hitObj.userData && !hitObj.userData.dead) {\n      hitObj.userData.hp--;\n      hitObj.scale.setScalar(0.8 + Math.random() * 0.2);\n      setTimeout(() => hitObj.scale.setScalar(1), 100);\n      if (hitObj.userData.hp <= 0) {\n        hitObj.userData.dead = true;\n        createBlood(hitObj.position);\n        // Death animation\n        const fall = () => {\n          hitObj.rotation.x += 0.1;\n          hitObj.position.y -= 0.05;\n          if (hitObj.position.y > -0.5) requestAnimationFrame(fall);\n          else hitObj.visible = false;\n        };\n        fall();\n      }\n    }\n  }\n});\n\n// Collision detection\nfunction checkCollision(pos) {\n  const playerRadius = 0.4;\n  for (const w of walls) {\n    const minX = w.x - w.w/2 - playerRadius;\n    const maxX = w.x + w.w/2 + playerRadius;\n    const minZ = w.z - w.d/2 - playerRadius;\n    const maxZ = w.z + w.d/2 + playerRadius;\n    if (pos.x > minX && pos.x < maxX && pos.z > minZ && pos.z < maxZ) return true;\n  }\n  return pos.x < -11 || pos.x > 11 || pos.z < -11 || pos.z > 11;\n}\n\nfunction animate() {\n  requestAnimationFrame(animate);\n  const dt = clock.getDelta();\n  const t = clock.getElapsedTime();\n  \n  // Movement\n  const speed = 4 * dt;\n  const dir = new THREE.Vector3();\n  if (keys.w) dir.z -= 1;\n  if (keys.s) dir.z += 1;\n  if (keys.a) dir.x -= 1;\n  if (keys.d) dir.x += 1;\n  dir.normalize().applyQuaternion(camera.quaternion);\n  dir.y = 0;\n  \n  const nextPos = camera.position.clone().add(dir.multiplyScalar(speed));\n  if (!checkCollision(nextPos)) camera.position.copy(nextPos);\n  camera.position.y = 1.7; // Keep head height\n  \n  // Gun sway\n  gunGroup.position.x = 0.25 + Math.sin(t * 2) * 0.01;\n  gunGroup.position.y = -0.2 + Math.cos(t * 1.5) * 0.01;\n  \n  // Enemy AI\n  enemies.forEach(enemy => {\n    if (enemy.userData.dead) return;\n    // Bobbing\n    enemy.position.y = enemy.userData.initialY + Math.sin(t * 3 + enemy.userData.bobOffset) * 0.05;\n    // Face player\n    enemy.lookAt(camera.position.x, enemy.position.y, camera.position.z);\n  });\n  \n  // Particles\n  for (let i = particles.length - 1; i >= 0; i--) {\n    const p = particles[i];\n    p.position.add(p.userData.vel);\n    p.userData.vel.y -= 0.005; // Gravity\n    p.userData.life -= dt * 0.5;\n    p.scale.setScalar(p.userData.life * 0.08);\n    if (p.userData.life <= 0) {\n      scene.remove(p);\n      particles.splice(i, 1);\n    }\n  }\n  \n  // Pulsing lights\n  hellLight.intensity = 1.5 + Math.sin(t * 2) * 0.3;\n  toxicLight.intensity = 0.8 + Math.cos(t * 1.7) * 0.2;\n  \n  renderer.render(scene, camera);\n}\nanimate();",
+    "sceneId": "scene-failed-1775778537532",
+    "code": "const clock = new THREE.Clock();\nscene.background = new THREE.Color(0xf4f7fb);\nrenderer.toneMapping = THREE.ACESFilmicToneMapping;\nrenderer.toneMappingExposure = 1.08;\nrenderer.shadowMap.enabled = true;\nrenderer.shadowMap.type = THREE.PCFSoftShadowMap;\n\nconst keyLight = new THREE.DirectionalLight(0xffffff, 1.35);\nkeyLight.position.set(6, 10, 8);\nkeyLight.castShadow = true;\nkeyLight.shadow.mapSize.width = 2048;\nkeyLight.shadow.mapSize.height = 2048;\nkeyLight.shadow.camera.near = 0.1;\nkeyLight.shadow.camera.far = 30;\n\nconst fillLight = new THREE.DirectionalLight(0xbfd7ff, 0.55);\nfillLight.position.set(-7, 4, 5);\n\nconst rimLight = new THREE.PointLight(0xaad6ff, 0.45, 22);\nrimLight.position.set(-4, 3, -5);\n\nscene.add(new THREE.AmbientLight(0x7f8aa6, 0.32), keyLight, fillLight, rimLight);\n\nconst floor = new THREE.Mesh(\n  new THREE.CircleGeometry(12, 96),\n  new THREE.MeshStandardMaterial({ color: 0xe6ecf5, roughness: 0.92, metalness: 0.02 })\n);\nfloor.rotation.x = -Math.PI / 2;\nfloor.position.y = -2.5;\nfloor.receiveShadow = true;\nscene.add(floor);\n\nconst controls = new OrbitControls(camera, renderer.domElement);\ncontrols.enableDamping = true;\ncontrols.dampingFactor = 0.05;\ncontrols.maxPolarAngle = Math.PI / 2 - 0.1;\n\nfunction createBarMagnet() {\n  const group = new THREE.Group();\n  const width = 0.8;\n  const height = 0.5;\n  const depth = 2.4;\n  \n  const northGeo = new THREE.BoxGeometry(width, height, depth/2);\n  const northMat = new THREE.MeshPhysicalMaterial({\n    color: 0xd92b2b,\n    metalness: 0.3,\n    roughness: 0.2,\n    clearcoat: 0.6,\n    clearcoatRoughness: 0.2\n  });\n  const north = new THREE.Mesh(northGeo, northMat);\n  north.position.z = -depth/4;\n  north.castShadow = true;\n  north.receiveShadow = true;\n  \n  const southGeo = new THREE.BoxGeometry(width, height, depth/2);\n  const southMat = new THREE.MeshPhysicalMaterial({\n    color: 0x2b5fd9,\n    metalness: 0.3,\n    roughness: 0.2,\n    clearcoat: 0.6,\n    clearcoatRoughness: 0.2\n  });\n  const south = new THREE.Mesh(southGeo, southMat);\n  south.position.z = depth/4;\n  south.castShadow = true;\n  south.receiveShadow = true;\n  \n  const frameGeo = new THREE.BoxGeometry(width + 0.02, height + 0.02, depth + 0.02);\n  const frameMat = new THREE.MeshStandardMaterial({\n    color: 0xcccccc,\n    metalness: 0.8,\n    roughness: 0.2\n  });\n  const frame = new THREE.Mesh(frameGeo, frameMat);\n  frame.castShadow = true;\n  \n  const poleGeo = new THREE.CylinderGeometry(0.15, 0.15, 0.02, 32);\n  const poleNMat = new THREE.MeshBasicMaterial({ color: 0xffffff });\n  const poleN = new THREE.Mesh(poleGeo, poleNMat);\n  poleN.rotation.x = Math.PI/2;\n  poleN.position.set(0, height/2 + 0.01, -depth/4);\n  \n  const poleSMat = new THREE.MeshBasicMaterial({ color: 0xffffff });\n  const poleS = new THREE.Mesh(poleGeo, poleSMat);\n  poleS.rotation.x = Math.PI/2;\n  poleS.position.set(0, height/2 + 0.01, depth/4);\n  \n  group.add(frame);\n  group.add(north);\n  group.add(south);\n  group.add(poleN);\n  group.add(poleS);\n  \n  return group;\n}\n\nconst magnet1 = createBarMagnet();\nmagnet1.position.set(-1.5, 0, 0);\nscene.add(magnet1);\n\nconst magnet2 = createBarMagnet();\nmagnet2.position.set(1.5, 0, 0);\nscene.add(magnet2);\n\nconst fieldGroup = new THREE.Group();\nscene.add(fieldGroup);\n\nconst fieldMaterialBase = new THREE.MeshPhysicalMaterial({\n  color: 0x4488ff,\n  transparent: true,\n  opacity: 0.5,\n  emissive: 0x2244aa,\n  emissiveIntensity: 0.4,\n  roughness: 0.3,\n  metalness: 0.1,\n  side: THREE.DoubleSide\n});\n\nconst particleGeo = new THREE.SphereGeometry(0.035, 16, 16);\nconst particleMat = new THREE.MeshBasicMaterial({ \n  color: 0x88ccff,\n  transparent: true,\n  opacity: 0.9\n});\n\nconst particles = [];\nfor(let i = 0; i < 50; i++) {\n  particles.push({\n    mesh: new THREE.Mesh(particleGeo, particleMat),\n    progress: Math.random(),\n    speed: 0.3 + Math.random() * 0.4,\n    lineIndex: Math.floor(Math.random() * 10),\n    offset: (Math.random() - 0.5) * 0.3\n  });\n  scene.add(particles[particles.length - 1].mesh);\n}\n\nfunction getFieldCurves(m1Pos, m2Pos, m2Rot, isAttracting) {\n  const curves = [];\n  const offsets = [-0.35, -0.2, -0.05, 0.05, 0.2, 0.35];\n  \n  if(isAttracting) {\n    offsets.forEach((yOffset, i) => {\n      const start = new THREE.Vector3(m1Pos.x, m1Pos.y + yOffset * 0.6, m1Pos.z - 1.2);\n      const end = new THREE.Vector3(m2Pos.x, m2Pos.y + yOffset * 0.6, m2Pos.z + 1.2);\n      const mid1 = new THREE.Vector3(\n        m1Pos.x + 0.3 + i * 0.1,\n        m1Pos.y + yOffset * 0.6 + 0.4 + Math.abs(yOffset) * 0.3,\n        m1Pos.z\n      );\n      const mid2 = new THREE.Vector3(\n        m2Pos.x - 0.3 - i * 0.1,\n        m2Pos.y + yOffset * 0.6 + 0.4 + Math.abs(yOffset) * 0.3,\n        m2Pos.z\n      );\n      curves.push(new THREE.CatmullRomCurve3([start, mid1, mid2, end]));\n    });\n    \n    offsets.forEach((yOffset, i) => {\n      const start = new THREE.Vector3(m2Pos.x, m2Pos.y + yOffset * 0.6, m2Pos.z - 1.2);\n      const end = new THREE.Vector3(m1Pos.x, m1Pos.y + yOffset * 0.6, m1Pos.z + 1.2);\n      const mid1 = new THREE.Vector3(\n        m2Pos.x - 0.3 - i * 0.1,\n        m2Pos.y + yOffset * 0.6 - 0.6 - Math.abs(yOffset) * 0.4,\n        m2Pos.z\n      );\n      const mid2 = new THREE.Vector3(\n        m1Pos.x + 0.3 + i * 0.1,\n        m1Pos.y + yOffset * 0.6 - 0.6 - Math.abs(yOffset) * 0.4,\n        m1Pos.z\n      );\n      curves.push(new THREE.CatmullRomCurve3([start, mid1, mid2, end]));\n    });\n  } else {\n    offsets.forEach((yOffset, i) => {\n      const start = new THREE.Vector3(m1Pos.x, m1Pos.y + yOffset * 0.6, m1Pos.z - 1.2);\n      const end = new THREE.Vector3(m2Pos.x, m2Pos.y + yOffset * 0.6, m2Pos.z - 1.2);\n      const bend = Math.abs(m2Pos.x - m1Pos.x) * 0.8 + 1.5 + Math.abs(yOffset);\n      const mid1 = new THREE.Vector3(\n        m1Pos.x + 0.5,\n        m1Pos.y + yOffset * 0.6 + 0.2,\n        m1Pos.z - bend\n      );\n      const mid2 = new THREE.Vector3(\n        m2Pos.x - 0.5,\n        m2Pos.y + yOffset * 0.6 + 0.2,\n        m2Pos.z - bend\n      );\n      curves.push(new THREE.CatmullRomCurve3([start, mid1, mid2, end]));\n    });\n  }\n  \n  return curves;\n}\n\nfunction updateFieldVisualization(curves, intensity, isAttracting) {\n  while(fieldGroup.children.length > 0) {\n    fieldGroup.remove(fieldGroup.children[0]);\n  }\n  \n  const color = isAttracting ? 0x4488ff : 0xff4444;\n  const emissive = isAttracting ? 0x2244aa : 0xaa2222;\n  \n  curves.forEach((curve, idx) => {\n    const tubeRadius = 0.012 * (1 - Math.abs(idx - 5) * 0.08) * intensity;\n    const geometry = new THREE.TubeGeometry(curve, 48, tubeRadius, 8, false);\n    const material = fieldMaterialBase.clone();\n    material.color.setHex(color);\n    material.emissive.setHex(emissive);\n    material.opacity = 0.4 * intensity * (1 - Math.abs(idx - 5) * 0.1);\n    material.emissiveIntensity = 0.5 * intensity;\n    \n    const mesh = new THREE.Mesh(geometry, material);\n    fieldGroup.add(mesh);\n  });\n}\n\nlet time = 0;\nlet currentCurves = [];\n\ncamera.position.set(0, 3.5, 7);\ncamera.lookAt(0, 0, 0);\n\nfunction animate() {\n  requestAnimationFrame(animate);\n  const delta = clock.getDelta();\n  time += delta;\n  \n  const cycleDuration = 10;\n  const phase = (time % cycleDuration) / cycleDuration;\n  const isAttracting = phase < 0.5;\n  const transition = Math.sin((isAttracting ? phase : phase - 0.5) * Math.PI * 2) * 0.5 + 0.5;\n  \n  const minDist = 1.2;\n  const maxDist = 4.5;\n  const currentDist = isAttracting ? \n    minDist + (1 - transition) * (maxDist - minDist) * 0.3 :\n    minDist + transition * (maxDist - minDist);\n  \n  magnet1.position.x = -currentDist / 2;\n  magnet2.position.x = currentDist / 2;\n  \n  const targetRotation = isAttracting ? 0 : Math.PI;\n  magnet2.rotation.y += (targetRotation - magnet2.rotation.y) * delta * 1.5;\n  \n  magnet1.position.y = Math.sin(time * 0.8) * 0.08;\n  magnet2.position.y = Math.sin(time * 0.8 + 1) * 0.08;\n  \n  currentCurves = getFieldCurves(magnet1.position, magnet2.position, magnet2.rotation, isAttracting);\n  const fieldIntensity = isAttracting ? 1.2 : 0.6 + (1 - transition) * 0.4;\n  updateFieldVisualization(currentCurves, fieldIntensity, isAttracting);\n  \n  particles.forEach(p => {\n    if(p.lineIndex < currentCurves.length) {\n      const curve = currentCurves[p.lineIndex];\n      p.progress += p.speed * delta * (isAttracting ? 1.2 : 0.6);\n      if(p.progress > 1) p.progress = 0;\n      \n      const pos = curve.getPoint(p.progress);\n      p.mesh.position.copy(pos);\n      p.mesh.position.y += p.offset * (1 - Math.sin(p.progress * Math.PI)) * 0.2;\n      \n      const scale = 0.5 + Math.sin(p.progress * Math.PI) * 0.8;\n      p.mesh.scale.setScalar(scale * (isAttracting ? 1 : 0.7));\n      p.mesh.material.opacity = isAttracting ? 0.9 : 0.5;\n      p.mesh.visible = true;\n    } else {\n      p.mesh.visible = false;\n    }\n  });\n  \n  rimLight.intensity = 0.35 + Math.sin(time * 1.2) * 0.08;\n  \n  controls.update();\n  renderer.render(scene, camera);\n}\n\nanimate();",
     "previewUrl": null,
     "skill": "threejs",
-    "explanation": "Generation failed validation and execution was aborted. Agent self-debug was used (3 iteration(s)). Failure details: Sandbox execution error: THREE.DataTexture is not a constructor Runtime: error with 0 renders and 0 frames.",
-    "messageId": "message-2",
+    "outputKind": "code",
+    "mediaType": null,
+    "mediaUrl": null,
+    "mediaArtifactId": null,
+    "mediaDurationMs": null,
+    "mediaFps": null,
+    "mediaResolution": null,
+    "mediaBytes": null,
+    "explanation": "Show me how magnets work. Live preview is currently unavailable, but the animation concept has been prepared.",
+    "messageId": "message-11",
     "source": "generate",
-    "createdAt": "2026-03-28T02:39:24.904Z",
-    "updatedAt": "2026-03-28T02:39:24.904Z",
-    "versionId": "version-1",
-    "version": 1,
-    "artifactId": "artifact-1774665564904-06cb94",
+    "createdAt": "2026-04-09T23:48:57.535Z",
+    "updatedAt": "2026-04-09T23:48:57.535Z",
+    "versionId": "version-2",
+    "version": 2,
+    "artifactId": "artifact-1775778537535-cd861e",
     "artifactVersion": 1
   },
   "artifacts": [
@@ -44,24 +52,65 @@
         }
       ],
       "revisionPointer": 0
+    },
+    {
+      "artifactId": "artifact-1775778537535-cd861e",
+      "title": "scene-failed-1775778537532",
+      "createdAt": "2026-04-09T23:48:57.535Z",
+      "updatedAt": "2026-04-09T23:48:57.535Z",
+      "revisions": [
+        {
+          "sessionId": "7c2cf271-a98b-4e1c-b102-bf6df85d4ae3",
+          "sceneId": "scene-failed-1775778537532",
+          "code": "const clock = new THREE.Clock();\nscene.background = new THREE.Color(0xf4f7fb);\nrenderer.toneMapping = THREE.ACESFilmicToneMapping;\nrenderer.toneMappingExposure = 1.08;\nrenderer.shadowMap.enabled = true;\nrenderer.shadowMap.type = THREE.PCFSoftShadowMap;\n\nconst keyLight = new THREE.DirectionalLight(0xffffff, 1.35);\nkeyLight.position.set(6, 10, 8);\nkeyLight.castShadow = true;\nkeyLight.shadow.mapSize.width = 2048;\nkeyLight.shadow.mapSize.height = 2048;\nkeyLight.shadow.camera.near = 0.1;\nkeyLight.shadow.camera.far = 30;\n\nconst fillLight = new THREE.DirectionalLight(0xbfd7ff, 0.55);\nfillLight.position.set(-7, 4, 5);\n\nconst rimLight = new THREE.PointLight(0xaad6ff, 0.45, 22);\nrimLight.position.set(-4, 3, -5);\n\nscene.add(new THREE.AmbientLight(0x7f8aa6, 0.32), keyLight, fillLight, rimLight);\n\nconst floor = new THREE.Mesh(\n  new THREE.CircleGeometry(12, 96),\n  new THREE.MeshStandardMaterial({ color: 0xe6ecf5, roughness: 0.92, metalness: 0.02 })\n);\nfloor.rotation.x = -Math.PI / 2;\nfloor.position.y = -2.5;\nfloor.receiveShadow = true;\nscene.add(floor);\n\nconst controls = new OrbitControls(camera, renderer.domElement);\ncontrols.enableDamping = true;\ncontrols.dampingFactor = 0.05;\ncontrols.maxPolarAngle = Math.PI / 2 - 0.1;\n\nfunction createBarMagnet() {\n  const group = new THREE.Group();\n  const width = 0.8;\n  const height = 0.5;\n  const depth = 2.4;\n  \n  const northGeo = new THREE.BoxGeometry(width, height, depth/2);\n  const northMat = new THREE.MeshPhysicalMaterial({\n    color: 0xd92b2b,\n    metalness: 0.3,\n    roughness: 0.2,\n    clearcoat: 0.6,\n    clearcoatRoughness: 0.2\n  });\n  const north = new THREE.Mesh(northGeo, northMat);\n  north.position.z = -depth/4;\n  north.castShadow = true;\n  north.receiveShadow = true;\n  \n  const southGeo = new THREE.BoxGeometry(width, height, depth/2);\n  const southMat = new THREE.MeshPhysicalMaterial({\n    color: 0x2b5fd9,\n    metalness: 0.3,\n    roughness: 0.2,\n    clearcoat: 0.6,\n    clearcoatRoughness: 0.2\n  });\n  const south = new THREE.Mesh(southGeo, southMat);\n  south.position.z = depth/4;\n  south.castShadow = true;\n  south.receiveShadow = true;\n  \n  const frameGeo = new THREE.BoxGeometry(width + 0.02, height + 0.02, depth + 0.02);\n  const frameMat = new THREE.MeshStandardMaterial({\n    color: 0xcccccc,\n    metalness: 0.8,\n    roughness: 0.2\n  });\n  const frame = new THREE.Mesh(frameGeo, frameMat);\n  frame.castShadow = true;\n  \n  const poleGeo = new THREE.CylinderGeometry(0.15, 0.15, 0.02, 32);\n  const poleNMat = new THREE.MeshBasicMaterial({ color: 0xffffff });\n  const poleN = new THREE.Mesh(poleGeo, poleNMat);\n  poleN.rotation.x = Math.PI/2;\n  poleN.position.set(0, height/2 + 0.01, -depth/4);\n  \n  const poleSMat = new THREE.MeshBasicMaterial({ color: 0xffffff });\n  const poleS = new THREE.Mesh(poleGeo, poleSMat);\n  poleS.rotation.x = Math.PI/2;\n  poleS.position.set(0, height/2 + 0.01, depth/4);\n  \n  group.add(frame);\n  group.add(north);\n  group.add(south);\n  group.add(poleN);\n  group.add(poleS);\n  \n  return group;\n}\n\nconst magnet1 = createBarMagnet();\nmagnet1.position.set(-1.5, 0, 0);\nscene.add(magnet1);\n\nconst magnet2 = createBarMagnet();\nmagnet2.position.set(1.5, 0, 0);\nscene.add(magnet2);\n\nconst fieldGroup = new THREE.Group();\nscene.add(fieldGroup);\n\nconst fieldMaterialBase = new THREE.MeshPhysicalMaterial({\n  color: 0x4488ff,\n  transparent: true,\n  opacity: 0.5,\n  emissive: 0x2244aa,\n  emissiveIntensity: 0.4,\n  roughness: 0.3,\n  metalness: 0.1,\n  side: THREE.DoubleSide\n});\n\nconst particleGeo = new THREE.SphereGeometry(0.035, 16, 16);\nconst particleMat = new THREE.MeshBasicMaterial({ \n  color: 0x88ccff,\n  transparent: true,\n  opacity: 0.9\n});\n\nconst particles = [];\nfor(let i = 0; i < 50; i++) {\n  particles.push({\n    mesh: new THREE.Mesh(particleGeo, particleMat),\n    progress: Math.random(),\n    speed: 0.3 + Math.random() * 0.4,\n    lineIndex: Math.floor(Math.random() * 10),\n    offset: (Math.random() - 0.5) * 0.3\n  });\n  scene.add(particles[particles.length - 1].mesh);\n}\n\nfunction getFieldCurves(m1Pos, m2Pos, m2Rot, isAttracting) {\n  const curves = [];\n  const offsets = [-0.35, -0.2, -0.05, 0.05, 0.2, 0.35];\n  \n  if(isAttracting) {\n    offsets.forEach((yOffset, i) => {\n      const start = new THREE.Vector3(m1Pos.x, m1Pos.y + yOffset * 0.6, m1Pos.z - 1.2);\n      const end = new THREE.Vector3(m2Pos.x, m2Pos.y + yOffset * 0.6, m2Pos.z + 1.2);\n      const mid1 = new THREE.Vector3(\n        m1Pos.x + 0.3 + i * 0.1,\n        m1Pos.y + yOffset * 0.6 + 0.4 + Math.abs(yOffset) * 0.3,\n        m1Pos.z\n      );\n      const mid2 = new THREE.Vector3(\n        m2Pos.x - 0.3 - i * 0.1,\n        m2Pos.y + yOffset * 0.6 + 0.4 + Math.abs(yOffset) * 0.3,\n        m2Pos.z\n      );\n      curves.push(new THREE.CatmullRomCurve3([start, mid1, mid2, end]));\n    });\n    \n    offsets.forEach((yOffset, i) => {\n      const start = new THREE.Vector3(m2Pos.x, m2Pos.y + yOffset * 0.6, m2Pos.z - 1.2);\n      const end = new THREE.Vector3(m1Pos.x, m1Pos.y + yOffset * 0.6, m1Pos.z + 1.2);\n      const mid1 = new THREE.Vector3(\n        m2Pos.x - 0.3 - i * 0.1,\n        m2Pos.y + yOffset * 0.6 - 0.6 - Math.abs(yOffset) * 0.4,\n        m2Pos.z\n      );\n      const mid2 = new THREE.Vector3(\n        m1Pos.x + 0.3 + i * 0.1,\n        m1Pos.y + yOffset * 0.6 - 0.6 - Math.abs(yOffset) * 0.4,\n        m1Pos.z\n      );\n      curves.push(new THREE.CatmullRomCurve3([start, mid1, mid2, end]));\n    });\n  } else {\n    offsets.forEach((yOffset, i) => {\n      const start = new THREE.Vector3(m1Pos.x, m1Pos.y + yOffset * 0.6, m1Pos.z - 1.2);\n      const end = new THREE.Vector3(m2Pos.x, m2Pos.y + yOffset * 0.6, m2Pos.z - 1.2);\n      const bend = Math.abs(m2Pos.x - m1Pos.x) * 0.8 + 1.5 + Math.abs(yOffset);\n      const mid1 = new THREE.Vector3(\n        m1Pos.x + 0.5,\n        m1Pos.y + yOffset * 0.6 + 0.2,\n        m1Pos.z - bend\n      );\n      const mid2 = new THREE.Vector3(\n        m2Pos.x - 0.5,\n        m2Pos.y + yOffset * 0.6 + 0.2,\n        m2Pos.z - bend\n      );\n      curves.push(new THREE.CatmullRomCurve3([start, mid1, mid2, end]));\n    });\n  }\n  \n  return curves;\n}\n\nfunction updateFieldVisualization(curves, intensity, isAttracting) {\n  while(fieldGroup.children.length > 0) {\n    fieldGroup.remove(fieldGroup.children[0]);\n  }\n  \n  const color = isAttracting ? 0x4488ff : 0xff4444;\n  const emissive = isAttracting ? 0x2244aa : 0xaa2222;\n  \n  curves.forEach((curve, idx) => {\n    const tubeRadius = 0.012 * (1 - Math.abs(idx - 5) * 0.08) * intensity;\n    const geometry = new THREE.TubeGeometry(curve, 48, tubeRadius, 8, false);\n    const material = fieldMaterialBase.clone();\n    material.color.setHex(color);\n    material.emissive.setHex(emissive);\n    material.opacity = 0.4 * intensity * (1 - Math.abs(idx - 5) * 0.1);\n    material.emissiveIntensity = 0.5 * intensity;\n    \n    const mesh = new THREE.Mesh(geometry, material);\n    fieldGroup.add(mesh);\n  });\n}\n\nlet time = 0;\nlet currentCurves = [];\n\ncamera.position.set(0, 3.5, 7);\ncamera.lookAt(0, 0, 0);\n\nfunction animate() {\n  requestAnimationFrame(animate);\n  const delta = clock.getDelta();\n  time += delta;\n  \n  const cycleDuration = 10;\n  const phase = (time % cycleDuration) / cycleDuration;\n  const isAttracting = phase < 0.5;\n  const transition = Math.sin((isAttracting ? phase : phase - 0.5) * Math.PI * 2) * 0.5 + 0.5;\n  \n  const minDist = 1.2;\n  const maxDist = 4.5;\n  const currentDist = isAttracting ? \n    minDist + (1 - transition) * (maxDist - minDist) * 0.3 :\n    minDist + transition * (maxDist - minDist);\n  \n  magnet1.position.x = -currentDist / 2;\n  magnet2.position.x = currentDist / 2;\n  \n  const targetRotation = isAttracting ? 0 : Math.PI;\n  magnet2.rotation.y += (targetRotation - magnet2.rotation.y) * delta * 1.5;\n  \n  magnet1.position.y = Math.sin(time * 0.8) * 0.08;\n  magnet2.position.y = Math.sin(time * 0.8 + 1) * 0.08;\n  \n  currentCurves = getFieldCurves(magnet1.position, magnet2.position, magnet2.rotation, isAttracting);\n  const fieldIntensity = isAttracting ? 1.2 : 0.6 + (1 - transition) * 0.4;\n  updateFieldVisualization(currentCurves, fieldIntensity, isAttracting);\n  \n  particles.forEach(p => {\n    if(p.lineIndex < currentCurves.length) {\n      const curve = currentCurves[p.lineIndex];\n      p.progress += p.speed * delta * (isAttracting ? 1.2 : 0.6);\n      if(p.progress > 1) p.progress = 0;\n      \n      const pos = curve.getPoint(p.progress);\n      p.mesh.position.copy(pos);\n      p.mesh.position.y += p.offset * (1 - Math.sin(p.progress * Math.PI)) * 0.2;\n      \n      const scale = 0.5 + Math.sin(p.progress * Math.PI) * 0.8;\n      p.mesh.scale.setScalar(scale * (isAttracting ? 1 : 0.7));\n      p.mesh.material.opacity = isAttracting ? 0.9 : 0.5;\n      p.mesh.visible = true;\n    } else {\n      p.mesh.visible = false;\n    }\n  });\n  \n  rimLight.intensity = 0.35 + Math.sin(time * 1.2) * 0.08;\n  \n  controls.update();\n  renderer.render(scene, camera);\n}\n\nanimate();",
+          "previewUrl": null,
+          "skill": "threejs",
+          "outputKind": "code",
+          "mediaType": null,
+          "mediaUrl": null,
+          "mediaArtifactId": null,
+          "mediaDurationMs": null,
+          "mediaFps": null,
+          "mediaResolution": null,
+          "mediaBytes": null,
+          "explanation": "Show me how magnets work. Live preview is currently unavailable, but the animation concept has been prepared.",
+          "messageId": "message-11",
+          "source": "generate",
+          "createdAt": "2026-04-09T23:48:57.535Z",
+          "updatedAt": "2026-04-09T23:48:57.535Z",
+          "versionId": "version-2",
+          "version": 2,
+          "artifactId": "artifact-1775778537535-cd861e",
+          "artifactVersion": 1
+        }
+      ],
+      "revisionPointer": 0
     }
   ],
-  "artifactPointer": 0,
+  "artifactPointer": 1,
   "versions": [
     {
       "sessionId": "7c2cf271-a98b-4e1c-b102-bf6df85d4ae3",
-      "sceneId": "scene-failed-1774665564900",
-      "code": "const clock = new THREE.Clock();\nscene.background = new THREE.Color(0x1a1a2e);\nscene.fog = new THREE.Fog(0x1a1a2e, 2, 22);\nrenderer.toneMapping = THREE.ACESFilmicToneMapping;\nrenderer.toneMappingExposure = 1.15;\nrenderer.shadowMap.enabled = true;\nrenderer.shadowMap.type = THREE.PCFSoftShadowMap;\n\n// Procedural texture generator using DataTexture (no canvas needed)\nfunction createIndustrialTexture(baseColorHex, noiseIntensity = 20) {\n  const size = 256;\n  const data = new Uint8Array(size * size * 4);\n  const baseColor = new THREE.Color(baseColorHex);\n  \n  for (let i = 0; i < size * size; i++) {\n    const i4 = i * 4;\n    const noise = (Math.random() - 0.5) * noiseIntensity / 255;\n    data[i4] = Math.max(0, Math.min(255, (baseColor.r + noise) * 255));\n    data[i4 + 1] = Math.max(0, Math.min(255, (baseColor.g + noise) * 255));\n    data[i4 + 2] = Math.max(0, Math.min(255, (baseColor.b + noise) * 255));\n    data[i4 + 3] = 255;\n  }\n  \n  const tex = new THREE.DataTexture(data, size, size, THREE.RGBAFormat);\n  tex.wrapS = THREE.RepeatWrapping;\n  tex.wrapT = THREE.RepeatWrapping;\n  tex.needsUpdate = true;\n  return tex;\n}\n\n// Materials\nconst wallMat = new THREE.MeshStandardMaterial({\n  map: createIndustrialTexture('#3a3a4a', 40),\n  roughness: 0.85,\n  metalness: 0.3\n});\nconst floorMat = new THREE.MeshStandardMaterial({\n  map: createIndustrialTexture('#2a2a35', 30),\n  roughness: 0.7,\n  metalness: 0.4,\n  color: 0x555566\n});\nconst enemyMat = new THREE.MeshStandardMaterial({\n  color: 0xcc2222,\n  emissive: 0x440000,\n  emissiveIntensity: 0.4,\n  roughness: 0.4,\n  metalness: 0.1\n});\nconst gunMetal = new THREE.MeshStandardMaterial({\n  color: 0x2a2a2a,\n  roughness: 0.3,\n  metalness: 0.8\n});\n\n// Level geometry\nconst levelGroup = new THREE.Group();\nscene.add(levelGroup);\n\n// Floor\nconst floor = new THREE.Mesh(new THREE.PlaneGeometry(24, 24), floorMat);\nfloor.rotation.x = -Math.PI / 2;\nfloor.receiveShadow = true;\nlevelGroup.add(floor);\n\n// Ceiling\nconst ceiling = new THREE.Mesh(new THREE.PlaneGeometry(24, 24), new THREE.MeshStandardMaterial({ color: 0x1a1a24, roughness: 0.9 }));\nceiling.rotation.x = Math.PI / 2;\nceiling.position.y = 4;\nlevelGroup.add(ceiling);\n\n// Walls (maze layout)\nconst walls = [\n  { x: 0, z: -10, w: 24, d: 2 }, { x: 0, z: 10, w: 24, d: 2 },\n  { x: -10, z: 0, w: 2, d: 24 }, { x: 10, z: 0, w: 2, d: 24 },\n  { x: -5, z: -5, w: 4, d: 4 }, { x: 5, z: 5, w: 4, d: 4 },\n  { x: 5, z: -5, w: 3, d: 3 }, { x: -5, z: 5, w: 3, d: 3 },\n  { x: 0, z: 0, w: 2, d: 6 }\n];\nwalls.forEach(w => {\n  const mesh = new THREE.Mesh(new THREE.BoxGeometry(w.w, 4, w.d), wallMat);\n  mesh.position.set(w.x, 2, w.z);\n  mesh.castShadow = true;\n  mesh.receiveShadow = true;\n  levelGroup.add(mesh);\n});\n\n// Atmospheric lighting\nconst ambient = new THREE.AmbientLight(0x202035, 0.4);\nscene.add(ambient);\n\nconst hellLight = new THREE.PointLight(0xff3300, 1.5, 12);\nhellLight.position.set(6, 3, 6);\nhellLight.castShadow = true;\nhellLight.shadow.bias = -0.001;\nscene.add(hellLight);\n\nconst toxicLight = new THREE.PointLight(0x33ff33, 0.8, 10);\ntoxicLight.position.set(-6, 3, -6);\nscene.add(toxicLight);\n\nconst keyLight = new THREE.DirectionalLight(0xffaa77, 0.8);\nkeyLight.position.set(8, 10, 4);\nkeyLight.castShadow = true;\nscene.add(keyLight);\n\n// Flashlight attached to camera\nconst flashLight = new THREE.SpotLight(0xffffff, 3, 18, Math.PI/5, 0.4, 1);\nflashLight.position.set(0, 0, 0);\nflashLight.target.position.set(0, 0, -1);\ncamera.add(flashLight);\ncamera.add(flashLight.target);\nscene.add(camera);\n\n// Player weapon\nconst gunGroup = new THREE.Group();\nconst gunBody = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.25, 0.6), gunMetal);\ngunBody.position.z = -0.3;\ngunBody.castShadow = true;\nconst gunBarrel = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 0.4), new THREE.MeshStandardMaterial({ color: 0x111111 }));\ngunBarrel.rotation.x = Math.PI/2;\ngunBarrel.position.set(0, 0.05, -0.5);\ngunGroup.add(gunBody, gunBarrel);\ncamera.add(gunGroup);\ngunGroup.position.set(0.25, -0.2, -0.4);\ngunGroup.rotation.y = -0.1;\n\n// Enemies\nconst enemies = [];\nfunction createEnemy(x, z) {\n  const group = new THREE.Group();\n  const body = new THREE.Mesh(new THREE.IcosahedronGeometry(0.5, 1), enemyMat);\n  body.position.y = 0.5;\n  body.castShadow = true;\n  const eyeL = new THREE.Mesh(new THREE.SphereGeometry(0.08), new THREE.MeshBasicMaterial({ color: 0xffff00 }));\n  eyeL.position.set(-0.15, 0.6, 0.35);\n  const eyeR = eyeL.clone();\n  eyeR.position.set(0.15, 0.6, 0.35);\n  const spike = new THREE.Mesh(new THREE.ConeGeometry(0.1, 0.4), enemyMat);\n  spike.position.set(0, 0.8, 0);\n  group.add(body, eyeL, eyeR, spike);\n  group.position.set(x, 0, z);\n  group.userData = { hp: 3, dead: false, initialY: 0, bobOffset: Math.random() * Math.PI };\n  scene.add(group);\n  enemies.push(group);\n}\ncreateEnemy(7, 7);\ncreateEnemy(-7, -7);\ncreateEnemy(7, -7);\n\n// Particles (blood)\nconst particles = [];\nfunction createBlood(position) {\n  for (let i = 0; i < 8; i++) {\n    const mesh = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.08, 0.08), new THREE.MeshBasicMaterial({ color: 0x880000 }));\n    mesh.position.copy(position);\n    mesh.position.x += (Math.random() - 0.5) * 0.5;\n    mesh.position.y += (Math.random() - 0.5) * 0.5;\n    mesh.position.z += (Math.random() - 0.5) * 0.5;\n    mesh.userData = {\n      vel: new THREE.Vector3((Math.random()-0.5)*0.1, Math.random()*0.1, (Math.random()-0.5)*0.1),\n      life: 1.0\n    };\n    scene.add(mesh);\n    particles.push(mesh);\n  }\n}\n\n// Controls\nconst keys = { w: false, a: false, s: false, d: false };\nconst playerVel = new THREE.Vector3();\nconst playerPos = new THREE.Vector3(0, 1.7, 8);\ncamera.position.copy(playerPos);\nconst euler = new THREE.Euler(0, 0, 0, 'YXZ');\nlet isLocked = false;\n\ndocument.addEventListener('keydown', e => {\n  const k = e.key.toLowerCase();\n  if (keys.hasOwnProperty(k)) keys[k] = true;\n});\ndocument.addEventListener('keyup', e => {\n  const k = e.key.toLowerCase();\n  if (keys.hasOwnProperty(k)) keys[k] = false;\n});\ndocument.addEventListener('click', () => document.body.requestPointerLock());\ndocument.addEventListener('pointerlockchange', () => isLocked = document.pointerLockElement === document.body);\ndocument.addEventListener('mousemove', e => {\n  if (!isLocked) return;\n  euler.y -= e.movementX * 0.002;\n  euler.x -= e.movementY * 0.002;\n  euler.x = Math.max(-Math.PI/2.2, Math.min(Math.PI/2.2, euler.x));\n  camera.quaternion.setFromEuler(euler);\n});\n\n// Shooting\nconst raycaster = new THREE.Raycaster();\ndocument.addEventListener('mousedown', () => {\n  if (!isLocked) return;\n  // Recoil\n  gunGroup.position.z += 0.15;\n  gunGroup.rotation.x += 0.2;\n  setTimeout(() => {\n    gunGroup.position.z -= 0.15;\n    gunGroup.rotation.x -= 0.2;\n  }, 80);\n  \n  // Muzzle flash\n  flashLight.intensity = 6;\n  setTimeout(() => flashLight.intensity = 3, 50);\n  \n  // Hit detection\n  raycaster.setFromCamera(new THREE.Vector2(0, 0), camera);\n  const intersects = raycaster.intersectObjects(enemies, true);\n  if (intersects.length > 0) {\n    const hitObj = intersects[0].object.parent;\n    if (hitObj.userData && !hitObj.userData.dead) {\n      hitObj.userData.hp--;\n      hitObj.scale.setScalar(0.8 + Math.random() * 0.2);\n      setTimeout(() => hitObj.scale.setScalar(1), 100);\n      if (hitObj.userData.hp <= 0) {\n        hitObj.userData.dead = true;\n        createBlood(hitObj.position);\n        // Death animation\n        const fall = () => {\n          hitObj.rotation.x += 0.1;\n          hitObj.position.y -= 0.05;\n          if (hitObj.position.y > -0.5) requestAnimationFrame(fall);\n          else hitObj.visible = false;\n        };\n        fall();\n      }\n    }\n  }\n});\n\n// Collision detection\nfunction checkCollision(pos) {\n  const playerRadius = 0.4;\n  for (const w of walls) {\n    const minX = w.x - w.w/2 - playerRadius;\n    const maxX = w.x + w.w/2 + playerRadius;\n    const minZ = w.z - w.d/2 - playerRadius;\n    const maxZ = w.z + w.d/2 + playerRadius;\n    if (pos.x > minX && pos.x < maxX && pos.z > minZ && pos.z < maxZ) return true;\n  }\n  return pos.x < -11 || pos.x > 11 || pos.z < -11 || pos.z > 11;\n}\n\nfunction animate() {\n  requestAnimationFrame(animate);\n  const dt = clock.getDelta();\n  const t = clock.getElapsedTime();\n  \n  // Movement\n  const speed = 4 * dt;\n  const dir = new THREE.Vector3();\n  if (keys.w) dir.z -= 1;\n  if (keys.s) dir.z += 1;\n  if (keys.a) dir.x -= 1;\n  if (keys.d) dir.x += 1;\n  dir.normalize().applyQuaternion(camera.quaternion);\n  dir.y = 0;\n  \n  const nextPos = camera.position.clone().add(dir.multiplyScalar(speed));\n  if (!checkCollision(nextPos)) camera.position.copy(nextPos);\n  camera.position.y = 1.7; // Keep head height\n  \n  // Gun sway\n  gunGroup.position.x = 0.25 + Math.sin(t * 2) * 0.01;\n  gunGroup.position.y = -0.2 + Math.cos(t * 1.5) * 0.01;\n  \n  // Enemy AI\n  enemies.forEach(enemy => {\n    if (enemy.userData.dead) return;\n    // Bobbing\n    enemy.position.y = enemy.userData.initialY + Math.sin(t * 3 + enemy.userData.bobOffset) * 0.05;\n    // Face player\n    enemy.lookAt(camera.position.x, enemy.position.y, camera.position.z);\n  });\n  \n  // Particles\n  for (let i = particles.length - 1; i >= 0; i--) {\n    const p = particles[i];\n    p.position.add(p.userData.vel);\n    p.userData.vel.y -= 0.005; // Gravity\n    p.userData.life -= dt * 0.5;\n    p.scale.setScalar(p.userData.life * 0.08);\n    if (p.userData.life <= 0) {\n      scene.remove(p);\n      particles.splice(i, 1);\n    }\n  }\n  \n  // Pulsing lights\n  hellLight.intensity = 1.5 + Math.sin(t * 2) * 0.3;\n  toxicLight.intensity = 0.8 + Math.cos(t * 1.7) * 0.2;\n  \n  renderer.render(scene, camera);\n}\nanimate();",
+      "sceneId": "scene-failed-1775778537532",
+      "code": "const clock = new THREE.Clock();\nscene.background = new THREE.Color(0xf4f7fb);\nrenderer.toneMapping = THREE.ACESFilmicToneMapping;\nrenderer.toneMappingExposure = 1.08;\nrenderer.shadowMap.enabled = true;\nrenderer.shadowMap.type = THREE.PCFSoftShadowMap;\n\nconst keyLight = new THREE.DirectionalLight(0xffffff, 1.35);\nkeyLight.position.set(6, 10, 8);\nkeyLight.castShadow = true;\nkeyLight.shadow.mapSize.width = 2048;\nkeyLight.shadow.mapSize.height = 2048;\nkeyLight.shadow.camera.near = 0.1;\nkeyLight.shadow.camera.far = 30;\n\nconst fillLight = new THREE.DirectionalLight(0xbfd7ff, 0.55);\nfillLight.position.set(-7, 4, 5);\n\nconst rimLight = new THREE.PointLight(0xaad6ff, 0.45, 22);\nrimLight.position.set(-4, 3, -5);\n\nscene.add(new THREE.AmbientLight(0x7f8aa6, 0.32), keyLight, fillLight, rimLight);\n\nconst floor = new THREE.Mesh(\n  new THREE.CircleGeometry(12, 96),\n  new THREE.MeshStandardMaterial({ color: 0xe6ecf5, roughness: 0.92, metalness: 0.02 })\n);\nfloor.rotation.x = -Math.PI / 2;\nfloor.position.y = -2.5;\nfloor.receiveShadow = true;\nscene.add(floor);\n\nconst controls = new OrbitControls(camera, renderer.domElement);\ncontrols.enableDamping = true;\ncontrols.dampingFactor = 0.05;\ncontrols.maxPolarAngle = Math.PI / 2 - 0.1;\n\nfunction createBarMagnet() {\n  const group = new THREE.Group();\n  const width = 0.8;\n  const height = 0.5;\n  const depth = 2.4;\n  \n  const northGeo = new THREE.BoxGeometry(width, height, depth/2);\n  const northMat = new THREE.MeshPhysicalMaterial({\n    color: 0xd92b2b,\n    metalness: 0.3,\n    roughness: 0.2,\n    clearcoat: 0.6,\n    clearcoatRoughness: 0.2\n  });\n  const north = new THREE.Mesh(northGeo, northMat);\n  north.position.z = -depth/4;\n  north.castShadow = true;\n  north.receiveShadow = true;\n  \n  const southGeo = new THREE.BoxGeometry(width, height, depth/2);\n  const southMat = new THREE.MeshPhysicalMaterial({\n    color: 0x2b5fd9,\n    metalness: 0.3,\n    roughness: 0.2,\n    clearcoat: 0.6,\n    clearcoatRoughness: 0.2\n  });\n  const south = new THREE.Mesh(southGeo, southMat);\n  south.position.z = depth/4;\n  south.castShadow = true;\n  south.receiveShadow = true;\n  \n  const frameGeo = new THREE.BoxGeometry(width + 0.02, height + 0.02, depth + 0.02);\n  const frameMat = new THREE.MeshStandardMaterial({\n    color: 0xcccccc,\n    metalness: 0.8,\n    roughness: 0.2\n  });\n  const frame = new THREE.Mesh(frameGeo, frameMat);\n  frame.castShadow = true;\n  \n  const poleGeo = new THREE.CylinderGeometry(0.15, 0.15, 0.02, 32);\n  const poleNMat = new THREE.MeshBasicMaterial({ color: 0xffffff });\n  const poleN = new THREE.Mesh(poleGeo, poleNMat);\n  poleN.rotation.x = Math.PI/2;\n  poleN.position.set(0, height/2 + 0.01, -depth/4);\n  \n  const poleSMat = new THREE.MeshBasicMaterial({ color: 0xffffff });\n  const poleS = new THREE.Mesh(poleGeo, poleSMat);\n  poleS.rotation.x = Math.PI/2;\n  poleS.position.set(0, height/2 + 0.01, depth/4);\n  \n  group.add(frame);\n  group.add(north);\n  group.add(south);\n  group.add(poleN);\n  group.add(poleS);\n  \n  return group;\n}\n\nconst magnet1 = createBarMagnet();\nmagnet1.position.set(-1.5, 0, 0);\nscene.add(magnet1);\n\nconst magnet2 = createBarMagnet();\nmagnet2.position.set(1.5, 0, 0);\nscene.add(magnet2);\n\nconst fieldGroup = new THREE.Group();\nscene.add(fieldGroup);\n\nconst fieldMaterialBase = new THREE.MeshPhysicalMaterial({\n  color: 0x4488ff,\n  transparent: true,\n  opacity: 0.5,\n  emissive: 0x2244aa,\n  emissiveIntensity: 0.4,\n  roughness: 0.3,\n  metalness: 0.1,\n  side: THREE.DoubleSide\n});\n\nconst particleGeo = new THREE.SphereGeometry(0.035, 16, 16);\nconst particleMat = new THREE.MeshBasicMaterial({ \n  color: 0x88ccff,\n  transparent: true,\n  opacity: 0.9\n});\n\nconst particles = [];\nfor(let i = 0; i < 50; i++) {\n  particles.push({\n    mesh: new THREE.Mesh(particleGeo, particleMat),\n    progress: Math.random(),\n    speed: 0.3 + Math.random() * 0.4,\n    lineIndex: Math.floor(Math.random() * 10),\n    offset: (Math.random() - 0.5) * 0.3\n  });\n  scene.add(particles[particles.length - 1].mesh);\n}\n\nfunction getFieldCurves(m1Pos, m2Pos, m2Rot, isAttracting) {\n  const curves = [];\n  const offsets = [-0.35, -0.2, -0.05, 0.05, 0.2, 0.35];\n  \n  if(isAttracting) {\n    offsets.forEach((yOffset, i) => {\n      const start = new THREE.Vector3(m1Pos.x, m1Pos.y + yOffset * 0.6, m1Pos.z - 1.2);\n      const end = new THREE.Vector3(m2Pos.x, m2Pos.y + yOffset * 0.6, m2Pos.z + 1.2);\n      const mid1 = new THREE.Vector3(\n        m1Pos.x + 0.3 + i * 0.1,\n        m1Pos.y + yOffset * 0.6 + 0.4 + Math.abs(yOffset) * 0.3,\n        m1Pos.z\n      );\n      const mid2 = new THREE.Vector3(\n        m2Pos.x - 0.3 - i * 0.1,\n        m2Pos.y + yOffset * 0.6 + 0.4 + Math.abs(yOffset) * 0.3,\n        m2Pos.z\n      );\n      curves.push(new THREE.CatmullRomCurve3([start, mid1, mid2, end]));\n    });\n    \n    offsets.forEach((yOffset, i) => {\n      const start = new THREE.Vector3(m2Pos.x, m2Pos.y + yOffset * 0.6, m2Pos.z - 1.2);\n      const end = new THREE.Vector3(m1Pos.x, m1Pos.y + yOffset * 0.6, m1Pos.z + 1.2);\n      const mid1 = new THREE.Vector3(\n        m2Pos.x - 0.3 - i * 0.1,\n        m2Pos.y + yOffset * 0.6 - 0.6 - Math.abs(yOffset) * 0.4,\n        m2Pos.z\n      );\n      const mid2 = new THREE.Vector3(\n        m1Pos.x + 0.3 + i * 0.1,\n        m1Pos.y + yOffset * 0.6 - 0.6 - Math.abs(yOffset) * 0.4,\n        m1Pos.z\n      );\n      curves.push(new THREE.CatmullRomCurve3([start, mid1, mid2, end]));\n    });\n  } else {\n    offsets.forEach((yOffset, i) => {\n      const start = new THREE.Vector3(m1Pos.x, m1Pos.y + yOffset * 0.6, m1Pos.z - 1.2);\n      const end = new THREE.Vector3(m2Pos.x, m2Pos.y + yOffset * 0.6, m2Pos.z - 1.2);\n      const bend = Math.abs(m2Pos.x - m1Pos.x) * 0.8 + 1.5 + Math.abs(yOffset);\n      const mid1 = new THREE.Vector3(\n        m1Pos.x + 0.5,\n        m1Pos.y + yOffset * 0.6 + 0.2,\n        m1Pos.z - bend\n      );\n      const mid2 = new THREE.Vector3(\n        m2Pos.x - 0.5,\n        m2Pos.y + yOffset * 0.6 + 0.2,\n        m2Pos.z - bend\n      );\n      curves.push(new THREE.CatmullRomCurve3([start, mid1, mid2, end]));\n    });\n  }\n  \n  return curves;\n}\n\nfunction updateFieldVisualization(curves, intensity, isAttracting) {\n  while(fieldGroup.children.length > 0) {\n    fieldGroup.remove(fieldGroup.children[0]);\n  }\n  \n  const color = isAttracting ? 0x4488ff : 0xff4444;\n  const emissive = isAttracting ? 0x2244aa : 0xaa2222;\n  \n  curves.forEach((curve, idx) => {\n    const tubeRadius = 0.012 * (1 - Math.abs(idx - 5) * 0.08) * intensity;\n    const geometry = new THREE.TubeGeometry(curve, 48, tubeRadius, 8, false);\n    const material = fieldMaterialBase.clone();\n    material.color.setHex(color);\n    material.emissive.setHex(emissive);\n    material.opacity = 0.4 * intensity * (1 - Math.abs(idx - 5) * 0.1);\n    material.emissiveIntensity = 0.5 * intensity;\n    \n    const mesh = new THREE.Mesh(geometry, material);\n    fieldGroup.add(mesh);\n  });\n}\n\nlet time = 0;\nlet currentCurves = [];\n\ncamera.position.set(0, 3.5, 7);\ncamera.lookAt(0, 0, 0);\n\nfunction animate() {\n  requestAnimationFrame(animate);\n  const delta = clock.getDelta();\n  time += delta;\n  \n  const cycleDuration = 10;\n  const phase = (time % cycleDuration) / cycleDuration;\n  const isAttracting = phase < 0.5;\n  const transition = Math.sin((isAttracting ? phase : phase - 0.5) * Math.PI * 2) * 0.5 + 0.5;\n  \n  const minDist = 1.2;\n  const maxDist = 4.5;\n  const currentDist = isAttracting ? \n    minDist + (1 - transition) * (maxDist - minDist) * 0.3 :\n    minDist + transition * (maxDist - minDist);\n  \n  magnet1.position.x = -currentDist / 2;\n  magnet2.position.x = currentDist / 2;\n  \n  const targetRotation = isAttracting ? 0 : Math.PI;\n  magnet2.rotation.y += (targetRotation - magnet2.rotation.y) * delta * 1.5;\n  \n  magnet1.position.y = Math.sin(time * 0.8) * 0.08;\n  magnet2.position.y = Math.sin(time * 0.8 + 1) * 0.08;\n  \n  currentCurves = getFieldCurves(magnet1.position, magnet2.position, magnet2.rotation, isAttracting);\n  const fieldIntensity = isAttracting ? 1.2 : 0.6 + (1 - transition) * 0.4;\n  updateFieldVisualization(currentCurves, fieldIntensity, isAttracting);\n  \n  particles.forEach(p => {\n    if(p.lineIndex < currentCurves.length) {\n      const curve = currentCurves[p.lineIndex];\n      p.progress += p.speed * delta * (isAttracting ? 1.2 : 0.6);\n      if(p.progress > 1) p.progress = 0;\n      \n      const pos = curve.getPoint(p.progress);\n      p.mesh.position.copy(pos);\n      p.mesh.position.y += p.offset * (1 - Math.sin(p.progress * Math.PI)) * 0.2;\n      \n      const scale = 0.5 + Math.sin(p.progress * Math.PI) * 0.8;\n      p.mesh.scale.setScalar(scale * (isAttracting ? 1 : 0.7));\n      p.mesh.material.opacity = isAttracting ? 0.9 : 0.5;\n      p.mesh.visible = true;\n    } else {\n      p.mesh.visible = false;\n    }\n  });\n  \n  rimLight.intensity = 0.35 + Math.sin(time * 1.2) * 0.08;\n  \n  controls.update();\n  renderer.render(scene, camera);\n}\n\nanimate();",
       "previewUrl": null,
       "skill": "threejs",
-      "explanation": "Generation failed validation and execution was aborted. Agent self-debug was used (3 iteration(s)). Failure details: Sandbox execution error: THREE.DataTexture is not a constructor Runtime: error with 0 renders and 0 frames.",
-      "messageId": "message-2",
+      "outputKind": "code",
+      "mediaType": null,
+      "mediaUrl": null,
+      "mediaArtifactId": null,
+      "mediaDurationMs": null,
+      "mediaFps": null,
+      "mediaResolution": null,
+      "mediaBytes": null,
+      "explanation": "Show me how magnets work. Live preview is currently unavailable, but the animation concept has been prepared.",
+      "messageId": "message-11",
       "source": "generate",
-      "createdAt": "2026-03-28T02:39:24.904Z",
-      "updatedAt": "2026-03-28T02:39:24.904Z",
-      "versionId": "version-1",
-      "version": 1,
-      "artifactId": "artifact-1774665564904-06cb94",
+      "createdAt": "2026-04-09T23:48:57.535Z",
+      "updatedAt": "2026-04-09T23:48:57.535Z",
+      "versionId": "version-2",
+      "version": 2,
+      "artifactId": "artifact-1775778537535-cd861e",
       "artifactVersion": 1
     }
   ],
@@ -80,6 +129,30 @@
       "versionId": "version-1",
       "version": 1,
       "artifactId": "artifact-1774665564904-06cb94",
+      "artifactVersion": 1
+    },
+    {
+      "sessionId": "7c2cf271-a98b-4e1c-b102-bf6df85d4ae3",
+      "sceneId": "scene-failed-1775778537532",
+      "code": "const clock = new THREE.Clock();\nscene.background = new THREE.Color(0xf4f7fb);\nrenderer.toneMapping = THREE.ACESFilmicToneMapping;\nrenderer.toneMappingExposure = 1.08;\nrenderer.shadowMap.enabled = true;\nrenderer.shadowMap.type = THREE.PCFSoftShadowMap;\n\nconst keyLight = new THREE.DirectionalLight(0xffffff, 1.35);\nkeyLight.position.set(6, 10, 8);\nkeyLight.castShadow = true;\nkeyLight.shadow.mapSize.width = 2048;\nkeyLight.shadow.mapSize.height = 2048;\nkeyLight.shadow.camera.near = 0.1;\nkeyLight.shadow.camera.far = 30;\n\nconst fillLight = new THREE.DirectionalLight(0xbfd7ff, 0.55);\nfillLight.position.set(-7, 4, 5);\n\nconst rimLight = new THREE.PointLight(0xaad6ff, 0.45, 22);\nrimLight.position.set(-4, 3, -5);\n\nscene.add(new THREE.AmbientLight(0x7f8aa6, 0.32), keyLight, fillLight, rimLight);\n\nconst floor = new THREE.Mesh(\n  new THREE.CircleGeometry(12, 96),\n  new THREE.MeshStandardMaterial({ color: 0xe6ecf5, roughness: 0.92, metalness: 0.02 })\n);\nfloor.rotation.x = -Math.PI / 2;\nfloor.position.y = -2.5;\nfloor.receiveShadow = true;\nscene.add(floor);\n\nconst controls = new OrbitControls(camera, renderer.domElement);\ncontrols.enableDamping = true;\ncontrols.dampingFactor = 0.05;\ncontrols.maxPolarAngle = Math.PI / 2 - 0.1;\n\nfunction createBarMagnet() {\n  const group = new THREE.Group();\n  const width = 0.8;\n  const height = 0.5;\n  const depth = 2.4;\n  \n  const northGeo = new THREE.BoxGeometry(width, height, depth/2);\n  const northMat = new THREE.MeshPhysicalMaterial({\n    color: 0xd92b2b,\n    metalness: 0.3,\n    roughness: 0.2,\n    clearcoat: 0.6,\n    clearcoatRoughness: 0.2\n  });\n  const north = new THREE.Mesh(northGeo, northMat);\n  north.position.z = -depth/4;\n  north.castShadow = true;\n  north.receiveShadow = true;\n  \n  const southGeo = new THREE.BoxGeometry(width, height, depth/2);\n  const southMat = new THREE.MeshPhysicalMaterial({\n    color: 0x2b5fd9,\n    metalness: 0.3,\n    roughness: 0.2,\n    clearcoat: 0.6,\n    clearcoatRoughness: 0.2\n  });\n  const south = new THREE.Mesh(southGeo, southMat);\n  south.position.z = depth/4;\n  south.castShadow = true;\n  south.receiveShadow = true;\n  \n  const frameGeo = new THREE.BoxGeometry(width + 0.02, height + 0.02, depth + 0.02);\n  const frameMat = new THREE.MeshStandardMaterial({\n    color: 0xcccccc,\n    metalness: 0.8,\n    roughness: 0.2\n  });\n  const frame = new THREE.Mesh(frameGeo, frameMat);\n  frame.castShadow = true;\n  \n  const poleGeo = new THREE.CylinderGeometry(0.15, 0.15, 0.02, 32);\n  const poleNMat = new THREE.MeshBasicMaterial({ color: 0xffffff });\n  const poleN = new THREE.Mesh(poleGeo, poleNMat);\n  poleN.rotation.x = Math.PI/2;\n  poleN.position.set(0, height/2 + 0.01, -depth/4);\n  \n  const poleSMat = new THREE.MeshBasicMaterial({ color: 0xffffff });\n  const poleS = new THREE.Mesh(poleGeo, poleSMat);\n  poleS.rotation.x = Math.PI/2;\n  poleS.position.set(0, height/2 + 0.01, depth/4);\n  \n  group.add(frame);\n  group.add(north);\n  group.add(south);\n  group.add(poleN);\n  group.add(poleS);\n  \n  return group;\n}\n\nconst magnet1 = createBarMagnet();\nmagnet1.position.set(-1.5, 0, 0);\nscene.add(magnet1);\n\nconst magnet2 = createBarMagnet();\nmagnet2.position.set(1.5, 0, 0);\nscene.add(magnet2);\n\nconst fieldGroup = new THREE.Group();\nscene.add(fieldGroup);\n\nconst fieldMaterialBase = new THREE.MeshPhysicalMaterial({\n  color: 0x4488ff,\n  transparent: true,\n  opacity: 0.5,\n  emissive: 0x2244aa,\n  emissiveIntensity: 0.4,\n  roughness: 0.3,\n  metalness: 0.1,\n  side: THREE.DoubleSide\n});\n\nconst particleGeo = new THREE.SphereGeometry(0.035, 16, 16);\nconst particleMat = new THREE.MeshBasicMaterial({ \n  color: 0x88ccff,\n  transparent: true,\n  opacity: 0.9\n});\n\nconst particles = [];\nfor(let i = 0; i < 50; i++) {\n  particles.push({\n    mesh: new THREE.Mesh(particleGeo, particleMat),\n    progress: Math.random(),\n    speed: 0.3 + Math.random() * 0.4,\n    lineIndex: Math.floor(Math.random() * 10),\n    offset: (Math.random() - 0.5) * 0.3\n  });\n  scene.add(particles[particles.length - 1].mesh);\n}\n\nfunction getFieldCurves(m1Pos, m2Pos, m2Rot, isAttracting) {\n  const curves = [];\n  const offsets = [-0.35, -0.2, -0.05, 0.05, 0.2, 0.35];\n  \n  if(isAttracting) {\n    offsets.forEach((yOffset, i) => {\n      const start = new THREE.Vector3(m1Pos.x, m1Pos.y + yOffset * 0.6, m1Pos.z - 1.2);\n      const end = new THREE.Vector3(m2Pos.x, m2Pos.y + yOffset * 0.6, m2Pos.z + 1.2);\n      const mid1 = new THREE.Vector3(\n        m1Pos.x + 0.3 + i * 0.1,\n        m1Pos.y + yOffset * 0.6 + 0.4 + Math.abs(yOffset) * 0.3,\n        m1Pos.z\n      );\n      const mid2 = new THREE.Vector3(\n        m2Pos.x - 0.3 - i * 0.1,\n        m2Pos.y + yOffset * 0.6 + 0.4 + Math.abs(yOffset) * 0.3,\n        m2Pos.z\n      );\n      curves.push(new THREE.CatmullRomCurve3([start, mid1, mid2, end]));\n    });\n    \n    offsets.forEach((yOffset, i) => {\n      const start = new THREE.Vector3(m2Pos.x, m2Pos.y + yOffset * 0.6, m2Pos.z - 1.2);\n      const end = new THREE.Vector3(m1Pos.x, m1Pos.y + yOffset * 0.6, m1Pos.z + 1.2);\n      const mid1 = new THREE.Vector3(\n        m2Pos.x - 0.3 - i * 0.1,\n        m2Pos.y + yOffset * 0.6 - 0.6 - Math.abs(yOffset) * 0.4,\n        m2Pos.z\n      );\n      const mid2 = new THREE.Vector3(\n        m1Pos.x + 0.3 + i * 0.1,\n        m1Pos.y + yOffset * 0.6 - 0.6 - Math.abs(yOffset) * 0.4,\n        m1Pos.z\n      );\n      curves.push(new THREE.CatmullRomCurve3([start, mid1, mid2, end]));\n    });\n  } else {\n    offsets.forEach((yOffset, i) => {\n      const start = new THREE.Vector3(m1Pos.x, m1Pos.y + yOffset * 0.6, m1Pos.z - 1.2);\n      const end = new THREE.Vector3(m2Pos.x, m2Pos.y + yOffset * 0.6, m2Pos.z - 1.2);\n      const bend = Math.abs(m2Pos.x - m1Pos.x) * 0.8 + 1.5 + Math.abs(yOffset);\n      const mid1 = new THREE.Vector3(\n        m1Pos.x + 0.5,\n        m1Pos.y + yOffset * 0.6 + 0.2,\n        m1Pos.z - bend\n      );\n      const mid2 = new THREE.Vector3(\n        m2Pos.x - 0.5,\n        m2Pos.y + yOffset * 0.6 + 0.2,\n        m2Pos.z - bend\n      );\n      curves.push(new THREE.CatmullRomCurve3([start, mid1, mid2, end]));\n    });\n  }\n  \n  return curves;\n}\n\nfunction updateFieldVisualization(curves, intensity, isAttracting) {\n  while(fieldGroup.children.length > 0) {\n    fieldGroup.remove(fieldGroup.children[0]);\n  }\n  \n  const color = isAttracting ? 0x4488ff : 0xff4444;\n  const emissive = isAttracting ? 0x2244aa : 0xaa2222;\n  \n  curves.forEach((curve, idx) => {\n    const tubeRadius = 0.012 * (1 - Math.abs(idx - 5) * 0.08) * intensity;\n    const geometry = new THREE.TubeGeometry(curve, 48, tubeRadius, 8, false);\n    const material = fieldMaterialBase.clone();\n    material.color.setHex(color);\n    material.emissive.setHex(emissive);\n    material.opacity = 0.4 * intensity * (1 - Math.abs(idx - 5) * 0.1);\n    material.emissiveIntensity = 0.5 * intensity;\n    \n    const mesh = new THREE.Mesh(geometry, material);\n    fieldGroup.add(mesh);\n  });\n}\n\nlet time = 0;\nlet currentCurves = [];\n\ncamera.position.set(0, 3.5, 7);\ncamera.lookAt(0, 0, 0);\n\nfunction animate() {\n  requestAnimationFrame(animate);\n  const delta = clock.getDelta();\n  time += delta;\n  \n  const cycleDuration = 10;\n  const phase = (time % cycleDuration) / cycleDuration;\n  const isAttracting = phase < 0.5;\n  const transition = Math.sin((isAttracting ? phase : phase - 0.5) * Math.PI * 2) * 0.5 + 0.5;\n  \n  const minDist = 1.2;\n  const maxDist = 4.5;\n  const currentDist = isAttracting ? \n    minDist + (1 - transition) * (maxDist - minDist) * 0.3 :\n    minDist + transition * (maxDist - minDist);\n  \n  magnet1.position.x = -currentDist / 2;\n  magnet2.position.x = currentDist / 2;\n  \n  const targetRotation = isAttracting ? 0 : Math.PI;\n  magnet2.rotation.y += (targetRotation - magnet2.rotation.y) * delta * 1.5;\n  \n  magnet1.position.y = Math.sin(time * 0.8) * 0.08;\n  magnet2.position.y = Math.sin(time * 0.8 + 1) * 0.08;\n  \n  currentCurves = getFieldCurves(magnet1.position, magnet2.position, magnet2.rotation, isAttracting);\n  const fieldIntensity = isAttracting ? 1.2 : 0.6 + (1 - transition) * 0.4;\n  updateFieldVisualization(currentCurves, fieldIntensity, isAttracting);\n  \n  particles.forEach(p => {\n    if(p.lineIndex < currentCurves.length) {\n      const curve = currentCurves[p.lineIndex];\n      p.progress += p.speed * delta * (isAttracting ? 1.2 : 0.6);\n      if(p.progress > 1) p.progress = 0;\n      \n      const pos = curve.getPoint(p.progress);\n      p.mesh.position.copy(pos);\n      p.mesh.position.y += p.offset * (1 - Math.sin(p.progress * Math.PI)) * 0.2;\n      \n      const scale = 0.5 + Math.sin(p.progress * Math.PI) * 0.8;\n      p.mesh.scale.setScalar(scale * (isAttracting ? 1 : 0.7));\n      p.mesh.material.opacity = isAttracting ? 0.9 : 0.5;\n      p.mesh.visible = true;\n    } else {\n      p.mesh.visible = false;\n    }\n  });\n  \n  rimLight.intensity = 0.35 + Math.sin(time * 1.2) * 0.08;\n  \n  controls.update();\n  renderer.render(scene, camera);\n}\n\nanimate();",
+      "previewUrl": null,
+      "skill": "threejs",
+      "outputKind": "code",
+      "mediaType": null,
+      "mediaUrl": null,
+      "mediaArtifactId": null,
+      "mediaDurationMs": null,
+      "mediaFps": null,
+      "mediaResolution": null,
+      "mediaBytes": null,
+      "explanation": "Show me how magnets work. Live preview is currently unavailable, but the animation concept has been prepared.",
+      "messageId": "message-11",
+      "source": "generate",
+      "createdAt": "2026-04-09T23:48:57.535Z",
+      "updatedAt": "2026-04-09T23:48:57.535Z",
+      "versionId": "version-2",
+      "version": 2,
+      "artifactId": "artifact-1775778537535-cd861e",
       "artifactVersion": 1
     }
   ],
@@ -201,6 +274,192 @@
       "error": null,
       "createdAt": "2026-03-28T02:39:24.909Z",
       "updatedAt": "2026-03-28T02:39:24.909Z"
+    },
+    {
+      "id": "client-7ea1d9b2-9e12-40f7-9206-3b2058518f99",
+      "role": "user",
+      "content": "Show me how magnets work",
+      "kind": "input",
+      "meta": [],
+      "error": null,
+      "createdAt": "2026-04-09T23:45:37.216Z",
+      "updatedAt": "2026-04-09T23:45:37.216Z"
+    },
+    {
+      "id": "message-11",
+      "role": "assistant",
+      "content": "Show me how magnets work. Live preview is currently unavailable, but the animation concept has been prepared.",
+      "kind": "generate",
+      "meta": [
+        "requestId:client-7ea1d9b2-9e12-40f7-9206-3b2058518f99",
+        "scene:scene-failed-1775778537532",
+        "skill:threejs",
+        "error:RUNTIME_API_MISMATCH"
+      ],
+      "error": {
+        "code": "RUNTIME_API_MISMATCH",
+        "title": "Runtime API mismatch",
+        "userMessage": "The generated scene called an API that failed at runtime.",
+        "retryable": true,
+        "suggestedAction": "Retry generation or ask for a compatibility-safe version.",
+        "technicalDetail": "p.mesh.scale.setScalar is not a function | code:error",
+        "stage": "execution",
+        "diagnostics": {
+          "stage": "execution",
+          "requestId": "client-7ea1d9b2-9e12-40f7-9206-3b2058518f99",
+          "sessionId": "7c2cf271-a98b-4e1c-b102-bf6df85d4ae3",
+          "messageId": "message-11",
+          "message": "p.mesh.scale.setScalar is not a function",
+          "name": null,
+          "code": "error",
+          "status": null,
+          "cause": null,
+          "stack": null,
+          "timestamp": "2026-04-09T23:48:57.539Z",
+          "runtime": {
+            "status": "error",
+            "warningCode": null,
+            "acquireDiagnostics": {
+              "skillId": "threejs",
+              "reason": "acquire",
+              "startedAt": "2026-04-09T23:48:56.420Z",
+              "startedAtMs": 1775778536420,
+              "initialRemainingBudgetMs": 12000,
+              "turnDeadlineAtMs": 1775778548420,
+              "retryAttempts": 0,
+              "retryDelaysMs": [],
+              "directAttemptedAny": false,
+              "prewarmHit": true,
+              "success": true,
+              "acquireDurationMs": 307,
+              "completedAt": "2026-04-09T23:48:56.727Z",
+              "creationMode": "prewarm",
+              "source": "prewarm",
+              "direct": {
+                "attempted": false,
+                "skipped": false,
+                "skipReason": null,
+                "timeoutSec": null,
+                "durationMs": null,
+                "error": null,
+                "circuitOpenAtStart": false,
+                "circuitOpened": false,
+                "circuitOpenUntil": null
+              },
+              "fallback": {
+                "attempted": false,
+                "skipped": false,
+                "skipReason": null,
+                "timeoutSec": null,
+                "durationMs": null,
+                "error": null
+              },
+              "livenessPingMs": 307,
+              "internalFirstAttempt": true
+            }
+          }
+        }
+      },
+      "createdAt": "2026-04-09T23:45:37.216Z",
+      "updatedAt": "2026-04-09T23:48:57.539Z"
+    },
+    {
+      "id": "thought-turn_started-1775778337220",
+      "role": "thought",
+      "content": "Okay, let me dive into this. I'll start by understanding what kind of visual you want.",
+      "kind": "thought",
+      "meta": [
+        "turn_started",
+        "requestId:client-7ea1d9b2-9e12-40f7-9206-3b2058518f99",
+        "messageId:message-11"
+      ],
+      "error": null,
+      "createdAt": "2026-04-09T23:45:37.220Z",
+      "updatedAt": "2026-04-09T23:45:37.220Z"
+    },
+    {
+      "id": "thought-intent_parsed-1775778337235",
+      "role": "thought",
+      "content": "I understand — this is a visual creation task. Let me pick the most suitable skill.",
+      "kind": "thought",
+      "meta": [
+        "intent_parsed",
+        "requestId:client-7ea1d9b2-9e12-40f7-9206-3b2058518f99",
+        "messageId:message-11"
+      ],
+      "error": null,
+      "createdAt": "2026-04-09T23:45:37.235Z",
+      "updatedAt": "2026-04-09T23:45:37.235Z"
+    },
+    {
+      "id": "thought-plan_created-1775778337235",
+      "role": "thought",
+      "content": "I've mapped out 7 steps to build this. Starting the generation pipeline now.",
+      "kind": "thought",
+      "meta": [
+        "plan_created",
+        "requestId:client-7ea1d9b2-9e12-40f7-9206-3b2058518f99",
+        "messageId:message-11"
+      ],
+      "error": null,
+      "createdAt": "2026-04-09T23:45:37.236Z",
+      "updatedAt": "2026-04-09T23:45:37.236Z"
+    },
+    {
+      "id": "thought-code_generated-1775778537535",
+      "role": "thought",
+      "content": "Right now I'm writing the field calculation logic—creating a grid of seed points around the magnet, tracing integration steps for the field lines using the dipole approximation, then building TubeGeometry for each line with color gradients (cyan to magenta) to show polarity, plus an InstancedMesh of small cubes for the iron filings that will rotate to match the tangent of the nearest field line.",
+      "kind": "thought",
+      "meta": [
+        "code_generated",
+        "requestId:client-7ea1d9b2-9e12-40f7-9206-3b2058518f99",
+        "messageId:message-11"
+      ],
+      "error": null,
+      "createdAt": "2026-04-09T23:48:57.535Z",
+      "updatedAt": "2026-04-09T23:48:57.535Z"
+    },
+    {
+      "id": "thought-executing-1775778537537",
+      "role": "thought",
+      "content": "Spinning up the Three.js sandbox with the new magnet geometry and field simulation shaders, making sure the existing scene context merges cleanly with the new magnetic field visualization group.",
+      "kind": "thought",
+      "meta": [
+        "executing",
+        "requestId:client-7ea1d9b2-9e12-40f7-9206-3b2058518f99",
+        "messageId:message-11"
+      ],
+      "error": null,
+      "createdAt": "2026-04-09T23:48:57.537Z",
+      "updatedAt": "2026-04-09T23:48:57.537Z"
+    },
+    {
+      "id": "thought-sync_state-1775778537537",
+      "role": "thought",
+      "content": "Here's an interactive 3D magnetic field visualization featuring a bar magnet with flowing field lines rendered as glowing tubes, thousands of iron-filing particles that dynamically align with the field, and the ability to see how the field changes as you move magnetic objects around.",
+      "kind": "thought",
+      "meta": [
+        "sync_state",
+        "requestId:client-7ea1d9b2-9e12-40f7-9206-3b2058518f99",
+        "messageId:message-11"
+      ],
+      "error": null,
+      "createdAt": "2026-04-09T23:48:57.537Z",
+      "updatedAt": "2026-04-09T23:48:57.537Z"
+    },
+    {
+      "id": "thought-turn_error-1775778537539",
+      "role": "thought",
+      "content": "Something went wrong during execution. Let me show you what happened.",
+      "kind": "thought",
+      "meta": [
+        "turn_error",
+        "requestId:client-7ea1d9b2-9e12-40f7-9206-3b2058518f99",
+        "messageId:message-11"
+      ],
+      "error": null,
+      "createdAt": "2026-04-09T23:48:57.539Z",
+      "updatedAt": "2026-04-09T23:48:57.539Z"
     }
   ],
   "orchestrationTrace": [
@@ -317,6 +576,180 @@
         }
       },
       "createdAt": "2026-03-28T02:39:24.910Z"
+    },
+    {
+      "id": "trace-12",
+      "step": "intent_parsed",
+      "payload": {
+        "sessionId": "7c2cf271-a98b-4e1c-b102-bf6df85d4ae3",
+        "content": "Show me how magnets work"
+      },
+      "createdAt": "2026-04-09T23:45:37.222Z"
+    },
+    {
+      "id": "trace-13",
+      "step": "parse_intent",
+      "payload": {
+        "sessionId": "7c2cf271-a98b-4e1c-b102-bf6df85d4ae3",
+        "status": "running"
+      },
+      "createdAt": "2026-04-09T23:45:37.241Z"
+    },
+    {
+      "id": "trace-14",
+      "step": "select_skill",
+      "payload": {
+        "sessionId": "7c2cf271-a98b-4e1c-b102-bf6df85d4ae3",
+        "status": "running"
+      },
+      "createdAt": "2026-04-09T23:45:37.243Z"
+    },
+    {
+      "id": "trace-15",
+      "step": "build_prompt",
+      "payload": {
+        "sessionId": "7c2cf271-a98b-4e1c-b102-bf6df85d4ae3",
+        "status": "running"
+      },
+      "createdAt": "2026-04-09T23:45:37.246Z"
+    },
+    {
+      "id": "trace-16",
+      "step": "generate_code",
+      "payload": {
+        "sessionId": "7c2cf271-a98b-4e1c-b102-bf6df85d4ae3",
+        "status": "running"
+      },
+      "createdAt": "2026-04-09T23:45:37.248Z"
+    },
+    {
+      "id": "trace-17",
+      "step": "generate_code",
+      "payload": {
+        "sessionId": "7c2cf271-a98b-4e1c-b102-bf6df85d4ae3",
+        "status": "completed",
+        "selectedSkill": "threejs",
+        "source": "moonshot",
+        "code": "const clock = new THREE.Clock();\nscene.background = new THREE.Color(0xf4f7fb);\nrenderer.toneMapping = THREE.ACESFilmicToneMapping;\nrenderer.toneMappingExposure = 1.08;\nrenderer.shadowMap.enabled = true;\nrenderer.shadowMap.type = THREE.PCFSoftShadowMap;\n\nconst keyLight = new THREE.DirectionalLight(0xffffff, 1.35);\nkeyLight.position.set(6, 10, 8);\nkeyLight.castShadow = true;\nkeyLight.shadow.mapSize.width = 2048;\nkeyLight.shadow.mapSize.height = 2048;\nkeyLight.shadow.camera.near = 0.1;\nkeyLight.shadow.camera.far = 30;\n\nconst fillLight = new THREE.DirectionalLight(0xbfd7ff, 0.55);\nfillLight.position.set(-7, 4, 5);\n\nconst rimLight = new THREE.PointLight(0xaad6ff, 0.45, 22);\nrimLight.position.set(-4, 3, -5);\n\nscene.add(new THREE.AmbientLight(0x7f8aa6, 0.32), keyLight, fillLight, rimLight);\n\nconst floor = new THREE.Mesh(\n  new THREE.CircleGeometry(12, 96),\n  new THREE.MeshStandardMaterial({ color: 0xe6ecf5, roughness: 0.92, metalness: 0.02 })\n);\nfloor.rotation.x = -Math.PI / 2;\nfloor.position.y = -2.5;\nfloor.receiveShadow = true;\nscene.add(floor);\n\nconst controls = new OrbitControls(camera, renderer.domElement);\ncontrols.enableDamping = true;\ncontrols.dampingFactor = 0.05;\ncontrols.maxPolarAngle = Math.PI / 2 - 0.1;\n\nfunction createBarMagnet() {\n  const group = new THREE.Group();\n  const width = 0.8;\n  const height = 0.5;\n  const depth = 2.4;\n  \n  const northGeo = new THREE.BoxGeometry(width, height, depth/2);\n  const northMat = new THREE.MeshPhysicalMaterial({\n    color: 0xd92b2b,\n    metalness: 0.3,\n    roughness: 0.2,\n    clearcoat: 0.6,\n    clearcoatRoughness: 0.2\n  });\n  const north = new THREE.Mesh(northGeo, northMat);\n  north.position.z = -depth/4;\n  north.castShadow = true;\n  north.receiveShadow = true;\n  \n  const southGeo = new THREE.BoxGeometry(width, height, depth/2);\n  const southMat = new THREE.MeshPhysicalMaterial({\n    color: 0x2b5fd9,\n    metalness: 0.3,\n    roughness: 0.2,\n    clearcoat: 0.6,\n    clearcoatRoughness: 0.2\n  });\n  const south = new THREE.Mesh(southGeo, southMat);\n  south.position.z = depth/4;\n  south.castShadow = true;\n  south.receiveShadow = true;\n  \n  const frameGeo = new THREE.BoxGeometry(width + 0.02, height + 0.02, depth + 0.02);\n  const frameMat = new THREE.MeshStandardMaterial({\n    color: 0xcccccc,\n    metalness: 0.8,\n    roughness: 0.2\n  });\n  const frame = new THREE.Mesh(frameGeo, frameMat);\n  frame.castShadow = true;\n  \n  const poleGeo = new THREE.CylinderGeometry(0.15, 0.15, 0.02, 32);\n  const poleNMat = new THREE.MeshBasicMaterial({ color: 0xffffff });\n  const poleN = new THREE.Mesh(poleGeo, poleNMat);\n  poleN.rotation.x = Math.PI/2;\n  poleN.position.set(0, height/2 + 0.01, -depth/4);\n  \n  const poleSMat = new THREE.MeshBasicMaterial({ color: 0xffffff });\n  const poleS = new THREE.Mesh(poleGeo, poleSMat);\n  poleS.rotation.x = Math.PI/2;\n  poleS.position.set(0, height/2 + 0.01, depth/4);\n  \n  group.add(frame);\n  group.add(north);\n  group.add(south);\n  group.add(poleN);\n  group.add(poleS);\n  \n  return group;\n}\n\nconst magnet1 = createBarMagnet();\nmagnet1.position.set(-1.5, 0, 0);\nscene.add(magnet1);\n\nconst magnet2 = createBarMagnet();\nmagnet2.position.set(1.5, 0, 0);\nscene.add(magnet2);\n\nconst fieldGroup = new THREE.Group();\nscene.add(fieldGroup);\n\nconst fieldMaterialBase = new THREE.MeshPhysicalMaterial({\n  color: 0x4488ff,\n  transparent: true,\n  opacity: 0.5,\n  emissive: 0x2244aa,\n  emissiveIntensity: 0.4,\n  roughness: 0.3,\n  metalness: 0.1,\n  side: THREE.DoubleSide\n});\n\nconst particleGeo = new THREE.SphereGeometry(0.035, 16, 16);\nconst particleMat = new THREE.MeshBasicMaterial({ \n  color: 0x88ccff,\n  transparent: true,\n  opacity: 0.9\n});\n\nconst particles = [];\nfor(let i = 0; i < 50; i++) {\n  particles.push({\n    mesh: new THREE.Mesh(particleGeo, particleMat),\n    progress: Math.random(),\n    speed: 0.3 + Math.random() * 0.4,\n    lineIndex: Math.floor(Math.random() * 10),\n    offset: (Math.random() - 0.5) * 0.3\n  });\n  scene.add(particles[particles.length - 1].mesh);\n}\n\nfunction getFieldCurves(m1Pos, m2Pos, m2Rot, isAttracting) {\n  const curves = [];\n  const offsets = [-0.35, -0.2, -0.05, 0.05, 0.2, 0.35];\n  \n  if(isAttracting) {\n    offsets.forEach((yOffset, i) => {\n      const start = new THREE.Vector3(m1Pos.x, m1Pos.y + yOffset * 0.6, m1Pos.z - 1.2);\n      const end = new THREE.Vector3(m2Pos.x, m2Pos.y + yOffset * 0.6, m2Pos.z + 1.2);\n      const mid1 = new THREE.Vector3(\n        m1Pos.x + 0.3 + i * 0.1,\n        m1Pos.y + yOffset * 0.6 + 0.4 + Math.abs(yOffset) * 0.3,\n        m1Pos.z\n      );\n      const mid2 = new THREE.Vector3(\n        m2Pos.x - 0.3 - i * 0.1,\n        m2Pos.y + yOffset * 0.6 + 0.4 + Math.abs(yOffset) * 0.3,\n        m2Pos.z\n      );\n      curves.push(new THREE.CatmullRomCurve3([start, mid1, mid2, end]));\n    });\n    \n    offsets.forEach((yOffset, i) => {\n      const start = new THREE.Vector3(m2Pos.x, m2Pos.y + yOffset * 0.6, m2Pos.z - 1.2);\n      const end = new THREE.Vector3(m1Pos.x, m1Pos.y + yOffset * 0.6, m1Pos.z + 1.2);\n      const mid1 = new THREE.Vector3(\n        m2Pos.x - 0.3 - i * 0.1,\n        m2Pos.y + yOffset * 0.6 - 0.6 - Math.abs(yOffset) * 0.4,\n        m2Pos.z\n      );\n      const mid2 = new THREE.Vector3(\n        m1Pos.x + 0.3 + i * 0.1,\n        m1Pos.y + yOffset * 0.6 - 0.6 - Math.abs(yOffset) * 0.4,\n        m1Pos.z\n      );\n      curves.push(new THREE.CatmullRomCurve3([start, mid1, mid2, end]));\n    });\n  } else {\n    offsets.forEach((yOffset, i) => {\n      const start = new THREE.Vector3(m1Pos.x, m1Pos.y + yOffset * 0.6, m1Pos.z - 1.2);\n      const end = new THREE.Vector3(m2Pos.x, m2Pos.y + yOffset * 0.6, m2Pos.z - 1.2);\n      const bend = Math.abs(m2Pos.x - m1Pos.x) * 0.8 + 1.5 + Math.abs(yOffset);\n      const mid1 = new THREE.Vector3(\n        m1Pos.x + 0.5,\n        m1Pos.y + yOffset * 0.6 + 0.2,\n        m1Pos.z - bend\n      );\n      const mid2 = new THREE.Vector3(\n        m2Pos.x - 0.5,\n        m2Pos.y + yOffset * 0.6 + 0.2,\n        m2Pos.z - bend\n      );\n      curves.push(new THREE.CatmullRomCurve3([start, mid1, mid2, end]));\n    });\n  }\n  \n  return curves;\n}\n\nfunction updateFieldVisualization(curves, intensity, isAttracting) {\n  while(fieldGroup.children.length > 0) {\n    fieldGroup.remove(fieldGroup.children[0]);\n  }\n  \n  const color = isAttracting ? 0x4488ff : 0xff4444;\n  const emissive = isAttracting ? 0x2244aa : 0xaa2222;\n  \n  curves.forEach((curve, idx) => {\n    const tubeRadius = 0.012 * (1 - Math.abs(idx - 5) * 0.08) * intensity;\n    const geometry = new THREE.TubeGeometry(curve, 48, tubeRadius, 8, false);\n    const material = fieldMaterialBase.clone();\n    material.color.setHex(color);\n    material.emissive.setHex(emissive);\n    material.opacity = 0.4 * intensity * (1 - Math.abs(idx - 5) * 0.1);\n    material.emissiveIntensity = 0.5 * intensity;\n    \n    const mesh = new THREE.Mesh(geometry, material);\n    fieldGroup.add(mesh);\n  });\n}\n\nlet time = 0;\nlet currentCurves = [];\n\ncamera.position.set(0, 3.5, 7);\ncamera.lookAt(0, 0, 0);\n\nfunction animate() {\n  requestAnimationFrame(animate);\n  const delta = clock.getDelta();\n  time += delta;\n  \n  const cycleDuration = 10;\n  const phase = (time % cycleDuration) / cycleDuration;\n  const isAttracting = phase < 0.5;\n  const transition = Math.sin((isAttracting ? phase : phase - 0.5) * Math.PI * 2) * 0.5 + 0.5;\n  \n  const minDist = 1.2;\n  const maxDist = 4.5;\n  const currentDist = isAttracting ? \n    minDist + (1 - transition) * (maxDist - minDist) * 0.3 :\n    minDist + transition * (maxDist - minDist);\n  \n  magnet1.position.x = -currentDist / 2;\n  magnet2.position.x = currentDist / 2;\n  \n  const targetRotation = isAttracting ? 0 : Math.PI;\n  magnet2.rotation.y += (targetRotation - magnet2.rotation.y) * delta * 1.5;\n  \n  magnet1.position.y = Math.sin(time * 0.8) * 0.08;\n  magnet2.position.y = Math.sin(time * 0.8 + 1) * 0.08;\n  \n  currentCurves = getFieldCurves(magnet1.position, magnet2.position, magnet2.rotation, isAttracting);\n  const fieldIntensity = isAttracting ? 1.2 : 0.6 + (1 - transition) * 0.4;\n  updateFieldVisualization(currentCurves, fieldIntensity, isAttracting);\n  \n  particles.forEach(p => {\n    if(p.lineIndex < currentCurves.length) {\n      const curve = currentCurves[p.lineIndex];\n      p.progress += p.speed * delta * (isAttracting ? 1.2 : 0.6);\n      if(p.progress > 1) p.progress = 0;\n      \n      const pos = curve.getPoint(p.progress);\n      p.mesh.position.copy(pos);\n      p.mesh.position.y += p.offset * (1 - Math.sin(p.progress * Math.PI)) * 0.2;\n      \n      const scale = 0.5 + Math.sin(p.progress * Math.PI) * 0.8;\n      p.mesh.scale.setScalar(scale * (isAttracting ? 1 : 0.7));\n      p.mesh.material.opacity = isAttracting ? 0.9 : 0.5;\n      p.mesh.visible = true;\n    } else {\n      p.mesh.visible = false;\n    }\n  });\n  \n  rimLight.intensity = 0.35 + Math.sin(time * 1.2) * 0.08;\n  \n  controls.update();\n  renderer.render(scene, camera);\n}\n\nanimate();",
+        "stageDurationMs": 199139
+      },
+      "createdAt": "2026-04-09T23:48:56.394Z"
+    },
+    {
+      "id": "trace-18",
+      "step": "validate_code",
+      "payload": {
+        "sessionId": "7c2cf271-a98b-4e1c-b102-bf6df85d4ae3",
+        "status": "running"
+      },
+      "createdAt": "2026-04-09T23:48:56.399Z"
+    },
+    {
+      "id": "trace-19",
+      "step": "validate_code",
+      "payload": {
+        "sessionId": "7c2cf271-a98b-4e1c-b102-bf6df85d4ae3",
+        "status": "completed",
+        "valid": true,
+        "passable": true,
+        "stageDurationMs": 15
+      },
+      "createdAt": "2026-04-09T23:48:56.414Z"
+    },
+    {
+      "id": "trace-20",
+      "step": "execute_code",
+      "payload": {
+        "sessionId": "7c2cf271-a98b-4e1c-b102-bf6df85d4ae3",
+        "status": "running"
+      },
+      "createdAt": "2026-04-09T23:48:56.418Z"
+    },
+    {
+      "id": "trace-21",
+      "step": "execute_code",
+      "payload": {
+        "sessionId": "7c2cf271-a98b-4e1c-b102-bf6df85d4ae3",
+        "status": "error",
+        "error": "p.mesh.scale.setScalar is not a function",
+        "runtimeRecoveryUsed": false,
+        "stageDurationMs": 1106
+      },
+      "createdAt": "2026-04-09T23:48:57.524Z"
+    },
+    {
+      "id": "trace-22",
+      "step": "turn_error",
+      "payload": {
+        "sessionId": "7c2cf271-a98b-4e1c-b102-bf6df85d4ae3",
+        "mode": "generate",
+        "messageCount": 18,
+        "error": {
+          "code": "RUNTIME_API_MISMATCH",
+          "title": "Runtime API mismatch",
+          "userMessage": "The generated scene called an API that failed at runtime.",
+          "retryable": true,
+          "suggestedAction": "Retry generation or ask for a compatibility-safe version.",
+          "technicalDetail": "p.mesh.scale.setScalar is not a function | code:error",
+          "stage": "execution",
+          "diagnostics": {
+            "stage": "execution",
+            "requestId": "client-7ea1d9b2-9e12-40f7-9206-3b2058518f99",
+            "sessionId": "7c2cf271-a98b-4e1c-b102-bf6df85d4ae3",
+            "messageId": "message-11",
+            "message": "p.mesh.scale.setScalar is not a function",
+            "name": null,
+            "code": "error",
+            "status": null,
+            "cause": null,
+            "stack": null,
+            "timestamp": "2026-04-09T23:48:57.539Z",
+            "runtime": {
+              "status": "error",
+              "warningCode": null,
+              "acquireDiagnostics": {
+                "skillId": "threejs",
+                "reason": "acquire",
+                "startedAt": "2026-04-09T23:48:56.420Z",
+                "startedAtMs": 1775778536420,
+                "initialRemainingBudgetMs": 12000,
+                "turnDeadlineAtMs": 1775778548420,
+                "retryAttempts": 0,
+                "retryDelaysMs": [],
+                "directAttemptedAny": false,
+                "prewarmHit": true,
+                "success": true,
+                "acquireDurationMs": 307,
+                "completedAt": "2026-04-09T23:48:56.727Z",
+                "creationMode": "prewarm",
+                "source": "prewarm",
+                "direct": {
+                  "attempted": false,
+                  "skipped": false,
+                  "skipReason": null,
+                  "timeoutSec": null,
+                  "durationMs": null,
+                  "error": null,
+                  "circuitOpenAtStart": false,
+                  "circuitOpened": false,
+                  "circuitOpenUntil": null
+                },
+                "fallback": {
+                  "attempted": false,
+                  "skipped": false,
+                  "skipReason": null,
+                  "timeoutSec": null,
+                  "durationMs": null,
+                  "error": null
+                },
+                "livenessPingMs": 307,
+                "internalFirstAttempt": true
+              }
+            }
+          }
+        }
+      },
+      "createdAt": "2026-04-09T23:48:57.540Z"
     }
   ]
 }

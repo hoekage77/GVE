@@ -1,7 +1,7 @@
 {
   "sessionId": "68cb3584-3570-4d94-b120-3f0f4380f20a",
   "createdAt": "2026-03-27T08:21:16.313Z",
-  "updatedAt": "2026-04-05T07:05:05.064Z",
+  "updatedAt": "2026-04-16T11:35:35.893Z",
   "status": "idle",
   "currentScene": {
     "versionId": "version-1",
@@ -69,6 +69,30 @@
       "version": 2,
       "artifactId": "artifact-1775230226658-2a332a",
       "artifactVersion": 1
+    },
+    {
+      "sessionId": "68cb3584-3570-4d94-b120-3f0f4380f20a",
+      "sceneId": "scene-failed-1775230226651",
+      "code": "const clock = new THREE.Clock();\nscene.background = new THREE.Color(0xf4f7fb);\nrenderer.toneMapping = THREE.ACESFilmicToneMapping;\nrenderer.toneMappingExposure = 1.08;\nrenderer.shadowMap.enabled = true;\nrenderer.shadowMap.type = THREE.PCFSoftShadowMap;\n\nconst keyLight = new THREE.DirectionalLight(0xffffff, 1.35);\nkeyLight.position.set(6, 10, 8);\nkeyLight.castShadow = true;\nkeyLight.shadow.mapSize.width = 2048;\nkeyLight.shadow.mapSize.height = 2048;\nkeyLight.shadow.bias = -0.0001;\n\nconst fillLight = new THREE.DirectionalLight(0xbfd7ff, 0.55);\nfillLight.position.set(-7, 4, 5);\n\nconst rimLight = new THREE.PointLight(0xaad6ff, 0.45, 22);\nrimLight.position.set(-4, 3, -5);\n\nscene.add(new THREE.AmbientLight(0x7f8aa6, 0.32), keyLight, fillLight, rimLight);\n\nconst floor = new THREE.Mesh(\n  new THREE.CircleGeometry(10, 96),\n  new THREE.MeshStandardMaterial({ color: 0xe6ecf5, roughness: 0.92, metalness: 0.02 })\n);\nfloor.rotation.x = -Math.PI / 2;\nfloor.position.y = -1.8;\nfloor.receiveShadow = true;\nscene.add(floor);\n\nconst heroGroup = new THREE.Group();\nscene.add(heroGroup);\n\nconst boxSize = 1.2;\nconst mainGeometry = new THREE.BoxGeometry(boxSize, boxSize, boxSize);\nconst mainMaterial = new THREE.MeshStandardMaterial({ \n  color: 0x1d8cf8, \n  metalness: 0.7, \n  roughness: 0.15,\n  clearcoat: 0.8,\n  clearcoatRoughness: 0.1\n});\nconst mainCube = new THREE.Mesh(mainGeometry, mainMaterial);\nmainCube.castShadow = true;\nmainCube.receiveShadow = true;\nheroGroup.add(mainCube);\n\nconst coreGeometry = new THREE.BoxGeometry(boxSize * 0.6, boxSize * 0.6, boxSize * 0.6);\nconst coreMaterial = new THREE.MeshStandardMaterial({ \n  color: 0x0f6bd0, \n  metalness: 0.9, \n  roughness: 0.05,\n  emissive: 0x0f6bd0,\n  emissiveIntensity: 0.2\n});\nconst coreCube = new THREE.Mesh(coreGeometry, coreMaterial);\nheroGroup.add(coreCube);\n\nconst frameGeometry = new THREE.BoxGeometry(boxSize * 1.15, boxSize * 1.15, boxSize * 1.15);\nconst edges = new THREE.EdgesGeometry(frameGeometry);\nconst frameMaterial = new THREE.LineBasicMaterial({ color: 0xaad6ff, transparent: true, opacity: 0.4 });\nconst frame = new THREE.LineSegments(edges, frameMaterial);\nheroGroup.add(frame);\n\nconst particleCount = 32;\nconst particleGeometry = new THREE.BufferGeometry();\nconst positions = new Float32Array(particleCount * 3);\nfor (let i = 0; i < particleCount * 3; i += 3) {\n  positions[i] = (Math.random() - 0.5) * 4;\n  positions[i+1] = (Math.random() - 0.5) * 4;\n  positions[i+2] = (Math.random() - 0.5) * 4;\n}\nparticleGeometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));\nconst particleMaterial = new THREE.PointsMaterial({ \n  color: 0x5a9fd4, \n  size: 0.05, \n  transparent: true, \n  opacity: 0.6 \n});\nconst particles = new THREE.Points(particleGeometry, particleMaterial);\nheroGroup.add(particles);\n\ncamera.position.set(4.4, 2.4, 5.2);\ncamera.lookAt(0, 0, 0);\n\nconst controls = new OrbitControls(camera, renderer.domElement);\ncontrols.enableDamping = true;\ncontrols.dampingFactor = 0.05;\n\nfunction animate() {\n  requestAnimationFrame(animate);\n  const t = clock.getElapsedTime();\n  \n  heroGroup.rotation.y = t * 0.18;\n  heroGroup.rotation.x = Math.sin(t * 0.3) * 0.08;\n  heroGroup.position.y = Math.sin(t * 0.8) * 0.15;\n  \n  rimLight.intensity = 0.35 + Math.sin(t * 1.2) * 0.08;\n  frame.material.opacity = 0.3 + Math.sin(t * 2) * 0.1;\n  particles.rotation.y = t * 0.05;\n  \n  controls.update();\n  renderer.render(scene, camera);\n}\nanimate();",
+      "previewUrl": "about:blank",
+      "skill": "threejs",
+      "outputKind": "code",
+      "mediaType": null,
+      "mediaUrl": null,
+      "mediaArtifactId": null,
+      "mediaDurationMs": null,
+      "mediaFps": null,
+      "mediaResolution": null,
+      "mediaBytes": null,
+      "explanation": "Applied modification: Rerun current scene. Applied model-driven scene modification. Runtime completed in 668ms. Generated via moonshot provider.",
+      "messageId": null,
+      "source": "modify",
+      "createdAt": "2026-04-03T15:30:26.658Z",
+      "updatedAt": "2026-04-13T14:42:14.229Z",
+      "versionId": "version-3",
+      "version": 3,
+      "artifactId": "artifact-1775230226658-2a332a",
+      "artifactVersion": 2
     }
   ],
   "versionPointer": 0,
@@ -597,7 +621,7 @@
       "artifactId": "artifact-1775230226658-2a332a",
       "title": "scene-failed-1775230226651",
       "createdAt": "2026-04-03T15:30:26.658Z",
-      "updatedAt": "2026-04-03T15:30:26.658Z",
+      "updatedAt": "2026-04-13T14:42:14.229Z",
       "revisions": [
         {
           "sessionId": "68cb3584-3570-4d94-b120-3f0f4380f20a",
@@ -614,9 +638,33 @@
           "version": 2,
           "artifactId": "artifact-1775230226658-2a332a",
           "artifactVersion": 1
+        },
+        {
+          "sessionId": "68cb3584-3570-4d94-b120-3f0f4380f20a",
+          "sceneId": "scene-failed-1775230226651",
+          "code": "const clock = new THREE.Clock();\nscene.background = new THREE.Color(0xf4f7fb);\nrenderer.toneMapping = THREE.ACESFilmicToneMapping;\nrenderer.toneMappingExposure = 1.08;\nrenderer.shadowMap.enabled = true;\nrenderer.shadowMap.type = THREE.PCFSoftShadowMap;\n\nconst keyLight = new THREE.DirectionalLight(0xffffff, 1.35);\nkeyLight.position.set(6, 10, 8);\nkeyLight.castShadow = true;\nkeyLight.shadow.mapSize.width = 2048;\nkeyLight.shadow.mapSize.height = 2048;\nkeyLight.shadow.bias = -0.0001;\n\nconst fillLight = new THREE.DirectionalLight(0xbfd7ff, 0.55);\nfillLight.position.set(-7, 4, 5);\n\nconst rimLight = new THREE.PointLight(0xaad6ff, 0.45, 22);\nrimLight.position.set(-4, 3, -5);\n\nscene.add(new THREE.AmbientLight(0x7f8aa6, 0.32), keyLight, fillLight, rimLight);\n\nconst floor = new THREE.Mesh(\n  new THREE.CircleGeometry(10, 96),\n  new THREE.MeshStandardMaterial({ color: 0xe6ecf5, roughness: 0.92, metalness: 0.02 })\n);\nfloor.rotation.x = -Math.PI / 2;\nfloor.position.y = -1.8;\nfloor.receiveShadow = true;\nscene.add(floor);\n\nconst heroGroup = new THREE.Group();\nscene.add(heroGroup);\n\nconst boxSize = 1.2;\nconst mainGeometry = new THREE.BoxGeometry(boxSize, boxSize, boxSize);\nconst mainMaterial = new THREE.MeshStandardMaterial({ \n  color: 0x1d8cf8, \n  metalness: 0.7, \n  roughness: 0.15,\n  clearcoat: 0.8,\n  clearcoatRoughness: 0.1\n});\nconst mainCube = new THREE.Mesh(mainGeometry, mainMaterial);\nmainCube.castShadow = true;\nmainCube.receiveShadow = true;\nheroGroup.add(mainCube);\n\nconst coreGeometry = new THREE.BoxGeometry(boxSize * 0.6, boxSize * 0.6, boxSize * 0.6);\nconst coreMaterial = new THREE.MeshStandardMaterial({ \n  color: 0x0f6bd0, \n  metalness: 0.9, \n  roughness: 0.05,\n  emissive: 0x0f6bd0,\n  emissiveIntensity: 0.2\n});\nconst coreCube = new THREE.Mesh(coreGeometry, coreMaterial);\nheroGroup.add(coreCube);\n\nconst frameGeometry = new THREE.BoxGeometry(boxSize * 1.15, boxSize * 1.15, boxSize * 1.15);\nconst edges = new THREE.EdgesGeometry(frameGeometry);\nconst frameMaterial = new THREE.LineBasicMaterial({ color: 0xaad6ff, transparent: true, opacity: 0.4 });\nconst frame = new THREE.LineSegments(edges, frameMaterial);\nheroGroup.add(frame);\n\nconst particleCount = 32;\nconst particleGeometry = new THREE.BufferGeometry();\nconst positions = new Float32Array(particleCount * 3);\nfor (let i = 0; i < particleCount * 3; i += 3) {\n  positions[i] = (Math.random() - 0.5) * 4;\n  positions[i+1] = (Math.random() - 0.5) * 4;\n  positions[i+2] = (Math.random() - 0.5) * 4;\n}\nparticleGeometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));\nconst particleMaterial = new THREE.PointsMaterial({ \n  color: 0x5a9fd4, \n  size: 0.05, \n  transparent: true, \n  opacity: 0.6 \n});\nconst particles = new THREE.Points(particleGeometry, particleMaterial);\nheroGroup.add(particles);\n\ncamera.position.set(4.4, 2.4, 5.2);\ncamera.lookAt(0, 0, 0);\n\nconst controls = new OrbitControls(camera, renderer.domElement);\ncontrols.enableDamping = true;\ncontrols.dampingFactor = 0.05;\n\nfunction animate() {\n  requestAnimationFrame(animate);\n  const t = clock.getElapsedTime();\n  \n  heroGroup.rotation.y = t * 0.18;\n  heroGroup.rotation.x = Math.sin(t * 0.3) * 0.08;\n  heroGroup.position.y = Math.sin(t * 0.8) * 0.15;\n  \n  rimLight.intensity = 0.35 + Math.sin(t * 1.2) * 0.08;\n  frame.material.opacity = 0.3 + Math.sin(t * 2) * 0.1;\n  particles.rotation.y = t * 0.05;\n  \n  controls.update();\n  renderer.render(scene, camera);\n}\nanimate();",
+          "previewUrl": "about:blank",
+          "skill": "threejs",
+          "outputKind": "code",
+          "mediaType": null,
+          "mediaUrl": null,
+          "mediaArtifactId": null,
+          "mediaDurationMs": null,
+          "mediaFps": null,
+          "mediaResolution": null,
+          "mediaBytes": null,
+          "explanation": "Applied modification: Rerun current scene. Applied model-driven scene modification. Runtime completed in 668ms. Generated via moonshot provider.",
+          "messageId": null,
+          "source": "modify",
+          "createdAt": "2026-04-03T15:30:26.658Z",
+          "updatedAt": "2026-04-13T14:42:14.229Z",
+          "versionId": "version-3",
+          "version": 3,
+          "artifactId": "artifact-1775230226658-2a332a",
+          "artifactVersion": 2
         }
       ],
-      "revisionPointer": 0
+      "revisionPointer": 1
     }
   ],
   "artifactPointer": 0,

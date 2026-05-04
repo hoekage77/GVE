@@ -1,22 +1,22 @@
 {
   "sessionId": "2adcb23f-587d-4064-9d65-869045655649",
   "createdAt": "2026-04-04T11:19:00.294Z",
-  "updatedAt": "2026-04-04T11:20:42.748Z",
+  "updatedAt": "2026-04-24T22:02:19.676Z",
   "status": "idle",
   "currentScene": {
     "sessionId": "2adcb23f-587d-4064-9d65-869045655649",
-    "sceneId": "scene-1775301637614",
+    "sceneId": "scene-1775301623342",
     "code": "// Local fallback output\nconst geometry = new THREE.BoxGeometry(1, 1, 1);\nconst material = new THREE.MeshStandardMaterial({ color: 0x1d8cf8, metalness: 0.8, roughness: 0.2 });\nconst mesh = new THREE.Mesh(geometry, material);\nscene.add(mesh);\nfunction animate() {\n  requestAnimationFrame(animate);\n  mesh.rotation.x += 0.01;\n  mesh.rotation.y += 0.01;\n  renderer.render(scene, camera);\n}\nanimate();",
     "previewUrl": "about:blank",
     "skill": "threejs",
-    "explanation": "Generated through LangGraph orchestration pipeline. Generated via local fallback pipeline. Warning: Moonshot temporarily overloaded; used local fallback. Runtime: completed with 49 renders and 48 frames.",
-    "messageId": "message-40",
+    "explanation": "Generated through LangGraph orchestration pipeline. Generated via local fallback pipeline. Warning: Generation timed out after 79978ms while preserving runtime reserve. Runtime: completed with 49 renders and 48 frames.",
+    "messageId": "message-2",
     "source": "generate",
-    "createdAt": "2026-04-04T11:20:37.632Z",
-    "updatedAt": "2026-04-04T11:20:37.632Z",
-    "versionId": "version-5",
-    "version": 5,
-    "artifactId": "artifact-1775301637632-0fd2c7",
+    "createdAt": "2026-04-04T11:20:23.359Z",
+    "updatedAt": "2026-04-04T11:20:23.359Z",
+    "versionId": "version-1",
+    "version": 1,
+    "artifactId": "artifact-1775301623359-36faf8",
     "artifactVersion": 1
   },
   "artifacts": [
@@ -146,22 +146,22 @@
       "revisionPointer": 0
     }
   ],
-  "artifactPointer": 4,
+  "artifactPointer": 0,
   "versions": [
     {
       "sessionId": "2adcb23f-587d-4064-9d65-869045655649",
-      "sceneId": "scene-1775301637614",
+      "sceneId": "scene-1775301623342",
       "code": "// Local fallback output\nconst geometry = new THREE.BoxGeometry(1, 1, 1);\nconst material = new THREE.MeshStandardMaterial({ color: 0x1d8cf8, metalness: 0.8, roughness: 0.2 });\nconst mesh = new THREE.Mesh(geometry, material);\nscene.add(mesh);\nfunction animate() {\n  requestAnimationFrame(animate);\n  mesh.rotation.x += 0.01;\n  mesh.rotation.y += 0.01;\n  renderer.render(scene, camera);\n}\nanimate();",
       "previewUrl": "about:blank",
       "skill": "threejs",
-      "explanation": "Generated through LangGraph orchestration pipeline. Generated via local fallback pipeline. Warning: Moonshot temporarily overloaded; used local fallback. Runtime: completed with 49 renders and 48 frames.",
-      "messageId": "message-40",
+      "explanation": "Generated through LangGraph orchestration pipeline. Generated via local fallback pipeline. Warning: Generation timed out after 79978ms while preserving runtime reserve. Runtime: completed with 49 renders and 48 frames.",
+      "messageId": "message-2",
       "source": "generate",
-      "createdAt": "2026-04-04T11:20:37.632Z",
-      "updatedAt": "2026-04-04T11:20:37.632Z",
-      "versionId": "version-5",
-      "version": 5,
-      "artifactId": "artifact-1775301637632-0fd2c7",
+      "createdAt": "2026-04-04T11:20:23.359Z",
+      "updatedAt": "2026-04-04T11:20:23.359Z",
+      "versionId": "version-1",
+      "version": 1,
+      "artifactId": "artifact-1775301623359-36faf8",
       "artifactVersion": 1
     }
   ],
