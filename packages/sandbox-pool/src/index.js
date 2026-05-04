@@ -605,9 +605,10 @@ export class SandboxPoolManager {
     const token = (apiKey || jwt || "").trim();
     if (!token) return;
 
+    const apiBase = (process.env.DAYTONA_API_URL || process.env.DAYTONA_SERVER_URL || "https://app.daytona.io/api")
+      .replace(/\/+$/, "");
+
     try {
-      const apiBase = (process.env.DAYTONA_API_URL || process.env.DAYTONA_SERVER_URL || "https://app.daytona.io/api")
-        .replace(/\/+$/, "");
       const response = await fetch(`${apiBase}/organizations`, {
         headers: {
           Authorization: `Bearer ${token}`,
@@ -630,10 +631,48 @@ export class SandboxPoolManager {
         }
       } else {
         const errText = await response.text().catch(() => "unknown");
-        console.warn(`[Daytona] Organization API returned ${response.status}: ${errText}`);
+        console.warn(`[Daytona] Organization API returned ${response.status}, trying sandbox fallback...`);
+        await this._resolveOrganizationIdFromSandbox(apiBase, token);
       }
     } catch (err) {
-      console.warn("[Daytona] Failed to auto-resolve organization ID from API:", err.message);
+      console.warn("[Daytona] Failed to auto-resolve organization ID from API, trying sandbox fallback:", err.message);
+      await this._resolveOrganizationIdFromSandbox(apiBase, token);
+    }
+  }
+
+  async _resolveOrganizationIdFromSandbox(apiBase, token) {
+    try {
+      const sandboxResponse = await fetch(`${apiBase}/sandbox?limit=1`, {
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        signal: AbortSignal.timeout(20000),
+      });
+
+      if (!sandboxResponse.ok) {
+        const text = await sandboxResponse.text().catch(() => "unknown");
+        console.warn(`[Daytona] Sandbox fallback API error ${sandboxResponse.status}: ${text}`);
+        return;
+      }
+
+      const payload = await sandboxResponse.json();
+      const items = Array.isArray(payload) ? payload : payload.items || [];
+      if (items.length === 0) {
+        console.warn("[Daytona] No sandboxes found in fallback. Cannot infer organization ID.");
+        return;
+      }
+
+      const orgId = items[0]?.organizationId ?? null;
+      if (orgId && String(orgId).trim()) {
+        process.env.DAYTONA_ORGANIZATION_ID = String(orgId).trim();
+        console.log(`[Daytona] Auto-resolved organization ID via sandbox fallback: ${process.env.DAYTONA_ORGANIZATION_ID}`);
+      } else {
+        console.warn("[Daytona] Sandbox missing organizationId field:", JSON.stringify(Object.keys(items[0])));
+      }
+    } catch (err) {
+      console.warn("[Daytona] Sandbox fallback failed:", err.message);
     }
   }
 
