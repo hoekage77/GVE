@@ -4,7 +4,7 @@
  * we run in dev-bypass mode: no real auth, all requests get a dev user.
  */
 import type { Request, Response, NextFunction } from "express";
-import { clerkMiddleware, requireAuth as clerkRequireAuth, getAuth as clerkGetAuth } from "@clerk/express";
+import { clerkMiddleware, getAuth as clerkGetAuth } from "@clerk/express";
 
 const DUMMY_KEY = "pk_test_dGVzdC10ZXJyYW5ldC1jbGVyay5jbGVyay5hY2NvdW50cy5kZXYk";
 const isProduction = process.env.NODE_ENV === "production";
@@ -24,14 +24,20 @@ if (isProduction && !hasClerkKey) {
 
 export const DEV_USER_ID = "dev-user";
 
+function authErrorResponse(res: Response, status: number, message: string) {
+  res.status(status).json({ error: "UNAUTHORIZED", message });
+}
+
 /* ── Conditional Clerk middleware ── */
 export function conditionalClerkMiddleware() {
   if (hasClerkKey) {
     return clerkMiddleware();
   }
-  // Dev mode: attach a mock auth object so getAuth(req) works
   return (req: Request, _res: Response, next: NextFunction) => {
-    (req as any).auth = { userId: DEV_USER_ID, sessionId: "dev-session" };
+    (req as any).auth = () => ({
+      userId: DEV_USER_ID,
+      sessionId: "dev-session",
+    });
     next();
   };
 }
@@ -43,12 +49,15 @@ export function requireAuth(
   next: NextFunction
 ): void {
   if (hasClerkKey) {
-    const auth = conditionalGetAuth(req);
+    let auth: { userId: string | null; sessionId: string | null };
+    try {
+      auth = conditionalGetAuth(req);
+    } catch {
+      authErrorResponse(res, 500, "Auth middleware not properly initialized.");
+      return;
+    }
     if (!auth?.userId) {
-      res.status(401).json({
-        error: "UNAUTHORIZED",
-        message: "Authentication required. Please sign in.",
-      });
+      authErrorResponse(res, 401, "Authentication required. Please sign in.");
       return;
     }
     next();
@@ -62,5 +71,7 @@ export function conditionalGetAuth(req: Request): { userId: string | null; sessi
   if (hasClerkKey) {
     return clerkGetAuth(req);
   }
-  return (req as any).auth ?? { userId: DEV_USER_ID, sessionId: "dev-session" };
+  const mock = (req as any).auth;
+  if (typeof mock === "function") return mock();
+  return { userId: DEV_USER_ID, sessionId: "dev-session" };
 }

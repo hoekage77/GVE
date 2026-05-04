@@ -36,14 +36,22 @@ import { join, relative } from "node:path";
 export const sessionRouter = Router();
 
 sessionRouter.post("/api/v1/sessions", requireAuth, (req, res) => {
-  const sessionState = createSession(req.body?.sessionId);
-  const wsUrl = buildWebSocketUrl(req);
-  res.json(buildSessionResponse(sessionState, wsUrl));
+  try {
+    const sessionState = createSession(req.body?.sessionId);
+    const wsUrl = buildWebSocketUrl(req);
+    res.json(buildSessionResponse(sessionState, wsUrl));
+  } catch (error) {
+    handleError(error, res);
+  }
 });
 
 sessionRouter.get("/api/v1/sessions", requireAuth, (req, res) => {
-  const userId = resolveUserId(req);
-  res.json({ sessions: listSessions(userId) });
+  try {
+    const userId = resolveUserId(req);
+    res.json({ sessions: listSessions(userId) });
+  } catch (error) {
+    handleError(error, res);
+  }
 });
 
 sessionRouter.get("/api/v1/sessions/:sessionId/messages", requireSessionOwnership, (_req, res) => {

@@ -20,9 +20,13 @@ export function requireSessionOwnership(req: Request, res: Response, next: NextF
     return;
   }
   const userId = resolveUserId(req);
+  if (!userId) {
+    res.status(401).json({ error: "UNAUTHORIZED", message: "Authentication required." });
+    return;
+  }
   const session = getOrCreateInternalSession(sessionId);
   if (!isSessionOwner(session, userId)) {
-    res.status(403).json({ error: "Access denied. You do not own this session." });
+    res.status(403).json({ error: "FORBIDDEN", message: "Access denied. You do not own this session." });
     return;
   }
   next();
