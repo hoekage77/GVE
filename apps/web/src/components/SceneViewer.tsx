@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState, useImperativeHandle, forwardRef } from "react";
 import { Plus, Minus, RotateCcw, Compass, CheckCircle2, AlertCircle, Sparkles, Pause, Play, Gamepad2, Lock, Unlock, Keyboard, Grid3X3 } from "lucide-react";
 import { cn } from "../lib/utils";
-import { CURATED_THREEJS_ASSETS, getModelCandidateUrls } from "@visual-runtime/shared";
+import { CURATED_THREEJS_ASSETS, getModelCandidateUrls } from "../api";
 
 export interface SceneViewerRef {
   zoomIn: () => void;

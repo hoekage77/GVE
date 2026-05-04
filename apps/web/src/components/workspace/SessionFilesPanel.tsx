@@ -1,6 +1,6 @@
 import { FileCode2, Film, FolderOpen, Link2, Award } from 'lucide-react';
 import { useMemo } from 'react';
-import type { SceneAssetPlan, SceneVersion } from '@visual-runtime/shared';
+import type { SceneAssetPlan, SceneVersion } from '../../api';
 import { useChatStore } from '../../stores';
 import AssetPlanSummary from './AssetPlanSummary';
 

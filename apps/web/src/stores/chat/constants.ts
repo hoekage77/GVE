@@ -1,4 +1,4 @@
-import { type GveTaskAction } from '@visual-runtime/shared';
+import { type GveTaskAction } from '../../api';
 import { type WorkspacePanelView } from './types';
 
 

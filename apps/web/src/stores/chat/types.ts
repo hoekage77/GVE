@@ -11,7 +11,7 @@ import {
   type LlmProviderItem,
   type WorkspaceRecord,
   type WorkspaceFileEntry
-} from '@visual-runtime/shared';
+} from '../../api';
 import type { ActionBlock, TaskCheckpoint } from '../../types/actionBlocks';
 
 export type { ActionBlock, TaskCheckpoint };

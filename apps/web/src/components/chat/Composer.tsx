@@ -1,6 +1,6 @@
 import { useRef, useState, useEffect } from "react";
 import { Send, X, Plus, ChevronDown } from "lucide-react";
-import { type LlmProviderItem } from "@visual-runtime/shared";
+import { type LlmProviderItem } from "../../api";
 
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
 

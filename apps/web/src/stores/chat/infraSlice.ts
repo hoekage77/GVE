@@ -1,7 +1,7 @@
 import type { StateCreator } from "zustand";
 import type { ChatState, UIAgentState, UIIterationState } from "./types";
-import type { WorkspaceRecord, WorkspaceFileEntry } from "@visual-runtime/shared";
-import { listProviders, resolveWebSocketUrl } from "@visual-runtime/shared";
+import type { WorkspaceRecord, WorkspaceFileEntry } from "../../api";
+import { listProviders, resolveWebSocketUrl } from "../../api";
 import { nowIso } from "./helpers";
 
 export interface InfraSlice {

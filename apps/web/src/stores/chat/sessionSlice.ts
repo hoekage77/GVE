@@ -15,7 +15,7 @@ import {
   previousArtifact,
   nextArtifact,
   selectVersion,
-} from "@visual-runtime/shared";
+} from "../../api";
 
 export interface SessionSlice {
   sessions: Session[];

@@ -12,7 +12,7 @@ import {
 } from "./helpers";
 import { resolveMediaState, mediaUnavailable, computeMediaStage, computeMediaStatusText } from "./turn-helpers";
 import { MEDIA_READY_TEXT, MEDIA_UNAVAILABLE_TEXT, MEDIA_SYNCING_TEXT } from "./media-strings";
-import { sendSessionMessage } from "@visual-runtime/shared";
+import { sendSessionMessage } from "../../api";
 
 export interface PipelineSlice {
   isSending: boolean;

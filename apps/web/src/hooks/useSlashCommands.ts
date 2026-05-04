@@ -9,12 +9,12 @@ export interface SlashCommand {
   handler: () => void | Promise<void>;
 }
 
-interface UseSlashCommandsOptions {
+export interface UseSlashCommandsOptions {
   commands: SlashCommand[];
   onClose?: () => void;
 }
 
-interface UseSlashCommandsReturn {
+export interface UseSlashCommandsReturn {
   isOpen: boolean;
   filteredCommands: SlashCommand[];
   selectedIndex: number;

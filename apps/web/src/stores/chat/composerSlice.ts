@@ -1,6 +1,6 @@
 import type { StateCreator } from "zustand";
 import type { ChatState, WorkspacePanelView, ComposerImageAttachment } from "./types";
-import type { WorkspaceRecord } from "@visual-runtime/shared";
+import type { WorkspaceRecord } from "../../api";
 
 export interface ComposerSlice {
   composerValue: string;

@@ -3,7 +3,7 @@ import {
   type GveTaskAction,
   type GveTaskStatus,
   type SessionMessage as ApiSessionMessage,
-} from '@visual-runtime/shared';
+} from '../../api';
 import {
   DEFAULT_TASK_DEFINITIONS,
   MAX_STAGE_EVENT_ENTRIES,

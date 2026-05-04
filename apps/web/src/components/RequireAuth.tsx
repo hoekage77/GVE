@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 import { useEffect } from 'react';
-import { useUser } from '../lib/clerk';
+import { useUser } from '../hooks';
 
 function RedirectToAuth() {
   useEffect(() => {

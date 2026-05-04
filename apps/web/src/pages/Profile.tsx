@@ -1,4 +1,4 @@
-import { useUser, useClerk } from '../lib/clerk';
+import { useUser, useClerk } from '../hooks';
 import { ArrowLeft, User, Key, Database, ExternalLink, Copy, Check, Loader2, AlertTriangle } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useChatStore } from '../stores';

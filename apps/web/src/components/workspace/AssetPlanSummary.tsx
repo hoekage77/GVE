@@ -1,5 +1,5 @@
 import { Globe, Layers3, ShieldAlert, Wrench } from "lucide-react";
-import type { SceneAssetPlan } from "@visual-runtime/shared";
+import type { SceneAssetPlan } from "../../api";
 
 interface AssetPlanSummaryProps {
   assetPlan?: SceneAssetPlan | null;
