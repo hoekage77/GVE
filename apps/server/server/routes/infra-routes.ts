@@ -14,7 +14,6 @@ import { metrics, computeP95Latency } from "../lib/metrics.js";
 import { getSessionUsage, getUserDailyTokenUsage, getGlobalTokenTotals, getTokenLimitConfig } from "../state/token-usage.js";
 import { getOrCreateInternalSession } from "../state/session.js";
 import { getDedicatedSandboxStatus } from "../sandbox/dedicated-manager.js";
-import { listProviders } from "@visual-runtime/shared";
 import { requestSchema } from "../pipeline/utils.js";
 import { executeRequestSchema } from "../pipeline/task-planning.js";
 
@@ -73,13 +72,14 @@ infraRouter.get("/api/v1/skills", (_req: any, res: any) => {
   res.json({ skills });
 });
 
-infraRouter.get("/api/v1/providers", async (_req: any, res: any) => {
-  try {
-    const providers = await listProviders();
-    res.json({ providers });
-  } catch {
-    res.json({ providers: [] });
-  }
+infraRouter.get("/api/v1/providers", (_req: any, res: any) => {
+  const poolStatus = getPool().getStatus();
+  const providers = poolStatus.providers.map((p: any) => ({
+    id: p.id,
+    name: p.name,
+    state: p.state,
+  }));
+  res.json({ providers });
 });
 
 infraRouter.get("/api/v1/usage", requireAuth, (req: any, res: any) => {
