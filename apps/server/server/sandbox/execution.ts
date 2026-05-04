@@ -60,12 +60,12 @@ export async function executeWithQualityLoop(request: ExecutionRequest, onProgre
   const executionMode = determineModeFromQuality(quality);
   const modeConfig = resolveIterationConfig(quality);
   const iterationConfig = {
-    ...baseConfig,
-    maxIterations: modeConfig.maxIterations,
-    qualityThreshold: modeConfig.threshold,
-    enableAutoPatch: modeConfig.autoPatch,
-    mode: executionMode
+    maxIterations: config.maxIterations ?? 2,
+    qualityThreshold: config.qualityThreshold ?? 75,
+    enableAutoPatch: config.enableAutoPatch ?? true,
+    timeoutPerIterationMs: config.timeoutPerIterationMs ?? 30000
   };
+  console.log(`[Sandbox] iterationConfig=${JSON.stringify(iterationConfig)}, rawConfig=${JSON.stringify(config)}`);
   const iterations: any[] = [];
   let currentCode = initialCode;
   let currentWorkspace: Workspace | undefined = workspace ?? undefined;
@@ -95,7 +95,7 @@ export async function executeWithQualityLoop(request: ExecutionRequest, onProgre
         typeof t === "string" ? t : (t?.npmPackage ?? t?.name ?? String(t))
       )
     )];
-    sandbox = await createSandbox({ sessionId, tools: normalizedTools, timeoutMs: iterationConfig.timeoutPerIterationMs });
+    sandbox = await createSandbox({ sessionId, tools: normalizedTools, timeoutMs: iterationConfig.timeoutPerIterationMs, keepAlive: true });
   } catch (error: any) {
     return { success: false, sessionId, error: sanitizeError(error, 'sandbox-creation').userMessage, iterations: [] };
   }
@@ -158,7 +158,7 @@ export async function executeWithQualityLoop(request: ExecutionRequest, onProgre
       mode: executionMode,
       patchGoals: patchGoals as any[]
     });
-    const isSuccess = stopDecision.reason === "quality-threshold-met";
+    const isSuccess = stopDecision.reason === "threshold_met";
     const shouldContinue = !stopDecision.shouldStop;
 
     // Broadcast analysis results to frontend panels
@@ -177,7 +177,7 @@ export async function executeWithQualityLoop(request: ExecutionRequest, onProgre
       totalPotentialImprovement: patchGoals.reduce((sum, g) => sum + (g.severity === 'critical' ? 15 : g.severity === 'warning' ? 8 : 4), 0),
       durationMs: Date.now() - iterationStart,
       shouldContinue,
-      stopReason: shouldContinue ? null : (isSuccess ? "quality-threshold-met" : (patchGoals.length === 0 ? "no-improvement-possible" : "max-iterations-reached"))
+      stopReason: shouldContinue ? null : (isSuccess ? "threshold_met" : (patchGoals.length === 0 ? "no-improvement-possible" : "max-iterations-reached"))
     });
 
     broadcastEvent("iteration:update", {
@@ -205,7 +205,7 @@ export async function executeWithQualityLoop(request: ExecutionRequest, onProgre
         sessionId,
         finalIteration: iter,
         finalScore: qualitySignals.composite,
-        stopReason: isSuccess ? "quality-threshold-met" : "max-iterations-reached",
+        stopReason: isSuccess ? "threshold_met" : "max-iterations-reached",
         iterations,
         prePatchedCode: entry ? entry.content : currentCode,
         workspace: currentWorkspace,

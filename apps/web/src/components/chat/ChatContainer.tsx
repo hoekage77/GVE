@@ -132,7 +132,12 @@ function buildDisplayMessages(messages: SessionMessage[]): DisplayMessage[] {
   const pushDeferredThought = (bucket: Map<string, ThoughtItem[]>, key: string, thought: ThoughtItem) => {
     const existing = bucket.get(key);
     if (existing) {
-      existing.push(thought);
+      const isDuplicate = existing.some(
+        (t) => t.step === thought.step && t.text === thought.text
+      );
+      if (!isDuplicate) {
+        existing.push(thought);
+      }
       return;
     }
     bucket.set(key, [thought]);
@@ -142,6 +147,13 @@ function buildDisplayMessages(messages: SessionMessage[]): DisplayMessage[] {
     if (index === null || index < 0 || index >= displayMessages.length) {
       return false;
     }
+    const existing = displayMessages[index].thoughts;
+    const isDuplicate = existing.some(
+      (t) => t.step === thought.step && t.text === thought.text
+    );
+    if (isDuplicate) {
+      return true;
+    }
     displayMessages[index].thoughts.push(thought);
     return true;
   };
@@ -149,20 +161,41 @@ function buildDisplayMessages(messages: SessionMessage[]): DisplayMessage[] {
   const attachDeferredToAssistant = (index: number, messageId: string, requestId: string | null) => {
     const deferredByMessage = deferredThoughtsByMessageId.get(messageId);
     if (deferredByMessage?.length) {
-      displayMessages[index].thoughts.push(...deferredByMessage);
+      for (const thought of deferredByMessage) {
+        const isDuplicate = displayMessages[index].thoughts.some(
+          (t) => t.step === thought.step && t.text === thought.text
+        );
+        if (!isDuplicate) {
+          displayMessages[index].thoughts.push(thought);
+        }
+      }
       deferredThoughtsByMessageId.delete(messageId);
     }
 
     if (requestId) {
       const deferredByRequest = deferredThoughtsByRequestId.get(requestId);
       if (deferredByRequest?.length) {
-        displayMessages[index].thoughts.push(...deferredByRequest);
+        for (const thought of deferredByRequest) {
+          const isDuplicate = displayMessages[index].thoughts.some(
+            (t) => t.step === thought.step && t.text === thought.text
+          );
+          if (!isDuplicate) {
+            displayMessages[index].thoughts.push(thought);
+          }
+        }
         deferredThoughtsByRequestId.delete(requestId);
       }
     }
 
     if (orphanThoughts.length > 0) {
-      displayMessages[index].thoughts.push(...orphanThoughts);
+      for (const thought of orphanThoughts) {
+        const isDuplicate = displayMessages[index].thoughts.some(
+          (t) => t.step === thought.step && t.text === thought.text
+        );
+        if (!isDuplicate) {
+          displayMessages[index].thoughts.push(thought);
+        }
+      }
       orphanThoughts.length = 0;
     }
   };

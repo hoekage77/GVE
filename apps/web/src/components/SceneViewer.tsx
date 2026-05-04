@@ -17,15 +17,70 @@ interface SceneViewerProps {
   onError?: (error: string) => void;
 }
 
-// CDN imports for different skills
-const SKILL_CDNS: Record<string, string[]> = {
-  threejs: [],
+const CDN_VENDOR_FILES: Record<string, string[]> = {
   p5js: ['/vendor/p5/p5.min.js'],
   d3js: ['/vendor/d3/d3.min.js'],
-  animejs: ['/vendor/animejs/anime.min.js']
+  animejs: ['/vendor/animejs/anime.min.js'],
 };
 
+let cdnVendorCache: Record<string, string> | null = null;
+
+async function fetchCdnInlineScripts(paths: string[]): Promise<string> {
+  if (!cdnVendorCache) cdnVendorCache = {};
+  const cache = cdnVendorCache;
+  const results = await Promise.all(
+    paths.map(async (path) => {
+      if (cache[path]) return cache[path];
+      const resp = await fetch(path);
+      const text = await resp.text();
+      const script = `<script>${text}<\/script>`;
+      cache[path] = script;
+      return script;
+    })
+  );
+  return results.join('\n');
+}
+
 const SCENE_GRID_STORAGE_KEY = "terranet.scene.grid.enabled";
+
+const THREE_VENDOR_FILES = [
+  { importName: 'three', path: '/vendor/three/three.module.min.js' },
+  { importName: 'three/core', path: '/vendor/three/three.core.min.js' },
+  { importName: 'three/addons/controls/OrbitControls.js', path: '/vendor/three/OrbitControls.js' },
+  { importName: 'three/addons/loaders/GLTFLoader.js', path: '/vendor/three/GLTFLoader.js' },
+  { importName: 'three/addons/loaders/DRACOLoader.js', path: '/vendor/three/DRACOLoader.js' },
+  { importName: 'three/addons/loaders/RGBELoader.js', path: '/vendor/three/RGBELoader.js' },
+  { importName: 'three/addons/loaders/HDRLoader.js', path: '/vendor/three/HDRLoader.js' },
+  { importName: 'three/addons/utils/BufferGeometryUtils.js', path: '/vendor/utils/BufferGeometryUtils.js' },
+];
+
+const ADDON_IMPORT_REWRITES: Record<string, [string, string][]> = {
+  '/vendor/three/three.module.min.js': [["from\"./three.core.min.js\"", "from\"three/core\""]],
+  '/vendor/three/GLTFLoader.js': [["from '../utils/BufferGeometryUtils.js'", "from 'three/addons/utils/BufferGeometryUtils.js'"]],
+  '/vendor/three/RGBELoader.js': [["from './HDRLoader.js'", "from 'three/addons/loaders/HDRLoader.js'"]],
+};
+
+let threeVendorCache: Record<string, string> | null = null;
+
+async function fetchThreeVendorDataUrls(): Promise<Record<string, string>> {
+  if (threeVendorCache) return threeVendorCache;
+  const entries = await Promise.all(
+    THREE_VENDOR_FILES.map(async ({ importName, path }) => {
+      const resp = await fetch(path);
+      let text = await resp.text();
+      const rewrites = ADDON_IMPORT_REWRITES[path];
+      if (rewrites) {
+        for (const [from, to] of rewrites) {
+          text = text.split(from).join(to);
+        }
+      }
+      const base64 = btoa(unescape(encodeURIComponent(text)));
+      return [importName, `data:text/javascript;base64,${base64}`] as const;
+    })
+  );
+  threeVendorCache = Object.fromEntries(entries);
+  return threeVendorCache;
+}
 
 function getInitialGridEnabled(): boolean {
   if (typeof window === "undefined") {
@@ -40,20 +95,16 @@ function getInitialGridEnabled(): boolean {
   return stored === "1";
 }
 
-function buildSceneHTML(code: string, skill: string): string {
-  const cdns = SKILL_CDNS[skill] || [];
-  const cdnScripts = cdns.map(url => `<script src="${url}"><\/script>`).join('\n');
+function buildSceneHTML(code: string, skill: string, vendorDataUrls?: Record<string, string>, cdnInlineScripts?: string): string {
   const userCodeSource = JSON.stringify(code ?? "");
 
-  const threejsImportMap = skill === 'threejs' ? `
+  const cdnScripts = cdnInlineScripts || '';
+
+  const threejsImportMap = skill === 'threejs' && vendorDataUrls ? `
   <script type="importmap">
     {
       "imports": {
-        "three": "/vendor/three/three.min.js",
-        "three/addons/controls/OrbitControls.js": "/vendor/three/OrbitControls.js",
-        "three/addons/loaders/GLTFLoader.js": "/vendor/three/GLTFLoader.js",
-        "three/addons/loaders/DRACOLoader.js": "/vendor/three/DRACOLoader.js",
-        "three/addons/loaders/RGBELoader.js": "/vendor/three/RGBELoader.js"
+        ${THREE_VENDOR_FILES.map(({ importName }) => `"${importName}": "${vendorDataUrls[importName]}"`).join(',\n        ')}
       }
     }
   </script>` : '';
@@ -69,7 +120,9 @@ function buildSceneHTML(code: string, skill: string): string {
       __renderer.setSize(window.innerWidth, window.innerHeight);
       __renderer.setPixelRatio(window.devicePixelRatio);
       __renderer.setClearColor(0x0a0a0a, 1);
-      if (window.THREE && window.THREE.sRGBEncoding) {
+      if (window.THREE && window.THREE.SRGBColorSpace) {
+        __renderer.outputColorSpace = window.THREE.SRGBColorSpace;
+      } else if (window.THREE && window.THREE.sRGBEncoding) {
         __renderer.outputEncoding = window.THREE.sRGBEncoding;
       }
       if (window.THREE && window.THREE.ACESFilmicToneMapping) {
@@ -96,31 +149,31 @@ function buildSceneHTML(code: string, skill: string): string {
           },
           {
             id: 'robot-expressive',
-            url: 'https://rawcdn.githack.com/mrdoob/three.js/r128/examples/models/gltf/RobotExpressive/RobotExpressive.glb',
+            url: 'https://rawcdn.githack.com/mrdoob/three.js/r164/examples/models/gltf/RobotExpressive/RobotExpressive.glb',
             note: 'Expressive humanoid fallback'
           }
         ],
         birds: [
           {
             id: 'flamingo',
-            url: 'https://rawcdn.githack.com/mrdoob/three.js/r128/examples/models/gltf/Flamingo.glb',
+            url: 'https://rawcdn.githack.com/mrdoob/three.js/r164/examples/models/gltf/Flamingo.glb',
             note: 'Animated bird model'
           },
           {
             id: 'parrot',
-            url: 'https://rawcdn.githack.com/mrdoob/three.js/r128/examples/models/gltf/Parrot.glb',
+            url: 'https://rawcdn.githack.com/mrdoob/three.js/r164/examples/models/gltf/Parrot.glb',
             note: 'Animated bird model'
           },
           {
             id: 'stork',
-            url: 'https://rawcdn.githack.com/mrdoob/three.js/r128/examples/models/gltf/Stork.glb',
+            url: 'https://rawcdn.githack.com/mrdoob/three.js/r164/examples/models/gltf/Stork.glb',
             note: 'Animated bird model'
           }
         ],
         animals: [
           {
             id: 'fox',
-            url: 'https://rawcdn.githack.com/mrdoob/three.js/r128/examples/models/gltf/Fox.glb',
+            url: 'https://rawcdn.githack.com/mrdoob/three.js/r164/examples/models/gltf/Fox.glb',
             note: 'Animated quadruped model'
           }
         ]
@@ -158,6 +211,22 @@ function buildSceneHTML(code: string, skill: string): string {
       };
 
       // Compatibility shims for generated code across Three.js versions.
+      // Map old r128 API names to r160+ equivalents so generated code works.
+      if (window.THREE) {
+        if (!window.THREE.sRGBEncoding && window.THREE.SRGBColorSpace) {
+          window.THREE.sRGBEncoding = window.THREE.SRGBColorSpace;
+        }
+        if (!window.THREE.LinearEncoding && window.THREE.LinearSRGBColorSpace) {
+          window.THREE.LinearEncoding = window.THREE.LinearSRGBColorSpace;
+        }
+        if (!window.THREE.ACESFilmicToneMapping) {
+          window.THREE.ACESFilmicToneMapping = 4;
+        }
+        if (!window.THREE.PCFSoftShadowMap) {
+          window.THREE.PCFSoftShadowMap = 2;
+        }
+      }
+
       if (window.THREE && typeof window.THREE.CapsuleGeometry !== 'function') {
         window.THREE.CapsuleGeometry = function(radius = 0.5, length = 1, capSegments = 8, radialSegments = 16) {
           const __safeRadius = Math.max(0.0001, Number(radius) || 0.5);
@@ -313,11 +382,8 @@ function buildSceneHTML(code: string, skill: string): string {
     import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
     import { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js';
     import { RGBELoader } from 'three/addons/loaders/RGBELoader.js';
-    window.THREE = THREE;
+    window.THREE = { ...THREE, GLTFLoader, DRACOLoader, RGBELoader };
     window.OrbitControls = OrbitControls;
-    window.THREE.GLTFLoader = GLTFLoader;
-    window.THREE.DRACOLoader = DRACOLoader;
-    window.THREE.RGBELoader = RGBELoader;
   ` : '';
 
   return `<!DOCTYPE html>
@@ -794,17 +860,38 @@ const SceneViewer = forwardRef<SceneViewerRef, SceneViewerProps>(({ code, skill,
     setIsGamepadConnected(false);
     setPointerLockHint(null);
 
-    const html = buildSceneHTML(code, skill);
-    const iframe = iframeRef.current;
-    iframe.srcdoc = html;
+    let cancelled = false;
 
-    // Simulate loading time
-    const timer = setTimeout(() => {
-      setIsLoading(false);
-      setIsRendered(true);
-    }, 1000);
+    const renderScene = async () => {
+      const vendorDataUrls = skill === 'threejs' ? await fetchThreeVendorDataUrls() : undefined;
+      if (cancelled) return;
 
-    return () => clearTimeout(timer);
+      const cdnPaths = CDN_VENDOR_FILES[skill];
+      const cdnInlineScripts = cdnPaths ? await fetchCdnInlineScripts(cdnPaths) : undefined;
+      if (cancelled) return;
+
+      const html = buildSceneHTML(code, skill, vendorDataUrls, cdnInlineScripts);
+      const iframe = iframeRef.current;
+      if (!iframe || cancelled) return;
+      iframe.srcdoc = html;
+
+      // Simulate loading time
+      const timer = setTimeout(() => {
+        if (!cancelled) {
+          setIsLoading(false);
+          setIsRendered(true);
+        }
+      }, 1000);
+
+      return () => clearTimeout(timer);
+    };
+
+    const result = renderScene();
+
+    return () => {
+      cancelled = true;
+      result.then(cleanup => cleanup?.());
+    };
   }, [code, skill]);
 
   useEffect(() => {
@@ -926,7 +1013,7 @@ const SceneViewer = forwardRef<SceneViewerRef, SceneViewerProps>(({ code, skill,
               <iframe
                 ref={iframeRef}
                 className="h-full w-full border-none bg-transparent"
-                sandbox="allow-scripts allow-same-origin allow-pointer-lock"
+                sandbox="allow-scripts allow-pointer-lock"
                 tabIndex={0}
                 title="Scene preview"
               />

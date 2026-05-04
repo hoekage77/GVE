@@ -88,16 +88,14 @@ infraRouter.get("/api/v1/usage", requireAuth, (req: any, res: any) => {
   if (userId) response.userDaily = getUserDailyTokenUsage(userId);
   if (sessionId) {
     const sessionState = getOrCreateInternalSession(sessionId);
-    response.session = getSessionUsage(sessionState);
+    response.session = getSessionUsage(sessionId);
   }
 
   res.json(response);
 });
 
 infraRouter.get("/api/v1/media/:mediaKey", (req: any, res: any) => {
-  streamMediaArtifact((req.params as any).mediaKey, res).catch(() => {
-    if (!res.headersSent) res.status(404).json({ error: "NOT_FOUND" });
-  });
+  streamMediaArtifact(req, res, (req.params as any).mediaKey);
 });
 
 infraRouter.post("/api/v1/tasks/plan", requireAuth, async (req: any, res: any) => {

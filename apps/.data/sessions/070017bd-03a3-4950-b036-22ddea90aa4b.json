@@ -1,0 +1,382 @@
+{
+  "sessionId": "070017bd-03a3-4950-b036-22ddea90aa4b",
+  "ownerId": null,
+  "createdAt": "2026-05-03T13:47:19.155Z",
+  "updatedAt": "2026-05-03T13:51:27.220Z",
+  "status": "generating",
+  "currentScene": {
+    "sessionId": "070017bd-03a3-4950-b036-22ddea90aa4b",
+    "sceneId": "scene-failed-1777816287216",
+    "code": "// Terranet Engine Cinematic Fallback\nscene.background = new THREE.Color('#020617');\nscene.fog = new THREE.FogExp2(0x020617, 0.04);\nscene.add(new THREE.AmbientLight(0x0f172a, 1.5));\nconst mainLight = new THREE.PointLight(0x3b82f6, 120, 30);\nmainLight.position.set(5, 8, 5);\nscene.add(mainLight);\nconst accentLight = new THREE.PointLight(0x8b5cf6, 100, 30);\naccentLight.position.set(-6, -4, -5);\nscene.add(accentLight);\nconst engineGroup = new THREE.Group();\nscene.add(engineGroup);\nconst coreGeo = new THREE.IcosahedronGeometry(1.5, 2);\nconst coreMat = new THREE.MeshPhysicalMaterial({\n  color: 0x1e293b, emissive: 0x0f172a, roughness: 0.1, metalness: 0.9, clearcoat: 1.0, wireframe: true\n});\nconst core = new THREE.Mesh(coreGeo, coreMat);\nengineGroup.add(core);\nconst inner = new THREE.Mesh(new THREE.OctahedronGeometry(1.2, 0), new THREE.MeshStandardMaterial({\n  color: 0xffffff, emissive: 0x3b82f6, emissiveIntensity: 2, transparent: true, opacity: 0.9\n}));\nengineGroup.add(inner);\nconst canvas = document.createElement('canvas');\ncanvas.width = 1024; canvas.height = 256;\nconst ctx = canvas.getContext('2d');\nctx.fillStyle = '#000000';\nctx.fillRect(0, 0, canvas.width, canvas.height);\nctx.textAlign = 'center';\nctx.textBaseline = 'middle';\nctx.font = 'bold 72px \"Inter\", \"SF Pro Display\", sans-serif';\nctx.fillStyle = '#60a5fa';\nctx.shadowColor = '#3b82f6';\nctx.shadowBlur = 25;\nctx.fillText('TERRANET ENGINE', canvas.width / 2, canvas.height / 2);\nconst textTexture = new THREE.CanvasTexture(canvas);\nconst textMat = new THREE.MeshBasicMaterial({ map: textTexture, transparent: true, blending: THREE.AdditiveBlending });\nconst textMesh = new THREE.Mesh(new THREE.CylinderGeometry(3.5, 3.5, 1, 64, 1, true, -Math.PI / 3, Math.PI / 1.5), textMat);\nengineGroup.add(textMesh);\nconst rings = [];\nfor (let i = 0; i < 3; i++) {\n  const ring = new THREE.Mesh(\n    new THREE.TorusGeometry(2.5 + i * 0.8, 0.02, 16, 100),\n    new THREE.MeshBasicMaterial({ color: i === 1 ? 0x8b5cf6 : 0x3b82f6, transparent: true, opacity: 0.5, blending: THREE.AdditiveBlending })\n  );\n  ring.rotation.x = Math.random() * Math.PI;\n  const pivot = new THREE.Group();\n  pivot.add(ring);\n  rings.push({ mesh: pivot, speed: 0.005 + Math.random() * 0.01 });\n  engineGroup.add(pivot);\n}\ncamera.position.set(0, 2, 8);\ncamera.lookAt(0, 0, 0);\nconst clock = new THREE.Clock();\nfunction animate() {\n  requestAnimationFrame(animate);\n  const t = clock.getElapsedTime();\n  core.rotation.y += 0.005; core.rotation.x += 0.003;\n  inner.rotation.y -= 0.01; inner.rotation.z += 0.005;\n  inner.material.emissiveIntensity = 1.5 + Math.sin(t * 3) * 0.5;\n  textMesh.rotation.y = Math.sin(t * 0.5) * 0.2;\n  rings.forEach(r => { r.mesh.rotation.y += r.speed; r.mesh.rotation.x += r.speed * 0.3; });\n  engineGroup.position.y = Math.sin(t) * 0.3;\n  renderer.render(scene, camera);\n}\nanimate();",
+    "previewUrl": null,
+    "skill": "threejs",
+    "outputKind": "code",
+    "mediaType": null,
+    "mediaUrl": null,
+    "mediaArtifactId": null,
+    "mediaDurationMs": null,
+    "mediaFps": null,
+    "mediaResolution": null,
+    "mediaBytes": null,
+    "assetPlan": {
+      "manifestVersion": "asset-plan.v1",
+      "skill": "threejs",
+      "requestedQuality": "standard",
+      "strategy": "hybrid",
+      "subjectNeedsModel": false,
+      "categories": [
+        "animals"
+      ],
+      "catalog": {
+        "animals": [
+          {
+            "id": "fox",
+            "url": "https://rawcdn.githack.com/mrdoob/three.js/r128/examples/models/gltf/Fox.glb",
+            "note": "Animated quadruped model"
+          }
+        ]
+      },
+      "curatedCandidates": [
+        {
+          "id": "fox",
+          "url": "https://rawcdn.githack.com/mrdoob/three.js/r128/examples/models/gltf/Fox.glb",
+          "note": "Animated quadruped model"
+        }
+      ],
+      "fallbackPolicy": {
+        "allowInternetFallback": true,
+        "requireFallbackWarning": true,
+        "requireInlineFallbackComment": true
+      },
+      "runtimeHelpers": [
+        "createGveGltfLoader",
+        "resolveGveModelCandidates"
+      ]
+    },
+    "explanation": "Generated scene code for live preview. Live preview is currently unavailable (Quality threshold not met (Score: 79/undefined)). The generated code is saved and can be re-run. All 1 LLM providers exhausted (rate-limited or timed out); used fallback generator.",
+    "messageId": "message-2",
+    "source": "generate",
+    "createdAt": "2026-05-03T13:51:27.220Z",
+    "updatedAt": "2026-05-03T13:51:27.220Z",
+    "versionId": "version-1",
+    "version": 1,
+    "artifactId": "artifact-1777816287220-c4ed9b",
+    "artifactVersion": 1
+  },
+  "workspace": null,
+  "artifacts": [
+    {
+      "artifactId": "artifact-1777816287220-c4ed9b",
+      "title": "scene-failed-1777816287216",
+      "createdAt": "2026-05-03T13:51:27.220Z",
+      "updatedAt": "2026-05-03T13:51:27.220Z",
+      "revisions": [
+        {
+          "sessionId": "070017bd-03a3-4950-b036-22ddea90aa4b",
+          "sceneId": "scene-failed-1777816287216",
+          "code": "// Terranet Engine Cinematic Fallback\nscene.background = new THREE.Color('#020617');\nscene.fog = new THREE.FogExp2(0x020617, 0.04);\nscene.add(new THREE.AmbientLight(0x0f172a, 1.5));\nconst mainLight = new THREE.PointLight(0x3b82f6, 120, 30);\nmainLight.position.set(5, 8, 5);\nscene.add(mainLight);\nconst accentLight = new THREE.PointLight(0x8b5cf6, 100, 30);\naccentLight.position.set(-6, -4, -5);\nscene.add(accentLight);\nconst engineGroup = new THREE.Group();\nscene.add(engineGroup);\nconst coreGeo = new THREE.IcosahedronGeometry(1.5, 2);\nconst coreMat = new THREE.MeshPhysicalMaterial({\n  color: 0x1e293b, emissive: 0x0f172a, roughness: 0.1, metalness: 0.9, clearcoat: 1.0, wireframe: true\n});\nconst core = new THREE.Mesh(coreGeo, coreMat);\nengineGroup.add(core);\nconst inner = new THREE.Mesh(new THREE.OctahedronGeometry(1.2, 0), new THREE.MeshStandardMaterial({\n  color: 0xffffff, emissive: 0x3b82f6, emissiveIntensity: 2, transparent: true, opacity: 0.9\n}));\nengineGroup.add(inner);\nconst canvas = document.createElement('canvas');\ncanvas.width = 1024; canvas.height = 256;\nconst ctx = canvas.getContext('2d');\nctx.fillStyle = '#000000';\nctx.fillRect(0, 0, canvas.width, canvas.height);\nctx.textAlign = 'center';\nctx.textBaseline = 'middle';\nctx.font = 'bold 72px \"Inter\", \"SF Pro Display\", sans-serif';\nctx.fillStyle = '#60a5fa';\nctx.shadowColor = '#3b82f6';\nctx.shadowBlur = 25;\nctx.fillText('TERRANET ENGINE', canvas.width / 2, canvas.height / 2);\nconst textTexture = new THREE.CanvasTexture(canvas);\nconst textMat = new THREE.MeshBasicMaterial({ map: textTexture, transparent: true, blending: THREE.AdditiveBlending });\nconst textMesh = new THREE.Mesh(new THREE.CylinderGeometry(3.5, 3.5, 1, 64, 1, true, -Math.PI / 3, Math.PI / 1.5), textMat);\nengineGroup.add(textMesh);\nconst rings = [];\nfor (let i = 0; i < 3; i++) {\n  const ring = new THREE.Mesh(\n    new THREE.TorusGeometry(2.5 + i * 0.8, 0.02, 16, 100),\n    new THREE.MeshBasicMaterial({ color: i === 1 ? 0x8b5cf6 : 0x3b82f6, transparent: true, opacity: 0.5, blending: THREE.AdditiveBlending })\n  );\n  ring.rotation.x = Math.random() * Math.PI;\n  const pivot = new THREE.Group();\n  pivot.add(ring);\n  rings.push({ mesh: pivot, speed: 0.005 + Math.random() * 0.01 });\n  engineGroup.add(pivot);\n}\ncamera.position.set(0, 2, 8);\ncamera.lookAt(0, 0, 0);\nconst clock = new THREE.Clock();\nfunction animate() {\n  requestAnimationFrame(animate);\n  const t = clock.getElapsedTime();\n  core.rotation.y += 0.005; core.rotation.x += 0.003;\n  inner.rotation.y -= 0.01; inner.rotation.z += 0.005;\n  inner.material.emissiveIntensity = 1.5 + Math.sin(t * 3) * 0.5;\n  textMesh.rotation.y = Math.sin(t * 0.5) * 0.2;\n  rings.forEach(r => { r.mesh.rotation.y += r.speed; r.mesh.rotation.x += r.speed * 0.3; });\n  engineGroup.position.y = Math.sin(t) * 0.3;\n  renderer.render(scene, camera);\n}\nanimate();",
+          "previewUrl": null,
+          "skill": "threejs",
+          "outputKind": "code",
+          "mediaType": null,
+          "mediaUrl": null,
+          "mediaArtifactId": null,
+          "mediaDurationMs": null,
+          "mediaFps": null,
+          "mediaResolution": null,
+          "mediaBytes": null,
+          "assetPlan": {
+            "manifestVersion": "asset-plan.v1",
+            "skill": "threejs",
+            "requestedQuality": "standard",
+            "strategy": "hybrid",
+            "subjectNeedsModel": false,
+            "categories": [
+              "animals"
+            ],
+            "catalog": {
+              "animals": [
+                {
+                  "id": "fox",
+                  "url": "https://rawcdn.githack.com/mrdoob/three.js/r128/examples/models/gltf/Fox.glb",
+                  "note": "Animated quadruped model"
+                }
+              ]
+            },
+            "curatedCandidates": [
+              {
+                "id": "fox",
+                "url": "https://rawcdn.githack.com/mrdoob/three.js/r128/examples/models/gltf/Fox.glb",
+                "note": "Animated quadruped model"
+              }
+            ],
+            "fallbackPolicy": {
+              "allowInternetFallback": true,
+              "requireFallbackWarning": true,
+              "requireInlineFallbackComment": true
+            },
+            "runtimeHelpers": [
+              "createGveGltfLoader",
+              "resolveGveModelCandidates"
+            ]
+          },
+          "explanation": "Generated scene code for live preview. Live preview is currently unavailable (Quality threshold not met (Score: 79/undefined)). The generated code is saved and can be re-run. All 1 LLM providers exhausted (rate-limited or timed out); used fallback generator.",
+          "messageId": "message-2",
+          "source": "generate",
+          "createdAt": "2026-05-03T13:51:27.220Z",
+          "updatedAt": "2026-05-03T13:51:27.220Z",
+          "versionId": "version-1",
+          "version": 1,
+          "artifactId": "artifact-1777816287220-c4ed9b",
+          "artifactVersion": 1
+        }
+      ],
+      "revisionPointer": 0
+    }
+  ],
+  "artifactPointer": 0,
+  "messages": [
+    {
+      "messageId": "message-1",
+      "role": "user",
+      "content": "Create a 3D particle physics simulation showing proton collisions with debris trails and photon emissions using threejs",
+      "kind": "input",
+      "metadata": {},
+      "createdAt": "2026-05-03T13:47:35.259Z",
+      "updatedAt": "2026-05-03T13:47:35.259Z"
+    },
+    {
+      "messageId": "message-2",
+      "role": "assistant",
+      "content": "",
+      "kind": "streaming",
+      "meta": [
+        "requestId:070017bd-03a3-4950-b036-22ddea90aa4b:message-2"
+      ],
+      "metadata": [],
+      "createdAt": "2026-05-03T13:47:35.261Z",
+      "updatedAt": "2026-05-03T13:47:35.264Z"
+    },
+    {
+      "messageId": "thought-turn_started-1777816197561",
+      "role": "thought",
+      "content": "Three.js is perfect here—I'll use instanced meshes for the debris particles to maintain performance when the collision triggers hundreds of high-velocity fragments. I'll animate the protons accelerating toward center mass, then on impact spawn trail ribbons using buffer geometry that fade over time, plus glowing point sprites with additive blending and bloom post-processing to simulate those photon emissions and Cherenkov radiation effects.",
+      "kind": "thought",
+      "meta": [
+        "turn_started",
+        "requestId:070017bd-03a3-4950-b036-22ddea90aa4b:message-2",
+        "messageId:message-2"
+      ],
+      "metadata": [
+        "turn_started",
+        "requestId:070017bd-03a3-4950-b036-22ddea90aa4b:message-2",
+        "messageId:message-2"
+      ],
+      "createdAt": "2026-05-03T13:49:57.561Z",
+      "updatedAt": "2026-05-03T13:49:57.561Z"
+    },
+    {
+      "messageId": "thought-intent_parsed-1777816197614",
+      "role": "thought",
+      "content": "Three.js is perfect here—I'll use instanced meshes for the debris particles to maintain performance when the collision triggers hundreds of high-velocity fragments. I'll animate the protons accelerating toward center mass, then on impact spawn trail ribbons using buffer geometry that fade over time, plus glowing point sprites with additive blending and bloom post-processing to simulate those photon emissions and Cherenkov radiation effects.",
+      "kind": "thought",
+      "meta": [
+        "intent_parsed",
+        "requestId:070017bd-03a3-4950-b036-22ddea90aa4b:message-2",
+        "messageId:message-2"
+      ],
+      "metadata": [
+        "intent_parsed",
+        "requestId:070017bd-03a3-4950-b036-22ddea90aa4b:message-2",
+        "messageId:message-2"
+      ],
+      "createdAt": "2026-05-03T13:49:57.614Z",
+      "updatedAt": "2026-05-03T13:49:57.614Z"
+    },
+    {
+      "messageId": "thought-plan_created-1777816197615",
+      "role": "thought",
+      "content": "Alright, 7 tasks queued. I'm moving through the pipeline now.",
+      "kind": "thought",
+      "meta": [
+        "plan_created",
+        "requestId:070017bd-03a3-4950-b036-22ddea90aa4b:message-2",
+        "messageId:message-2"
+      ],
+      "metadata": [
+        "plan_created",
+        "requestId:070017bd-03a3-4950-b036-22ddea90aa4b:message-2",
+        "messageId:message-2"
+      ],
+      "createdAt": "2026-05-03T13:49:57.615Z",
+      "updatedAt": "2026-05-03T13:49:57.615Z"
+    },
+    {
+      "messageId": "thought-code_generated-1777816287219",
+      "role": "thought",
+      "content": "I've composed the scene code. Time to verify it passes all safety checks.",
+      "kind": "thought",
+      "meta": [
+        "code_generated",
+        "requestId:070017bd-03a3-4950-b036-22ddea90aa4b:message-2",
+        "messageId:message-2",
+        "durationMs:75112"
+      ],
+      "metadata": [
+        "code_generated",
+        "requestId:070017bd-03a3-4950-b036-22ddea90aa4b:message-2",
+        "messageId:message-2",
+        "durationMs:75112"
+      ],
+      "createdAt": "2026-05-03T13:51:27.219Z",
+      "updatedAt": "2026-05-03T13:51:27.219Z"
+    }
+  ],
+  "orchestrationTrace": [
+    {
+      "step": "intent_parsed",
+      "payload": {
+        "sessionId": "070017bd-03a3-4950-b036-22ddea90aa4b",
+        "content": "Create a 3D particle physics simulation showing proton collisions with debris trails and photon emissions using threejs"
+      },
+      "timestamp": "2026-05-03T13:49:57.562Z"
+    },
+    {
+      "step": "parse_intent",
+      "payload": {
+        "sessionId": "070017bd-03a3-4950-b036-22ddea90aa4b",
+        "status": "running"
+      },
+      "timestamp": "2026-05-03T13:49:57.629Z"
+    },
+    {
+      "step": "select_skill",
+      "payload": {
+        "sessionId": "070017bd-03a3-4950-b036-22ddea90aa4b",
+        "status": "running"
+      },
+      "timestamp": "2026-05-03T13:49:57.634Z"
+    },
+    {
+      "step": "build_prompt",
+      "payload": {
+        "sessionId": "070017bd-03a3-4950-b036-22ddea90aa4b",
+        "status": "running"
+      },
+      "timestamp": "2026-05-03T13:49:57.639Z"
+    },
+    {
+      "step": "generate_code",
+      "payload": {
+        "sessionId": "070017bd-03a3-4950-b036-22ddea90aa4b",
+        "status": "running"
+      },
+      "timestamp": "2026-05-03T13:49:57.647Z"
+    },
+    {
+      "step": "generate_code",
+      "payload": {
+        "sessionId": "070017bd-03a3-4950-b036-22ddea90aa4b",
+        "status": "completed",
+        "selectedSkill": "threejs",
+        "source": "fallback",
+        "code": "// Terranet Engine Cinematic Fallback\nscene.background = new THREE.Color('#020617');\nscene.fog = new THREE.FogExp2(0x020617, 0.04);\nscene.add(new THREE.AmbientLight(0x0f172a, 1.5));\nconst mainLight = new THREE.PointLight(0x3b82f6, 120, 30);\nmainLight.position.set(5, 8, 5);\nscene.add(mainLight);\nconst accentLight = new THREE.PointLight(0x8b5cf6, 100, 30);\naccentLight.position.set(-6, -4, -5);\nscene.add(accentLight);\nconst engineGroup = new THREE.Group();\nscene.add(engineGroup);\nconst coreGeo = new THREE.IcosahedronGeometry(1.5, 2);\nconst coreMat = new THREE.MeshPhysicalMaterial({\n  color: 0x1e293b, emissive: 0x0f172a, roughness: 0.1, metalness: 0.9, clearcoat: 1.0, wireframe: true\n});\nconst core = new THREE.Mesh(coreGeo, coreMat);\nengineGroup.add(core);\nconst inner = new THREE.Mesh(new THREE.OctahedronGeometry(1.2, 0), new THREE.MeshStandardMaterial({\n  color: 0xffffff, emissive: 0x3b82f6, emissiveIntensity: 2, transparent: true, opacity: 0.9\n}));\nengineGroup.add(inner);\nconst canvas = document.createElement('canvas');\ncanvas.width = 1024; canvas.height = 256;\nconst ctx = canvas.getContext('2d');\nctx.fillStyle = '#000000';\nctx.fillRect(0, 0, canvas.width, canvas.height);\nctx.textAlign = 'center';\nctx.textBaseline = 'middle';\nctx.font = 'bold 72px \"Inter\", \"SF Pro Display\", sans-serif';\nctx.fillStyle = '#60a5fa';\nctx.shadowColor = '#3b82f6';\nctx.shadowBlur = 25;\nctx.fillText('TERRANET ENGINE', canvas.width / 2, canvas.height / 2);\nconst textTexture = new THREE.CanvasTexture(canvas);\nconst textMat = new THREE.MeshBasicMaterial({ map: textTexture, transparent: true, blending: THREE.AdditiveBlending });\nconst textMesh = new THREE.Mesh(new THREE.CylinderGeometry(3.5, 3.5, 1, 64, 1, true, -Math.PI / 3, Math.PI / 1.5), textMat);\nengineGroup.add(textMesh);\nconst rings = [];\nfor (let i = 0; i < 3; i++) {\n  const ring = new THREE.Mesh(\n    new THREE.TorusGeometry(2.5 + i * 0.8, 0.02, 16, 100),\n    new THREE.MeshBasicMaterial({ color: i === 1 ? 0x8b5cf6 : 0x3b82f6, transparent: true, opacity: 0.5, blending: THREE.AdditiveBlending })\n  );\n  ring.rotation.x = Math.random() * Math.PI;\n  const pivot = new THREE.Group();\n  pivot.add(ring);\n  rings.push({ mesh: pivot, speed: 0.005 + Math.random() * 0.01 });\n  engineGroup.add(pivot);\n}\ncamera.position.set(0, 2, 8);\ncamera.lookAt(0, 0, 0);\nconst clock = new THREE.Clock();\nfunction animate() {\n  requestAnimationFrame(animate);\n  const t = clock.getElapsedTime();\n  core.rotation.y += 0.005; core.rotation.x += 0.003;\n  inner.rotation.y -= 0.01; inner.rotation.z += 0.005;\n  inner.material.emissiveIntensity = 1.5 + Math.sin(t * 3) * 0.5;\n  textMesh.rotation.y = Math.sin(t * 0.5) * 0.2;\n  rings.forEach(r => { r.mesh.rotation.y += r.speed; r.mesh.rotation.x += r.speed * 0.3; });\n  engineGroup.position.y = Math.sin(t) * 0.3;\n  renderer.render(scene, camera);\n}\nanimate();",
+        "stageDurationMs": 75112
+      },
+      "timestamp": "2026-05-03T13:51:12.760Z"
+    },
+    {
+      "step": "validate_code",
+      "payload": {
+        "sessionId": "070017bd-03a3-4950-b036-22ddea90aa4b",
+        "status": "running"
+      },
+      "timestamp": "2026-05-03T13:51:12.771Z"
+    },
+    {
+      "step": "validate_code",
+      "payload": {
+        "sessionId": "070017bd-03a3-4950-b036-22ddea90aa4b",
+        "status": "completed",
+        "valid": true,
+        "passable": true,
+        "warnings": [],
+        "stageDurationMs": 30
+      },
+      "timestamp": "2026-05-03T13:51:12.801Z"
+    },
+    {
+      "step": "execute_code",
+      "payload": {
+        "sessionId": "070017bd-03a3-4950-b036-22ddea90aa4b",
+        "status": "running"
+      },
+      "timestamp": "2026-05-03T13:51:12.809Z"
+    },
+    {
+      "step": "execute_code",
+      "payload": {
+        "sessionId": "070017bd-03a3-4950-b036-22ddea90aa4b",
+        "status": "sandbox:creating",
+        "type": "sandbox:creating",
+        "stageDurationMs": 4
+      },
+      "timestamp": "2026-05-03T13:51:12.813Z"
+    },
+    {
+      "step": "execute_code",
+      "payload": {
+        "sessionId": "070017bd-03a3-4950-b036-22ddea90aa4b",
+        "status": "sandbox:executing",
+        "type": "sandbox:executing",
+        "iteration": 1,
+        "stageDurationMs": 9016
+      },
+      "timestamp": "2026-05-03T13:51:21.825Z"
+    },
+    {
+      "step": "execute_code",
+      "payload": {
+        "sessionId": "070017bd-03a3-4950-b036-22ddea90aa4b",
+        "status": "sandbox:analyzing",
+        "type": "sandbox:analyzing",
+        "iteration": 1,
+        "stageDurationMs": 9027
+      },
+      "timestamp": "2026-05-03T13:51:21.836Z"
+    },
+    {
+      "step": "execute_code",
+      "payload": {
+        "sessionId": "070017bd-03a3-4950-b036-22ddea90aa4b",
+        "status": "sandbox:executing",
+        "type": "sandbox:executing",
+        "iteration": 2,
+        "stageDurationMs": 9031
+      },
+      "timestamp": "2026-05-03T13:51:21.840Z"
+    },
+    {
+      "step": "execute_code",
+      "payload": {
+        "sessionId": "070017bd-03a3-4950-b036-22ddea90aa4b",
+        "status": "sandbox:analyzing",
+        "type": "sandbox:analyzing",
+        "iteration": 2,
+        "stageDurationMs": 9038
+      },
+      "timestamp": "2026-05-03T13:51:21.847Z"
+    },
+    {
+      "step": "execute_code",
+      "payload": {
+        "sessionId": "070017bd-03a3-4950-b036-22ddea90aa4b",
+        "status": "error",
+        "error": "Quality threshold not met (Score: 79/undefined)",
+        "runtimeRecoveryUsed": false,
+        "stageDurationMs": 14404
+      },
+      "timestamp": "2026-05-03T13:51:27.213Z"
+    }
+  ]
+}

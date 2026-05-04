@@ -154,6 +154,8 @@ export interface ChatTurnRequest {
   content?: string;
   imageUrl?: string;
   imageData?: string;
+  mode?: 'generate' | 'modify' | 'explain' | 'debug' | 'chat';
+  requestId?: string;
   preferences?: {
     skill?: SkillPreference;
     quality?: "draft" | "standard" | "high";
@@ -736,7 +738,7 @@ function buildDevMock(input: GenerateRequest): GenerateResponse {
       "        self.wait(0.6)"
     ].join("\n")
   };
-  const selectedCode = codeBySkill[selectedSkill] ?? codeBySkill.threejs;
+  const selectedCode: string = (codeBySkill[selectedSkill] ?? codeBySkill.threejs) as string;
 
   return {
     sceneId,

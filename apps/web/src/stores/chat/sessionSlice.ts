@@ -61,6 +61,8 @@ export const createSessionSlice: StateCreator<ChatState, [], [], SessionSlice> =
       versionCount: 0,
       currentScene: null,
       versions: [],
+      createdAt: now,
+      updatedAt: now,
     } as Session;
     set((state) => ({
       sessions: [draftSession, ...state.sessions],
@@ -106,7 +108,8 @@ export const createSessionSlice: StateCreator<ChatState, [], [], SessionSlice> =
 
   loadSessionMessages: async (sessionId) => {
     try {
-      const apiMessages = await listSessionMessages(sessionId);
+      const apiResponse = await listSessionMessages(sessionId);
+      const apiMessages = apiResponse.messages ?? [];
       const clientMessages: SessionMessage[] = (apiMessages || []).map((m: any) => ({
         id: m.messageId || m.id || createClientMessageId("msg"),
         role: m.role,
@@ -144,8 +147,8 @@ export const createSessionSlice: StateCreator<ChatState, [], [], SessionSlice> =
     if (!activeSessionId) return false;
     try {
       const result = await selectVersion(activeSessionId, versionId);
-      if (result.success && result.state) {
-        const updated = buildClientSession(result.state);
+      if (result.success && result.sceneState) {
+        const updated = buildClientSession(result.sceneState);
         if (updated) {
           set((state) => ({
             sessions: state.sessions.map((s) => (s.sessionId === activeSessionId ? updated : s)),

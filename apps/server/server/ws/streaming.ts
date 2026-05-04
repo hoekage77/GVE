@@ -118,6 +118,13 @@ export function broadcastEvent(type: string, payload: any) {
 }
 
 export async function broadcastThought(sessionId: string, step: string, context: any = {}): Promise<string> {
+  const normalizedSessionId = typeof sessionId === "string" ? sessionId.trim() : "";
+  if (!normalizedSessionId) {
+    console.warn(`[Streaming] broadcastThought called with empty sessionId for step=${step} — skipping.`);
+    return "";
+  }
+  sessionId = normalizedSessionId;
+
   const thought = generateThought(step, context);
   const tokens = tokenizeThought(thought);
   const requestId = typeof context.requestId === "string" && context.requestId.trim()

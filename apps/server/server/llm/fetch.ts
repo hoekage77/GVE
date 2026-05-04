@@ -33,7 +33,7 @@ async function fetchChatCompletionFromProvider(
 
   while (attempt <= retryDelays.length) {
     try {
-      let enrichedPayload: ChatCompletionPayload = { max_tokens: 8192, ...payload };
+      let enrichedPayload: ChatCompletionPayload = { max_tokens: provider.maxTokens ?? 8192, ...payload };
       if (typeof provider.payloadTransform === "function") {
         enrichedPayload = provider.payloadTransform(enrichedPayload, { mode });
       }
@@ -211,7 +211,7 @@ export class PoolBasedLLMProvider {
       };
 
       const resolvedModel = payload.model ?? provider.model;
-      const resolvedPayload = { max_tokens: 8192, ...payload, model: resolvedModel };
+      const resolvedPayload = { max_tokens: provider.maxTokens ?? 8192, ...payload, model: resolvedModel };
 
       console.log(`[LLMPool] [TRACE] fetchChatCompletion called. provider=${provider.id}, model=${resolvedModel}, mode=${options.mode ?? this.mode}`);
 
@@ -286,7 +286,7 @@ export class PoolBasedLLMProvider {
       };
 
       const resolvedModel = payload.model ?? provider.model;
-      const resolvedPayload = { max_tokens: 8192, ...payload, model: resolvedModel };
+      const resolvedPayload = { max_tokens: provider.maxTokens ?? 8192, ...payload, model: resolvedModel };
 
       console.log(`[LLMPool] [TRACE] fetchChatCompletion (with reasoning) called. provider=${provider.id}, model=${resolvedModel}`);
 

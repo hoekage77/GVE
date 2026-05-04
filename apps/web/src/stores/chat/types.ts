@@ -14,6 +14,8 @@ import {
 } from '@visual-runtime/shared';
 import type { ActionBlock, TaskCheckpoint } from '../../types/actionBlocks';
 
+export type { ActionBlock, TaskCheckpoint };
+
 export type Session = SessionSceneState;
 export type LiveConnectionState = 'connecting' | 'open' | 'closed' | 'error';
 export type SceneHistoryCommand = 'undo' | 'redo' | 'artifact.previous' | 'artifact.next' | 'version.previous' | 'version.next';

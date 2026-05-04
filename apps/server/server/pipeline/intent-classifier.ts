@@ -168,12 +168,12 @@ export function parseIntentFromQuery(query: string): any {
   const conversationalConfidence = conversationQuery ? 0.96 : confidence;
   const conversationalAmbiguous = conversationQuery ? false : ambiguous;
 
-  // Provider routing: DeepSeek V4 Pro for reasoning/explanation, Kimi 2.6 for code
+  // Provider routing: DeepSeek V4 Pro for reasoning/explanation, Fireworks Kimi 2.6 for code
   const recommendedProvider =
     intentType === "explain" || intentType === "chat"
       ? "deepseek-v4-pro"
       : intentType === "modify" || intentType === "create" || intentType === "animate"
-        ? "moonshot"
+        ? "fireworks-kimi"
         : null;
 
   return {

@@ -80,7 +80,7 @@ export async function executeImageTurnPath(params: {
     messageId: assistantMessageId
   });
 
-  broadcastEvent("scene:update", buildSceneUpdatePayload(nextSessionState));
+  broadcastEvent("scene:update", buildSceneUpdatePayload(nextSessionState.sessionId));
 
   const assistantMessage = updateSessionMessage(sessionId, assistantMessageId, {
     content: imageResult.explanation,

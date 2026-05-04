@@ -2,12 +2,139 @@
   "sessionId": "df51a5e6-8202-4451-8b00-5d4c34d2f077",
   "ownerId": null,
   "createdAt": "2026-05-03T12:50:54.406Z",
-  "updatedAt": "2026-05-03T12:54:01.009Z",
-  "status": "parsing",
-  "currentScene": null,
+  "updatedAt": "2026-05-03T12:59:09.125Z",
+  "status": "generating",
+  "currentScene": {
+    "sessionId": "df51a5e6-8202-4451-8b00-5d4c34d2f077",
+    "sceneId": "scene-failed-1777813149119",
+    "code": "// Fallback threejs scene\nconsole.log('Fallback scene');",
+    "previewUrl": null,
+    "skill": "threejs",
+    "outputKind": "code",
+    "mediaType": null,
+    "mediaUrl": null,
+    "mediaArtifactId": null,
+    "mediaDurationMs": null,
+    "mediaFps": null,
+    "mediaResolution": null,
+    "mediaBytes": null,
+    "assetPlan": {
+      "manifestVersion": "asset-plan.v1",
+      "skill": "threejs",
+      "requestedQuality": "standard",
+      "strategy": "hybrid",
+      "subjectNeedsModel": false,
+      "categories": [
+        "animals"
+      ],
+      "catalog": {
+        "animals": [
+          {
+            "id": "fox",
+            "url": "https://rawcdn.githack.com/mrdoob/three.js/r128/examples/models/gltf/Fox.glb",
+            "note": "Animated quadruped model"
+          }
+        ]
+      },
+      "curatedCandidates": [
+        {
+          "id": "fox",
+          "url": "https://rawcdn.githack.com/mrdoob/three.js/r128/examples/models/gltf/Fox.glb",
+          "note": "Animated quadruped model"
+        }
+      ],
+      "fallbackPolicy": {
+        "allowInternetFallback": true,
+        "requireFallbackWarning": true,
+        "requireInlineFallbackComment": true
+      },
+      "runtimeHelpers": [
+        "createGveGltfLoader",
+        "resolveGveModelCandidates"
+      ]
+    },
+    "explanation": "Generated scene code for live preview. Live preview is currently unavailable (Static validation failed). The generated code is saved and can be re-run. Generation timed out after 289705ms while preserving runtime reserve.",
+    "messageId": "message-2",
+    "source": "generate",
+    "createdAt": "2026-05-03T12:59:09.125Z",
+    "updatedAt": "2026-05-03T12:59:09.125Z",
+    "versionId": "version-1",
+    "version": 1,
+    "artifactId": "artifact-1777813149125-4dcb71",
+    "artifactVersion": 1
+  },
   "workspace": null,
-  "artifacts": [],
-  "artifactPointer": -1,
+  "artifacts": [
+    {
+      "artifactId": "artifact-1777813149125-4dcb71",
+      "title": "scene-failed-1777813149119",
+      "createdAt": "2026-05-03T12:59:09.125Z",
+      "updatedAt": "2026-05-03T12:59:09.125Z",
+      "revisions": [
+        {
+          "sessionId": "df51a5e6-8202-4451-8b00-5d4c34d2f077",
+          "sceneId": "scene-failed-1777813149119",
+          "code": "// Fallback threejs scene\nconsole.log('Fallback scene');",
+          "previewUrl": null,
+          "skill": "threejs",
+          "outputKind": "code",
+          "mediaType": null,
+          "mediaUrl": null,
+          "mediaArtifactId": null,
+          "mediaDurationMs": null,
+          "mediaFps": null,
+          "mediaResolution": null,
+          "mediaBytes": null,
+          "assetPlan": {
+            "manifestVersion": "asset-plan.v1",
+            "skill": "threejs",
+            "requestedQuality": "standard",
+            "strategy": "hybrid",
+            "subjectNeedsModel": false,
+            "categories": [
+              "animals"
+            ],
+            "catalog": {
+              "animals": [
+                {
+                  "id": "fox",
+                  "url": "https://rawcdn.githack.com/mrdoob/three.js/r128/examples/models/gltf/Fox.glb",
+                  "note": "Animated quadruped model"
+                }
+              ]
+            },
+            "curatedCandidates": [
+              {
+                "id": "fox",
+                "url": "https://rawcdn.githack.com/mrdoob/three.js/r128/examples/models/gltf/Fox.glb",
+                "note": "Animated quadruped model"
+              }
+            ],
+            "fallbackPolicy": {
+              "allowInternetFallback": true,
+              "requireFallbackWarning": true,
+              "requireInlineFallbackComment": true
+            },
+            "runtimeHelpers": [
+              "createGveGltfLoader",
+              "resolveGveModelCandidates"
+            ]
+          },
+          "explanation": "Generated scene code for live preview. Live preview is currently unavailable (Static validation failed). The generated code is saved and can be re-run. Generation timed out after 289705ms while preserving runtime reserve.",
+          "messageId": "message-2",
+          "source": "generate",
+          "createdAt": "2026-05-03T12:59:09.125Z",
+          "updatedAt": "2026-05-03T12:59:09.125Z",
+          "versionId": "version-1",
+          "version": 1,
+          "artifactId": "artifact-1777813149125-4dcb71",
+          "artifactVersion": 1
+        }
+      ],
+      "revisionPointer": 0
+    }
+  ],
+  "artifactPointer": 0,
   "messages": [
     {
       "messageId": "message-1",
@@ -83,6 +210,26 @@
       ],
       "createdAt": "2026-05-03T12:54:00.689Z",
       "updatedAt": "2026-05-03T12:54:00.689Z"
+    },
+    {
+      "messageId": "thought-code_generated-1777813149124",
+      "role": "thought",
+      "content": "I've composed the scene code. Time to verify it passes all safety checks.",
+      "kind": "thought",
+      "meta": [
+        "code_generated",
+        "requestId:df51a5e6-8202-4451-8b00-5d4c34d2f077:message-2",
+        "messageId:message-2",
+        "durationMs:289776"
+      ],
+      "metadata": [
+        "code_generated",
+        "requestId:df51a5e6-8202-4451-8b00-5d4c34d2f077:message-2",
+        "messageId:message-2",
+        "durationMs:289776"
+      ],
+      "createdAt": "2026-05-03T12:59:09.124Z",
+      "updatedAt": "2026-05-03T12:59:09.124Z"
     }
   ],
   "orchestrationTrace": [
@@ -125,6 +272,76 @@
         "status": "running"
       },
       "timestamp": "2026-05-03T12:54:01.009Z"
+    },
+    {
+      "step": "generate_code",
+      "payload": {
+        "sessionId": "df51a5e6-8202-4451-8b00-5d4c34d2f077",
+        "status": "completed",
+        "selectedSkill": "threejs",
+        "source": "fallback",
+        "code": "// Fallback threejs scene\nconsole.log('Fallback scene');",
+        "stageDurationMs": 289776
+      },
+      "timestamp": "2026-05-03T12:58:50.802Z"
+    },
+    {
+      "step": "validate_code",
+      "payload": {
+        "sessionId": "df51a5e6-8202-4451-8b00-5d4c34d2f077",
+        "status": "running"
+      },
+      "timestamp": "2026-05-03T12:58:50.961Z"
+    },
+    {
+      "step": "validate_code",
+      "payload": {
+        "sessionId": "df51a5e6-8202-4451-8b00-5d4c34d2f077",
+        "status": "completed",
+        "valid": false,
+        "passable": true,
+        "warnings": [
+          {
+            "code": "QUALITY_MATERIAL_RECOMMENDED",
+            "message": "Use MeshStandardMaterial or MeshPhysicalMaterial for better visual fidelity."
+          },
+          {
+            "code": "QUALITY_LIGHTING_RECOMMENDED",
+            "message": "Add layered lighting (ambient plus key/fill/rim style light) for stronger depth."
+          }
+        ],
+        "stageDurationMs": 110
+      },
+      "timestamp": "2026-05-03T12:58:51.071Z"
+    },
+    {
+      "step": "execute_code",
+      "payload": {
+        "sessionId": "df51a5e6-8202-4451-8b00-5d4c34d2f077",
+        "status": "running"
+      },
+      "timestamp": "2026-05-03T12:58:51.117Z"
+    },
+    {
+      "step": "execute_code",
+      "payload": {
+        "sessionId": "df51a5e6-8202-4451-8b00-5d4c34d2f077",
+        "status": "sandbox:creating",
+        "type": "sandbox:creating",
+        "stageDurationMs": 42
+      },
+      "timestamp": "2026-05-03T12:58:51.160Z"
+    },
+    {
+      "step": "execute_code",
+      "payload": {
+        "sessionId": "df51a5e6-8202-4451-8b00-5d4c34d2f077",
+        "status": "error",
+        "error": "Static validation failed",
+        "runtimeRecoveryUsed": false,
+        "stageDurationMs": 17967
+      },
+      "timestamp": "2026-05-03T12:59:09.084Z"
     }
   ]
 }

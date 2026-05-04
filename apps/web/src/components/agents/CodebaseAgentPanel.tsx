@@ -12,6 +12,8 @@ import type {
   Severity,
   CodebaseFinding
 } from './CodebaseAgentTypes';
+import type { UIAgentState } from '../../stores/chat/types';
+import { useChatStore } from '../../stores';
 
 interface CodebaseAgentPanelProps {
   onClose: () => void;
@@ -20,10 +22,58 @@ interface CodebaseAgentPanelProps {
 type TabView = 'agents' | 'findings' | 'overview';
 type SeverityFilter = Severity | 'all';
 
+function bridgeToUIAgentState(report: CodebaseAnalysisReport): UIAgentState {
+  const results: UIAgentState['results'] = {};
+  const recommendations: UIAgentState['recommendations'] = [];
+
+  for (const ar of report.agents) {
+    results[ar.agent.id] = {
+      id: ar.agent.id,
+      name: ar.agent.name,
+      score: ar.score,
+      findings: [
+        ...ar.findings.filter(f => f.severity === 'error').map(f => `[ERROR] ${f.title}: ${f.description}`),
+        ...ar.findings.filter(f => f.severity === 'warning').slice(0, 3).map(f => `[WARN] ${f.title}`),
+        ...(ar.findings.length > 5 ? [`${ar.findings.length - 5} more findings`] : []),
+      ],
+      recommendations: ar.findings
+        .filter(f => f.fix)
+        .map(f => ({
+          action: f.fix!,
+          impact: f.severity === 'error' ? 15 : f.severity === 'warning' ? 8 : 3,
+          confidence: f.severity === 'error' ? 90 : f.severity === 'warning' ? 70 : 50,
+          category: (f.severity === 'error' ? 'safety' : f.severity === 'warning' ? 'structure' : 'visual') as 'structure' | 'performance' | 'visual' | 'api' | 'safety',
+        })),
+    };
+
+    for (const f of ar.findings.filter(f => f.severity === 'error' || f.severity === 'warning')) {
+      recommendations.push({
+        agentId: ar.agent.id,
+        action: f.fix ?? f.title,
+        impact: f.severity === 'error' ? 15 : 8,
+        confidence: f.severity === 'error' ? 90 : 70,
+        category: f.severity === 'error' ? 'safety' : 'structure',
+        priority: f.severity === 'error' ? 0 : 1,
+      });
+    }
+  }
+
+  return {
+    isAnalyzing: false,
+    results,
+    consensus: report.overallScore,
+    shouldAutoApply: report.overallScore >= 80,
+    recommendations,
+    memory: [],
+    lastAnalyzedAt: report.createdAt,
+  };
+}
+
 const TAB_BASE = "flex-1 min-w-[80px] whitespace-nowrap border-b-2 border-transparent px-3 py-3 text-xs font-semibold uppercase tracking-[0.3px] text-slate-400 transition-colors duration-200 hover:text-slate-200";
 const TAB_ACTIVE = "border-b-[#06b6d4] text-[#06b6d4]";
 
 export default function CodebaseAgentPanel({ onClose }: CodebaseAgentPanelProps) {
+  const updateAgentState = useChatStore(s => s.updateAgentState);
   const [activeTab, setActiveTab] = useState<TabView>('overview');
   const [report, setReport] = useState<CodebaseAnalysisReport | null>(null);
   const [isRunning, setIsRunning] = useState(false);
@@ -49,6 +99,7 @@ export default function CodebaseAgentPanel({ onClose }: CodebaseAgentPanelProps)
       const files = await resp.json() as Array<{ path: string; content: string }>;
       const result = await runCodebaseAnalysis(files, '/home/kage/visualruntime');
       setReport(result);
+      updateAgentState(bridgeToUIAgentState(result));
       setActiveTab('overview');
     } catch {
       const demoFiles: Array<{ path: string; content: string }> = [
@@ -58,11 +109,12 @@ export default function CodebaseAgentPanel({ onClose }: CodebaseAgentPanelProps)
       ];
       const result = await runCodebaseAnalysis(demoFiles, '/home/kage/visualruntime');
       setReport(result);
+      updateAgentState(bridgeToUIAgentState(result));
       setActiveTab('overview');
     } finally {
       setIsRunning(false);
     }
-  }, []);
+  }, [updateAgentState]);
 
   const allFindings: CodebaseFinding[] = report
     ? report.agents.flatMap(a => a.findings)

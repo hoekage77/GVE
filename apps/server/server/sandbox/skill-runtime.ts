@@ -9,6 +9,7 @@ import { getSkillRuntimeProfile } from "../skills/loader.js";
 import { persistMediaArtifact } from "../routes/media.js";
 import { SandboxPoolManager, toolRegistry } from "@visual-runtime/sandbox-pool";
 import { DedicatedSandboxManager, setDedicatedSandboxInstance } from "./dedicated-manager.js";
+import { createSandbox, executeInSandbox, cleanupSessionSandbox, healthCheck as dockerHealthCheck } from "./manager.js";
 import { traceEvent } from "../trace/events.js";
 import { getTraceContext } from "../trace/context.js";
 
@@ -275,6 +276,50 @@ async function executeManimRuntime({ workspace, code, timeoutMs, sessionId }: { 
   return { success: true, status: "completed", previewUrl: persisted.previewUrl, outputKind: "media", mediaType: persisted.mediaType, mediaArtifactId: persisted.mediaKey, renderCount: 1 };
 }
 
+function isDaytonaProvisioningError(error: any): boolean {
+  const msg = String(error?.message ?? error ?? "").toLowerCase();
+  return /dns|eai_again|enotfound|getaddrinfo|enetunreach|provision|acquire failed|acquire_budget|pool_shutdown|no credentials/i.test(msg);
+}
+
+async function executeViaLocalDocker({ skillId, code, timeoutMs, sessionId }: { skillId: string; code: string; timeoutMs: number; sessionId: string }): Promise<any> {
+  const dockerStatus = await dockerHealthCheck();
+  if (!dockerStatus.dockerAvailable) {
+    throw new Error("Local Docker fallback unavailable: Docker not running.");
+  }
+
+  const skillTools: Record<string, string[]> = {
+    threejs: ["three", "vite"],
+    p5js: ["p5", "vite"],
+    d3js: ["d3", "vite"],
+    animejs: ["animejs", "vite"],
+  };
+
+  const tools = skillTools[skillId] ?? ["vite"];
+  console.log(`[LocalDocker] Falling back to local Docker sandbox for skill=${skillId}, tools=${tools.join(",")}`);
+
+  const containerInfo = await createSandbox({ sessionId, tools, timeoutMs });
+  const execResult = await executeInSandbox({ sessionId, code, skill: skillId, timeoutMs });
+
+  await cleanupSessionSandbox(sessionId).catch(() => {});
+
+  const execCode = extractCodeContent(code);
+  const resultObj: any = {
+    success: execResult.success,
+    status: execResult.success ? "completed" : "error",
+    outputKind: "code",
+    renderCount: execResult.success ? 1 : 0,
+    error: execResult.error ?? null,
+    _source: "local-docker",
+  };
+
+  if (!resultObj.success && !resultObj.error) {
+    const combinedLogs = (execResult.logs ?? []).join("\n");
+    if (combinedLogs) resultObj.error = combinedLogs.slice(0, 500);
+  }
+
+  return resultObj;
+}
+
 export function getSandboxRuntimeMetrics() {
   return poolManager.getMetricsSnapshot();
 }
@@ -290,29 +335,53 @@ export async function shutdownSandboxRuntime(options = {}) {
 export async function executeSkillRuntime({ skillId, code, timeoutMs, maxFrames, turnDeadlineAtMs = null, sessionId = null, tools = [] }: any) {
   const skill = getSkillRuntimeProfile(skillId);
   const startedAt = Date.now();
-  const acquireDeadlineAtMs = resolveAcquireDeadlineAtMs(turnDeadlineAtMs);
   let sandboxEnv: any = null;
   let acquireDiagnostics: any = null;
   const traceCtx = getTraceContext();
   const effectiveSessionId = sessionId ?? traceCtx.sessionId ?? null;
   const dedicatedKey = dedicatedSandboxManager.getKey({ userId: traceCtx.userId ?? null, sessionId: effectiveSessionId });
+  const localDockerFallbackEnabled = parseBooleanEnv(process.env.LOCAL_DOCKER_FALLBACK, true);
 
   try {
-    const acquireBudgetMs = remainingBudgetMs(acquireDeadlineAtMs);
+    const acquireBudgetMs = remainingBudgetMs(resolveAcquireDeadlineAtMs(turnDeadlineAtMs));
     if (acquireBudgetMs <= 0) throw new Error("Runtime budget exhausted before sandbox acquisition.");
 
     traceEvent("sandbox.acquire_start", { skillId, sessionId: effectiveSessionId, dedicated: dedicatedSandboxManager.isEnabled(), key: dedicatedKey });
-    const acquireStartMs = Date.now();
-    sandboxEnv = dedicatedKey
-      ? await dedicatedSandboxManager.acquireForKey(dedicatedKey, { skillId, turnDeadlineAtMs: acquireDeadlineAtMs })
-      : await poolManager.acquire({ skillId, turnDeadlineAtMs: acquireDeadlineAtMs });
-    traceEvent("sandbox.acquire_ok", { skillId, workspaceId: sandboxEnv?.workspaceId ?? null, acquireMs: Date.now() - acquireStartMs, key: dedicatedKey });
-    acquireDiagnostics = cloneAcquireDiagnostics(sandboxEnv?._acquireDiagnostics);
+
+    try {
+      const acquireStartMs = Date.now();
+      sandboxEnv = dedicatedKey
+        ? await dedicatedSandboxManager.acquireForKey(dedicatedKey, { skillId, turnDeadlineAtMs: resolveAcquireDeadlineAtMs(turnDeadlineAtMs) })
+        : await poolManager.acquire({ skillId, turnDeadlineAtMs: resolveAcquireDeadlineAtMs(turnDeadlineAtMs) });
+      traceEvent("sandbox.acquire_ok", { skillId, workspaceId: sandboxEnv?.workspaceId ?? null, acquireMs: Date.now() - acquireStartMs, key: dedicatedKey });
+      acquireDiagnostics = cloneAcquireDiagnostics(sandboxEnv?._acquireDiagnostics);
+    } catch (acquireError: any) {
+      if (localDockerFallbackEnabled && isDaytonaProvisioningError(acquireError) && effectiveSessionId) {
+        console.warn(`[SkillRuntime] Daytona acquire failed (${acquireError.message}), falling back to local Docker.`);
+        traceEvent("sandbox.daytona_fallback_local_docker", { skillId, sessionId: effectiveSessionId, error: acquireError.message });
+
+        const dockerTimeoutMs = timeoutMs ?? 60000;
+        const resultObj = await executeViaLocalDocker({ skillId, code, timeoutMs: dockerTimeoutMs, sessionId: effectiveSessionId });
+
+        return {
+          success: resultObj.success,
+          status: resultObj.status ?? (resultObj.success ? "degraded" : "error"),
+          previewUrl: resultObj.success ? (resultObj.previewUrl ?? "about:blank") : null,
+          outputKind: resultObj.outputKind ?? "code",
+          mediaType: resultObj.mediaType ?? null,
+          mediaUrl: resultObj.mediaUrl ?? null,
+          skillId: skill?.id,
+          durationMs: Date.now() - startedAt,
+          renderCount: resultObj.renderCount || 0,
+          error: resultObj.error || null,
+          acquireDiagnostics: null,
+          _source: "local-docker",
+        };
+      }
+      throw acquireError;
+    }
 
     if (Array.isArray(tools) && tools.length > 0) {
-      // Normalize tools to { name, version } objects expected by the pool's
-      // installTools / toolRegistry.  Plain strings (npm package names) are
-      // wrapped; objects are passed through with defaults.
       const normalizedTools = tools.map((t: any) => {
         if (typeof t === "string") return { name: t, version: "latest" };
         return { name: t?.npmPackage ?? t?.name ?? String(t), version: t?.version ?? "latest" };
@@ -376,6 +445,30 @@ export async function executeSkillRuntime({ skillId, code, timeoutMs, maxFrames,
       acquireDiagnostics
     };
   } catch (error: any) {
+    if (localDockerFallbackEnabled && isDaytonaProvisioningError(error) && effectiveSessionId && !sandboxEnv) {
+      console.warn(`[SkillRuntime] Daytona error in outer catch (${error.message}), falling back to local Docker.`);
+      traceEvent("sandbox.daytona_fallback_local_docker", { skillId, sessionId: effectiveSessionId, error: error.message, phase: "outer_catch" });
+      try {
+        const dockerTimeoutMs = timeoutMs ?? 60000;
+        const resultObj = await executeViaLocalDocker({ skillId, code, timeoutMs: dockerTimeoutMs, sessionId: effectiveSessionId });
+        return {
+          success: resultObj.success,
+          status: resultObj.status ?? (resultObj.success ? "degraded" : "error"),
+          previewUrl: resultObj.success ? (resultObj.previewUrl ?? "about:blank") : null,
+          outputKind: resultObj.outputKind ?? "code",
+          mediaType: resultObj.mediaType ?? null,
+          mediaUrl: resultObj.mediaUrl ?? null,
+          skillId: skill?.id,
+          durationMs: Date.now() - startedAt,
+          renderCount: resultObj.renderCount || 0,
+          error: resultObj.error || null,
+          acquireDiagnostics: null,
+          _source: "local-docker",
+        };
+      } catch (dockerError: any) {
+        console.error(`[SkillRuntime] Local Docker fallback also failed: ${dockerError.message}`);
+      }
+    }
     return {
       success: false,
       status: "error",
@@ -394,3 +487,4 @@ export async function executeSkillRuntime({ skillId, code, timeoutMs, maxFrames,
     }
   }
 }
+

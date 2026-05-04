@@ -44,7 +44,7 @@ const runtimeExecutionTimeoutMs = Number.parseInt(String(process.env.RUNTIME_EXE
 const manimRuntimeExecutionTimeoutMs = Number.parseInt(String(process.env.RUNTIME_EXEC_TIMEOUT_MANIM_MS ?? "90000"), 10);
 const runtimeExecutionReserveMs = Number.parseInt(String(process.env.RUNTIME_EXEC_RESERVE_MS ?? "10000"), 10);
 const manimRuntimeExecutionReserveMs = Number.parseInt(String(process.env.RUNTIME_EXEC_RESERVE_MANIM_MS ?? "90000"), 10);
-const turnBudgetMs = Number.parseInt(String(process.env.TURN_BUDGET_MS ?? "300000"), 10);
+const turnBudgetMs = Number.parseInt(String(process.env.TURN_BUDGET_MS ?? "0"), 10) || 3_600_000;
 
 export const ITERATION_CONFIG_BY_QUALITY: Record<string, any> = {
   draft: { maxIterations: 1, qualityThreshold: 50, enableAutoPatch: false },

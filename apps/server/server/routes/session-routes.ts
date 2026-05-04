@@ -30,6 +30,8 @@ import { modifyVisual } from "../pipeline/index.js";
 import { broadcastEvent } from "../ws/streaming.js";
 import { runWithTraceContext } from "../trace/context.js";
 import { checkTokenLimit } from "../state/token-usage.js";
+import { readdir, readFile } from "node:fs/promises";
+import { join, relative } from "node:path";
 
 export const sessionRouter = Router();
 
@@ -45,7 +47,7 @@ sessionRouter.get("/api/v1/sessions", requireAuth, (req, res) => {
 });
 
 sessionRouter.get("/api/v1/sessions/:sessionId/messages", requireSessionOwnership, (_req, res) => {
-  const sessionId = _req.params.sessionId;
+  const sessionId = String(_req.params.sessionId);
   const messages = listSessionMessages(sessionId);
   res.json({ messages });
 });
@@ -205,4 +207,43 @@ sessionRouter.get("/api/v1/sessions/:sessionId/versions", requireSessionOwnershi
   const sessionId = String(req.params.sessionId);
   const versions = listSceneVersions(sessionId);
   res.json({ versions });
+});
+
+const PROJECT_ROOT = process.env.PROJECT_ROOT || join(import.meta.dirname ?? ".", "..", "..", "..", "..");
+
+async function collectSourceFiles(dir: string, root: string, maxFiles = 200): Promise<Array<{ path: string; content: string }>> {
+  const results: Array<{ path: string; content: string }> = [];
+  const extensions = new Set([".ts", ".tsx", ".js", ".jsx", ".css"]);
+
+  async function walk(current: string) {
+    if (results.length >= maxFiles) return;
+    let entries;
+    try { entries = await readdir(current, { withFileTypes: true }); } catch { return; }
+    for (const entry of entries) {
+      if (results.length >= maxFiles) return;
+      if (entry.name.startsWith(".") || entry.name === "node_modules" || entry.name === "dist" || entry.name === ".git") continue;
+      const full = join(current, entry.name);
+      if (entry.isDirectory()) {
+        await walk(full);
+      } else if (entry.isFile() && extensions.has(entry.name.slice(entry.name.lastIndexOf(".")))) {
+        try {
+          const content = await readFile(full, "utf-8");
+          results.push({ path: relative(root, full).replace(/\\/g, "/"), content: content.slice(0, 50000) });
+        } catch {}
+      }
+    }
+  }
+
+  await walk(dir);
+  return results;
+}
+
+sessionRouter.get("/api/scan-files", requireAuth, async (_req, res) => {
+  try {
+    const webSrc = join(PROJECT_ROOT, "apps", "web", "src");
+    const files = await collectSourceFiles(webSrc, PROJECT_ROOT);
+    res.json(files);
+  } catch (error) {
+    handleError(error, res);
+  }
 });

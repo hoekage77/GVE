@@ -108,6 +108,11 @@ export function buildThreeJsFallbackCode() {
     "}",
     "camera.position.set(0, 2, 8);",
     "camera.lookAt(0, 0, 0);",
+    "const controls = new OrbitControls(camera, renderer.domElement);",
+    "controls.enableDamping = true;",
+    "controls.dampingFactor = 0.06;",
+    "controls.target.set(0, 0, 0);",
+    "controls.update();",
     "const clock = new THREE.Clock();",
     "function animate() {",
     "  requestAnimationFrame(animate);",
@@ -118,6 +123,7 @@ export function buildThreeJsFallbackCode() {
     "  textMesh.rotation.y = Math.sin(t * 0.5) * 0.2;",
     "  rings.forEach(r => { r.mesh.rotation.y += r.speed; r.mesh.rotation.x += r.speed * 0.3; });",
     "  engineGroup.position.y = Math.sin(t) * 0.3;",
+    "  controls.update();",
     "  renderer.render(scene, camera);",
     "}",
     "animate();"
@@ -294,7 +300,7 @@ export function buildValidationOptions({
 // Zod schemas for request validation
 export const requestSchema = z.object({
   query: z.string().min(3),
-  sessionId: z.string().optional(),
+  sessionId: z.string().optional().default(""),
   preferences: z.object({
     quality: z.enum(["draft", "standard", "high"]).optional(),
     skill: z.enum(["threejs", "p5js", "d3js", "animejs", "manim", "auto"]).optional(),
@@ -627,7 +633,7 @@ export async function fetchChatCompletion(provider: any, payload: any, options: 
   let attempt = 0;
 
   const resolvedModel = payload.model ?? provider.model;
-  const resolvedPayload = { max_tokens: 8192, ...payload, model: resolvedModel };
+  const resolvedPayload = { max_tokens: provider.maxTokens ?? 8192, ...payload, model: resolvedModel };
 
   while (attempt <= retryDelays.length) {
     const enrichedPayload = typeof provider.payloadTransform === "function"

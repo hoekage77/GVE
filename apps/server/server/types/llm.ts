@@ -25,6 +25,7 @@ export interface ProviderDefinition {
   capabilities: ProviderCapabilities;
   limits: ProviderLimits;
   cooldownMs: number;
+  maxTokens?: number;
   payloadTransform: ((payload: ChatCompletionPayload, options?: Record<string, unknown>) => ChatCompletionPayload) | null;
 }
 

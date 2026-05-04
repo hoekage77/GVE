@@ -41,7 +41,7 @@ export const createInfraSlice: StateCreator<ChatState, [], [], InfraSlice> = (se
     try {
       const providers = await listProviders();
       set({ providers: (providers as any).providers ?? [] });
-    } catch {}
+    } catch { /* provider list is non-critical */ }
   },
 
   updateAgentState: (state) => set({ agentState: state }),
@@ -224,8 +224,20 @@ export const createInfraSlice: StateCreator<ChatState, [], [], InfraSlice> = (se
             break;
 
           case "workspace:analysis":
-            if (msg.payload?.iterationState) {
-              set({ iterationState: msg.payload.iterationState as UIIterationState });
+            if (msg.payload) {
+              const p = msg.payload;
+              set((s) => ({
+                iterationState: s.iterationState
+                  ? {
+                      ...s.iterationState,
+                      currentIteration: p.iteration ?? s.iterationState.currentIteration,
+                      currentScore: p.compositeScore ?? s.iterationState.currentScore,
+                      phase: p.compositeScore !== undefined
+                        ? (p.compositeScore >= (s.iterationState.threshold ?? 80) ? "finalizing" : "scoring")
+                        : s.iterationState.phase,
+                    }
+                  : null,
+              }));
             }
             break;
 
@@ -243,8 +255,74 @@ export const createInfraSlice: StateCreator<ChatState, [], [], InfraSlice> = (se
               }));
             }
             break;
+
+          case "agentState": {
+            const p = msg.payload;
+            if (p?.isAnalyzing === true) {
+              (get() as any).setAgentAnalyzing(true);
+            } else if (p?.isAnalyzing === false) {
+              (get() as any).setAgentAnalyzing(false);
+            }
+            break;
+          }
+
+          case "agent:analysis_complete": {
+            const p = msg.payload;
+            if (!p) break;
+            const results: Record<string, import("./types").AgentResult> = {};
+            if (p.results && typeof p.results === "object") {
+              for (const [key, val] of Object.entries(p.results as Record<string, any>)) {
+                results[key] = {
+                  id: val.id || key,
+                  name: val.name || key,
+                  score: typeof val.score === "number" ? val.score : 0,
+                  findings: Array.isArray(val.findings) ? val.findings : [],
+                  recommendations: Array.isArray(val.recommendations)
+                    ? val.recommendations.map((r: any) => ({
+                        action: typeof r === "string" ? r : (r.action ?? r.description ?? ""),
+                        impact: typeof r.impact === "number" ? r.impact : (typeof r.severity === "number" ? r.severity : 5),
+                        confidence: typeof r.confidence === "number" ? r.confidence : 50,
+                        category: r.category ?? "structure",
+                      }))
+                    : [],
+                };
+              }
+            }
+            const consensus = typeof p.consensus === "number" ? p.consensus : 0;
+            const recs = Array.isArray(p.recommendations)
+              ? p.recommendations.map((r: any, i: number) => ({
+                  agentId: r.agent ?? r.agentId ?? "unknown",
+                  action: typeof r === "string" ? r : (r.action ?? r.description ?? ""),
+                  impact: typeof r.impact === "number" ? r.impact : (typeof r.priority === "number" ? (5 - r.priority) * 4 : 5),
+                  confidence: typeof r.confidence === "number" ? r.confidence : 50,
+                  category: r.category ?? "structure",
+                  priority: r.priority ?? i,
+                }))
+              : [];
+            (get() as any).updateAgentState({
+              isAnalyzing: false,
+              results,
+              consensus,
+              shouldAutoApply: consensus >= 80,
+              recommendations: recs,
+              memory: [],
+              lastAnalyzedAt: new Date().toISOString(),
+            });
+            break;
+          }
+
+          case "agent:activity": {
+            const p = msg.payload;
+            if (p?.step && p?.text) {
+              set({
+                thinkingStep: p.step,
+                thinkingText: p.text,
+              });
+            }
+            break;
+          }
         }
-      } catch {}
+      } catch { /* ws message parse failures are non-critical */ }
     };
   },
 

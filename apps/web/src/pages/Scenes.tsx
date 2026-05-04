@@ -160,7 +160,7 @@ export default function ScenesPage() {
                 </thead>
                 <tbody className="divide-y divide-neutral-800/50">
                   {sceneRows.map((row) => (
-                    <tr key={row.versionId} className="group transition-colors hover:bg-neutral-800/30">
+                    <tr key={`${row.sessionId}::${row.versionId}`} className="group transition-colors hover:bg-neutral-800/30">
                       <td className="px-5 py-4 align-middle">
                         <div className="flex min-w-0 items-center gap-3">
                           <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-neutral-800 bg-neutral-800/50 text-[11px] font-semibold text-neutral-400">

@@ -214,7 +214,7 @@ export async function executeStandardTurnPath(params: {
         messageId: assistantMessageId
       });
 
-      broadcastEvent("scene:update", buildSceneUpdatePayload(nextSessionState));
+      broadcastEvent("scene:update", buildSceneUpdatePayload(nextSessionState.sessionId));
     }
 
     if (!isRejectedNoopModify) {

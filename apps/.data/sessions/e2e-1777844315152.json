@@ -1,0 +1,535 @@
+{
+  "sessionId": "e2e-1777844315152",
+  "ownerId": null,
+  "createdAt": "2026-05-03T21:38:35.154Z",
+  "updatedAt": "2026-05-03T21:41:33.908Z",
+  "status": "idle",
+  "currentScene": {
+    "sessionId": "e2e-1777844315152",
+    "sceneId": "scene-failed-1777844493899",
+    "code": "const clock = new THREE.Clock();\nscene.background = new THREE.Color(0xf4f7fb);\nrenderer.toneMapping = THREE.ACESFilmicToneMapping;\nrenderer.toneMappingExposure = 1.08;\nrenderer.shadowMap.enabled = true;\n\nconst keyLight = new THREE.DirectionalLight(0xffffff, 1.35);\nkeyLight.position.set(6, 10, 8);\nkeyLight.castShadow = true;\nconst fillLight = new THREE.DirectionalLight(0xbfd7ff, 0.55);\nfillLight.position.set(-7, 4, 5);\nconst pointLight = new THREE.PointLight(0xaad6ff, 0.45, 22);\npointLight.position.set(-4, 3, -5);\nscene.add(new THREE.AmbientLight(0x7f8aa6, 0.32), keyLight, fillLight, pointLight);\n\nconst floor = new THREE.Mesh(\n  new THREE.CircleGeometry(10, 64),\n  new THREE.MeshStandardMaterial({ color: 0xe6ecf5, roughness: 0.92, metalness: 0.02 })\n);\nfloor.rotation.x = -Math.PI / 2;\nfloor.position.y = -1.2;\nfloor.receiveShadow = true;\nscene.add(floor);\n\nconst cube = new THREE.Mesh(\n  new THREE.BoxGeometry(1.5, 1.5, 1.5),\n  new THREE.MeshStandardMaterial({ color: 0xe74c3c, roughness: 0.4, metalness: 0.1 })\n);\ncube.castShadow = true;\ncube.receiveShadow = true;\ncube.position.y = 0.5;\nscene.add(cube);\n\ncamera.position.set(4.4, 2.4, 5.2);\ncamera.lookAt(0, 0, 0);\n\nconst controls = new OrbitControls(camera, renderer.domElement);\ncontrols.enableDamping = true;\ncontrols.dampingFactor = 0.05;\n\nfunction animate() {\n  requestAnimationFrame(animate);\n  const t = clock.getElapsedTime();\n  cube.rotation.x = t * 0.3;\n  cube.rotation.y = t * 0.5;\n  pointLight.intensity = 0.35 + Math.sin(t * 1.2) * 0.08;\n  controls.update();\n  renderer.render(scene, camera);\n}\nanimate();",
+    "previewUrl": null,
+    "skill": "threejs",
+    "outputKind": "code",
+    "mediaType": null,
+    "mediaUrl": null,
+    "mediaArtifactId": null,
+    "mediaDurationMs": null,
+    "mediaFps": null,
+    "mediaResolution": null,
+    "mediaBytes": null,
+    "assetPlan": {
+      "manifestVersion": "asset-plan.v1",
+      "skill": "threejs",
+      "requestedQuality": "draft",
+      "strategy": "hybrid",
+      "subjectNeedsModel": false,
+      "categories": [
+        "animals"
+      ],
+      "catalog": {
+        "animals": [
+          {
+            "id": "fox",
+            "url": "https://rawcdn.githack.com/mrdoob/three.js/r128/examples/models/gltf/Fox.glb",
+            "note": "Animated quadruped model"
+          }
+        ]
+      },
+      "curatedCandidates": [
+        {
+          "id": "fox",
+          "url": "https://rawcdn.githack.com/mrdoob/three.js/r128/examples/models/gltf/Fox.glb",
+          "note": "Animated quadruped model"
+        }
+      ],
+      "fallbackPolicy": {
+        "allowInternetFallback": true,
+        "requireFallbackWarning": true,
+        "requireInlineFallbackComment": true
+      },
+      "runtimeHelpers": [
+        "createGveGltfLoader",
+        "resolveGveModelCandidates"
+      ]
+    },
+    "explanation": "Generated scene code for live preview. Live preview is currently unavailable (Quality threshold not met (Score: 79/undefined)). The generated code is saved and can be re-run. Regenerated once to satisfy OrbitControls interaction invariant.",
+    "messageId": "message-2",
+    "source": "generate",
+    "createdAt": "2026-05-03T21:41:33.904Z",
+    "updatedAt": "2026-05-03T21:41:33.904Z",
+    "versionId": "version-1",
+    "version": 1,
+    "artifactId": "artifact-1777844493904-e71073",
+    "artifactVersion": 1
+  },
+  "workspace": null,
+  "artifacts": [
+    {
+      "artifactId": "artifact-1777844493904-e71073",
+      "title": "scene-failed-1777844493899",
+      "createdAt": "2026-05-03T21:41:33.904Z",
+      "updatedAt": "2026-05-03T21:41:33.904Z",
+      "revisions": [
+        {
+          "sessionId": "e2e-1777844315152",
+          "sceneId": "scene-failed-1777844493899",
+          "code": "const clock = new THREE.Clock();\nscene.background = new THREE.Color(0xf4f7fb);\nrenderer.toneMapping = THREE.ACESFilmicToneMapping;\nrenderer.toneMappingExposure = 1.08;\nrenderer.shadowMap.enabled = true;\n\nconst keyLight = new THREE.DirectionalLight(0xffffff, 1.35);\nkeyLight.position.set(6, 10, 8);\nkeyLight.castShadow = true;\nconst fillLight = new THREE.DirectionalLight(0xbfd7ff, 0.55);\nfillLight.position.set(-7, 4, 5);\nconst pointLight = new THREE.PointLight(0xaad6ff, 0.45, 22);\npointLight.position.set(-4, 3, -5);\nscene.add(new THREE.AmbientLight(0x7f8aa6, 0.32), keyLight, fillLight, pointLight);\n\nconst floor = new THREE.Mesh(\n  new THREE.CircleGeometry(10, 64),\n  new THREE.MeshStandardMaterial({ color: 0xe6ecf5, roughness: 0.92, metalness: 0.02 })\n);\nfloor.rotation.x = -Math.PI / 2;\nfloor.position.y = -1.2;\nfloor.receiveShadow = true;\nscene.add(floor);\n\nconst cube = new THREE.Mesh(\n  new THREE.BoxGeometry(1.5, 1.5, 1.5),\n  new THREE.MeshStandardMaterial({ color: 0xe74c3c, roughness: 0.4, metalness: 0.1 })\n);\ncube.castShadow = true;\ncube.receiveShadow = true;\ncube.position.y = 0.5;\nscene.add(cube);\n\ncamera.position.set(4.4, 2.4, 5.2);\ncamera.lookAt(0, 0, 0);\n\nconst controls = new OrbitControls(camera, renderer.domElement);\ncontrols.enableDamping = true;\ncontrols.dampingFactor = 0.05;\n\nfunction animate() {\n  requestAnimationFrame(animate);\n  const t = clock.getElapsedTime();\n  cube.rotation.x = t * 0.3;\n  cube.rotation.y = t * 0.5;\n  pointLight.intensity = 0.35 + Math.sin(t * 1.2) * 0.08;\n  controls.update();\n  renderer.render(scene, camera);\n}\nanimate();",
+          "previewUrl": null,
+          "skill": "threejs",
+          "outputKind": "code",
+          "mediaType": null,
+          "mediaUrl": null,
+          "mediaArtifactId": null,
+          "mediaDurationMs": null,
+          "mediaFps": null,
+          "mediaResolution": null,
+          "mediaBytes": null,
+          "assetPlan": {
+            "manifestVersion": "asset-plan.v1",
+            "skill": "threejs",
+            "requestedQuality": "draft",
+            "strategy": "hybrid",
+            "subjectNeedsModel": false,
+            "categories": [
+              "animals"
+            ],
+            "catalog": {
+              "animals": [
+                {
+                  "id": "fox",
+                  "url": "https://rawcdn.githack.com/mrdoob/three.js/r128/examples/models/gltf/Fox.glb",
+                  "note": "Animated quadruped model"
+                }
+              ]
+            },
+            "curatedCandidates": [
+              {
+                "id": "fox",
+                "url": "https://rawcdn.githack.com/mrdoob/three.js/r128/examples/models/gltf/Fox.glb",
+                "note": "Animated quadruped model"
+              }
+            ],
+            "fallbackPolicy": {
+              "allowInternetFallback": true,
+              "requireFallbackWarning": true,
+              "requireInlineFallbackComment": true
+            },
+            "runtimeHelpers": [
+              "createGveGltfLoader",
+              "resolveGveModelCandidates"
+            ]
+          },
+          "explanation": "Generated scene code for live preview. Live preview is currently unavailable (Quality threshold not met (Score: 79/undefined)). The generated code is saved and can be re-run. Regenerated once to satisfy OrbitControls interaction invariant.",
+          "messageId": "message-2",
+          "source": "generate",
+          "createdAt": "2026-05-03T21:41:33.904Z",
+          "updatedAt": "2026-05-03T21:41:33.904Z",
+          "versionId": "version-1",
+          "version": 1,
+          "artifactId": "artifact-1777844493904-e71073",
+          "artifactVersion": 1
+        }
+      ],
+      "revisionPointer": 0
+    }
+  ],
+  "artifactPointer": 0,
+  "messages": [
+    {
+      "messageId": "message-1",
+      "role": "user",
+      "content": "Create a Three.js scene with a rotating colored cube and a point light. Keep it minimal.",
+      "kind": "input",
+      "metadata": {},
+      "createdAt": "2026-05-03T21:38:35.182Z",
+      "updatedAt": "2026-05-03T21:38:35.182Z"
+    },
+    {
+      "messageId": "message-2",
+      "role": "assistant",
+      "content": "Generated scene code for live preview. Live preview is currently unavailable (Quality threshold not met (Score: 79/undefined)). The generated code is saved and can be re-run. Regenerated once to satisfy OrbitControls interaction invariant.",
+      "kind": "generate",
+      "error": {
+        "code": "RUNTIME_API_MISMATCH",
+        "title": "Runtime API mismatch",
+        "userMessage": "The generated scene called an API that failed at runtime.",
+        "retryable": true,
+        "suggestedAction": "Retry generation or ask for a compatibility-safe version.",
+        "technicalDetail": "Quality threshold not met (Score: 79/undefined) | code:error",
+        "stage": "execution",
+        "diagnostics": {
+          "stage": "execution",
+          "requestId": "e2e-1777844315153",
+          "sessionId": "e2e-1777844315152",
+          "messageId": "message-2",
+          "message": "Quality threshold not met (Score: 79/undefined)",
+          "name": null,
+          "code": "error",
+          "status": null,
+          "cause": null,
+          "stack": null,
+          "timestamp": "2026-05-03T21:41:33.906Z",
+          "runtime": {
+            "status": "error",
+            "warningCode": null,
+            "acquireDiagnostics": null
+          }
+        }
+      },
+      "meta": [
+        "requestId:e2e-1777844315153",
+        "scene:scene-failed-1777844493899",
+        "skill:threejs",
+        "error:RUNTIME_API_MISMATCH"
+      ],
+      "metadata": [],
+      "createdAt": "2026-05-03T21:38:35.184Z",
+      "updatedAt": "2026-05-03T21:41:33.907Z"
+    },
+    {
+      "messageId": "thought-turn_started-1777844322493",
+      "role": "thought",
+      "content": "Interesting — let me process what you're looking for here.",
+      "kind": "thought",
+      "meta": [
+        "turn_started",
+        "requestId:e2e-1777844315153",
+        "messageId:message-2"
+      ],
+      "metadata": [
+        "turn_started",
+        "requestId:e2e-1777844315153",
+        "messageId:message-2"
+      ],
+      "createdAt": "2026-05-03T21:38:42.493Z",
+      "updatedAt": "2026-05-03T21:38:42.493Z"
+    },
+    {
+      "messageId": "thought-intent_parsed-1777844322565",
+      "role": "thought",
+      "content": "Got it. You're looking for a visual scene. I'm selecting the right rendering engine now.",
+      "kind": "thought",
+      "meta": [
+        "intent_parsed",
+        "requestId:e2e-1777844315153",
+        "messageId:message-2"
+      ],
+      "metadata": [
+        "intent_parsed",
+        "requestId:e2e-1777844315153",
+        "messageId:message-2"
+      ],
+      "createdAt": "2026-05-03T21:38:42.565Z",
+      "updatedAt": "2026-05-03T21:38:42.565Z"
+    },
+    {
+      "messageId": "thought-plan_created-1777844322565",
+      "role": "thought",
+      "content": "My plan has 7 stages. Let me run through them systematically.",
+      "kind": "thought",
+      "meta": [
+        "plan_created",
+        "requestId:e2e-1777844315153",
+        "messageId:message-2"
+      ],
+      "metadata": [
+        "plan_created",
+        "requestId:e2e-1777844315153",
+        "messageId:message-2"
+      ],
+      "createdAt": "2026-05-03T21:38:42.566Z",
+      "updatedAt": "2026-05-03T21:38:42.566Z"
+    },
+    {
+      "messageId": "thought-code_generated-1777844493903",
+      "role": "thought",
+      "content": "I've composed the scene code. Time to verify it passes all safety checks.",
+      "kind": "thought",
+      "meta": [
+        "code_generated",
+        "requestId:e2e-1777844315153",
+        "messageId:message-2",
+        "durationMs:154222"
+      ],
+      "metadata": [
+        "code_generated",
+        "requestId:e2e-1777844315153",
+        "messageId:message-2",
+        "durationMs:154222"
+      ],
+      "createdAt": "2026-05-03T21:41:33.903Z",
+      "updatedAt": "2026-05-03T21:41:33.903Z"
+    },
+    {
+      "messageId": "thought-executing-1777844493905",
+      "role": "thought",
+      "content": "Validation passed. Executing in an isolated sandbox environment now...",
+      "kind": "thought",
+      "meta": [
+        "executing",
+        "requestId:e2e-1777844315153",
+        "messageId:message-2",
+        "durationMs:16993"
+      ],
+      "metadata": [
+        "executing",
+        "requestId:e2e-1777844315153",
+        "messageId:message-2",
+        "durationMs:16993"
+      ],
+      "createdAt": "2026-05-03T21:41:33.905Z",
+      "updatedAt": "2026-05-03T21:41:33.905Z"
+    },
+    {
+      "messageId": "thought-sync_state-1777844493905",
+      "role": "thought",
+      "content": "The render is done. I'm saving the scene state and preparing the preview.",
+      "kind": "thought",
+      "meta": [
+        "sync_state",
+        "requestId:e2e-1777844315153",
+        "messageId:message-2"
+      ],
+      "metadata": [
+        "sync_state",
+        "requestId:e2e-1777844315153",
+        "messageId:message-2"
+      ],
+      "createdAt": "2026-05-03T21:41:33.905Z",
+      "updatedAt": "2026-05-03T21:41:33.905Z"
+    },
+    {
+      "messageId": "thought-turn_error-1777844493908",
+      "role": "thought",
+      "content": "I hit an error in the pipeline. Here are the details...",
+      "kind": "thought",
+      "meta": [
+        "turn_error",
+        "requestId:e2e-1777844315153",
+        "messageId:message-2"
+      ],
+      "metadata": [
+        "turn_error",
+        "requestId:e2e-1777844315153",
+        "messageId:message-2"
+      ],
+      "createdAt": "2026-05-03T21:41:33.908Z",
+      "updatedAt": "2026-05-03T21:41:33.908Z"
+    }
+  ],
+  "orchestrationTrace": [
+    {
+      "step": "thinking_analysis_failed",
+      "payload": {
+        "sessionId": "e2e-1777844315152",
+        "requestId": "e2e-1777844315153",
+        "diagnostics": {
+          "stage": "thinking_analysis",
+          "message": "fireworks-kimi request failed (404): {\"error\":{\"message\":\"Model not found, inaccessible, and/or not deployed\",\"param\":\"model\",\"code\":\"NOT_FOUND\",\"type\":\"error\"},\"request_id\":\"chatcmpl-25b8e753c0344ff4894687661072e0a8\"}",
+          "timestamp": "2026-05-03T21:38:42.474Z",
+          "stack": "Error: fireworks-kimi request failed (404): {\"error\":{\"message\":\"Model not found, inaccessible, and/or not deployed\",\"param\":\"model\",\"code\":\"NOT_FOUND\",\"type\":\"error\"},\"request_id\":\"chatcmpl-25b8e753c0344ff4894687661072e0a8\"}\n    at fetchChatCompletion (/home/kage/visualruntime/apps/server/server/pipeline/utils.ts:656:26)\n    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)",
+          "queryPreview": "Create a Three.js scene with a rotating colored cube and a point light. Keep it minimal.",
+          "hasScene": false,
+          "llm": {
+            "providerId": "fireworks-kimi",
+            "model": "accounts/fireworks/models/kimi-k2.6",
+            "fallbackUsed": false,
+            "attemptCount": 1,
+            "attempts": [
+              {
+                "providerId": "fireworks-kimi",
+                "model": "accounts/fireworks/models/kimi-k2.6",
+                "status": "failed",
+                "reason": "fireworks-kimi request failed (404): {\"error\":{\"message\":\"Model not found, inaccessible, a\n...[TRUNCATED]...\node\":\"NOT_FOUND\",\"type\":\"error\"},\"request_id\":\"chatcmpl-25b8e753c0344ff4894687661072e0a8\"}",
+                "retryable": false
+              }
+            ]
+          }
+        }
+      },
+      "timestamp": "2026-05-03T21:38:42.492Z"
+    },
+    {
+      "step": "intent_parsed",
+      "payload": {
+        "sessionId": "e2e-1777844315152",
+        "content": "Create a Three.js scene with a rotating colored cube and a point light. Keep it minimal."
+      },
+      "timestamp": "2026-05-03T21:38:42.493Z"
+    },
+    {
+      "step": "parse_intent",
+      "payload": {
+        "sessionId": "e2e-1777844315152",
+        "status": "running"
+      },
+      "timestamp": "2026-05-03T21:38:42.585Z"
+    },
+    {
+      "step": "select_skill",
+      "payload": {
+        "sessionId": "e2e-1777844315152",
+        "status": "running"
+      },
+      "timestamp": "2026-05-03T21:38:42.593Z"
+    },
+    {
+      "step": "build_prompt",
+      "payload": {
+        "sessionId": "e2e-1777844315152",
+        "status": "running"
+      },
+      "timestamp": "2026-05-03T21:38:42.599Z"
+    },
+    {
+      "step": "generate_code",
+      "payload": {
+        "sessionId": "e2e-1777844315152",
+        "status": "running"
+      },
+      "timestamp": "2026-05-03T21:38:42.608Z"
+    },
+    {
+      "step": "generate_code",
+      "payload": {
+        "sessionId": "e2e-1777844315152",
+        "status": "completed",
+        "selectedSkill": "threejs",
+        "source": "moonshot",
+        "code": "const clock = new THREE.Clock();\nscene.background = new THREE.Color(0xf4f7fb);\nrenderer.toneMapping = THREE.ACESFilmicToneMapping;\nrenderer.toneMappingExposure = 1.08;\nrenderer.shadowMap.enabled = true;\n\nconst keyLight = new THREE.DirectionalLight(0xffffff, 1.35);\nkeyLight.position.set(6, 10, 8);\nkeyLight.castShadow = true;\nconst fillLight = new THREE.DirectionalLight(0xbfd7ff, 0.55);\nfillLight.position.set(-7, 4, 5);\nconst pointLight = new THREE.PointLight(0xaad6ff, 0.45, 22);\npointLight.position.set(-4, 3, -5);\nscene.add(new THREE.AmbientLight(0x7f8aa6, 0.32), keyLight, fillLight, pointLight);\n\nconst floor = new THREE.Mesh(\n  new THREE.CircleGeometry(10, 64),\n  new THREE.MeshStandardMaterial({ color: 0xe6ecf5, roughness: 0.92, metalness: 0.02 })\n);\nfloor.rotation.x = -Math.PI / 2;\nfloor.position.y = -1.2;\nfloor.receiveShadow = true;\nscene.add(floor);\n\nconst cube = new THREE.Mesh(\n  new THREE.BoxGeometry(1.5, 1.5, 1.5),\n  new THREE.MeshStandardMaterial({ color: 0xe74c3c, roughness: 0.4, metalness: 0.1 })\n);\ncube.castShadow = true;\ncube.receiveShadow = true;\ncube.position.y = 0.5;\nscene.add(cube);\n\ncamera.position.set(4.4, 2.4, 5.2);\ncamera.lookAt(0, 0, 0);\n\nconst controls = new OrbitControls(camera, renderer.domElement);\ncontrols.enableDamping = true;\ncontrols.dampingFactor = 0.05;\n\nfunction animate() {\n  requestAnimationFrame(animate);\n  const t = clock.getElapsedTime();\n  cube.rotation.x = t * 0.3;\n  cube.rotation.y = t * 0.5;\n  pointLight.intensity = 0.35 + Math.sin(t * 1.2) * 0.08;\n  controls.update();\n  renderer.render(scene, camera);\n}\nanimate();",
+        "stageDurationMs": 154222
+      },
+      "timestamp": "2026-05-03T21:41:16.830Z"
+    },
+    {
+      "step": "validate_code",
+      "payload": {
+        "sessionId": "e2e-1777844315152",
+        "status": "running"
+      },
+      "timestamp": "2026-05-03T21:41:16.838Z"
+    },
+    {
+      "step": "validate_code",
+      "payload": {
+        "sessionId": "e2e-1777844315152",
+        "status": "completed",
+        "valid": true,
+        "passable": true,
+        "warnings": [],
+        "stageDurationMs": 29
+      },
+      "timestamp": "2026-05-03T21:41:16.867Z"
+    },
+    {
+      "step": "execute_code",
+      "payload": {
+        "sessionId": "e2e-1777844315152",
+        "status": "running"
+      },
+      "timestamp": "2026-05-03T21:41:16.899Z"
+    },
+    {
+      "step": "execute_code",
+      "payload": {
+        "sessionId": "e2e-1777844315152",
+        "status": "sandbox:creating",
+        "type": "sandbox:creating",
+        "stageDurationMs": 13
+      },
+      "timestamp": "2026-05-03T21:41:16.912Z"
+    },
+    {
+      "step": "execute_code",
+      "payload": {
+        "sessionId": "e2e-1777844315152",
+        "status": "sandbox:executing",
+        "type": "sandbox:executing",
+        "iteration": 1,
+        "stageDurationMs": 11495
+      },
+      "timestamp": "2026-05-03T21:41:28.394Z"
+    },
+    {
+      "step": "execute_code",
+      "payload": {
+        "sessionId": "e2e-1777844315152",
+        "status": "sandbox:analyzing",
+        "type": "sandbox:analyzing",
+        "iteration": 1,
+        "stageDurationMs": 11504
+      },
+      "timestamp": "2026-05-03T21:41:28.403Z"
+    },
+    {
+      "step": "execute_code",
+      "payload": {
+        "sessionId": "e2e-1777844315152",
+        "status": "sandbox:executing",
+        "type": "sandbox:executing",
+        "iteration": 2,
+        "stageDurationMs": 11510
+      },
+      "timestamp": "2026-05-03T21:41:28.409Z"
+    },
+    {
+      "step": "execute_code",
+      "payload": {
+        "sessionId": "e2e-1777844315152",
+        "status": "sandbox:analyzing",
+        "type": "sandbox:analyzing",
+        "iteration": 2,
+        "stageDurationMs": 11516
+      },
+      "timestamp": "2026-05-03T21:41:28.415Z"
+    },
+    {
+      "step": "execute_code",
+      "payload": {
+        "sessionId": "e2e-1777844315152",
+        "status": "error",
+        "error": "Quality threshold not met (Score: 79/undefined)",
+        "runtimeRecoveryUsed": false,
+        "stageDurationMs": 16993
+      },
+      "timestamp": "2026-05-03T21:41:33.893Z"
+    },
+    {
+      "step": "turn_error",
+      "payload": {
+        "sessionId": "e2e-1777844315152",
+        "mode": "generate",
+        "messageCount": 9,
+        "error": {
+          "code": "RUNTIME_API_MISMATCH",
+          "title": "Runtime API mismatch",
+          "userMessage": "The generated scene called an API that failed at runtime.",
+          "retryable": true,
+          "suggestedAction": "Retry generation or ask for a compatibility-safe version.",
+          "technicalDetail": "Quality threshold not met (Score: 79/undefined) | code:error",
+          "stage": "execution",
+          "diagnostics": {
+            "stage": "execution",
+            "requestId": "e2e-1777844315153",
+            "sessionId": "e2e-1777844315152",
+            "messageId": "message-2",
+            "message": "Quality threshold not met (Score: 79/undefined)",
+            "name": null,
+            "code": "error",
+            "status": null,
+            "cause": null,
+            "stack": null,
+            "timestamp": "2026-05-03T21:41:33.906Z",
+            "runtime": {
+              "status": "error",
+              "warningCode": null,
+              "acquireDiagnostics": null
+            }
+          }
+        }
+      },
+      "timestamp": "2026-05-03T21:41:33.908Z"
+    }
+  ]
+}

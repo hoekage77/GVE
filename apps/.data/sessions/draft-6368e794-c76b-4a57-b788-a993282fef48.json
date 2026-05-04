@@ -1,0 +1,130 @@
+{
+  "sessionId": "draft-6368e794-c76b-4a57-b788-a993282fef48",
+  "ownerId": null,
+  "createdAt": "2026-05-04T01:45:18.679Z",
+  "updatedAt": "2026-05-04T01:45:26.867Z",
+  "status": "parsing",
+  "currentScene": null,
+  "workspace": null,
+  "artifacts": [],
+  "artifactPointer": -1,
+  "messages": [
+    {
+      "messageId": "message-1",
+      "role": "user",
+      "content": "explain the bose eistein bridge with the help of a video or animation",
+      "kind": "input",
+      "metadata": {},
+      "createdAt": "2026-05-04T01:45:18.686Z",
+      "updatedAt": "2026-05-04T01:45:18.686Z"
+    },
+    {
+      "messageId": "message-2",
+      "role": "assistant",
+      "content": "",
+      "kind": "streaming",
+      "meta": [
+        "requestId:req-ws-1777859118646-cdbced"
+      ],
+      "metadata": [],
+      "createdAt": "2026-05-04T01:45:18.688Z",
+      "updatedAt": "2026-05-04T01:45:18.689Z"
+    },
+    {
+      "messageId": "thought-turn_started-1777859126569",
+      "role": "thought",
+      "content": "Hmm, the user likely means an Einstein-Rosen bridge rather than a Bose-Einstein bridge, so I'll treat it as a wormhole explanation. I'll use Three.js to craft an interactive 3D tunnel made from funnel-shaped geometry and warped spacetime grids, then animate a smooth camera fly-through so the viewer feels the shortcut between two points. I should add glowing particle streams drifting along the walls and subtle text callouts to explain the topology without killing the immersive vibe.",
+      "kind": "thought",
+      "meta": [
+        "turn_started",
+        "requestId:req-ws-1777859118646-cdbced",
+        "messageId:message-2"
+      ],
+      "metadata": [
+        "turn_started",
+        "requestId:req-ws-1777859118646-cdbced",
+        "messageId:message-2"
+      ],
+      "createdAt": "2026-05-04T01:45:26.569Z",
+      "updatedAt": "2026-05-04T01:45:26.569Z"
+    },
+    {
+      "messageId": "thought-intent_parsed-1777859126703",
+      "role": "thought",
+      "content": "Hmm, the user likely means an Einstein-Rosen bridge rather than a Bose-Einstein bridge, so I'll treat it as a wormhole explanation. I'll use Three.js to craft an interactive 3D tunnel made from funnel-shaped geometry and warped spacetime grids, then animate a smooth camera fly-through so the viewer feels the shortcut between two points. I should add glowing particle streams drifting along the walls and subtle text callouts to explain the topology without killing the immersive vibe.",
+      "kind": "thought",
+      "meta": [
+        "intent_parsed",
+        "requestId:req-ws-1777859118646-cdbced",
+        "messageId:message-2"
+      ],
+      "metadata": [
+        "intent_parsed",
+        "requestId:req-ws-1777859118646-cdbced",
+        "messageId:message-2"
+      ],
+      "createdAt": "2026-05-04T01:45:26.703Z",
+      "updatedAt": "2026-05-04T01:45:26.703Z"
+    },
+    {
+      "messageId": "thought-plan_created-1777859126704",
+      "role": "thought",
+      "content": "I've outlined 7 steps. Kicking off code generation...",
+      "kind": "thought",
+      "meta": [
+        "plan_created",
+        "requestId:req-ws-1777859118646-cdbced",
+        "messageId:message-2"
+      ],
+      "metadata": [
+        "plan_created",
+        "requestId:req-ws-1777859118646-cdbced",
+        "messageId:message-2"
+      ],
+      "createdAt": "2026-05-04T01:45:26.704Z",
+      "updatedAt": "2026-05-04T01:45:26.704Z"
+    }
+  ],
+  "orchestrationTrace": [
+    {
+      "step": "intent_parsed",
+      "payload": {
+        "sessionId": "draft-6368e794-c76b-4a57-b788-a993282fef48",
+        "content": "explain the bose eistein bridge with the help of a video or animation"
+      },
+      "timestamp": "2026-05-04T01:45:26.569Z"
+    },
+    {
+      "step": "parse_intent",
+      "payload": {
+        "sessionId": "draft-6368e794-c76b-4a57-b788-a993282fef48",
+        "status": "running"
+      },
+      "timestamp": "2026-05-04T01:45:26.816Z"
+    },
+    {
+      "step": "select_skill",
+      "payload": {
+        "sessionId": "draft-6368e794-c76b-4a57-b788-a993282fef48",
+        "status": "running"
+      },
+      "timestamp": "2026-05-04T01:45:26.831Z"
+    },
+    {
+      "step": "build_prompt",
+      "payload": {
+        "sessionId": "draft-6368e794-c76b-4a57-b788-a993282fef48",
+        "status": "running"
+      },
+      "timestamp": "2026-05-04T01:45:26.855Z"
+    },
+    {
+      "step": "generate_code",
+      "payload": {
+        "sessionId": "draft-6368e794-c76b-4a57-b788-a993282fef48",
+        "status": "running"
+      },
+      "timestamp": "2026-05-04T01:45:26.867Z"
+    }
+  ]
+}

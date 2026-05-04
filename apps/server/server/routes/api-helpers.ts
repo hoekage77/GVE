@@ -38,7 +38,7 @@ export function handleError(error: unknown, res: Response): void {
     });
     return;
   }
-  console.error("[api] Unhandled error:", error instanceof Error ? error.message : error);
+  console.error("[api] Unhandled error:", error instanceof Error ? `${error.message}\n${error.stack}` : error);
   res.status(500).json({
     error: "INTERNAL_ERROR",
     message: "An unexpected error occurred. Please try again.",

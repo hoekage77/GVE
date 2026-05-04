@@ -97,7 +97,7 @@ export function executeSceneCommandMutation(sessionId: string, command: unknown)
     };
   }
 
-  broadcastEvent("scene:update", buildSceneUpdatePayload(result.state));
+  broadcastEvent("scene:update", buildSceneUpdatePayload(result.state?.sessionId ?? sessionId));
 
   if (normalizedCommand === "undo" || normalizedCommand === "revision.previous") {
     broadcastEvent("version:undo", {

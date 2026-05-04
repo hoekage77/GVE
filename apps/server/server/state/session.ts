@@ -351,7 +351,9 @@ function createInternalSession(sessionId: string, ownerId: string | null = null)
 export function getOrCreateInternalSession(sessionId: string, ownerId: string | null = null): InternalSessionState {
   const resolvedSessionId = typeof sessionId === "string" ? sessionId.trim() : "";
   if (!resolvedSessionId) {
-    throw new Error("Session ID is required.");
+    const err = new Error("Session ID is required.");
+    console.error(`[Session] getOrCreateInternalSession called with empty sessionId. Stack: ${err.stack}`);
+    throw err;
   }
 
   const existing = sessions.get(resolvedSessionId);

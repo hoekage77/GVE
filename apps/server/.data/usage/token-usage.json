@@ -1,9 +1,9 @@
 {
   "globalTotals": {
-    "promptTokens": 18199,
-    "completionTokens": 115751,
-    "totalTokens": 133950,
-    "requestCount": 39
+    "promptTokens": 23017,
+    "completionTokens": 155758,
+    "totalTokens": 178775,
+    "requestCount": 50
   },
   "sessions": {
     "c771f043-02af-4278-9ec8-9177b2061bab": {
@@ -49,24 +49,59 @@
       "lastRecordedAt": "2026-05-03T11:48:48.469Z"
     },
     "df51a5e6-8202-4451-8b00-5d4c34d2f077": {
-      "promptTokens": 331,
-      "completionTokens": 8814,
-      "totalTokens": 9145,
+      "promptTokens": 1442,
+      "completionTokens": 13874,
+      "totalTokens": 15316,
+      "requestCount": 3,
+      "lastRecordedAt": "2026-05-03T12:55:56.013Z"
+    },
+    "070017bd-03a3-4950-b036-22ddea90aa4b": {
+      "promptTokens": 1414,
+      "completionTokens": 10911,
+      "totalTokens": 12325,
+      "requestCount": 3,
+      "lastRecordedAt": "2026-05-03T13:51:12.757Z"
+    },
+    "851c62e9-63ac-4060-b3a3-b0f339052cf9": {
+      "promptTokens": 317,
+      "completionTokens": 8727,
+      "totalTokens": 9044,
       "requestCount": 2,
-      "lastRecordedAt": "2026-05-03T12:53:59.978Z"
+      "lastRecordedAt": "2026-05-03T13:57:08.828Z"
+    },
+    "cff4556a-50ca-4d15-8e4b-8caf8481218a": {
+      "promptTokens": 566,
+      "completionTokens": 2173,
+      "totalTokens": 2739,
+      "requestCount": 2,
+      "lastRecordedAt": "2026-05-03T14:31:11.463Z"
+    },
+    "4b8341db-54bb-4b1d-b217-99686eccdbff": {
+      "promptTokens": 149,
+      "completionTokens": 8192,
+      "totalTokens": 8341,
+      "requestCount": 1,
+      "lastRecordedAt": "2026-05-03T14:31:40.695Z"
+    },
+    "draft-6368e794-c76b-4a57-b788-a993282fef48": {
+      "promptTokens": 1261,
+      "completionTokens": 4944,
+      "totalTokens": 6205,
+      "requestCount": 2,
+      "lastRecordedAt": "2026-05-04T01:46:06.011Z"
     }
   },
   "userDaily": {
     "dev-user": {
-      "date": "2026-05-03",
+      "date": "2026-05-04",
       "usage": {
-        "promptTokens": 3972,
-        "completionTokens": 37749,
-        "totalTokens": 41721,
-        "requestCount": 11,
-        "lastRecordedAt": "2026-05-03T12:53:59.979Z"
+        "promptTokens": 1261,
+        "completionTokens": 4944,
+        "totalTokens": 6205,
+        "requestCount": 2,
+        "lastRecordedAt": "2026-05-04T01:46:06.011Z"
       }
     }
   },
-  "savedAt": "2026-05-03T12:54:04.072Z"
+  "savedAt": "2026-05-04T01:46:08.218Z"
 }

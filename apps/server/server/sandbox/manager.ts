@@ -50,9 +50,10 @@ function generateContainerName(sessionId: string): string {
   return `terranet-sandbox-${sessionId.slice(0, 8)}-${timestamp}-${random}`;
 }
 
-export async function createSandbox(options: { sessionId: string; tools?: string[]; timeoutMs?: number }): Promise<ContainerInfo> {
-  const { sessionId, tools = [], timeoutMs = CONTAINER_TIMEOUT_MS } = options;
+export async function createSandbox(options: { sessionId: string; tools?: string[]; timeoutMs?: number; keepAlive?: boolean }): Promise<ContainerInfo> {
+  const { sessionId, tools = [], timeoutMs = CONTAINER_TIMEOUT_MS, keepAlive } = options;
 
+  console.log(`[Sandbox] createSandbox called for ${sessionId}, keepAlive=${keepAlive}, tools=${tools.join(",")}`);
   await cleanupSessionSandbox(sessionId);
 
   const containerName = generateContainerName(sessionId);
@@ -110,6 +111,7 @@ export async function createSandbox(options: { sessionId: string; tools?: string
       await installTools(trimmedContainerId, tools);
     }
 
+    console.log(`[Sandbox] createSandbox SUCCESS for ${sessionId}: container=${trimmedContainerId.slice(0,8)}, activeContainers=${activeContainers.size}`);
     return containerInfo;
   } catch (error: any) {
     await rm(workspacePath, { recursive: true, force: true });
@@ -222,29 +224,45 @@ async function installTools(containerId: string, tools: string[], maxRetries = 3
 
 export async function executeInSandbox(options: { sessionId: string; code: string; skill: string; timeoutMs?: number; files?: Record<string, string> }): Promise<SandboxExecutionResult> {
   const { sessionId, code, skill, timeoutMs = CONTAINER_TIMEOUT_MS, files } = options;
+  console.log(`[Sandbox] executeInSandbox called for ${sessionId}, activeContainers=${activeContainers.size}, keys=[${Array.from(activeContainers.keys()).join(",")}]`);
   const container = activeContainers.get(sessionId);
 
   if (!container || container.status !== "running") {
+    console.error(`[Sandbox] No active container for ${sessionId}. status=${container?.status ?? "null"}`);
     throw new Error("No active sandbox for session. Create one first.");
   }
 
   const entryFile = skill === "p5js" ? "sketch.js" : "index.js";
   const htmlFile = "index.html";
+  const containerId = container.containerId;
+
+  // Write files to a host temp location, then docker cp into container.
+  // Avoids permission conflicts caused by container chown of the mounted workspace.
+  const tmpHostPath = join(tmpdir(), `gve-cp-${sessionId.slice(0, 8)}`);
+  await mkdir(tmpHostPath, { recursive: true });
 
   if (files && Object.keys(files).length > 0) {
     for (const [path, content] of Object.entries(files)) {
       const safePath = path.startsWith("/") ? path.slice(1) : path;
       if (safePath.includes("..")) continue;
-      const fullPath = join(container.workspacePath, safePath);
-      await writeFile(fullPath, content);
+      const hostFile = join(tmpHostPath, safePath);
+      await mkdir(dirname(hostFile), { recursive: true });
+      await writeFile(hostFile, content);
+      await execAsync(`docker cp "${hostFile}" ${containerId}:/workspace/${safePath}`);
     }
   }
 
   const wrappedCode = wrapUserCodeWithImports(code, skill);
-  await writeFile(join(container.workspacePath, entryFile), wrappedCode);
+  const hostEntryFile = join(tmpHostPath, entryFile);
+  await writeFile(hostEntryFile, wrappedCode);
+  await execAsync(`docker cp "${hostEntryFile}" ${containerId}:/workspace/${entryFile}`);
 
   const htmlContent = generateHTMLWrapper(skill, entryFile);
-  await writeFile(join(container.workspacePath, htmlFile), htmlContent);
+  const hostHtmlFile = join(tmpHostPath, htmlFile);
+  await writeFile(hostHtmlFile, htmlContent);
+  await execAsync(`docker cp "${hostHtmlFile}" ${containerId}:/workspace/${htmlFile}`);
+
+  await rm(tmpHostPath, { recursive: true, force: true }).catch(() => {});
 
   const validationResult = await validateCodeExecution(container.containerId, entryFile, timeoutMs);
 
@@ -325,17 +343,20 @@ async function validateCodeExecution(containerId: string, entryFile: string, tim
   const startTime = Date.now();
 
   try {
-    const { stdout, stderr } = await execAsync(`docker exec ${containerId} node --check ${entryFile}`, { timeout: timeoutMs, cwd: "/workspace" });
+    const { stdout, stderr } = await execAsync(`docker exec ${containerId} node --check ${entryFile}`, { timeout: timeoutMs });
+    console.log(`[Sandbox] node --check passed for ${entryFile}. stdout=${stdout?.slice(0,200)}`);
     return {
       success: true,
       logs: [stdout, stderr].filter(Boolean),
       durationMs: Date.now() - startTime
     };
   } catch (error: any) {
+    const errMsg = error.stderr || error.message || "unknown";
+    console.error(`[Sandbox] node --check FAILED for ${entryFile}: ${errMsg.slice(0, 500)}`);
     return {
       success: false,
       logs: error.stdout ? [error.stdout] : [],
-      error: error.stderr || error.message,
+      error: errMsg,
       durationMs: Date.now() - startTime
     };
   }

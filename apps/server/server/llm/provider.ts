@@ -16,11 +16,11 @@ import type { ProviderDefinition, ResolvedProvider, ChatCompletionPayload } from
 
 const PROVIDER_DEFINITIONS: ProviderDefinition[] = [
   {
-    id: "gradient-kimi",
-    name: "DigitalOcean Gradient - Kimi K2.5",
-    baseUrl: process.env.GRADIENT_BASE_URL ?? "https://inference.do-ai.run/v1",
-    model: "kimi-k2.5",
-    apiKeyEnv: "GRADIENT_API_KEY",
+    id: "fireworks-kimi",
+    name: "Fireworks Kimi K2.6",
+    baseUrl: "https://api.fireworks.ai/inference/v1",
+    model: process.env.FIREWORKS_KIMI_MODEL ?? "accounts/fireworks/models/kimi-k2p6",
+    apiKeyEnv: "FIREWORKS_API_KEY",
     priority: 1,
     capabilities: {
       codeGeneration: true,
@@ -29,10 +29,11 @@ const PROVIDER_DEFINITIONS: ProviderDefinition[] = [
       streaming: true,
     },
     limits: {
-      rpm: 10,
-      concurrency: 2,
+      rpm: 30,
+      concurrency: 5,
     },
     cooldownMs: 30_000,
+    maxTokens: 4096,
     payloadTransform: null,
   },
 
@@ -54,22 +55,15 @@ const PROVIDER_DEFINITIONS: ProviderDefinition[] = [
       concurrency: 1,
     },
     cooldownMs: 60_000,
-    /**
-     * Moonshot-specific payload transform.
-     * Adds `extra_body.chat_template_kwargs.thinking` toggle for Kimi models.
-     * Also forces temperature=1 for Kimi models.
-     */
     payloadTransform(payload: ChatCompletionPayload, options: Record<string, unknown> = {}): ChatCompletionPayload {
       const enriched = { ...payload };
 
-      // Kimi models currently require temperature=1.
       if (/kimi/i.test((enriched.model as string) ?? this.model)) {
         enriched.temperature = 1;
       }
 
       const mode = (options.mode as string) ?? "thinking";
 
-      // In instant mode, explicitly disable thinking.
       if (mode === "instant") {
         const existingExtraBody = (payload.extra_body as Record<string, unknown>) ?? {};
         const existingTemplateArgs = (existingExtraBody.chat_template_kwargs as Record<string, unknown>) ?? {};
@@ -86,27 +80,6 @@ const PROVIDER_DEFINITIONS: ProviderDefinition[] = [
 
       return enriched;
     },
-  },
-
-  {
-    id: "deepseek",
-    name: "DeepSeek Chat",
-    baseUrl: "https://api.deepseek.com/v1",
-    model: "deepseek-chat",
-    apiKeyEnv: "DEEPSEEK_API_KEY",
-    priority: 3,
-    capabilities: {
-      codeGeneration: true,
-      thinking: true,
-      vision: false,
-      streaming: true,
-    },
-    limits: {
-      rpm: 60,
-      concurrency: 10,
-    },
-    cooldownMs: 30_000,
-    payloadTransform: null,
   },
 
   {
@@ -128,16 +101,17 @@ const PROVIDER_DEFINITIONS: ProviderDefinition[] = [
       concurrency: 5,
     },
     cooldownMs: 60_000,
+    maxTokens: 16384,
     payloadTransform: null,
   },
 
   {
-    id: "gradient-deepseek",
-    name: "DigitalOcean Gradient - DeepSeek R1 Distill Llama 70B",
-    baseUrl: process.env.GRADIENT_BASE_URL ?? "https://inference.do-ai.run/v1",
-    model: "deepseek-r1-distill-llama-70b",
-    apiKeyEnv: "GRADIENT_API_KEY",
-    priority: 4,
+    id: "deepseek",
+    name: "DeepSeek Chat",
+    baseUrl: "https://api.deepseek.com/v1",
+    model: "deepseek-chat",
+    apiKeyEnv: "DEEPSEEK_API_KEY",
+    priority: 3,
     capabilities: {
       codeGeneration: true,
       thinking: true,
@@ -145,8 +119,8 @@ const PROVIDER_DEFINITIONS: ProviderDefinition[] = [
       streaming: true,
     },
     limits: {
-      rpm: 10,
-      concurrency: 2,
+      rpm: 60,
+      concurrency: 10,
     },
     cooldownMs: 30_000,
     payloadTransform: null,
@@ -210,6 +184,48 @@ const PROVIDER_DEFINITIONS: ProviderDefinition[] = [
     limits: {
       rpm: 10,
       concurrency: 4,
+    },
+    cooldownMs: 30_000,
+    payloadTransform: null,
+  },
+
+  {
+    id: "gradient-kimi",
+    name: "DigitalOcean Gradient - Kimi K2.5",
+    baseUrl: process.env.GRADIENT_BASE_URL ?? "https://inference.do-ai.run/v1",
+    model: "kimi-k2.5",
+    apiKeyEnv: "GRADIENT_API_KEY",
+    priority: 8,
+    capabilities: {
+      codeGeneration: true,
+      thinking: true,
+      vision: true,
+      streaming: true,
+    },
+    limits: {
+      rpm: 10,
+      concurrency: 2,
+    },
+    cooldownMs: 30_000,
+    payloadTransform: null,
+  },
+
+  {
+    id: "gradient-deepseek",
+    name: "DigitalOcean Gradient - DeepSeek R1 Distill Llama 70B",
+    baseUrl: process.env.GRADIENT_BASE_URL ?? "https://inference.do-ai.run/v1",
+    model: "deepseek-r1-distill-llama-70b",
+    apiKeyEnv: "GRADIENT_API_KEY",
+    priority: 9,
+    capabilities: {
+      codeGeneration: true,
+      thinking: true,
+      vision: false,
+      streaming: true,
+    },
+    limits: {
+      rpm: 10,
+      concurrency: 2,
     },
     cooldownMs: 30_000,
     payloadTransform: null,

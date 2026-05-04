@@ -128,13 +128,13 @@ export function intentToProviderFilter(intent: TurnIntent): {
     case "generate":
       return {
         requireCodeGeneration: true,
-        preferredProviderId: "moonshot", // Kimi 2.6
+        preferredProviderId: "fireworks-kimi",
       };
     case "modify":
       return {
         requireCodeGeneration: true,
         requireThinking: true,
-        preferredProviderId: "moonshot",
+        preferredProviderId: "fireworks-kimi",
       };
     case "debug":
       return {

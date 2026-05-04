@@ -5,6 +5,9 @@ import { createSessionSlice } from "./sessionSlice";
 import { createComposerSlice } from "./composerSlice";
 import { createPipelineSlice } from "./pipelineSlice";
 import { createInfraSlice } from "./infraSlice";
+import { createSupabaseStorage } from "./supabaseStorage";
+
+const storage = createSupabaseStorage("terranet-chat-storage");
 
 export const useChatStore = create<ChatState>()(
   devtools(
@@ -41,13 +44,13 @@ export const useChatStore = create<ChatState>()(
         name: "terranet-chat-storage",
         version: 1,
         migrate: (persistedState, _version) => persistedState as ChatState,
-        partialize: (state) => ({
+        partialize: (state): Partial<ChatState> => ({
           sessions: state.sessions,
-          messages: state.messages,
           activeSessionId: state.activeSessionId,
           isSidebarCollapsed: state.isSidebarCollapsed,
           panelWidth: state.panelWidth,
         }),
+        storage: storage as any,
       }
     ),
     { name: "chat-store" }

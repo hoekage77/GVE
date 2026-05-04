@@ -17,7 +17,7 @@ import { executeSkillRuntimeWithQualityDecision } from "./runtime-executor.js";
 // Import constants from orchestrator (these will be re-exported from utils later if needed)
 const disableGenerateAutoModify = process.env.DISABLE_GENERATE_AUTO_MODIFY === "true" || process.env.DISABLE_GENERATE_AUTO_MODIFY === "1";
 const runtimeDebugMaxIterations = Number.parseInt(process.env.RUNTIME_DEBUG_MAX_ITERATIONS ?? "2", 10) || 2;
-const runtimeRecoveryBudgetMs = Number.parseInt(process.env.RUNTIME_RECOVERY_BUDGET_MS ?? "24000", 10) || 24000;
+const runtimeRecoveryBudgetMs = Number.parseInt(process.env.RUNTIME_RECOVERY_BUDGET_MS ?? "300000", 10) || 300000;
 const runtimeExecutionMaxFrames = Number.parseInt(process.env.RUNTIME_EXEC_MAX_FRAMES ?? "48", 10) || 48;
 const selfDebugSessionTimeoutMs = Number.parseInt(process.env.SELF_DEBUG_SESSION_TIMEOUT_MS ?? "14000", 10) || 14000;
 const runtimeExecutionTimeoutMs = Number.parseInt(process.env.RUNTIME_EXEC_TIMEOUT_MS ?? "2200", 10) || 2200;
