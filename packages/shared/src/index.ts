@@ -1,3 +1,11 @@
+export {
+  CURATED_THREEJS_ASSETS,
+  MODEL_SUBJECT_PATTERN,
+  resolveModelCategories,
+  getModelCandidateUrls,
+  type CuratedAsset,
+} from "./model-catalog";
+
 export type SkillId = "threejs" | "p5js" | "d3js" | "animejs" | "manim";
 export type SkillPreference = SkillId | "auto";
 
