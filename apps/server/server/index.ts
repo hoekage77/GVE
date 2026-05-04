@@ -2,6 +2,7 @@ import { createServer } from "node:http";
 
 import { WebSocketServer } from "ws";
 
+import "./env.js";
 import { createApp } from "./create-app.js";
 import { shutdownSandboxRuntime } from "./sandbox/skill-runtime.js";
 import { shutdownSessions } from "./state/session.js";
@@ -32,8 +33,16 @@ server.listen(port, () => {
 });
 
 // ── Graceful shutdown ──
+const SHUTDOWN_TIMEOUT_MS = 30_000;
+
 function gracefulShutdown(signal: "SIGTERM" | "SIGINT"): void {
   console.log(`[Server] Received ${signal}. Flushing sessions and shutting down...`);
+
+  const timeout = setTimeout(() => {
+    console.error("[Server] Shutdown timed out. Forcing exit.");
+    process.exit(1);
+  }, SHUTDOWN_TIMEOUT_MS);
+
   void (async () => {
     try {
       await shutdownSandboxRuntime({ deleteIdleSandboxes: true });
@@ -43,13 +52,17 @@ function gracefulShutdown(signal: "SIGTERM" | "SIGINT"): void {
 
     shutdownSessions();
     shutdownTokenUsage();
-    server.close(() => {
-      console.log("[Server] Closed.");
+
+    server.close((err) => {
+      clearTimeout(timeout);
+      if (err) {
+        console.error("[Server] Error closing server:", err);
+        process.exit(1);
+      }
+      console.log("[Server] Closed gracefully.");
       process.exit(0);
     });
   })();
-  // Force exit after 5s if server doesn't close
-  setTimeout(() => process.exit(1), 5000);
 }
 
 process.on("SIGTERM", () => gracefulShutdown("SIGTERM"));

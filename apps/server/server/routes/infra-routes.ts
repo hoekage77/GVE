@@ -15,6 +15,8 @@ import { getSessionUsage, getUserDailyTokenUsage, getGlobalTokenTotals, getToken
 import { getOrCreateInternalSession } from "../state/session.js";
 import { getDedicatedSandboxStatus } from "../sandbox/dedicated-manager.js";
 import { listProviders } from "@visual-runtime/shared";
+import { requestSchema } from "../pipeline/utils.js";
+import { executeRequestSchema } from "../pipeline/task-planning.js";
 
 export const infraRouter = Router();
 
@@ -100,8 +102,9 @@ infraRouter.get("/api/v1/media/:mediaKey", (req: any, res: any) => {
 
 infraRouter.post("/api/v1/tasks/plan", requireAuth, async (req: any, res: any) => {
   try {
-    const tasks = await planTasks(req.body);
-    broadcastEvent("tasks:planned", { planId: req.body?.planId, sessions: req.body?.sessions, tasks });
+    const validated = requestSchema.parse(req.body);
+    const tasks = await planTasks(validated);
+    broadcastEvent("tasks:planned", { planId: validated?.planId, sessions: validated?.sessions, tasks });
     res.json({ success: true, tasks });
   } catch (error) {
     handleError(error, res);
@@ -110,9 +113,10 @@ infraRouter.post("/api/v1/tasks/plan", requireAuth, async (req: any, res: any) =
 
 infraRouter.post("/api/v1/tasks/execute", requireAuth, async (req: any, res: any) => {
   try {
-    broadcastEvent("task:started", { planId: req.body?.planId, taskId: req.body?.task?.id });
-    const result = await executeTask(req.body);
-    broadcastEvent("task:completed", { planId: req.body?.planId, taskId: req.body?.task?.id, result });
+    const validated = executeRequestSchema.parse(req.body);
+    broadcastEvent("task:started", { planId: validated.planId, taskId: validated.task.id });
+    const result = await executeTask(validated);
+    broadcastEvent("task:completed", { planId: validated.planId, taskId: validated.task.id, result });
     res.json({ success: true, result });
   } catch (error) {
     broadcastEvent("task:failed", { planId: req.body?.planId, taskId: req.body?.task?.id, message: error instanceof Error ? error.message : "Unknown task error" });

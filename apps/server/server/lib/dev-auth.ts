@@ -7,11 +7,20 @@ import type { Request, Response, NextFunction } from "express";
 import { clerkMiddleware, requireAuth as clerkRequireAuth, getAuth as clerkGetAuth } from "@clerk/express";
 
 const DUMMY_KEY = "pk_test_dGVzdC10ZXJyYW5ldC1jbGVyay5jbGVyay5hY2NvdW50cy5kZXYk";
+const isProduction = process.env.NODE_ENV === "production";
 const hasClerkKey = Boolean(
   process.env.CLERK_SECRET_KEY &&
   process.env.CLERK_PUBLISHABLE_KEY &&
   process.env.CLERK_PUBLISHABLE_KEY !== DUMMY_KEY
 );
+
+/* In production, auth MUST be configured. Fail closed. */
+if (isProduction && !hasClerkKey) {
+  throw new Error(
+    "FATAL: Missing CLERK_SECRET_KEY or CLERK_PUBLISHABLE_KEY in production. " +
+    "Authentication cannot be bypassed in production mode."
+  );
+}
 
 export const DEV_USER_ID = "dev-user";
 
@@ -34,7 +43,15 @@ export function requireAuth(
   next: NextFunction
 ): void {
   if (hasClerkKey) {
-    clerkRequireAuth()(req, res, next);
+    const auth = conditionalGetAuth(req);
+    if (!auth?.userId) {
+      res.status(401).json({
+        error: "UNAUTHORIZED",
+        message: "Authentication required. Please sign in.",
+      });
+      return;
+    }
+    next();
   } else {
     next();
   }

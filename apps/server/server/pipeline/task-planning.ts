@@ -24,7 +24,7 @@ const taskSchema = z.object({
   dependsOn: z.array(z.string())
 });
 
-const executeRequestSchema = z.object({
+export const executeRequestSchema = z.object({
   planId: z.string().min(3),
   task: taskSchema
 });

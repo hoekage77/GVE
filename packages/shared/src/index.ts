@@ -486,10 +486,14 @@ async function requestJson<T>(
 ): Promise<T> {
   let lastError: unknown = null;
   const requestUrl = resolveApiUrl(url);
+  const initWithCredentials: RequestInit = {
+    ...init,
+    credentials: init.credentials ?? "include",
+  };
 
   for (let attempt = 0; attempt <= retryCount; attempt += 1) {
     try {
-      const response = await fetch(requestUrl, init);
+      const response = await fetch(requestUrl, initWithCredentials);
 
       if (response.ok) {
         return (await response.json()) as T;

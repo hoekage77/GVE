@@ -49,9 +49,39 @@ function loadEnvFile(envPath: string): void {
 }
 
 const currentDir = dirname(fileURLToPath(import.meta.url));
-loadEnvFile(join(currentDir, ".env"));
-console.log("[Env] Loaded .env from", join(currentDir, ".env"));
-// Removed secret indicator logging
+// Try package-root .env first, then same-dir fallback for legacy layouts
+const envPath = join(currentDir, "..", ".env");
+const fallbackEnvPath = join(currentDir, ".env");
+const loadedEnvPath = existsSync(envPath) ? envPath : fallbackEnvPath;
+loadEnvFile(loadedEnvPath);
+console.log("[Env] Loaded .env from", loadedEnvPath);
+
+// Startup security check: warn if .env file looks like it contains real secrets
+function warnIfEnvContainsSecrets(path: string): void {
+  if (!existsSync(path)) return;
+  const content = readFileSync(path, "utf8");
+  const secretPatterns = [
+    /sk-[a-zA-Z0-9]{20,}/,          // OpenAI-style keys
+    /dtn_[a-f0-9]{40,}/,            // Daytona keys
+    /gsk_[a-zA-Z0-9]{20,}/,         // Groq keys
+    /AIza[a-zA-Z0-9_-]{20,}/,      // Gemini keys
+    /fw_[a-zA-Z0-9]{10,}/,          // Fireworks keys
+    /sk_test_[a-zA-Z0-9]{10,}/,     // Clerk test keys
+    /pk_test_[a-zA-Z0-9]{10,}/,     // Clerk publishable keys
+  ];
+  let matchCount = 0;
+  for (const pattern of secretPatterns) {
+    if (pattern.test(content)) matchCount++;
+  }
+  if (matchCount >= 2) {
+    console.warn(
+      "[Env][SECURITY] The .env file appears to contain real API keys on disk. " +
+      "Ensure .env files are excluded from version control and backups. " +
+      "If this machine is shared or imaged, rotate your keys immediately."
+    );
+  }
+}
+warnIfEnvContainsSecrets(loadedEnvPath);
 
 function hasValue(value: string | undefined | null): boolean {
   return value !== undefined && value !== null && String(value).trim() !== "";

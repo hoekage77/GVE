@@ -5,8 +5,8 @@ module.exports = {
     {
       name: 'dosco-api',
       cwd: __dirname,
-      script: 'node',
-      args: 'dist/index.js',
+      script: 'npm',
+      args: 'start',
       interpreter: 'node',
       exec_mode: 'fork',
       instances: 1,
@@ -15,9 +15,7 @@ module.exports = {
       max_memory_restart: '1G',
       time: true,
       env: {
-        NODE_ENV: 'production',
         PORT: 8000
-        // API keys are loaded from dist/.env file
       }
     }
   ]

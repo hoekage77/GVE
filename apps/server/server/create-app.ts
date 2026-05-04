@@ -12,16 +12,20 @@ const apiLimiter = rateLimit({
   max: 120,
   standardHeaders: true,
   legacyHeaders: false,
-  message: { error: "RATE_LIMITED", message: "Too many requests. Please try again shortly." }
+  message: { error: "RATE_LIMITED", message: "Too many requests. Please try again shortly." },
+  validate: { xForwardedForHeader: false }
 });
 
 export function createApp(): express.Express {
   initializeSessions();
   initializeTokenUsage();
   const app = express();
+  app.set("trust proxy", 1);
 
+  const corsOrigin = process.env.CORS_ORIGIN;
   app.use(cors({
-    origin: process.env.CORS_ORIGIN || "*",
+    origin: corsOrigin ?? false,
+    credentials: Boolean(corsOrigin),
     methods: ["GET", "POST", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization", "x-user-id", "x-request-id"],
     maxAge: 86400

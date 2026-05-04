@@ -243,9 +243,14 @@ export async function executeInSandbox(options: { sessionId: string; code: strin
 
   if (files && Object.keys(files).length > 0) {
     for (const [path, content] of Object.entries(files)) {
-      const safePath = path.startsWith("/") ? path.slice(1) : path;
-      if (safePath.includes("..")) continue;
-      const hostFile = join(tmpHostPath, safePath);
+      const normalized = path.replace(/\\/g, "/").replace(/\/+/g, "/");
+      const safePath = normalized.startsWith("/") ? normalized.slice(1) : normalized;
+      // Reject path traversal segments anywhere in the path
+      if (safePath.split("/").some((segment) => segment === "..")) continue;
+      // Reject absolute paths or paths that resolve outside workspace
+      const resolved = join(tmpHostPath, safePath);
+      if (!resolved.startsWith(tmpHostPath + "/") && resolved !== tmpHostPath) continue;
+      const hostFile = resolved;
       await mkdir(dirname(hostFile), { recursive: true });
       await writeFile(hostFile, content);
       await execAsync(`docker cp "${hostFile}" ${containerId}:/workspace/${safePath}`);
