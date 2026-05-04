@@ -20,6 +20,10 @@ import { executeRequestSchema } from "../pipeline/task-planning.js";
 
 export const infraRouter = Router();
 
+infraRouter.get("/", (_req: any, res: any) => {
+  res.json({ status: "ok", backend: "js", message: "Visual Engine API" });
+});
+
 infraRouter.get("/healthz", (_req: any, res: any) => {
   const daytonaPreflight = getDaytonaEnvPreflight();
   const pool = getPool();
