@@ -4,7 +4,7 @@ export {
   resolveModelCategories,
   getModelCandidateUrls,
   type CuratedAsset,
-} from "./model-catalog";
+} from "./model-catalog.js";
 
 export type SkillId = "threejs" | "p5js" | "d3js" | "animejs" | "manim";
 export type SkillPreference = SkillId | "auto";

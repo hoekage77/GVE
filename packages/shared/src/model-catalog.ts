@@ -68,16 +68,11 @@ export const CURATED_THREEJS_ASSETS: Record<string, readonly CuratedAsset[]> = O
       id: "damaged-helmet",
       url: "/vendor/models/DamagedHelmet.glb",
       note: "Detailed PBR helmet model with wear textures"
-    }),
-    Object.freeze({
-      id: "suzanne",
-      url: "/vendor/models/Suzanne.glb",
-      note: "Classic Blender monkey head model"
     })
   ])
 });
 
-export const MODEL_SUBJECT_PATTERN = /\b(human|person|man|woman|character|avatar|robot|bird|eagle|owl|parrot|flamingo|stork|animal|creature|fox|wolf|cat|dog|horse|car|truck|vehicle|helmet|ship|buggy|suzanne|monkey|skull|brainstem)\b/i;
+export const MODEL_SUBJECT_PATTERN = /\b(human|person|man|woman|character|avatar|robot|bird|eagle|owl|parrot|flamingo|stork|animal|creature|fox|wolf|cat|dog|horse|car|truck|vehicle|helmet|buggy|brainstem)\b/i;
 
 export function resolveModelCategories(sourceText?: string | null): string[] {
   const text = String(sourceText ?? "").toLowerCase();
@@ -99,7 +94,7 @@ export function resolveModelCategories(sourceText?: string | null): string[] {
     categories.add("vehicles");
   }
 
-  if (/(helmet|suzanne|monkey|skull|pbr|detailed|weapon|gadget|tool|object|thing)/.test(text)) {
+  if (/(helmet|pbr|detailed|weapon|gadget|tool|object|thing)/.test(text)) {
     categories.add("objects");
   }
 
@@ -129,7 +124,7 @@ export function getModelCandidateUrls(subject: string): CuratedAsset[] {
   if (/car|truck|vehicle|buggy/.test(text)) {
     return CURATED_THREEJS_ASSETS.vehicles as CuratedAsset[];
   }
-  if (/helmet|suzanne|monkey|skull/.test(text)) {
+  if (/helmet/.test(text)) {
     return CURATED_THREEJS_ASSETS.objects as CuratedAsset[];
   }
 

@@ -4,6 +4,7 @@
  */
 
 import { parse } from "acorn";
+import { MODEL_SUBJECT_PATTERN } from "@visual-runtime/shared";
 
 // ─── Types ───────────────────────────────────────────────────────────
 
@@ -111,7 +112,6 @@ const SKILL_API_WHITELIST: Record<string, SkillWhitelist> = {
 
 // ─── Patterns ────────────────────────────────────────────────────────
 
-const HIGH_FIDELITY_SUBJECT_PATTERN = /\b(human|person|man|woman|character|avatar|bird|animal|creature|fox|wolf|cat|dog|eagle|owl|parrot|flamingo|stork)\b/i;
 const DYNAMIC_SCENE_PATTERN = /\b(animate|animation|motion|move|moving|fly|flying|spin|spinning|rotate|rotation|orbit|dance|walk|run|loop|timeline)\b/i;
 const STATIC_SCENE_PATTERN = /\b(static|still|poster|logo|icon|infographic|chart|graph|diagram)\b/i;
 
@@ -149,12 +149,16 @@ function checkThreejsQuality(code: string, options: ValidateOptions = {}): { err
   const normalizedCode = String(code ?? "");
   const sourceText = extractValidationSourceText(options);
   const parsedIntentType = String(options.parsedIntent?.intentType ?? "").toLowerCase();
-  const expectsModelSubject = HIGH_FIDELITY_SUBJECT_PATTERN.test(sourceText);
+  const expectsModelSubject = MODEL_SUBJECT_PATTERN.test(sourceText);
   const expectsDynamicMotion = STATIC_SCENE_PATTERN.test(sourceText) ? false : DYNAMIC_SCENE_PATTERN.test(sourceText) || parsedIntentType === "animate";
 
   const hasModelLoader = /\b(GLTFLoader|createGveGltfLoader|resolveGveModelCandidates|DRACOLoader)\b/.test(normalizedCode);
   const hasModelUrl = /\.(?:glb|gltf)(?:[?#][^\s"'`)]*)?/i.test(normalizedCode);
   const boxGeometryCount = countRegexMatches(normalizedCode, /\bBoxGeometry\b/g);
+  const cylinderGeometryCount = countRegexMatches(normalizedCode, /\bCylinderGeometry\b/g);
+  const hasEnvMap = /\b(RGBELoader|HDRLoader|scene\s*\.\s*environment\b|__GVE_ENV_MAP_URL)/.test(normalizedCode);
+  const hasOrbitControls = /\b(OrbitControls|controls\s*\.\s*(?:update|enableDamping))\b/.test(normalizedCode);
+  const primitiveCount = boxGeometryCount + cylinderGeometryCount;
   const hasHighQualityMaterial = /\bMesh(?:Standard|Physical)Material\b/.test(normalizedCode);
   const ambientLightCount = countRegexMatches(normalizedCode, /\bAmbientLight\b/g);
   const keyLightCount = countRegexMatches(normalizedCode, /\b(?:DirectionalLight|SpotLight|PointLight|HemisphereLight|RectAreaLight)\b/g);
@@ -165,11 +169,15 @@ function checkThreejsQuality(code: string, options: ValidateOptions = {}): { err
   const warnings: ValidationWarning[] = [];
 
   if (expectsModelSubject && !hasModelLoader && !hasModelUrl) {
-    errors.push({ code: "QUALITY_MODEL_SUBJECT_MISSING", message: "High-fidelity Three.js scenes for humans/animals/birds must load at least one GLTF/GLB model via GLTFLoader or createGveGltfLoader()." });
+    errors.push({ code: "QUALITY_MODEL_SUBJECT_MISSING", message: "High-fidelity Three.js scenes for humans/animals/birds/vehicles must load at least one GLTF/GLB model via GLTFLoader or createGveGltfLoader()." });
   }
 
-  if (expectsModelSubject && boxGeometryCount >= 3 && !hasModelLoader && !hasModelUrl) {
-    errors.push({ code: "QUALITY_PRIMITIVE_SUBJECT_FALLBACK", message: "Detected primitive-heavy subject construction. Avoid multi-BoxGeometry stand-ins when the subject requires model fidelity." });
+  if (expectsModelSubject && primitiveCount >= 2 && !hasModelLoader && !hasModelUrl) {
+    errors.push({ code: "QUALITY_PRIMITIVE_SUBJECT_FALLBACK", message: "Detected primitive-heavy subject construction. Avoid BoxGeometry/CylinderGeometry stand-ins when the subject requires model fidelity." });
+  }
+
+  if (expectsModelSubject && !hasOrbitControls) {
+    warnings.push({ code: "QUALITY_ORBITCONTROLS_RECOMMENDED", message: "Interactive 3D scenes should include OrbitControls for camera navigation." });
   }
 
   const hasLayeredLighting = ambientLightCount >= 1 && keyLightCount >= 1;
@@ -177,8 +185,9 @@ function checkThreejsQuality(code: string, options: ValidateOptions = {}): { err
   if (quality === "high") {
     if (!hasHighQualityMaterial) errors.push({ code: "QUALITY_MATERIAL_FIDELITY_LOW", message: "High quality Three.js scenes should use MeshStandardMaterial or MeshPhysicalMaterial for hero assets." });
     if (!hasLayeredLighting) errors.push({ code: "QUALITY_LIGHTING_INSUFFICIENT", message: "High quality Three.js scenes require layered lighting (ambient + key/fill/rim-capable light)." });
-    if (expectsDynamicMotion && !hasAnimationLoop) errors.push({ code: "QUALITY_MOTION_MISSING", message: "Dynamic/animated requests should include an explicit animation loop (requestAnimationFrame or setAnimationLoop)." });
+    if (expectsDynamicMotion && !hasAnimationLoop) errors.push({ code: "QUALITY_MOTION_MISSING", message: "Dynamic/animated requests should include an explicit animation loop." });
     if (!hasRendererQualityPipeline) warnings.push({ code: "QUALITY_RENDERER_PIPELINE_HINT", message: "Consider explicit renderer tone mapping/exposure settings for cinematic contrast." });
+    if (!hasEnvMap) warnings.push({ code: "QUALITY_ENV_MAP_RECOMMENDED", message: "High quality scenes benefit from an HDR environment map for realistic PBR reflections. Use RGBELoader to load an equirectangular HDR." });
   }
 
   if (quality === "standard") {

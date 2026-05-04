@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState, useImperativeHandle, forwardRef } from "react";
 import { Plus, Minus, RotateCcw, Compass, CheckCircle2, AlertCircle, Sparkles, Pause, Play, Gamepad2, Lock, Unlock, Keyboard, Grid3X3 } from "lucide-react";
 import { cn } from "../lib/utils";
+import { CURATED_THREEJS_ASSETS, getModelCandidateUrls } from "@visual-runtime/shared";
 
 export interface SceneViewerRef {
   zoomIn: () => void;
@@ -140,61 +141,11 @@ function buildSceneHTML(code: string, skill: string, vendorDataUrls?: Record<str
         window.OrbitControls = __controlsCtor;
       }
 
-      window.__GVE_MODEL_LIBRARY = {
-        humans: [
-          {
-            id: 'cesium-man',
-            url: 'https://rawcdn.githack.com/KhronosGroup/glTF-Sample-Models/master/2.0/CesiumMan/glTF-Binary/CesiumMan.glb',
-            note: 'Neutral standing human model'
-          },
-          {
-            id: 'robot-expressive',
-            url: 'https://rawcdn.githack.com/mrdoob/three.js/r164/examples/models/gltf/RobotExpressive/RobotExpressive.glb',
-            note: 'Expressive humanoid fallback'
-          }
-        ],
-        birds: [
-          {
-            id: 'flamingo',
-            url: 'https://rawcdn.githack.com/mrdoob/three.js/r164/examples/models/gltf/Flamingo.glb',
-            note: 'Animated bird model'
-          },
-          {
-            id: 'parrot',
-            url: 'https://rawcdn.githack.com/mrdoob/three.js/r164/examples/models/gltf/Parrot.glb',
-            note: 'Animated bird model'
-          },
-          {
-            id: 'stork',
-            url: 'https://rawcdn.githack.com/mrdoob/three.js/r164/examples/models/gltf/Stork.glb',
-            note: 'Animated bird model'
-          }
-        ],
-        animals: [
-          {
-            id: 'fox',
-            url: 'https://rawcdn.githack.com/mrdoob/three.js/r164/examples/models/gltf/Fox.glb',
-            note: 'Animated quadruped model'
-          }
-        ]
-      };
+      window.__GVE_MODEL_LIBRARY = CURATED_THREEJS_ASSETS;
 
       window.resolveGveModelCandidates = function(subject) {
-        const text = String(subject || '').toLowerCase();
-        if (/bird|eagle|owl|parrot|flamingo|stork/.test(text)) {
-          return window.__GVE_MODEL_LIBRARY.birds;
-        }
-        if (/human|person|man|woman|character|avatar|robot/.test(text)) {
-          return window.__GVE_MODEL_LIBRARY.humans;
-        }
-        if (/animal|fox|wolf|cat|dog|creature/.test(text)) {
-          return window.__GVE_MODEL_LIBRARY.animals;
-        }
-        return [
-          ...window.__GVE_MODEL_LIBRARY.humans,
-          ...window.__GVE_MODEL_LIBRARY.birds,
-          ...window.__GVE_MODEL_LIBRARY.animals
-        ];
+        const candidates = getModelCandidateUrls(subject);
+        return candidates;
       };
 
       window.createGveGltfLoader = function() {
@@ -209,6 +160,8 @@ function buildSceneHTML(code: string, skill: string, vendorDataUrls?: Record<str
         }
         return loader;
       };
+
+      window.__GVE_ENV_MAP_URL = '/vendor/env/venice_sunset_1k.hdr';
 
       // Compatibility shims for generated code across Three.js versions.
       // Map old r128 API names to r160+ equivalents so generated code works.
