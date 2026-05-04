@@ -268,7 +268,12 @@ export function MetaAIMessage({
                 <span>Fallback</span>
               </span>
             )}
-            {errorCode && <span className="rounded-full border border-red-400/40 bg-red-400/15 px-2 py-0.5 text-[10px] text-red-200">{errorCode}</span>}
+            {errorCode && (
+              <span className="inline-flex items-center gap-1 rounded-full border border-red-400/40 bg-red-400/15 px-2 py-0.5 text-[10px] text-red-200">
+                <AlertTriangle className="h-3.5 w-3.5" aria-hidden="true" />
+                <span>{errorCode}</span>
+              </span>
+            )}
           </div>
         )}
 
@@ -322,23 +327,29 @@ export function MetaAIMessage({
   );
 }
 
-export function AIMessage({
-  content,
-  thoughts = [],
-  isThinking = false,
-  thinkingText,
-  thinkingDuration = 0,
-  timestamp,
-  variant = "legacy",
-  artifactCards = [],
-  sceneCode,
-  sceneSkill,
-  sceneId,
-  sceneVersionId,
-  onSceneExpand,
-  onSceneCode
-}: AIMessageProps) {
+export function AIMessage(props: AIMessageProps) {
+  const {
+    content,
+    thoughts = [],
+    isThinking = false,
+    thinkingText,
+    thinkingDuration = 0,
+    timestamp,
+    variant = "legacy",
+    artifactCards = [],
+    sceneCode,
+    sceneSkill,
+    sceneId,
+    sceneVersionId,
+    onSceneExpand,
+    onSceneCode
+  } = props;
   const isMetaVariant = variant === "meta";
+
+  if (isMetaVariant) {
+    return <MetaAIMessage {...props} />;
+  }
+
   const [activeArtifactIndex, setActiveArtifactIndex] = useState(0);
 
   useEffect(() => {

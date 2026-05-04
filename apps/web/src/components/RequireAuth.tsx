@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 import { useEffect } from 'react';
-import { SignedIn, SignedOut } from '../lib/clerk';
+import { useUser } from '../lib/clerk';
 
 function RedirectToAuth() {
   useEffect(() => {
@@ -21,6 +21,17 @@ function RedirectToAuth() {
   );
 }
 
+function LoadingAuth() {
+  return (
+    <div className="flex min-h-svh items-center justify-center bg-auth-bg text-white">
+      <div className="flex flex-col items-center gap-4 text-center">
+        <div className="h-12 w-12 animate-spin rounded-full border-4 border-auth-accent border-t-transparent" />
+        <h1 className="text-xl font-semibold">Checking authentication...</h1>
+      </div>
+    </div>
+  );
+}
+
 export function RequireAuth({
   children,
   fallback,
@@ -28,10 +39,15 @@ export function RequireAuth({
   children: ReactNode;
   fallback?: ReactNode;
 }) {
-  return (
-    <>
-      <SignedIn>{children}</SignedIn>
-      <SignedOut>{fallback ?? <RedirectToAuth />}</SignedOut>
-    </>
-  );
+  const { isLoaded, isSignedIn } = useUser();
+
+  if (!isLoaded) {
+    return <LoadingAuth />;
+  }
+
+  if (!isSignedIn) {
+    return <>{fallback ?? <RedirectToAuth />}</>;
+  }
+
+  return <>{children}</>;
 }
