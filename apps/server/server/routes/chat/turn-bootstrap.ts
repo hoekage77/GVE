@@ -29,8 +29,7 @@ export async function bootstrapTurnState(
     kind: "input"
   });
 
-  broadcastEvent("message:created", { sessionId, message: userMessage });
-  broadcastEvent("message.append", { sessionId, message: userMessage });
+  broadcastEvent("message:append", { sessionId, message: userMessage });
 
   const assistantMessageId = createSessionMessageId(sessionId);
   const assistantPlaceholder = appendSessionMessage(sessionId, {

@@ -5,7 +5,31 @@
 export type SkillId = "threejs" | "p5js" | "d3js" | "animejs" | "manim";
 
 export interface WorkspaceRecord {
-  files: Record<string, { path: string; content: string; purpose: string; skill: SkillId; generatedAt: string }>;
+  files: Record<string, WorkspaceFileEntry>;
+  entryPoint: string;
+  dependencies: string[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface FileRevision {
+  version: number;
+  content: string;
+  createdAt: string;
+  agentAction: "generate" | "patch" | "user-edit";
+}
+
+export interface WorkspaceFileEntry {
+  path: string;
+  content: string;
+  purpose: string;
+  skill: SkillId;
+  generatedAt: string;
+  history: FileRevision[];
+}
+
+export interface WorkspaceRecord {
+  files: Record<string, WorkspaceFileEntry>;
   entryPoint: string;
   dependencies: string[];
   createdAt: string;
@@ -25,6 +49,7 @@ export interface SceneVersion {
   outputKind: string | null;
   mediaType: string | null;
   mediaUrl: string | null;
+  workspace: WorkspaceRecord | null;
   createdAt: string;
   updatedAt: string;
 }

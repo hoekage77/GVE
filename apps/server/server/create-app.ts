@@ -1,11 +1,17 @@
 import cors from "cors";
 import express from "express";
 import rateLimit from "express-rate-limit";
+import swaggerUi from "swagger-ui-express";
+import YAML from "yamljs";
+import { readFileSync } from "node:fs";
+import { join, dirname } from "node:path";
+import { fileURLToPath } from "node:url";
 
 import { apiRouter } from "./routes/api.js";
 import { initializeSessions } from "./state/session.js";
 import { initializeTokenUsage } from "./state/token-usage.js";
 import { conditionalClerkMiddleware } from "./lib/dev-auth.js";
+import { runMigration } from "./db/migrate.js";
 
 const apiLimiter = rateLimit({
   windowMs: 60 * 1000,
@@ -17,6 +23,7 @@ const apiLimiter = rateLimit({
 });
 
 export function createApp(): express.Express {
+  runMigration();
   initializeSessions();
   initializeTokenUsage();
   const app = express();
@@ -45,6 +52,17 @@ export function createApp(): express.Express {
   app.use(conditionalClerkMiddleware());
   app.use("/api/", apiLimiter);
   app.use(express.json({ limit: "8mb" }));
+
+  /* ─── Swagger Docs ─── */
+  const __dirname = dirname(fileURLToPath(import.meta.url));
+  const swaggerDoc = YAML.parse(
+    readFileSync(join(__dirname, "../docs/openapi.yaml"), "utf-8")
+  );
+  app.use("/docs", swaggerUi.serve, swaggerUi.setup(swaggerDoc, {
+    customCss: ".swagger-ui .topbar { display: none }",
+    customSiteTitle: "Visual Engine API",
+  }));
+
   app.use("/", apiRouter);
   return app;
 }

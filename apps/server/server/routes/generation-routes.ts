@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { requireAuth, resolveUserId, handleError, extractMediaFields } from "./api-helpers.js";
+import { requireAuthOrApiKey, resolveUserId, handleError, extractMediaFields } from "./api-helpers.js";
 import {
   createSession,
   recordSceneVersion,
@@ -12,7 +12,7 @@ import { checkTokenLimit } from "../state/token-usage.js";
 
 export const generationRouter = Router();
 
-generationRouter.post("/api/v1/generate", requireAuth, async (req: any, res: any) => {
+generationRouter.post("/api/v1/generate", requireAuthOrApiKey, async (req: any, res: any) => {
   const requestId = `req-${Date.now()}-${Math.random().toString(16).slice(2, 8)}`;
   const sessionState = createSession(req.body?.sessionId);
   const userId = resolveUserId(req);
@@ -57,7 +57,7 @@ generationRouter.post("/api/v1/generate", requireAuth, async (req: any, res: any
   }
 });
 
-generationRouter.post("/api/v1/generate/multi-file", requireAuth, async (req: any, res: any) => {
+generationRouter.post("/api/v1/generate/multi-file", requireAuthOrApiKey, async (req: any, res: any) => {
   const requestId = `req-mf-${Date.now()}-${Math.random().toString(16).slice(2, 8)}`;
   const sessionState = createSession(req.body?.sessionId);
   const userId = resolveUserId(req);
@@ -97,7 +97,7 @@ generationRouter.post("/api/v1/generate/multi-file", requireAuth, async (req: an
   }
 });
 
-generationRouter.post("/api/v1/generate/from-image", requireAuth, async (req: any, res: any) => {
+generationRouter.post("/api/v1/generate/from-image", requireAuthOrApiKey, async (req: any, res: any) => {
   const requestId = `req-img-${Date.now()}-${Math.random().toString(16).slice(2, 8)}`;
   const sessionState = createSession(req.body?.sessionId);
   const imageUrl = req.body?.imageUrl || null;

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState, useImperativeHandle, forwardRef } from "react";
 import { Plus, Minus, RotateCcw, Compass, CheckCircle2, AlertCircle, Sparkles, Pause, Play, Gamepad2, Lock, Unlock, Keyboard, Grid3X3 } from "lucide-react";
 import { cn } from "../lib/utils";
-import { CURATED_THREEJS_ASSETS, getModelCandidateUrls } from "../api";
+import { CURATED_THREEJS_ASSETS } from "../api";
 
 export interface SceneViewerRef {
   zoomIn: () => void;
@@ -13,9 +13,12 @@ export interface SceneViewerRef {
 }
 
 interface SceneViewerProps {
-  code: string | null;
-  skill: string | null;
+  code?: string | null;
+  skill?: string | null;
+  files?: Record<string, string>;
+  fileSkills?: Record<string, string>;
   onError?: (error: string) => void;
+  onExpand?: () => void;
 }
 
 const CDN_VENDOR_FILES: Record<string, string[]> = {
@@ -141,11 +144,23 @@ function buildSceneHTML(code: string, skill: string, vendorDataUrls?: Record<str
         window.OrbitControls = __controlsCtor;
       }
 
-      window.__GVE_MODEL_LIBRARY = CURATED_THREEJS_ASSETS;
+      window.__GVE_MODEL_LIBRARY = ${JSON.stringify(CURATED_THREEJS_ASSETS)};
 
       window.resolveGveModelCandidates = function(subject) {
-        const candidates = getModelCandidateUrls(subject);
-        return candidates;
+        const text = String(subject || "").toLowerCase();
+        const lib = window.__GVE_MODEL_LIBRARY || {};
+        if (/bird|eagle|owl|parrot|flamingo|stork/.test(text)) return lib.birds || [];
+        if (/human|person|man|woman|character|avatar|robot|brainstem|cesium/.test(text)) return lib.humans || [];
+        if (/animal|fox|wolf|cat|dog|horse|creature/.test(text)) return lib.animals || [];
+        if (/car|truck|vehicle|buggy/.test(text)) return lib.vehicles || [];
+        if (/helmet/.test(text)) return lib.objects || [];
+        return [
+          ...(lib.humans || []),
+          ...(lib.animals || []),
+          ...(lib.birds || []),
+          ...(lib.vehicles || []),
+          ...(lib.objects || [])
+        ];
       };
 
       window.createGveGltfLoader = function() {
@@ -731,7 +746,122 @@ function buildSceneHTML(code: string, skill: string, vendorDataUrls?: Record<str
 </html>`;
 }
 
-const SceneViewer = forwardRef<SceneViewerRef, SceneViewerProps>(({ code, skill, onError }, ref) => {
+/* ── Multi-skill composite rendering ── */
+
+const SKILL_Z_LAYERS: Record<string, number> = {
+  threejs: 0,
+  p5js: 1,
+  d3js: 2,
+  animejs: 3,
+};
+
+const SKILL_CONTAINERS: Record<string, string> = {
+  threejs: '<canvas id="three-canvas" style="position:absolute;inset:0;width:100%;height:100%;z-index:0;"></canvas>',
+  p5js:    '<div id="p5-container" style="position:absolute;inset:0;width:100%;height:100%;z-index:1;"></div>',
+  d3js:    '<svg id="d3-svg" style="position:absolute;inset:0;width:100%;height:100%;z-index:2;pointer-events:none;"></svg>',
+  animejs: '<div id="anime-stage" style="position:absolute;inset:0;width:100%;height:100%;z-index:3;pointer-events:none;"></div>',
+};
+
+const SKILL_PREAMBLES: Record<string, string> = {
+  threejs: `
+    import * as THREE from 'three';
+    import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+    import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+    import { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js';
+    import { RGBELoader } from 'three/addons/loaders/RGBELoader.js';
+    window.THREE = { ...THREE, GLTFLoader, DRACOLoader, RGBELoader };
+    window.OrbitControls = OrbitControls;
+  `,
+  p5js: `
+    import p5 from 'p5';
+    window.p5 = p5;
+  `,
+  d3js: `
+    import * as d3 from 'd3';
+    window.d3 = d3;
+  `,
+  animejs: `
+    import anime from 'animejs';
+    window.anime = anime.default || anime;
+  `,
+};
+
+function buildCompositeSceneHTML(
+  files: Record<string, string>,
+  fileSkills: Record<string, string>,
+  vendorDataUrls?: Record<string, string>,
+  cdnInlineScripts?: string
+): string {
+  const uniqueSkills = [...new Set(Object.values(fileSkills))].sort(
+    (a, b) => (SKILL_Z_LAYERS[a] ?? 99) - (SKILL_Z_LAYERS[b] ?? 99)
+  );
+
+  const hasThreejs = uniqueSkills.includes('threejs');
+  const threejsImportMap = hasThreejs && vendorDataUrls ? `
+  <script type="importmap">
+    {
+      "imports": {
+        ${THREE_VENDOR_FILES.map(({ importName }) => `"${importName}": "${vendorDataUrls[importName]}"`).join(',\n        ')}
+      }
+    }
+  </script>` : '';
+
+  const containerDivs = uniqueSkills
+    .map((s) => SKILL_CONTAINERS[s] || `<div id="${s}-layer" style="position:absolute;inset:0;width:100%;height:100%;z-index:${SKILL_Z_LAYERS[s] ?? 99};"></div>`)
+    .join('\n  ');
+
+  const moduleScripts = Object.entries(files)
+    .map(([path, code]) => {
+      const s = fileSkills[path];
+      if (!s) return '';
+      const preamble = SKILL_PREAMBLES[s] || '';
+      return `<script type="module">
+${preamble}
+try {
+  const __userCodeSource = ${JSON.stringify(code)};
+  const __executeGeneratedCode = new Function(__userCodeSource);
+  __executeGeneratedCode.call(window);
+} catch (err) {
+  console.error('[GenVis]', err);
+  parent.postMessage({ type: 'scene:error', error: err.message }, '*');
+}
+</script>`;
+    })
+    .filter(Boolean)
+    .join('\n  ');
+
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { overflow: hidden; background: #0a0a0a; }
+    #scene-root { position: relative; width: 100vw; height: 100vh; }
+  </style>
+  ${threejsImportMap}
+  ${cdnInlineScripts || ''}
+</head>
+<body>
+  <div id="scene-root">
+  ${containerDivs}
+  </div>
+  ${moduleScripts}
+  <script>
+    window.GenVisBus = {
+      _listeners: {},
+      on(evt, fn) { (this._listeners[evt] = this._listeners[evt] || []).push(fn); },
+      emit(evt, data) { (this._listeners[evt] || []).forEach(fn => fn(data)); }
+    };
+    window.addEventListener('error', e => { console.error('[GenVis]', e.error?.message || e.message); parent.postMessage({ type: 'scene:error', error: e.error?.message || e.message }, '*'); });
+    window.addEventListener('unhandledrejection', e => { const r = e.reason?.message || String(e.reason); console.error('[GenVis] Unhandled:', r); parent.postMessage({ type: 'scene:error', error: r }, '*'); });
+  </script>
+</body>
+</html>`;
+}
+
+const SceneViewer = forwardRef<SceneViewerRef, SceneViewerProps>(({ code, skill, files, fileSkills, onError, onExpand }, ref) => {
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const [runtimeError, setRuntimeError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -796,13 +926,16 @@ const SceneViewer = forwardRef<SceneViewerRef, SceneViewerProps>(({ code, skill,
     return () => window.removeEventListener('message', handleMessage);
   }, [onError]);
 
-  // Render scene when code/skill changes
+  // Render scene when code/skill or files change
   useEffect(() => {
-    if (!code || !skill || !iframeRef.current) {
+    const isMultiSkill = files && fileSkills && Object.keys(files).length > 0;
+    const hasSingle = code && skill;
+    if (!isMultiSkill && !hasSingle) {
       setIsRendered(false);
       setRuntimeError(null);
       return;
     }
+    if (!iframeRef.current) return;
 
     setIsLoading(true);
     setRuntimeError(null);
@@ -816,19 +949,34 @@ const SceneViewer = forwardRef<SceneViewerRef, SceneViewerProps>(({ code, skill,
     let cancelled = false;
 
     const renderScene = async () => {
-      const vendorDataUrls = skill === 'threejs' ? await fetchThreeVendorDataUrls() : undefined;
-      if (cancelled) return;
-
-      const cdnPaths = CDN_VENDOR_FILES[skill];
-      const cdnInlineScripts = cdnPaths ? await fetchCdnInlineScripts(cdnPaths) : undefined;
-      if (cancelled) return;
-
-      const html = buildSceneHTML(code, skill, vendorDataUrls, cdnInlineScripts);
       const iframe = iframeRef.current;
       if (!iframe || cancelled) return;
+
+      let html: string;
+      if (isMultiSkill && files && fileSkills) {
+        const allSkills = [...new Set(Object.values(fileSkills))];
+        const needsThree = allSkills.includes('threejs');
+        const vendorDataUrls = needsThree ? await fetchThreeVendorDataUrls() : undefined;
+        if (cancelled) return;
+
+        const cdnPaths = allSkills.flatMap((s) => CDN_VENDOR_FILES[s] || []);
+        const cdnInlineScripts = cdnPaths.length > 0 ? await fetchCdnInlineScripts(cdnPaths) : undefined;
+        if (cancelled) return;
+
+        html = buildCompositeSceneHTML(files, fileSkills, vendorDataUrls, cdnInlineScripts);
+      } else {
+        const vendorDataUrls = skill === 'threejs' ? await fetchThreeVendorDataUrls() : undefined;
+        if (cancelled) return;
+
+        const cdnPaths = skill ? CDN_VENDOR_FILES[skill] : undefined;
+        const cdnInlineScripts = cdnPaths ? await fetchCdnInlineScripts(cdnPaths) : undefined;
+        if (cancelled) return;
+
+        html = buildSceneHTML(code!, skill!, vendorDataUrls, cdnInlineScripts);
+      }
+
       iframe.srcdoc = html;
 
-      // Simulate loading time
       const timer = setTimeout(() => {
         if (!cancelled) {
           setIsLoading(false);
@@ -845,7 +993,7 @@ const SceneViewer = forwardRef<SceneViewerRef, SceneViewerProps>(({ code, skill,
       cancelled = true;
       result.then(cleanup => cleanup?.());
     };
-  }, [code, skill]);
+  }, [code, skill, files, fileSkills]);
 
   useEffect(() => {
     if (typeof window === "undefined") {
@@ -919,7 +1067,7 @@ const SceneViewer = forwardRef<SceneViewerRef, SceneViewerProps>(({ code, skill,
     postControl("focus_input");
   };
 
-  const is3D = skill === 'threejs';
+  const is3D = skill === 'threejs' || (fileSkills && Object.values(fileSkills).includes('threejs'));
 
   useEffect(() => {
     if (!is3D || !isRendered) {
@@ -953,7 +1101,7 @@ const SceneViewer = forwardRef<SceneViewerRef, SceneViewerProps>(({ code, skill,
               <AlertCircle className="mb-3 h-12 w-12 text-red-400/70" />
               <p className="max-w-lg text-sm text-red-200/80">{runtimeError}</p>
             </div>
-          ) : !code ? (
+          ) : !code && (!files || Object.keys(files).length === 0) ? (
             <div className="flex h-full flex-col items-center justify-center px-8 text-center">
               <div className="mb-4 inline-flex h-14 w-14 items-center justify-center rounded-2xl border border-white/15 bg-white/5">
                 <Sparkles className="h-7 w-7 text-cyan-300/85" />
@@ -971,10 +1119,16 @@ const SceneViewer = forwardRef<SceneViewerRef, SceneViewerProps>(({ code, skill,
                 title="Scene preview"
               />
 
-              <div className="pointer-events-none absolute left-4 top-4 inline-flex items-center gap-2 rounded-full bg-black/55 px-2.5 py-1 font-mono text-[10px] uppercase tracking-[0.2em] text-cyan-200/90 backdrop-blur-sm">
-                <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-cyan-300" />
-                Live Preview
-              </div>
+              {onExpand && (
+                <button
+                  type="button"
+                  onClick={onExpand}
+                  className="absolute right-4 top-4 z-20 flex h-8 w-8 items-center justify-center rounded-full bg-black/55 text-white/70 backdrop-blur-sm transition-all hover:bg-black/70 hover:text-white"
+                  title="Open Cinema Mode"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m21 21-6-6m6 6v-4.8m0 4.8h-4.8"/><path d="M3 16.2V21m0 0h4.8M3 21l6-6"/><path d="M21 7.8V3m0 0h-4.8M21 3l-6 6"/><path d="M3 7.8V3m0 0h4.8M3 3l6 6"/></svg>
+                </button>
+              )}
 
               {isLoading && (
                 <div className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-[#050507]/78 backdrop-blur-sm">
@@ -987,76 +1141,72 @@ const SceneViewer = forwardRef<SceneViewerRef, SceneViewerProps>(({ code, skill,
         </div>
 
         <div className="shrink-0 bg-black/40 px-3 py-2 backdrop-blur-sm">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <div className="flex items-center gap-1">
-              {is3D && (
-                <>
-                  <button className={controlButtonClass} onClick={handleZoomOut} title="Zoom out">
-                    <Minus className="mx-auto h-3.5 w-3.5" />
-                  </button>
-                  <button className={controlButtonClass} onClick={handleZoomIn} title="Zoom in">
-                    <Plus className="mx-auto h-3.5 w-3.5" />
-                  </button>
-                  <button className={controlButtonClass} onClick={handleResetCamera} title="Reset camera">
-                    <RotateCcw className="mx-auto h-3.5 w-3.5" />
-                  </button>
-                  <button
-                    className={cn(
-                      controlButtonClass,
-                      !isPlaying && "border-sky-400/35 bg-sky-400/12 text-sky-300"
-                    )}
-                    onClick={handleTogglePlayback}
-                    title={isPlaying ? "Pause" : "Play"}
-                  >
-                    {isPlaying ? <Pause className="mx-auto h-3.5 w-3.5" /> : <Play className="mx-auto h-3.5 w-3.5" />}
-                  </button>
-                  <button
-                    className={cn(controlButtonClass, orbitEnabled && "border-fuchsia-400/30 bg-fuchsia-400/10 text-fuchsia-200")}
-                    onClick={handleToggleOrbit}
-                    title="Toggle orbit controls"
-                  >
-                    <Compass className="mx-auto h-3.5 w-3.5" />
-                  </button>
-                  <button
-                    className={cn(controlButtonClass, isGridEnabled && "border-emerald-400/30 bg-emerald-400/10 text-emerald-200")}
-                    onClick={handleToggleGrid}
-                    title="Toggle grid"
-                  >
-                    <Grid3X3 className="mx-auto h-3.5 w-3.5" />
-                  </button>
-                  <button
-                    className={cn(controlButtonClass, isGameModeEnabled && "border-amber-400/30 bg-amber-400/10 text-amber-200")}
-                    onClick={handleToggleGameMode}
-                    title="Toggle game mode"
-                  >
-                    <Gamepad2 className="mx-auto h-3.5 w-3.5" />
-                  </button>
-                  <button
-                    className={cn(controlButtonClass, isPointerLocked && "border-cyan-400/35 bg-cyan-400/10 text-cyan-200")}
-                    onClick={handlePointerLockToggle}
-                    title={isPointerLocked ? "Exit mouse lock" : "Lock mouse"}
-                  >
-                    {isPointerLocked ? <Unlock className="mx-auto h-3.5 w-3.5" /> : <Lock className="mx-auto h-3.5 w-3.5" />}
-                  </button>
-                  <button className={controlButtonClass} onClick={handleFocusInput} title="Focus input">
-                    <Keyboard className="mx-auto h-3.5 w-3.5" />
-                  </button>
-                </>
-              )}
-            </div>
+          <div className="flex items-center justify-center gap-1.5">
+            {is3D && (
+              <>
+                <button className={controlButtonClass} onClick={handleZoomOut} title="Zoom out">
+                  <Minus className="mx-auto h-3.5 w-3.5" />
+                </button>
+                <button className={controlButtonClass} onClick={handleZoomIn} title="Zoom in">
+                  <Plus className="mx-auto h-3.5 w-3.5" />
+                </button>
+                <button className={controlButtonClass} onClick={handleResetCamera} title="Reset camera">
+                  <RotateCcw className="mx-auto h-3.5 w-3.5" />
+                </button>
+                <button
+                  className={cn(
+                    controlButtonClass,
+                    !isPlaying && "border-sky-400/35 bg-sky-400/12 text-sky-300"
+                  )}
+                  onClick={handleTogglePlayback}
+                  title={isPlaying ? "Pause" : "Play"}
+                >
+                  {isPlaying ? <Pause className="mx-auto h-3.5 w-3.5" /> : <Play className="mx-auto h-3.5 w-3.5" />}
+                </button>
+                <button
+                  className={cn(controlButtonClass, orbitEnabled && "border-fuchsia-400/30 bg-fuchsia-400/10 text-fuchsia-200")}
+                  onClick={handleToggleOrbit}
+                  title="Toggle orbit controls"
+                >
+                  <Compass className="mx-auto h-3.5 w-3.5" />
+                </button>
+                <button
+                  className={cn(controlButtonClass, isGridEnabled && "border-emerald-400/30 bg-emerald-400/10 text-emerald-200")}
+                  onClick={handleToggleGrid}
+                  title="Toggle grid"
+                >
+                  <Grid3X3 className="mx-auto h-3.5 w-3.5" />
+                </button>
+                <button
+                  className={cn(controlButtonClass, isGameModeEnabled && "border-amber-400/30 bg-amber-400/10 text-amber-200")}
+                  onClick={handleToggleGameMode}
+                  title="Toggle game mode"
+                >
+                  <Gamepad2 className="mx-auto h-3.5 w-3.5" />
+                </button>
+                <button
+                  className={cn(controlButtonClass, isPointerLocked && "border-cyan-400/35 bg-cyan-400/10 text-cyan-200")}
+                  onClick={handlePointerLockToggle}
+                  title={isPointerLocked ? "Exit mouse lock" : "Lock mouse"}
+                >
+                  {isPointerLocked ? <Unlock className="mx-auto h-3.5 w-3.5" /> : <Lock className="mx-auto h-3.5 w-3.5" />}
+                </button>
+                <button className={controlButtonClass} onClick={handleFocusInput} title="Focus input">
+                  <Keyboard className="mx-auto h-3.5 w-3.5" />
+                </button>
+              </>
+            )}
 
-            <div className="flex items-center gap-2 text-[11px] text-white/60">
-              <span className="inline-flex items-center gap-1 rounded-full border border-white/10 bg-white/5 px-2 py-0.5 font-mono">
-                <CheckCircle2 className="h-3.5 w-3.5 text-emerald-300" />
-                {isLoading ? "Rendering" : runtimeError ? "Error" : isRendered ? "Ready" : "Idle"}
+            <span className="inline-flex items-center gap-1 rounded-full border border-white/10 bg-white/5 px-2 py-0.5 font-mono text-[11px] text-white/60">
+              <CheckCircle2 className="h-3.5 w-3.5 text-emerald-300" />
+              {isLoading ? "Rendering" : runtimeError ? "Error" : isRendered ? "Ready" : "Idle"}
+            </span>
+            {isGamepadConnected && (
+              <span className="inline-flex items-center gap-1 rounded-full border border-sky-400/25 bg-sky-400/10 px-2 py-0.5 font-mono text-[11px] text-sky-200">
+                <Gamepad2 className="h-3.5 w-3.5" />
+                Gamepad
               </span>
-              {isGamepadConnected && (
-                <span className="inline-flex items-center gap-1 rounded-full border border-sky-400/25 bg-sky-400/10 px-2 py-0.5 font-mono text-sky-200">
-                  <Gamepad2 className="h-3.5 w-3.5" />
-                  Gamepad
-                </span>
-              )}
-            </div>
+            )}
           </div>
         </div>
 

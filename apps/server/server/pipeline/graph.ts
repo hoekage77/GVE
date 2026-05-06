@@ -1030,6 +1030,10 @@ const agentSelfDebugNode = async (state: any) => {
 
 const abortExecutionNode = () => {
   return {
+    runtime: {
+      success: false,
+      error: "Execution aborted after agent self-debug recovery failed to resolve validation errors.",
+    },
     execution: {
       success: false,
       previewUrl: null,

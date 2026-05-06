@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { requireAuth, resolveUserId, handleError } from "./api-helpers.js";
+import { requireAuthOrApiKey, resolveUserId, handleError } from "./api-helpers.js";
 import { getDaytonaEnvPreflight } from "../env.js";
 import { getPool } from "../llm/pool.js";
 import { getSandboxRuntimeMetrics } from "../sandbox/skill-runtime.js";
@@ -16,6 +16,7 @@ import { getOrCreateInternalSession } from "../state/session.js";
 import { getDedicatedSandboxStatus } from "../sandbox/dedicated-manager.js";
 import { requestSchema } from "../pipeline/utils.js";
 import { executeRequestSchema } from "../pipeline/task-planning.js";
+import { apiKeyRepo } from "../db/repositories/apikey-repo.js";
 
 export const infraRouter = Router();
 
@@ -82,7 +83,7 @@ infraRouter.get("/api/v1/providers", (_req: any, res: any) => {
   res.json({ providers });
 });
 
-infraRouter.get("/api/v1/usage", requireAuth, (req: any, res: any) => {
+infraRouter.get("/api/v1/usage", requireAuthOrApiKey, (req: any, res: any) => {
   const userId = resolveUserId(req);
   const sessionId = req.query.sessionId ? String(req.query.sessionId) : null;
 
@@ -104,7 +105,7 @@ infraRouter.get("/api/v1/media/:mediaKey", (req: any, res: any) => {
   streamMediaArtifact(req, res, (req.params as any).mediaKey);
 });
 
-infraRouter.post("/api/v1/tasks/plan", requireAuth, async (req: any, res: any) => {
+infraRouter.post("/api/v1/tasks/plan", requireAuthOrApiKey, async (req: any, res: any) => {
   try {
     const validated = requestSchema.parse(req.body);
     const tasks = await planTasks(validated);
@@ -115,7 +116,7 @@ infraRouter.post("/api/v1/tasks/plan", requireAuth, async (req: any, res: any) =
   }
 });
 
-infraRouter.post("/api/v1/tasks/execute", requireAuth, async (req: any, res: any) => {
+infraRouter.post("/api/v1/tasks/execute", requireAuthOrApiKey, async (req: any, res: any) => {
   try {
     const validated = executeRequestSchema.parse(req.body);
     broadcastEvent("task:started", { planId: validated.planId, taskId: validated.task.id });
@@ -124,6 +125,54 @@ infraRouter.post("/api/v1/tasks/execute", requireAuth, async (req: any, res: any
     res.json({ success: true, result });
   } catch (error) {
     broadcastEvent("task:failed", { planId: req.body?.planId, taskId: req.body?.task?.id, message: error instanceof Error ? error.message : "Unknown task error" });
+    handleError(error, res);
+  }
+});
+
+/* ─── API Key Management ─── */
+
+infraRouter.post("/api/v1/auth/api-keys", requireAuthOrApiKey, (req: any, res: any) => {
+  try {
+    const userId = resolveUserId(req);
+    const name = String(req.body?.name ?? "").trim() || "Unnamed Key";
+    const scopes = Array.isArray(req.body?.scopes) ? req.body.scopes : ["*"];
+    const { row, plainKey } = apiKeyRepo.generate(userId!, name, scopes);
+    res.json({
+      data: {
+        id: row.id,
+        name: row.name,
+        key: plainKey,
+        scopes: JSON.parse(row.scopes),
+        created_at: row.created_at,
+      },
+      error: null,
+    });
+  } catch (error) {
+    handleError(error, res);
+  }
+});
+
+infraRouter.get("/api/v1/auth/api-keys", requireAuthOrApiKey, (req: any, res: any) => {
+  try {
+    const userId = resolveUserId(req);
+    const keys = apiKeyRepo.listByUser(userId!);
+    res.json({ data: keys, error: null });
+  } catch (error) {
+    handleError(error, res);
+  }
+});
+
+infraRouter.delete("/api/v1/auth/api-keys/:id", requireAuthOrApiKey, (req: any, res: any) => {
+  try {
+    const userId = resolveUserId(req);
+    const id = String(req.params.id);
+    const deleted = apiKeyRepo.delete(id, userId!);
+    if (!deleted) {
+      res.status(404).json({ error: "NOT_FOUND", message: "API key not found." });
+      return;
+    }
+    res.json({ data: { deleted: true }, error: null });
+  } catch (error) {
     handleError(error, res);
   }
 });

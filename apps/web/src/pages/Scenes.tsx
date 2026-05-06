@@ -104,7 +104,7 @@ export default function ScenesPage() {
   const codeCount = sceneRows.length - mediaCount;
 
   const handleOpenInStudio = async (sessionId: string) => {
-    await selectSession(sessionId);
+    selectSession(sessionId);
     await navigate({ to: '/chat' });
   };
 

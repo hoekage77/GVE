@@ -2,6 +2,7 @@ import type { StateCreator } from "zustand";
 import type { ChatState, UIAgentState, UIIterationState } from "./types";
 import type { WorkspaceRecord, WorkspaceFileEntry } from "../../api";
 import { listProviders, resolveWebSocketUrl } from "../../api";
+import { queryClient } from "../../lib/query-client";
 import { nowIso } from "./helpers";
 
 export interface InfraSlice {
@@ -10,12 +11,14 @@ export interface InfraSlice {
   activeProviderId: string;
   agentState: UIAgentState | null;
   iterationState: UIIterationState | null;
+  pendingApproval: ChatState["pendingApproval"];
 
   setActiveProvider: (providerId: string) => void;
   fetchProviders: () => Promise<void>;
   updateAgentState: (state: UIAgentState | null) => void;
   setAgentAnalyzing: (isAnalyzing: boolean) => void;
   clearAgentState: () => void;
+  setPendingApproval: (approval: ChatState["pendingApproval"]) => void;
   updateIterationState: (state: UIIterationState | null) => void;
   abortIteration: () => void;
 
@@ -24,6 +27,7 @@ export interface InfraSlice {
   connectWebSocket: () => void;
   handleWorkspaceUpdate: (payload: any) => void;
   handleFilePatched: (payload: any) => void;
+  sendApprovalResponse: (approved: boolean) => void;
 }
 
 export const createInfraSlice: StateCreator<ChatState, [], [], InfraSlice> = (set, get) => ({
@@ -32,6 +36,7 @@ export const createInfraSlice: StateCreator<ChatState, [], [], InfraSlice> = (se
   activeProviderId: "auto",
   agentState: null,
   iterationState: null,
+  pendingApproval: null,
   _ws: null,
   _wsSeq: 0,
 
@@ -52,6 +57,8 @@ export const createInfraSlice: StateCreator<ChatState, [], [], InfraSlice> = (se
     })),
 
   clearAgentState: () => set({ agentState: null }),
+
+  setPendingApproval: (approval) => set({ pendingApproval: approval }),
 
   updateIterationState: (state) => set({ iterationState: state }),
 
@@ -91,7 +98,14 @@ export const createInfraSlice: StateCreator<ChatState, [], [], InfraSlice> = (se
               thinkingStep: step,
             });
 
-            if (isFinal && thoughtText && sessionId) {
+            // Only persist thought messages for substantive agent work.
+            // Skip generic lifecycle events (turn_started/turn_complete) that
+            // clutter the UI for simple chat responses.
+            const isTrivialLifecycle =
+              (step === "turn_started" || step === "turn_complete") &&
+              (!msg.payload?.detail || msg.payload?.detail === "");
+
+            if (isFinal && thoughtText && sessionId && !isTrivialLifecycle) {
               const requestId = msg.payload?.requestId ?? null;
               const messageId = msg.payload?.messageId ?? null;
               const stepLabel = msg.payload?.stepLabel ?? null;
@@ -119,74 +133,255 @@ export const createInfraSlice: StateCreator<ChatState, [], [], InfraSlice> = (se
                 createdAt: nowIso(),
                 updatedAt: nowIso(),
               });
+
+              queryClient.invalidateQueries({ queryKey: ["messages", sessionId] });
             }
             break;
           }
 
-          case "message:append": {
+          case "message:append":
+          case "message.append": {
             const p = msg.payload;
-            if (p?.messageId && p?.content != null) {
-              const sessionId = p.sessionId || (get() as any).activeSessionId;
-              const state = get() as any;
-              const existing = state.messages[sessionId] || [];
-              const target = existing.find((m: any) => m.id === p.messageId);
-              if (target) {
-                const updated = existing.map((m: any) =>
-                  m.id === p.messageId
-                    ? { ...m, content: m.content + p.content, updatedAt: nowIso() }
-                    : m
-                );
-                set({ messages: { ...state.messages, [sessionId]: updated } });
-              } else {
-                state.addMessage(sessionId, {
-                  id: p.messageId,
-                  role: p.role || "assistant",
-                  content: p.content,
-                  kind: p.kind || "message",
-                  meta: p.meta || [],
-                  error: null,
-                  createdAt: p.createdAt || nowIso(),
-                  updatedAt: nowIso(),
-                });
-              }
+            const m = p?.message;
+            const sessionId = p?.sessionId;
+            if (!sessionId || !m) break;
+
+            const messageId = m.messageId || m.id;
+            if (!messageId || m.content == null) break;
+
+            const state = get() as any;
+            const existing = state.messages[sessionId] || [];
+            const target = existing.find((msg: any) => msg.id === messageId);
+            const isStreaming = target && target.kind === "streaming" && m.kind === "streaming";
+            const nextContent = isStreaming ? target.content + m.content : m.content;
+            const nextKind = m.kind || target?.kind || "message";
+
+            if (target) {
+              const updated = existing.map((msg: any) =>
+                msg.id === messageId
+                  ? {
+                      ...msg,
+                      ...m,
+                      content: nextContent,
+                      kind: nextKind,
+                      updatedAt: nowIso(),
+                    }
+                  : msg
+              );
+              set({ messages: { ...state.messages, [sessionId]: updated } });
+            } else {
+              state.addMessage(sessionId, {
+                id: messageId,
+                role: m.role || "assistant",
+                content: m.content,
+                kind: nextKind,
+                meta: m.meta || [],
+                error: m.error || null,
+                createdAt: m.createdAt || nowIso(),
+                updatedAt: m.updatedAt || nowIso(),
+              });
+            }
+
+            // Also update Query cache so useMessageSync refetch never reverts this content.
+            const cacheKey = ["messages", sessionId];
+            const cached = queryClient.getQueryData<any[]>(cacheKey) ?? [];
+            const cachedIndex = cached.findIndex((msg: any) =>
+              (msg.id || msg.messageId) === messageId
+            );
+            if (cachedIndex >= 0) {
+              const updatedCache = [...cached];
+              updatedCache[cachedIndex] = {
+                ...updatedCache[cachedIndex],
+                content: nextContent,
+                kind: nextKind,
+                meta: m.meta || updatedCache[cachedIndex].meta || [],
+                updatedAt: nowIso(),
+              };
+              queryClient.setQueryData(cacheKey, updatedCache);
             }
             break;
           }
 
           case "message:update": {
             const p = msg.payload;
-            if (p?.messageId) {
-              const sessionId = p.sessionId || (get() as any).activeSessionId;
-              const state = get() as any;
-              const existing = state.messages[sessionId] || [];
-              const updated = existing.map((m: any) =>
-                m.id === p.messageId
-                  ? { ...m, ...p.updates, updatedAt: nowIso() }
-                  : m
-              );
-              set({ messages: { ...state.messages, [sessionId]: updated } });
+            const m = p?.message;
+            const sessionId = p?.sessionId;
+            if (!sessionId || !m) break;
+
+            const messageId = m.messageId || m.id;
+            if (!messageId) break;
+
+            const state = get() as any;
+            const existing = state.messages[sessionId] || [];
+            const updates = { ...m, id: messageId };
+            delete (updates as any).messageId;
+
+            const updated = existing.map((msg: any) =>
+              msg.id === messageId
+                ? { ...msg, ...updates, updatedAt: nowIso() }
+                : msg
+            );
+            set({ messages: { ...state.messages, [sessionId]: updated } });
+
+            // Also update Query cache
+            const cacheKey = ["messages", sessionId];
+            const cached = queryClient.getQueryData<any[]>(cacheKey) ?? [];
+            const cachedIndex = cached.findIndex((msg: any) =>
+              (msg.id || msg.messageId) === messageId
+            );
+            if (cachedIndex >= 0) {
+              const updatedCache = [...cached];
+              updatedCache[cachedIndex] = {
+                ...updatedCache[cachedIndex],
+                ...updates,
+                updatedAt: nowIso(),
+              };
+              queryClient.setQueryData(cacheKey, updatedCache);
             }
             break;
           }
 
-          case "turn:complete":
+          case "scene:update": {
+            const p = msg.payload;
+            const sessionId = p?.sessionId;
+            if (!sessionId) break;
+
+            const scene = p?.scene ?? null;
+            const versions = p?.versions ?? [];
+            const versionPointer = p?.currentVersionIndex ?? undefined;
+            const workspace = p?.workspace ?? null;
+
+            set((state: any) => ({
+              sessions: state.sessions.map((s: any) =>
+                s.sessionId === sessionId
+                  ? {
+                      ...s,
+                      currentScene: scene,
+                      versions,
+                      versionPointer,
+                      versionCount: Array.isArray(versions) ? versions.length : s.versionCount,
+                    }
+                  : s
+              ),
+              workspaceRecord: workspace ?? state.workspaceRecord,
+            }));
+            break;
+          }
+
+          case "agent:intent_ready": {
+            const p = msg.payload;
+            if (!p) break;
+            set({
+              thinkingStep: `intent_detected`,
+              thinkingText: `Detected ${p.projectType} project (${p.complexity}) in ${p.domain} domain`,
+            });
+            break;
+          }
+
+          case "agent:plan_ready": {
+            const p = msg.payload;
+            if (!p?.files) break;
+            const fileList = p.files.map((f: any) => f.path).join(", ");
+            set({
+              thinkingStep: "plan_ready",
+              thinkingText: `Planned ${p.files.length} files: ${fileList}`,
+            });
+            break;
+          }
+
+          case "agent:file_start": {
+            const p = msg.payload;
+            if (!p?.path) break;
+            set({
+              thinkingStep: `generating_${p.path}`,
+              thinkingText: `Generating ${p.path}...`,
+            });
+            break;
+          }
+
+          case "agent:file_complete": {
+            const p = msg.payload;
+            if (!p?.path) break;
+            set({
+              thinkingStep: `file_complete`,
+              thinkingText: `Completed ${p.path} (${p.lines} lines)`,
+            });
+            break;
+          }
+
+          case "agent:validation_failed": {
+            const p = msg.payload;
+            if (!p?.errors) break;
+            const errorCount = p.errors.length;
+            set({
+              thinkingStep: "validation_failed",
+              thinkingText: `Validation found ${errorCount} error${errorCount !== 1 ? "s" : ""} — debugging...`,
+            });
+            break;
+          }
+
+          case "agent:patch_applied": {
+            const p = msg.payload;
+            if (!p?.path) break;
+            set({
+              thinkingStep: "patch_applied",
+              thinkingText: `Patched ${p.path}`,
+            });
+            break;
+          }
+
+          case "agent:iteration_complete": {
+            const p = msg.payload;
+            if (!p) break;
+            set({
+              thinkingStep: "iteration_complete",
+              thinkingText: `Iteration ${p.iteration}/${p.maxIterations} complete — ${p.errorsRemaining} errors remaining`,
+            });
+            break;
+          }
+
+          case "agent:complete": {
+            const p = msg.payload;
+            if (!p) break;
+            set({
+              isSending: false,
+              activeRequestId: null,
+              thinkingText: p.success
+                ? `Generated ${p.fileCount} files successfully`
+                : `Generation completed with ${p.fileCount} files`,
+              thinkingStep: p.success ? "agent_complete" : "agent_partial",
+            });
+            break;
+          }
+
+          case "turn:complete": {
+            const sessionId = msg.payload?.sessionId;
+            if (!sessionId) break;
             set({
               isSending: false,
               activeRequestId: null,
               thinkingText: null,
               thinkingStep: "turn_complete",
             });
+            queryClient.invalidateQueries({ queryKey: ["messages", sessionId] });
+            queryClient.invalidateQueries({ queryKey: ["sessions"] });
             break;
+          }
 
-          case "turn:error":
+          case "turn:error": {
+            const sessionId = msg.payload?.sessionId;
+            if (!sessionId) break;
             set({
               isSending: false,
               activeRequestId: null,
               thinkingText: null,
               thinkingStep: "turn_error",
-              sessionsError: msg.payload?.error || "An error occurred during processing.",
+              sessionsError: normalizeErrorText(msg.payload?.error, "An error occurred during processing."),
             });
+            queryClient.invalidateQueries({ queryKey: ["messages", sessionId] });
+            queryClient.invalidateQueries({ queryKey: ["sessions"] });
             break;
+          }
 
           case "turn:aborted":
             set({
@@ -321,6 +516,30 @@ export const createInfraSlice: StateCreator<ChatState, [], [], InfraSlice> = (se
             }
             break;
           }
+
+          case "agent:approval_request": {
+            const p = msg.payload;
+            if (p?.sessionId && p?.stepId) {
+              set({
+                pendingApproval: {
+                  sessionId: p.sessionId,
+                  stepId: p.stepId,
+                  step: p.step || "unknown",
+                  description: p.description || "The agent needs your approval to continue.",
+                  deadline: p.deadline || Date.now() + 300_000,
+                },
+              });
+            }
+            break;
+          }
+
+          case "agent:approval_result": {
+            const p = msg.payload;
+            if (p?.resolved) {
+              set({ pendingApproval: null });
+            }
+            break;
+          }
         }
       } catch { /* ws message parse failures are non-critical */ }
     };
@@ -362,4 +581,35 @@ export const createInfraSlice: StateCreator<ChatState, [], [], InfraSlice> = (se
       };
     });
   },
+
+  sendApprovalResponse: (approved: boolean) => {
+    const ws = (get() as any)._ws as WebSocket | null;
+    const pending = (get() as any).pendingApproval;
+    if (!ws || ws.readyState !== WebSocket.OPEN || !pending) return;
+
+    ws.send(JSON.stringify({
+      type: approved ? "user:approve" : "user:reject",
+      payload: {
+        sessionId: pending.sessionId,
+        stepId: pending.stepId,
+      }
+    }));
+
+set({ pendingApproval: null });
+  },
+
 });
+
+/**
+ * Ensure an error value is a plain string suitable for React rendering.
+ * WebSocket payloads sometimes carry structured error objects (SessionMessageError).
+ */
+function normalizeErrorText(raw: unknown, fallback: string): string {
+  if (!raw) return fallback;
+  if (typeof raw === "string") return raw;
+  if (typeof raw === "object" && raw !== null) {
+    const e = raw as Record<string, unknown>;
+    return String(e.userMessage || e.message || e.title || e.code || fallback);
+  }
+  return String(raw);
+}

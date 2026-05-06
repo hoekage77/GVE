@@ -567,3 +567,50 @@ export function buildClientSession(raw: any): Session | null {
 export function isThoughtMessage(message: SessionMessage): boolean {
   return message.role === 'thought' || message.kind === 'thought';
 }
+
+function getRequestIdFromMeta(meta?: string[]): string | null {
+  if (!Array.isArray(meta)) return null;
+  const entry = meta.find((m) => m.startsWith("requestId:"));
+  return entry ? entry.slice("requestId:".length).trim() : null;
+}
+
+/**
+ * Remove duplicate messages: same (role, content, requestId) keeps the latest.
+ * Falls back to (role, content) within 60s if requestId is missing.
+ */
+export function dedupeMessages(messages: SessionMessage[]): SessionMessage[] {
+  const seen = new Map<string, { index: number; time: number }>();
+  const result: SessionMessage[] = [];
+
+  for (let i = 0; i < messages.length; i++) {
+    const msg = messages[i];
+    const requestId = getRequestIdFromMeta(msg.meta);
+    const time = Date.parse(msg.createdAt) || 0;
+    // Use requestId as primary dedup key; fallback to content hash
+    const key = requestId
+      ? `${msg.role}:${requestId}:${msg.content}`
+      : `${msg.role}:${msg.content}`;
+
+    const existing = seen.get(key);
+    if (existing) {
+      // If same requestId, always keep the latest (overwrite)
+      if (requestId) {
+        result[existing.index] = msg;
+        existing.time = time;
+        continue;
+      }
+      // Without requestId, only dedupe within 60 seconds
+      if (Math.abs(time - existing.time) < 60_000) {
+        // Keep the latest message
+        result[existing.index] = msg;
+        existing.time = time;
+        continue;
+      }
+    }
+
+    seen.set(key, { index: result.length, time });
+    result.push(msg);
+  }
+
+  return result;
+}

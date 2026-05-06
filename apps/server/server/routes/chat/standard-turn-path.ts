@@ -161,6 +161,17 @@ export async function executeStandardTurnPath(params: {
           status,
           payload: payloadWithTiming
         }));
+
+        // Notify frontend that validation failed and recovery/debugging will begin.
+        // This prevents the UI from appearing stuck while the agent self-debugs.
+        if (step === "validate_code" && status === "failed") {
+          broadcastEvent("agent:validation_failed", {
+            sessionId,
+            messageId: assistantMessageId,
+            requestId: turnRequestId,
+            errors: (payload as any)?.errors ?? [],
+          });
+        }
       }
     }
   );

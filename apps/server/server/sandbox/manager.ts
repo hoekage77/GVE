@@ -222,8 +222,26 @@ async function installTools(containerId: string, tools: string[], maxRetries = 3
   throw lastError;
 }
 
-export async function executeInSandbox(options: { sessionId: string; code: string; skill: string; timeoutMs?: number; files?: Record<string, string> }): Promise<SandboxExecutionResult> {
-  const { sessionId, code, skill, timeoutMs = CONTAINER_TIMEOUT_MS, files } = options;
+export async function executeInSandbox(
+  options: {
+    sessionId: string;
+    code: string;
+    skill: string;
+    timeoutMs?: number;
+    files?: Record<string, string>;
+    skills?: string[];
+    fileSkills?: Record<string, string>;
+  }
+): Promise<SandboxExecutionResult> {
+  const {
+    sessionId,
+    code,
+    skill,
+    timeoutMs = CONTAINER_TIMEOUT_MS,
+    files,
+    skills,
+    fileSkills
+  } = options;
   console.log(`[Sandbox] executeInSandbox called for ${sessionId}, activeContainers=${activeContainers.size}, keys=[${Array.from(activeContainers.keys()).join(",")}]`);
   const container = activeContainers.get(sessionId);
 
@@ -232,44 +250,80 @@ export async function executeInSandbox(options: { sessionId: string; code: strin
     throw new Error("No active sandbox for session. Create one first.");
   }
 
-  const entryFile = skill === "p5js" ? "sketch.js" : "index.js";
-  const htmlFile = "index.html";
   const containerId = container.containerId;
 
-  // Write files to a host temp location, then docker cp into container.
-  // Avoids permission conflicts caused by container chown of the mounted workspace.
+  // Determine if this is a multi-skill execution
+  const allSkills = skills && skills.length > 0
+    ? [...new Set(skills)]
+    : fileSkills
+      ? [...new Set(Object.values(fileSkills))]
+      : [skill];
+  const isMultiSkill = allSkills.length > 1;
+
   const tmpHostPath = join(tmpdir(), `gve-cp-${sessionId.slice(0, 8)}`);
   await mkdir(tmpHostPath, { recursive: true });
 
+  // Write all project files
   if (files && Object.keys(files).length > 0) {
     for (const [path, content] of Object.entries(files)) {
       const normalized = path.replace(/\\/g, "/").replace(/\/+/g, "/");
       const safePath = normalized.startsWith("/") ? normalized.slice(1) : normalized;
-      // Reject path traversal segments anywhere in the path
       if (safePath.split("/").some((segment) => segment === "..")) continue;
-      // Reject absolute paths or paths that resolve outside workspace
       const resolved = join(tmpHostPath, safePath);
       if (!resolved.startsWith(tmpHostPath + "/") && resolved !== tmpHostPath) continue;
-      const hostFile = resolved;
-      await mkdir(dirname(hostFile), { recursive: true });
-      await writeFile(hostFile, content);
-      await execAsync(`docker cp "${hostFile}" ${containerId}:/workspace/${safePath}`);
+      await mkdir(dirname(resolved), { recursive: true });
+      await writeFile(resolved, content);
+      await execAsync(`docker cp "${resolved}" ${containerId}:/workspace/${safePath}`);
     }
   }
 
-  const wrappedCode = wrapUserCodeWithImports(code, skill);
-  const hostEntryFile = join(tmpHostPath, entryFile);
-  await writeFile(hostEntryFile, wrappedCode);
-  await execAsync(`docker cp "${hostEntryFile}" ${containerId}:/workspace/${entryFile}`);
+  const htmlFile = "index.html";
+  let htmlContent: string;
 
-  const htmlContent = generateHTMLWrapper(skill, entryFile);
+  if (isMultiSkill) {
+    // Multi-skill: generate composite HTML with layered containers
+    const entryFiles: Record<string, string> = {};
+    const wrappedFiles: Record<string, string> = {};
+
+    for (const s of allSkills) {
+      const entryFileName = s === "p5js" ? `sketch-${s}.js` : `index-${s}.js`;
+      entryFiles[s] = entryFileName;
+
+      // Find the primary file for this skill or use a default
+      const skillFilePath = fileSkills
+        ? Object.entries(fileSkills).find(([, fskill]) => fskill === s)?.[0]
+        : undefined;
+
+      const skillCode = skillFilePath && files?.[skillFilePath]
+        ? files[skillFilePath]
+        : code;
+
+      const wrapped = wrapUserCodeWithImports(skillCode, s);
+      wrappedFiles[entryFileName] = wrapped;
+
+      const hostFile = join(tmpHostPath, entryFileName);
+      await writeFile(hostFile, wrapped);
+      await execAsync(`docker cp "${hostFile}" ${containerId}:/workspace/${entryFileName}`);
+    }
+
+    htmlContent = generateCompositeHTMLWrapper(allSkills, entryFiles);
+  } else {
+    // Single skill: legacy behavior
+    const entryFile = skill === "p5js" ? "sketch.js" : "index.js";
+    const wrappedCode = wrapUserCodeWithImports(code, skill);
+    const hostEntryFile = join(tmpHostPath, entryFile);
+    await writeFile(hostEntryFile, wrappedCode);
+    await execAsync(`docker cp "${hostEntryFile}" ${containerId}:/workspace/${entryFile}`);
+    htmlContent = generateHTMLWrapper(skill, entryFile);
+  }
+
   const hostHtmlFile = join(tmpHostPath, htmlFile);
   await writeFile(hostHtmlFile, htmlContent);
   await execAsync(`docker cp "${hostHtmlFile}" ${containerId}:/workspace/${htmlFile}`);
 
   await rm(tmpHostPath, { recursive: true, force: true }).catch(() => {});
 
-  const validationResult = await validateCodeExecution(container.containerId, entryFile, timeoutMs);
+  const validationResult = await validateCodeExecution(container.containerId, "index.js", timeoutMs);
 
   return {
     success: validationResult.success,
@@ -280,7 +334,7 @@ export async function executeInSandbox(options: { sessionId: string; code: strin
   };
 }
 
-function wrapUserCodeWithImports(code: string, skill: string): string {
+export function wrapUserCodeWithImports(code: string, skill: string): string {
   const importPreambles: Record<string, string> = {
     threejs: `import * as THREE from 'three';\nwindow.THREE = THREE;\ntry { const { OrbitControls } = await import('three/addons/controls/OrbitControls.js'); window.OrbitControls = OrbitControls; } catch(_e) {}\ntry { const { GLTFLoader } = await import('three/addons/loaders/GLTFLoader.js'); window.THREE.GLTFLoader = GLTFLoader; } catch(_e) {}\ntry { const { DRACOLoader } = await import('three/addons/loaders/DRACOLoader.js'); window.THREE.DRACOLoader = DRACOLoader; } catch(_e) {}\ntry { const { RGBELoader } = await import('three/addons/loaders/RGBELoader.js'); window.THREE.RGBELoader = RGBELoader; } catch(_e) {}\n`,
     p5js: `import p5 from 'p5';\nwindow.p5 = p5;\n`,
@@ -294,52 +348,100 @@ function wrapUserCodeWithImports(code: string, skill: string): string {
   return `${preamble}\n${code}`;
 }
 
-function generateHTMLWrapper(skill: string, entryFile: string): string {
-  const skillConfigs: Record<string, { scripts: string[]; init: string; useModuleEntry: boolean }> = {
-    threejs: {
-      scripts: [],
-      init: "",
-      useModuleEntry: true
-    },
-    p5js: {
-      scripts: [],
-      init: "",
-      useModuleEntry: true
-    },
-    d3js: {
-      scripts: [],
-      init: "",
-      useModuleEntry: true
-    },
-    animejs: {
-      scripts: [],
-      init: "",
-      useModuleEntry: true
-    }
-  };
+/* ── Multi-skill composite rendering ── */
 
-  const config = skillConfigs[skill] || skillConfigs.threejs;
-  const scriptTags = config!.scripts.map((src) => `<script src="${src}"></script>`).join("\n  ");
-  const entryTag = config!.useModuleEntry
-    ? `<script type="module" src="./${entryFile}"></script>`
-    : `<script src="./${entryFile}"></script>`;
+const SKILL_Z_LAYERS: Record<string, number> = {
+  threejs: 0,
+  p5js: 1,
+  d3js: 2,
+  animejs: 3,
+};
+
+const SKILL_CONTAINERS: Record<string, string> = {
+  threejs: '<canvas id="three-canvas" style="position:absolute;inset:0;width:100%;height:100%;z-index:0;"></canvas>',
+  p5js:    '<div id="p5-container" style="position:absolute;inset:0;width:100%;height:100%;z-index:1;"></div>',
+  d3js:    '<svg id="d3-svg" style="position:absolute;inset:0;width:100%;height:100%;z-index:2;pointer-events:none;"></svg>',
+  animejs: '<div id="anime-stage" style="position:absolute;inset:0;width:100%;height:100%;z-index:3;pointer-events:none;"></div>',
+};
+
+const SKILL_IMPORT_PREAMBLES: Record<string, string> = {
+  threejs: `import * as THREE from 'three';\nwindow.THREE = THREE;\ntry { const { OrbitControls } = await import('three/addons/controls/OrbitControls.js'); window.OrbitControls = OrbitControls; } catch(_e) {}\ntry { const { GLTFLoader } = await import('three/addons/loaders/GLTFLoader.js'); window.THREE.GLTFLoader = GLTFLoader; } catch(_e) {}\ntry { const { DRACOLoader } = await import('three/addons/loaders/DRACOLoader.js'); window.THREE.DRACOLoader = DRACOLoader; } catch(_e) {}\ntry { const { RGBELoader } = await import('three/addons/loaders/RGBELoader.js'); window.THREE.RGBELoader = RGBELoader; } catch(_e) {}\n`,
+  p5js:    `import p5 from 'p5';\nwindow.p5 = p5;\n`,
+  d3js:    `import * as d3 from 'd3';\nwindow.d3 = d3;\n`,
+  animejs: `import anime from 'animejs';\nanime = anime.default || anime;\nwindow.anime = anime;\n`,
+};
+
+function generateHTMLWrapper(skill: string, entryFile: string): string {
+  const singleSkillHtml = `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GenVis Scene</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { overflow: hidden; background: #0f172a; }
+    #canvas-container { width: 100vw; height: 100vh; }
+  </style>
+</head>
+<body>
+  <div id="canvas-container"></div>
+  <script type="module" src="./${entryFile}"></script>
+</body>
+</html>`;
+  return singleSkillHtml;
+}
+
+/**
+ * Build a composite HTML document that can host multiple skill runtimes simultaneously.
+ * Each skill gets its own layered container (canvas/SVG/DIV) with a shared message bus.
+ */
+export function generateCompositeHTMLWrapper(
+  skills: string[],
+  entryFiles: Record<string, string>
+): string {
+  const uniqueSkills = [...new Set(skills)].sort((a, b) => (SKILL_Z_LAYERS[a] ?? 99) - (SKILL_Z_LAYERS[b] ?? 99));
+
+  const containerDivs = uniqueSkills
+    .map((s) => SKILL_CONTAINERS[s] || `<div id="${s}-layer" style="position:absolute;inset:0;width:100%;height:100%;z-index:${SKILL_Z_LAYERS[s] ?? 99};"></div>`)
+    .join("\n  ");
+
+  const moduleScripts = uniqueSkills
+    .map((s) => {
+      const entry = entryFiles[s];
+      if (!entry) return "";
+      return `<script type="module" src="./${entry}"></script>`;
+    })
+    .filter(Boolean)
+    .join("\n  ");
 
   return `<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Terranet Scene</title>
+  <title>GenVis Multi-Skill Scene</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body { overflow: hidden; background: #0f172a; }
-    #canvas-container { width: 100vw; height: 100vh; }
+    #scene-root { position: relative; width: 100vw; height: 100vh; }
   </style>
-  ${scriptTags}
 </head>
 <body>
-  <div id="canvas-container"></div>
-  ${entryTag}
+  <div id="scene-root">
+  ${containerDivs}
+  </div>
+  ${moduleScripts}
+  <script>
+    /* GenVis Shared Message Bus — allows cross-skill communication */
+    window.GenVisBus = {
+      _listeners: {},
+      on(evt, fn) { (this._listeners[evt] = this._listeners[evt] || []).push(fn); },
+      emit(evt, data) { (this._listeners[evt] || []).forEach(fn => fn(data)); }
+    };
+    window.addEventListener('error', e => console.error('[GenVis]', e.error?.message || e.message));
+    window.addEventListener('unhandledrejection', e => console.error('[GenVis] Unhandled:', e.reason));
+  </script>
 </body>
 </html>`;
 }

@@ -13,6 +13,11 @@ import {
 } from "./workspace.js";
 import type { PlannedFile, WorkPlan } from "./project-planner.js";
 
+/** Normalize a potentially multi-skill value to a single SkillId for legacy functions. */
+function primarySkill(skill: SkillId | SkillId[]): SkillId {
+  return Array.isArray(skill) ? skill[0]! : skill;
+}
+
 // ────────────────────────────────────────────────
 //  EXPORT SIGNATURE EXTRACTION
 // ────────────────────────────────────────────────
@@ -55,7 +60,7 @@ function buildFileContext(
   parts.push(`--- YOUR FILE ---`);
   parts.push(`Path: ${planned.path}`);
   parts.push(`Purpose: ${planned.purpose}`);
-  parts.push(`Engine: ${renderEngineConstraints(planned.skill)}`);
+  parts.push(`Engine: ${renderEngineConstraints(primarySkill(planned.skill))}`);
 
   if (planned.qualityContract) {
     parts.push("");
@@ -249,7 +254,7 @@ export async function generateProject(
 
       const { provider } = acquired;
       const context = buildFileContext(planned, query, ws, plan);
-      const { system, user } = buildFilePrompt(context, planned.skill, !!planned.qualityContract);
+      const { system, user } = buildFilePrompt(context, primarySkill(planned.skill), !!planned.qualityContract);
 
       const response = await fetchChatCompletion(provider, {
         model: provider.model,
@@ -267,14 +272,14 @@ export async function generateProject(
       );
 
       const raw = (payload.choices?.[0]?.message?.content ?? "").trim();
-      const code = cleanCodeResponse(raw, planned.skill);
+      const code = cleanCodeResponse(raw, primarySkill(planned.skill));
 
-      const validation = await validateCode(code, planned.skill);
+      const validation = await validateCode(code, primarySkill(planned.skill));
       if (!validation.passable && !validation.valid) {
         errors.push(`${planned.path}: ${validation.errors.map(e => e.message).join("; ")}`);
       }
 
-      ws = addFile(ws, planned.path, code, planned.purpose, planned.skill);
+      ws = addFile(ws, planned.path, code, planned.purpose, primarySkill(planned.skill));
 
       onProgress?.({ current: generated, total: filesToGenerate.length, path: planned.path, status: "done" });
       broadcastEvent("file:generation:complete", {

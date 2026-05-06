@@ -97,6 +97,35 @@ export function setupWebSocketHandler(wsServer: any) {
           return;
         }
 
+        if (parsedMessage?.type === "user:approve" || parsedMessage?.type === "user:reject") {
+          const { resolveApproval, rejectApproval } = await import("../pipeline/approval-store.js");
+          const sessionId = String(parsedMessage?.payload?.sessionId ?? "").trim();
+          const stepId = String(parsedMessage?.payload?.stepId ?? "").trim();
+          const approved = parsedMessage?.type === "user:approve";
+
+          if (!sessionId || !stepId) {
+            sendSocketEvent(socket, "agent:approval_result", {
+              sessionId: sessionId || null,
+              stepId: stepId || null,
+              approved: false,
+              error: "sessionId and stepId are required"
+            });
+            return;
+          }
+
+          const resolved = approved
+            ? resolveApproval(sessionId, stepId, true)
+            : rejectApproval(sessionId, stepId, "User rejected");
+
+          sendSocketEvent(socket, "agent:approval_result", {
+            sessionId,
+            stepId,
+            approved,
+            resolved
+          });
+          return;
+        }
+
         if (parsedMessage?.type === "scene.command") {
           const sessionId = String(parsedMessage?.payload?.sessionId ?? "").trim();
           const command = normalizeSceneCommand(parsedMessage?.payload?.command);

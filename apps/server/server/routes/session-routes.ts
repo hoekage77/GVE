@@ -1,6 +1,7 @@
 import { Router } from "express";
 import {
   requireAuth,
+  requireAuthOrApiKey,
   resolveUserId,
   requireSessionOwnership,
   handleError,
@@ -32,12 +33,15 @@ import { runWithTraceContext } from "../trace/context.js";
 import { checkTokenLimit } from "../state/token-usage.js";
 import { readdir, readFile } from "node:fs/promises";
 import { join, relative } from "node:path";
+import { sessionRepo } from "../db/repositories/session-repo.js";
+import { messageRepo } from "../db/repositories/message-repo.js";
 
 export const sessionRouter = Router();
 
-sessionRouter.post("/api/v1/sessions", requireAuth, (req, res) => {
+sessionRouter.post("/api/v1/sessions", requireAuthOrApiKey, (req, res) => {
   try {
-    const sessionState = createSession(req.body?.sessionId);
+    const userId = resolveUserId(req);
+    const sessionState = createSession(req.body?.sessionId, userId);
     const wsUrl = buildWebSocketUrl(req);
     res.json(buildSessionResponse(sessionState, wsUrl));
   } catch (error) {
@@ -45,19 +49,117 @@ sessionRouter.post("/api/v1/sessions", requireAuth, (req, res) => {
   }
 });
 
-sessionRouter.get("/api/v1/sessions", requireAuth, (req, res) => {
+sessionRouter.get("/api/v1/sessions", requireAuthOrApiKey, (req, res) => {
   try {
     const userId = resolveUserId(req);
-    res.json({ sessions: listSessions(userId) });
+    const limit = Math.min(Number.parseInt(String(req.query.limit ?? "20"), 10) || 20, 100);
+    const offset = Math.max(Number.parseInt(String(req.query.offset ?? "0"), 10) || 0, 0);
+    const archived = req.query.archived === "true";
+
+    const result = sessionRepo.findByOwner(userId!, { limit, offset, archived });
+    const sessions = result.data.map((row) => ({
+      sessionId: row.id,
+      name: row.title,
+      status: row.status,
+      archived: Boolean(row.archived),
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+    }));
+    res.json({ sessions, meta: result.meta });
   } catch (error) {
     handleError(error, res);
   }
 });
 
-sessionRouter.get("/api/v1/sessions/:sessionId/messages", requireSessionOwnership, (_req, res) => {
-  const sessionId = String(_req.params.sessionId);
-  const messages = listSessionMessages(sessionId);
-  res.json({ messages });
+sessionRouter.get("/api/v1/sessions/:sessionId", requireSessionOwnership, (req, res) => {
+  try {
+    const sessionId = String(req.params.sessionId);
+    const row = sessionRepo.findById(sessionId);
+    if (!row) {
+      res.status(404).json({ error: "NOT_FOUND", message: "Session not found." });
+      return;
+    }
+    res.json({ data: row, error: null });
+  } catch (error) {
+    handleError(error, res);
+  }
+});
+
+sessionRouter.patch("/api/v1/sessions/:sessionId", requireSessionOwnership, (req, res) => {
+  try {
+    const sessionId = String(req.params.sessionId);
+    const patch = req.body ?? {};
+    const updated = sessionRepo.update(sessionId, {
+      title: patch.title,
+      status: patch.status,
+      archived: patch.archived === true ? 1 : patch.archived === false ? 0 : undefined,
+    });
+    if (!updated) {
+      res.status(404).json({ error: "NOT_FOUND", message: "Session not found." });
+      return;
+    }
+    res.json({ data: updated, error: null });
+  } catch (error) {
+    handleError(error, res);
+  }
+});
+
+sessionRouter.delete("/api/v1/sessions/:sessionId", requireSessionOwnership, (req, res) => {
+  try {
+    const sessionId = String(req.params.sessionId);
+    const deleted = sessionRepo.delete(sessionId);
+    if (!deleted) {
+      res.status(404).json({ error: "NOT_FOUND", message: "Session not found." });
+      return;
+    }
+    res.json({ data: { deleted: true }, error: null });
+  } catch (error) {
+    handleError(error, res);
+  }
+});
+
+sessionRouter.get("/api/v1/sessions/:sessionId/messages", requireSessionOwnership, (req, res) => {
+  const sessionId = String(req.params.sessionId);
+  const limit = Math.min(Number.parseInt(String(req.query.limit ?? "50"), 10) || 50, 200);
+  const offset = Math.max(Number.parseInt(String(req.query.offset ?? "0"), 10) || 0, 0);
+  const before = String(req.query.before ?? "").trim() || undefined;
+
+  const result = messageRepo.findBySession(sessionId, { limit, offset, before });
+  const messages = result.data.map((row) => ({
+    id: row.id,
+    role: row.role,
+    content: row.content,
+    kind: row.kind ?? undefined,
+    meta: row.meta ? (JSON.parse(row.meta) as string[]) : [],
+    error: row.error ? (JSON.parse(row.error) as any) : null,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  }));
+  res.json({ sessionId, messages });
+});
+
+sessionRouter.patch("/api/v1/sessions/:sessionId/messages/:messageId", requireSessionOwnership, (req, res) => {
+  const messageId = String(req.params.messageId);
+  const patch = req.body ?? {};
+  const updated = messageRepo.update(messageId, {
+    content: patch.content,
+    kind: patch.kind,
+  });
+  if (!updated) {
+    res.status(404).json({ error: "NOT_FOUND", message: "Message not found." });
+    return;
+  }
+  res.json({ data: updated, error: null });
+});
+
+sessionRouter.delete("/api/v1/sessions/:sessionId/messages/:messageId", requireSessionOwnership, (req, res) => {
+  const messageId = String(req.params.messageId);
+  const deleted = messageRepo.delete(messageId);
+  if (!deleted) {
+    res.status(404).json({ error: "NOT_FOUND", message: "Message not found." });
+    return;
+  }
+  res.json({ data: { deleted: true }, error: null });
 });
 
 sessionRouter.post("/api/v1/sessions/:sessionId/messages", requireSessionOwnership, async (req, res) => {
@@ -67,6 +169,7 @@ sessionRouter.post("/api/v1/sessions/:sessionId/messages", requireSessionOwnersh
   const imageData = String(req.body?.imageData ?? "").trim();
   const userId = resolveUserId(req);
   const requestId = String(req.header("x-request-id") ?? req.body?.requestId ?? "").trim() || null;
+  const clientMessageId = String(req.body?.clientMessageId ?? "").trim() || null;
 
   const maxInputLength = Number.parseInt(process.env.MAX_INPUT_LENGTH ?? "16000", 10) || 16000;
   if (content.length > maxInputLength) {
@@ -87,6 +190,7 @@ sessionRouter.post("/api/v1/sessions/:sessionId/messages", requireSessionOwnersh
     const result = await runWithTraceContext({ sessionId, userId, requestId }, () =>
       executeChatTurn(sessionId, content, {}, {
         requestId,
+        clientMessageId,
         imageUrl: imageUrl || undefined,
         imageData: imageData || undefined,
         transport: "rest",

@@ -1,0 +1,13 @@
+{
+  "sessionId": "apikey-session-002",
+  "ownerId": "dev-user",
+  "createdAt": "2026-05-04T21:14:46.348Z",
+  "updatedAt": "2026-05-04T21:14:46.348Z",
+  "status": "idle",
+  "currentScene": null,
+  "workspace": null,
+  "artifacts": [],
+  "artifactPointer": -1,
+  "messages": [],
+  "orchestrationTrace": []
+}

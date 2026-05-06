@@ -30,7 +30,7 @@ export const useChatStore = create<ChatState>()(
           }
           a[0]({ isBootstrapping: true } as any);
           try {
-            await (state as any).refreshSessions?.();
+            // Sessions load via React Query; only fetch providers here
             await (state as any).fetchProviders?.();
             a[0]({ hasInitialized: true, isBootstrapping: false } as any);
           } catch {
@@ -45,7 +45,6 @@ export const useChatStore = create<ChatState>()(
         version: 1,
         migrate: (persistedState, _version) => persistedState as ChatState,
         partialize: (state): Partial<ChatState> => ({
-          sessions: state.sessions,
           activeSessionId: state.activeSessionId,
           isSidebarCollapsed: state.isSidebarCollapsed,
           panelWidth: state.panelWidth,

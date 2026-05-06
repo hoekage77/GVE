@@ -83,7 +83,7 @@ export default function TasksPage() {
   const completedCount = rows.filter((row) => row.turnStatus === 'completed').length;
 
   const handleOpenInStudio = async (sessionId: string) => {
-    await selectSession(sessionId);
+    selectSession(sessionId);
     await navigate({ to: '/chat' });
   };
 

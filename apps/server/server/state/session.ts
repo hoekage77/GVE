@@ -1,5 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { loadAllSessions, saveSession, saveSessionSync, flushAll } from "./file-store.js";
+import { sessionRepo } from "../db/repositories/session-repo.js";
+import { messageRepo } from "../db/repositories/message-repo.js";
 import type { 
   InternalSessionState, 
   SessionState, 
@@ -377,7 +379,24 @@ export function createSession(sessionId?: string, ownerId: string | null = null)
   const session = createInternalSession(resolvedSessionId, ownerId);
   sessions.set(resolvedSessionId, session);
   saveSessionSync(resolvedSessionId, session as any);
+
+  // Mirror to SQLite registry
+  try {
+    sessionRepo.create(resolvedSessionId, ownerId, null);
+  } catch (err) {
+    console.error("[SessionState] Failed to mirror session to DB:", (err as Error).message);
+  }
+
   return cloneSessionState(session);
+}
+
+export function deleteSession(sessionId: string): boolean {
+  sessions.delete(sessionId);
+  try {
+    return sessionRepo.delete(sessionId);
+  } catch {
+    return false;
+  }
 }
 
 export function isSessionOwner(session: SessionState | InternalSessionState, userId: string | null): boolean {
@@ -386,10 +405,29 @@ export function isSessionOwner(session: SessionState | InternalSessionState, use
 }
 
 export function listSessions(userId: string | null = null): SessionState[] {
-  return Array.from(sessions.values())
+  const inMemory = Array.from(sessions.values())
     .filter(s => isSessionOwner(s, userId))
-    .sort((left, right) => right.updatedAt.localeCompare(left.updatedAt))
     .map(cloneSessionState);
+
+  // Also read from DB to catch sessions created via new CRUD endpoints
+  if (userId) {
+    try {
+      const dbResult = sessionRepo.findByOwner(userId, { limit: 100, offset: 0 });
+      const dbIds = new Set(dbResult.data.map(r => r.id));
+      const missing = dbResult.data
+        .filter(r => !sessions.has(r.id))
+        .map(r => {
+          const base = createInternalSession(r.id, r.owner_id);
+          return cloneSessionState(base);
+        });
+      inMemory.push(...missing);
+    } catch {
+      // ignore DB errors, fall back to in-memory only
+    }
+  }
+
+  return inMemory
+    .sort((left, right) => right.updatedAt.localeCompare(left.updatedAt));
 }
 
 export function ensureSession(sessionId: string): SessionState {
@@ -447,6 +485,7 @@ export function recordSceneVersion(sessionId: string, sceneSnapshot: any): Sessi
       assetPlan: sceneSnapshot.assetPlan ?? null,
       explanation: sceneSnapshot.explanation ?? null,
       messageId: sceneSnapshot.messageId ?? null,
+      workspace: sceneSnapshot.workspace ?? null,
       source,
       createdAt: createsNewArtifact ? now : activeArtifact.revisions[0]?.createdAt ?? now,
       updatedAt: now
@@ -711,6 +750,19 @@ export function appendSessionMessage(sessionId: string, message: any): SessionMe
     return { ...existingMessage };
   }
 
+  // Safety net: deduplicate by (role, content) within 5 seconds to protect against
+  // double-submits from React StrictMode or network retries with different IDs.
+  const recentDuplicate = session.messages.find((entry: SessionMessage) => {
+    if (entry.role !== (message.role ?? "user")) return false;
+    if (entry.content !== (message.content ?? "")) return false;
+    const entryTime = new Date(entry.createdAt).getTime();
+    const nowTime = new Date(now).getTime();
+    return (nowTime - entryTime) < 5_000;
+  });
+  if (recentDuplicate) {
+    return { ...recentDuplicate };
+  }
+
   const storedMessage: SessionMessage = {
     messageId,
     role: message.role ?? "user",
@@ -726,6 +778,23 @@ export function appendSessionMessage(sessionId: string, message: any): SessionMe
   session.messages.push(storedMessage);
   session.updatedAt = now;
   persistSession(session);
+
+  // Mirror to SQLite
+  try {
+    messageRepo.create({
+      id: messageId,
+      session_id: sessionId,
+      role: storedMessage.role,
+      content: storedMessage.content,
+      kind: storedMessage.kind ?? null,
+      error: storedMessage.error ? JSON.stringify(storedMessage.error) : null,
+      meta: Array.isArray(storedMessage.meta) ? JSON.stringify(storedMessage.meta) : null,
+      metadata: storedMessage.metadata ? JSON.stringify(storedMessage.metadata) : null,
+    });
+  } catch (err) {
+    console.error("[SessionState] Failed to mirror message to DB:", (err as Error).message);
+  }
+
   return { ...storedMessage };
 }
 
@@ -752,6 +821,18 @@ export function updateSessionMessage(sessionId: string, messageId: string, updat
   session.messages[messageIndex] = updatedMessage;
   session.updatedAt = now;
   persistSession(session);
+
+  // Mirror to SQLite so refetches return the latest content
+  try {
+    messageRepo.update(messageId, {
+      content: updatedMessage.content,
+      kind: updatedMessage.kind,
+      meta: Array.isArray(updatedMessage.meta) ? JSON.stringify(updatedMessage.meta) : undefined,
+    });
+  } catch (err) {
+    console.error("[SessionState] Failed to mirror message update to DB:", (err as Error).message);
+  }
+
   return { ...updatedMessage };
 }
 
@@ -782,7 +863,8 @@ export function buildSceneUpdatePayload(sessionId: string): any {
     sessionId,
     scene: state.currentScene,
     versions: state.versions,
-    currentVersionIndex: state.versionPointer
+    currentVersionIndex: state.versionPointer,
+    workspace: state.workspace ?? null
   };
 }
 

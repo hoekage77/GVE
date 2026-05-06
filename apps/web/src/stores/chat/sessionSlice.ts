@@ -2,14 +2,10 @@ import type { StateCreator } from "zustand";
 import { type ChatState, type Session, type SessionMessage } from "./types";
 import {
   nowIso,
-  upsertMessage,
-  createClientMessageId,
   buildClientSession,
 } from "./helpers";
 import {
   createSession as apiCreateSession,
-  listSessions,
-  listSessionMessages,
   undoScene,
   redoScene,
   previousArtifact,
@@ -28,11 +24,11 @@ export interface SessionSlice {
   setActiveSession: (sessionId: string | null) => void;
   addSession: (session: Session) => void;
   startDraftSession: () => void;
-  refreshSessions: () => Promise<void>;
   createNewSession: () => Promise<Session | null>;
-  selectSession: (sessionId: string) => Promise<void>;
-  loadSessionMessages: (sessionId: string) => Promise<void>;
+  selectSession: (sessionId: string) => void;
   clearSession: (sessionId: string) => void;
+  setMessages: (sessionId: string, messages: SessionMessage[]) => void;
+  setSessionsError: (error: string | null) => void;
   selectSceneVersion: (versionId: string) => Promise<boolean>;
   rerunScene: (options?: { codeOverride?: string | null }) => Promise<boolean>;
 }
@@ -70,16 +66,6 @@ export const createSessionSlice: StateCreator<ChatState, [], [], SessionSlice> =
     }));
   },
 
-  refreshSessions: async () => {
-    try {
-      const response = await listSessions();
-      const normalized = response.sessions.map(buildClientSession).filter((s): s is Session => s !== null);
-      set({ sessions: normalized, sessionsError: null });
-    } catch (error) {
-      set({ sessionsError: error instanceof Error ? error.message : "Failed to load sessions" });
-    }
-  },
-
   createNewSession: async () => {
     try {
       const session = await apiCreateSession();
@@ -98,36 +84,8 @@ export const createSessionSlice: StateCreator<ChatState, [], [], SessionSlice> =
     }
   },
 
-  selectSession: async (sessionId) => {
+  selectSession: (sessionId) => {
     set({ activeSessionId: sessionId });
-    const { messages, loadSessionMessages } = get();
-    if (!messages[sessionId]) {
-      await loadSessionMessages(sessionId);
-    }
-  },
-
-  loadSessionMessages: async (sessionId) => {
-    try {
-      const apiResponse = await listSessionMessages(sessionId);
-      const apiMessages = apiResponse.messages ?? [];
-      const clientMessages: SessionMessage[] = (apiMessages || []).map((m: any) => ({
-        id: m.messageId || m.id || createClientMessageId("msg"),
-        role: m.role,
-        content: m.content,
-        kind: m.kind || undefined,
-        meta: m.meta || undefined,
-        error: m.error || null,
-        createdAt: m.createdAt || nowIso(),
-        updatedAt: m.updatedAt || m.createdAt || nowIso(),
-      }));
-      set((state) => ({
-        messages: { ...state.messages, [sessionId]: clientMessages },
-      }));
-    } catch {
-      set((state) => ({
-        messages: { ...state.messages, [sessionId]: [] },
-      }));
-    }
   },
 
   clearSession: (sessionId) => {
@@ -141,6 +99,14 @@ export const createSessionSlice: StateCreator<ChatState, [], [], SessionSlice> =
       };
     });
   },
+
+  setMessages: (sessionId, messages) => {
+    set((state) => ({
+      messages: { ...state.messages, [sessionId]: messages },
+    }));
+  },
+
+  setSessionsError: (error: string | null) => set({ sessionsError: error }),
 
   selectSceneVersion: async (versionId) => {
     const { activeSessionId } = get();

@@ -1,69 +1,6 @@
 {
   "sessionId": "e2e-1777847558828",
-  "ownerId": null,
-  "createdAt": "2026-05-03T22:32:38.830Z",
-  "updatedAt": "2026-05-03T22:33:30.877Z",
   "status": "idle",
-  "currentScene": {
-    "sessionId": "e2e-1777847558828",
-    "sceneId": "scene-1777847605108",
-    "code": "const clock = new THREE.Clock();\nscene.background = new THREE.Color(0xf4f7fb);\nrenderer.toneMapping = THREE.ACESFilmicToneMapping;\nrenderer.toneMappingExposure = 1.08;\nrenderer.shadowMap.enabled = true;\n\nconst ambient = new THREE.AmbientLight(0x7f8aa6, 0.32);\nconst keyLight = new THREE.DirectionalLight(0xffffff, 1.2);\nkeyLight.position.set(5, 8, 6);\nconst pointLight = new THREE.PointLight(0xaaddff, 1.0, 18);\npointLight.position.set(-4, 2, -4);\nscene.add(ambient, keyLight, pointLight);\n\nconst heroGroup = new THREE.Group();\nscene.add(heroGroup);\n\nconst geometry = new THREE.BoxGeometry(1.6, 1.6, 1.6);\nconst material = new THREE.MeshStandardMaterial({ color: 0xd93025, roughness: 0.35, metalness: 0.1 });\nconst cube = new THREE.Mesh(geometry, material);\ncube.castShadow = true;\ncube.receiveShadow = true;\nheroGroup.add(cube);\n\ncamera.position.set(3.2, 2.2, 4.2);\ncamera.lookAt(0, 0, 0);\n\nconst controls = new OrbitControls(camera, renderer.domElement);\ncontrols.enableDamping = true;\n\nfunction animate() {\n  requestAnimationFrame(animate);\n  const t = clock.getElapsedTime();\n  heroGroup.rotation.y = t * 0.6;\n  heroGroup.rotation.x = Math.sin(t * 0.4) * 0.08;\n  controls.update();\n  renderer.render(scene, camera);\n}\nanimate();",
-    "previewUrl": null,
-    "skill": "threejs",
-    "outputKind": "code",
-    "mediaType": null,
-    "mediaUrl": null,
-    "mediaArtifactId": null,
-    "mediaDurationMs": null,
-    "mediaFps": null,
-    "mediaResolution": null,
-    "mediaBytes": null,
-    "assetPlan": {
-      "manifestVersion": "asset-plan.v1",
-      "skill": "threejs",
-      "requestedQuality": "draft",
-      "strategy": "hybrid",
-      "subjectNeedsModel": false,
-      "categories": [
-        "animals"
-      ],
-      "catalog": {
-        "animals": [
-          {
-            "id": "fox",
-            "url": "https://rawcdn.githack.com/mrdoob/three.js/r128/examples/models/gltf/Fox.glb",
-            "note": "Animated quadruped model"
-          }
-        ]
-      },
-      "curatedCandidates": [
-        {
-          "id": "fox",
-          "url": "https://rawcdn.githack.com/mrdoob/three.js/r128/examples/models/gltf/Fox.glb",
-          "note": "Animated quadruped model"
-        }
-      ],
-      "fallbackPolicy": {
-        "allowInternetFallback": true,
-        "requireFallbackWarning": true,
-        "requireInlineFallbackComment": true
-      },
-      "runtimeHelpers": [
-        "createGveGltfLoader",
-        "resolveGveModelCandidates"
-      ]
-    },
-    "explanation": "Generated scene code for live preview. Live preview executed successfully.",
-    "messageId": "message-2",
-    "source": "generate",
-    "createdAt": "2026-05-03T22:33:25.144Z",
-    "updatedAt": "2026-05-03T22:33:25.144Z",
-    "versionId": "version-1",
-    "version": 1,
-    "artifactId": "artifact-1777847605144-85015d",
-    "artifactVersion": 1
-  },
-  "workspace": null,
   "artifacts": [
     {
       "artifactId": "artifact-1777847605144-85015d",
@@ -135,6 +72,66 @@
     }
   ],
   "artifactPointer": 0,
+  "currentScene": {
+    "sessionId": "e2e-1777847558828",
+    "sceneId": "scene-1777847605108",
+    "code": "const clock = new THREE.Clock();\nscene.background = new THREE.Color(0xf4f7fb);\nrenderer.toneMapping = THREE.ACESFilmicToneMapping;\nrenderer.toneMappingExposure = 1.08;\nrenderer.shadowMap.enabled = true;\n\nconst ambient = new THREE.AmbientLight(0x7f8aa6, 0.32);\nconst keyLight = new THREE.DirectionalLight(0xffffff, 1.2);\nkeyLight.position.set(5, 8, 6);\nconst pointLight = new THREE.PointLight(0xaaddff, 1.0, 18);\npointLight.position.set(-4, 2, -4);\nscene.add(ambient, keyLight, pointLight);\n\nconst heroGroup = new THREE.Group();\nscene.add(heroGroup);\n\nconst geometry = new THREE.BoxGeometry(1.6, 1.6, 1.6);\nconst material = new THREE.MeshStandardMaterial({ color: 0xd93025, roughness: 0.35, metalness: 0.1 });\nconst cube = new THREE.Mesh(geometry, material);\ncube.castShadow = true;\ncube.receiveShadow = true;\nheroGroup.add(cube);\n\ncamera.position.set(3.2, 2.2, 4.2);\ncamera.lookAt(0, 0, 0);\n\nconst controls = new OrbitControls(camera, renderer.domElement);\ncontrols.enableDamping = true;\n\nfunction animate() {\n  requestAnimationFrame(animate);\n  const t = clock.getElapsedTime();\n  heroGroup.rotation.y = t * 0.6;\n  heroGroup.rotation.x = Math.sin(t * 0.4) * 0.08;\n  controls.update();\n  renderer.render(scene, camera);\n}\nanimate();",
+    "previewUrl": null,
+    "skill": "threejs",
+    "outputKind": "code",
+    "mediaType": null,
+    "mediaUrl": null,
+    "mediaArtifactId": null,
+    "mediaDurationMs": null,
+    "mediaFps": null,
+    "mediaResolution": null,
+    "mediaBytes": null,
+    "assetPlan": {
+      "manifestVersion": "asset-plan.v1",
+      "skill": "threejs",
+      "requestedQuality": "draft",
+      "strategy": "hybrid",
+      "subjectNeedsModel": false,
+      "categories": [
+        "animals"
+      ],
+      "catalog": {
+        "animals": [
+          {
+            "id": "fox",
+            "url": "https://rawcdn.githack.com/mrdoob/three.js/r128/examples/models/gltf/Fox.glb",
+            "note": "Animated quadruped model"
+          }
+        ]
+      },
+      "curatedCandidates": [
+        {
+          "id": "fox",
+          "url": "https://rawcdn.githack.com/mrdoob/three.js/r128/examples/models/gltf/Fox.glb",
+          "note": "Animated quadruped model"
+        }
+      ],
+      "fallbackPolicy": {
+        "allowInternetFallback": true,
+        "requireFallbackWarning": true,
+        "requireInlineFallbackComment": true
+      },
+      "runtimeHelpers": [
+        "createGveGltfLoader",
+        "resolveGveModelCandidates"
+      ]
+    },
+    "explanation": "Generated scene code for live preview. Live preview executed successfully.",
+    "messageId": "message-2",
+    "source": "generate",
+    "createdAt": "2026-05-03T22:33:25.144Z",
+    "updatedAt": "2026-05-03T22:33:25.144Z",
+    "versionId": "version-1",
+    "version": 1,
+    "artifactId": "artifact-1777847605144-85015d",
+    "artifactVersion": 1
+  },
+  "workspace": null,
   "messages": [
     {
       "messageId": "message-1",
@@ -451,5 +448,7 @@
       },
       "timestamp": "2026-05-03T22:33:25.161Z"
     }
-  ]
+  ],
+  "createdAt": "2026-05-03T22:32:38.830Z",
+  "updatedAt": "2026-05-04T12:27:03.295Z"
 }

@@ -1,8 +1,11 @@
 import { useMemo, useRef, useEffect, useState, useCallback } from "react";
+import { LayoutPanelTop } from "lucide-react";
 import { UserMessage, AIMessage, type ChatArtifactCard } from "./MessageComponents";
 import { CinematicPlayer } from "./meta/CinematicPlayer";
 import { Composer } from "./Composer";
 import { useChatStore, type Session, type SessionMessage } from "../../stores";
+import { useMessageSync, useSendMessage } from "../../hooks/queries";
+import { createClientMessageId, dedupeMessages } from "../../stores/chat/helpers";
 import TaskStatusBar from "./TaskStatusBar";
 import { WelcomeScreen } from "./WelcomeScreen";
 
@@ -119,6 +122,14 @@ function toThought(message: SessionMessage): ThoughtItem {
   };
 }
 
+function isTrivialThought(thought: ThoughtItem): boolean {
+  const step = thought.step;
+  if (step !== "turn_started" && step !== "turn_complete") return false;
+  const hasDetail = thought.meta?.some((m) => m.startsWith("detail:")) ?? false;
+  const hasStepLabel = thought.meta?.some((m) => m.startsWith("stepLabel:")) ?? false;
+  return !hasDetail && !hasStepLabel;
+}
+
 function buildDisplayMessages(messages: SessionMessage[]): DisplayMessage[] {
   const displayMessages: DisplayMessage[] = [];
   const assistantIndexByMessageId = new Map<string, number>();
@@ -203,6 +214,10 @@ function buildDisplayMessages(messages: SessionMessage[]): DisplayMessage[] {
   for (const message of messages) {
     if (message.role === "thought" || message.kind === "thought") {
       const thought = toThought(message);
+      // Skip pure lifecycle thoughts (turn_started/turn_complete with no detail).
+      // These add noise for simple chat responses where no agent work happened.
+      if (isTrivialThought(thought)) continue;
+
       const thoughtMessageId = getMetaValue(message.meta, "messageId:");
       const thoughtRequestId = getMetaValue(message.meta, "requestId:");
 
@@ -251,6 +266,19 @@ function buildDisplayMessages(messages: SessionMessage[]): DisplayMessage[] {
         latestUserPrompt = prompt;
       }
     }
+
+    // Display deduplication safety net: skip exact duplicate messages within 30s
+    // OR messages sharing the same requestId (catches cross-ID duplicates).
+    const isDuplicate = displayMessages.some((dm) => {
+      if (dm.message.role !== message.role) return false;
+      if (dm.message.content !== message.content) return false;
+      const timeDiff = Math.abs(Date.parse(dm.message.createdAt) - Date.parse(message.createdAt));
+      if (timeDiff < 30_000) return true;
+      // Also deduplicate if both messages share the same requestId meta tag
+      const dmRequestId = getMetaValue(dm.message.meta, "requestId:");
+      return Boolean(dmRequestId && dmRequestId === requestId);
+    });
+    if (isDuplicate) continue;
 
     displayMessages.push({
       message,
@@ -414,23 +442,73 @@ export function ChatContainer() {
     setComposerImage,
     clearComposerImage,
     createNewSession: startDraftSession,
-    sendMessage,
     stopTurn,
     openPanel,
     closePanel,
     openTheaterMode,
     activeArtifactId,
     selectSceneVersion,
+    openWorkspace,
+    pendingApproval,
+    sendApprovalResponse,
   } = useChatStore();
+
+  // Server-state hooks
+  const sendMutation = useSendMessage();
+  useMessageSync(activeSessionId);
+
+  // Safety: force isSending reset if a turn hangs so the UI never stays stuck.
+  // Set to 120s to allow agent recovery + LLM debug sessions to complete.
+  // Resets on each WebSocket activity so a long-running turn with events doesn't
+  // get prematurely killed.
+  const sendingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => {
+    if (!isSending) {
+      if (sendingTimeoutRef.current) clearTimeout(sendingTimeoutRef.current);
+      sendingTimeoutRef.current = null;
+      return;
+    }
+    const startTimer = () => {
+      if (sendingTimeoutRef.current) clearTimeout(sendingTimeoutRef.current);
+      sendingTimeoutRef.current = setTimeout(() => {
+        useChatStore.getState().setIsSending(false);
+        useChatStore.getState().setActiveRequestId(null);
+        useChatStore.getState().setThinking(null, "turn_timeout");
+      }, 120_000);
+    };
+    startTimer();
+    return () => {
+      if (sendingTimeoutRef.current) clearTimeout(sendingTimeoutRef.current);
+    };
+  }, [isSending, thinkingText, thinkingStep]);
 
   const createNewSession = async (initialPrompt?: string) => {
     try {
-      await startDraftSession();
+      const session = await startDraftSession();
       if (initialPrompt) {
         setComposerValue(initialPrompt);
+        // Send the prompt immediately after creating the session so the user
+        // doesn't have to press Enter again.
+        if (!isPendingRef.current && !sendMutation.isPending) {
+          isPendingRef.current = true;
+          const requestId = `req-ws-${Date.now()}-${Math.random().toString(16).slice(2, 8)}`;
+          const clientMessageId = createClientMessageId("user");
+          sendMutation.mutate({
+            content: initialPrompt,
+            mode: "generate",
+            requestId,
+            clientMessageId,
+          }, {
+            onSettled: () => {
+              isPendingRef.current = false;
+            }
+          });
+        }
       }
+      return session;
     } catch (err) {
       console.error("Failed to create new session:", err);
+      return null;
     }
   };
 
@@ -446,7 +524,7 @@ export function ChatContainer() {
   const activeStatusStep = activeTaskProgress?.liveThought?.step ?? activeTaskProgress?.currentStep ?? thinkingStep;
   const activeStatusText = activeTaskProgress?.liveThought?.text ?? thinkingText ?? null;
 
-  const displayMessages = useMemo(() => buildDisplayMessages(activeMessages), [activeMessages]);
+  const displayMessages = useMemo(() => buildDisplayMessages(dedupeMessages(activeMessages)), [activeMessages]);
   const sceneVersions = useMemo(
     () => (activeSession?.sceneVersions ?? []).filter((version): version is SceneVersionRecord => {
       return Boolean(version && typeof version.versionId === "string");
@@ -506,8 +584,33 @@ export function ChatContainer() {
 
   // No panel auto-open; inline artifact cards within messages handle preview display
 
+  // Mutation lock to prevent double-submit under React StrictMode or rapid clicks.
+  const isPendingRef = useRef(false);
+
   const handleSend = async () => {
-    await sendMessage(composerValue);
+    if (!composerValue.trim() && !composerImage) return;
+    if (isPendingRef.current || sendMutation.isPending) return;
+    isPendingRef.current = true;
+
+    // If no active session (e.g. welcome screen), create one first
+    if (!activeSessionId) {
+      await createNewSession();
+      // activeSessionId is now set in Zustand; mutationFn will read it
+    }
+    const requestId = `req-ws-${Date.now()}-${Math.random().toString(16).slice(2, 8)}`;
+    const clientMessageId = createClientMessageId("user");
+    sendMutation.mutate({
+      content: composerValue,
+      mode: "generate",
+      imageUrl: composerImage?.previewUrl,
+      imageData: composerImage?.dataBase64,
+      requestId,
+      clientMessageId,
+    }, {
+      onSettled: () => {
+        isPendingRef.current = false;
+      }
+    });
   };
 
   const handleStop = () => {
@@ -587,7 +690,7 @@ export function ChatContainer() {
               className="flex min-h-0 w-full flex-1 overflow-x-hidden overflow-y-auto scroll-smooth scrollbar px-0 py-0"
               ref={chatRef}
             >
-          <div className={`flex w-full flex-col gap-5 px-3 py-3 lg:gap-6 lg:py-8 ${activeSession ? 'max-w-3xl mx-auto' : 'items-center justify-center min-h-full'}`}>
+          <div className={`flex w-full flex-col gap-4 px-3 py-3 lg:gap-5 lg:py-8 ${activeSession ? 'max-w-3xl mx-auto' : 'items-center justify-center min-h-full'}`}>
             {!activeSession ? (
               <WelcomeScreen
                 isBootstrapping={isBootstrapping}
@@ -661,7 +764,7 @@ export function ChatContainer() {
             });
 
             const isSynthetic = hasMetaFlag(message.meta, "synthetic:true");
-            const turnFailed = isSynthetic && !isSending;
+            const turnFailed = isSynthetic && !isSending && Boolean(sessionsError);
             
             const displayContent = turnFailed 
               ? "The agent encountered a critical error before completing the response." 
@@ -721,6 +824,11 @@ export function ChatContainer() {
                       void handleMessageSceneAction('preview', resolvedVersionId);
                     }
                   : undefined}
+                mediaUrl={matchedVersion?.mediaUrl ?? null}
+                mediaType={matchedVersion?.mediaType ?? null}
+                outputKind={matchedVersion?.outputKind ?? null}
+                mediaStatusStage={isLast ? (activeTaskProgress?.mediaStage ?? 'idle') : (matchedVersion?.mediaUrl ? 'ready' : 'idle')}
+                mediaStatusText={isLast ? (activeTaskProgress?.mediaStatusText ?? null) : null}
               />
             );
           })}
@@ -760,8 +868,53 @@ export function ChatContainer() {
               </div>
             )}
 
+            {/* Floating Workspace Button — only on chat, only when scene exists */}
+            {activeSession?.currentScene && (
+              <button
+                type="button"
+                onClick={openWorkspace}
+                className="absolute right-4 bottom-24 z-30 flex items-center gap-2 rounded-full border border-white/[0.06] bg-[#18181B]/80 px-3.5 py-2 backdrop-blur-xl text-[11px] font-medium text-white/60 shadow-[0_4px_24px_rgba(0,0,0,0.4)] transition-all duration-200 hover:bg-[#18181B] hover:text-white/90 hover:shadow-[0_4px_32px_rgba(0,0,0,0.5)] active:scale-95 md:right-8 md:bottom-28"
+              >
+                <LayoutPanelTop className="h-3.5 w-3.5" />
+                <span className="hidden sm:inline">Workspace</span>
+              </button>
+            )}
+
+            {/* Agent Approval Gate */}
+            {pendingApproval && pendingApproval.sessionId === activeSessionId && (
+              <div className="shrink-0 w-full px-3 max-w-3xl mx-auto pb-2">
+                <div className="flex items-start gap-3 rounded-xl border border-amber-500/20 bg-amber-500/10 px-4 py-3">
+                  <div className="mt-0.5 h-5 w-5 shrink-0 rounded-full border-2 border-amber-400/60 flex items-center justify-center">
+                    <span className="h-1.5 w-1.5 rounded-full bg-amber-400 animate-pulse" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-[13px] font-medium text-amber-200/90">Agent approval required</p>
+                    <p className="mt-0.5 text-[12px] text-amber-200/60 leading-relaxed">
+                      {pendingApproval.description || `Step: ${pendingApproval.step}`}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <button
+                      type="button"
+                      onClick={() => sendApprovalResponse(false)}
+                      className="rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-[12px] font-medium text-white/70 transition hover:bg-white/10 hover:text-white"
+                    >
+                      Reject
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => sendApprovalResponse(true)}
+                      className="rounded-lg bg-emerald-500/20 px-3 py-1.5 text-[12px] font-medium text-emerald-300 transition hover:bg-emerald-500/30"
+                    >
+                      Approve
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
             {/* Input */}
-            <div className="shrink-0 bg-transparent pb-4 lg:pb-8 pt-2">
+            <div className="shrink-0 pb-4 lg:pb-8 pt-2">
               <div className="w-full">
                 <div className={`relative w-full px-3 max-w-3xl mx-auto ${debugLayout ? "outline outline-2 outline-amber-300/80" : ""}`}>
                 <Composer

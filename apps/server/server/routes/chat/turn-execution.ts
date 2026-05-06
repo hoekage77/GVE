@@ -103,6 +103,44 @@ export async function executeChatTurn(
     }
   }
 
+  // ── Instant Mode: skip thinking, planning, narration, debug loops ──
+  const isInstant = Boolean((effectivePreferences as any)?.instant);
+  if (isInstant && !hasImage) {
+    console.log(`[Turn] [TRACE] Instant mode — skipping planning/bootstrap for session=${sessionId}`);
+    return await runWithTraceContext(
+      { requestId: turnRequestId, sessionId, messageId: assistantMessageId },
+      async () => {
+        try {
+          return executeStandardTurnPath({
+            sessionId,
+            content,
+            plan: { planId: "instant", tasks: [], summary: "" },
+            effectivePreferences,
+            sessionState,
+            assistantMessageId,
+            turnRequestId,
+            thoughtContextBase: { query: content, sessionId, timestamp: Date.now(), llmThoughts: [], skill: (effectivePreferences as any)?.skill ?? "threejs" },
+            llmThoughts: [],
+            userMessage,
+            resolveChatTurn,
+            generatePostTurnNarration,
+            postTurnNarrationEnabled: false,
+            fastModeEnabled: true
+          });
+        } catch (error) {
+          handleTurnExecutionError({
+            error,
+            sessionId,
+            turnRequestId,
+            assistantMessageId,
+            stepDurationsMs: {}
+          });
+          throw error;
+        }
+      }
+    );
+  }
+
   return await runWithTraceContext(
     { requestId: turnRequestId, sessionId, messageId: assistantMessageId },
     async () => {

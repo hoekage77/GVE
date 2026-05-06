@@ -7,7 +7,7 @@
     "dev": "tsx --watch server/index.ts",
     "start": "tsx server/index.ts",
     "typecheck": "tsc --noEmit",
-    "build": "tsc",
+    "build": "tsc && cp -r docs dist/",
     "test": "vitest run",
     "chat:full-turn": "tsx scripts/chat-full-turn.ts",
     "test:sandbox:direct": "node ./scripts/sandbox-direct-test.mjs",
@@ -27,18 +27,24 @@
     "@visual-runtime/sandbox-pool": "*",
     "@visual-runtime/shared": "*",
     "acorn": "^8.16.0",
+    "better-sqlite3": "^12.9.0",
     "cors": "^2.8.6",
     "express": "^5.2.1",
     "express-rate-limit": "^8.4.1",
     "ws": "^8.20.0"
   },
   "devDependencies": {
+    "@types/better-sqlite3": "^7.6.13",
     "@types/cors": "^2.8.19",
     "@types/express": "^5.0.6",
     "@types/node": "^25.6.0",
+    "@types/swagger-ui-express": "^4.1.8",
     "@types/ws": "^8.18.1",
+    "@types/yamljs": "^0.2.34",
+    "swagger-ui-express": "^5.0.1",
     "tsx": "^4.21.0",
     "typescript": "^6.0.3",
-    "vitest": "^3.2.4"
+    "vitest": "^3.2.4",
+    "yamljs": "^0.3.0"
   }
 }

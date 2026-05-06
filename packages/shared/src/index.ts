@@ -106,12 +106,20 @@ export interface SessionSceneState {
   updatedAt: string;
 }
 
+export interface FileRevision {
+  version: number;
+  content: string;
+  createdAt: string;
+  agentAction: "generate" | "patch" | "user-edit";
+}
+
 export interface WorkspaceFileEntry {
   path: string;
   content: string;
   purpose: string;
   skill: string;
   generatedAt?: string;
+  history?: FileRevision[];
 }
 
 export interface WorkspaceRecord {
@@ -164,10 +172,12 @@ export interface ChatTurnRequest {
   imageData?: string;
   mode?: 'generate' | 'modify' | 'explain' | 'debug' | 'chat';
   requestId?: string;
+  clientMessageId?: string;
   preferences?: {
     skill?: SkillPreference;
     quality?: "draft" | "standard" | "high";
     provider?: string;
+    instant?: boolean;
   };
 }
 
@@ -682,6 +692,37 @@ export async function listSessions(): Promise<SessionListResponse> {
       return { sessions: [] };
     }
 
+    throw error;
+  }
+}
+
+export async function deleteSession(sessionId: string): Promise<{ success: boolean }> {
+  try {
+    return await requestJson<{ success: boolean }>(`/api/v1/sessions/${sessionId}`, {
+      method: "DELETE"
+    }, "Session delete request failed");
+  } catch (error) {
+    if (USE_DEV_MOCKS) {
+      return { success: true };
+    }
+    throw error;
+  }
+}
+
+export async function updateSession(
+  sessionId: string,
+  updates: Partial<SessionSceneState>
+): Promise<{ success: boolean; session?: SessionSceneState }> {
+  try {
+    return await requestJson<{ success: boolean; session?: SessionSceneState }>(`/api/v1/sessions/${sessionId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(updates)
+    }, "Session update request failed");
+  } catch (error) {
+    if (USE_DEV_MOCKS) {
+      return { success: true };
+    }
     throw error;
   }
 }
@@ -1537,4 +1578,55 @@ export async function listTools(): Promise<ToolRegistryResponse> {
   return requestJson<ToolRegistryResponse>("/api/v1/tools", {
     method: "GET"
   }, "Tool registry request failed");
+}
+
+// ── API Key Management ──
+
+export interface ApiKeyRecord {
+  id: string;
+  userId: string;
+  name: string;
+  scopes: string[];
+  createdAt: string;
+}
+
+export interface CreateApiKeyResponse {
+  data: {
+    id: string;
+    name: string;
+    key: string;
+    scopes: string[];
+    created_at: string;
+  };
+  error: null;
+}
+
+export interface ListApiKeysResponse {
+  data: ApiKeyRecord[];
+  error: null;
+}
+
+export interface DeleteApiKeyResponse {
+  data: { deleted: boolean };
+  error: null;
+}
+
+export async function createApiKey(name: string, scopes?: string[]): Promise<CreateApiKeyResponse> {
+  return requestJson<CreateApiKeyResponse>("/api/v1/auth/api-keys", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ name: name || "Unnamed Key", scopes: scopes ?? ["*"] })
+  }, "API key creation failed");
+}
+
+export async function listApiKeys(): Promise<ListApiKeysResponse> {
+  return requestJson<ListApiKeysResponse>("/api/v1/auth/api-keys", {
+    method: "GET"
+  }, "API key list request failed");
+}
+
+export async function deleteApiKey(id: string): Promise<DeleteApiKeyResponse> {
+  return requestJson<DeleteApiKeyResponse>(`/api/v1/auth/api-keys/${id}`, {
+    method: "DELETE"
+  }, "API key deletion failed");
 }

@@ -1,9 +1,11 @@
 import { useMemo, useState, useEffect } from "react";
-import { Sparkles, Eye, Loader2, AlertTriangle, Code2, Film, Image as ImageIcon, ChevronLeft, ChevronRight } from "lucide-react";
+import { Eye, AlertTriangle, Image as ImageIcon, ChevronLeft, ChevronRight } from "lucide-react";
 import MarkdownRenderer from "./MarkdownRenderer";
 import { AgentActionStream } from "./AgentActionStream";
 import { SourceResultsList, type SourceResult } from "./meta/SourceResultsList";
 import { InlineScenePreview } from "./InlineScenePreview";
+import { InlineMediaPreview } from "./InlineMediaPreview";
+import type { MediaLifecycleStage } from "../../stores/chat/types";
 
 export type ChatMessageVariant = "legacy" | "meta";
 
@@ -41,9 +43,9 @@ export function UserMessage({ content, timestamp, variant = "legacy" }: UserMess
   const isMetaVariant = variant === "meta";
 
   return (
-    <div className={`flex flex-row-reverse min-w-0 gap-2.5 lg:gap-3 animate-message-enter ${isMetaVariant ? "mb-6" : "mb-4"}`}>
+    <div className={`flex flex-row-reverse min-w-0 gap-2.5 lg:gap-3 animate-message-enter ${isMetaVariant ? "mb-5" : "mb-3"}`}>
       <div className="flex-1 min-w-0 flex flex-col items-end">
-        <div className="message-bubble-user max-w-[85%] inline-block">
+        <div className="message-bubble-user max-w-[92%] inline-block">
           <p className="break-words text-[14px] lg:text-[15px] leading-[1.6] text-white/90">{content}</p>
         </div>
       </div>
@@ -85,6 +87,11 @@ interface AIMessageProps {
   sceneSkill?: string | null;
   sceneVersionId?: string | null;
   onSceneExpand?: () => void;
+  mediaUrl?: string | null;
+  mediaType?: string | null;
+  outputKind?: "code" | "media" | null;
+  mediaStatusStage?: MediaLifecycleStage;
+  mediaStatusText?: string | null;
 }
 
 function compactSceneName(sceneId: string | undefined): string {
@@ -215,6 +222,17 @@ function isVideoThumbnail(url: string | null, mediaType: string | null | undefin
   return /\.(mp4|webm|ogg|mov)(\?|$)/.test(normalized);
 }
 
+function isVideoArtifact(
+  outputKind: "code" | "media" | null | undefined,
+  mediaType: string | null | undefined,
+  skill: string | null | undefined
+): boolean {
+  if (outputKind === "media") return true;
+  if (String(mediaType ?? "").toLowerCase().startsWith("video/")) return true;
+  if (String(skill ?? "").toLowerCase() === "manim") return true;
+  return false;
+}
+
 export function MetaAIMessage({
   content,
   thoughts = [],
@@ -232,9 +250,17 @@ export function MetaAIMessage({
   isPreviewActive = false,
   isCodeActive = false,
   onSceneCode,
-  onScenePreview
+  onScenePreview,
+  mediaUrl,
+  mediaType,
+  outputKind,
+  mediaStatusStage,
+  mediaStatusText,
+  onSceneExpand,
+  sceneCode,
+  sceneSkill,
+  sceneVersionId,
 }: AIMessageProps) {
-  const showSceneFooter = Boolean((onScenePreview || onSceneCode) && !isThinking);
   const compactSceneId = compactSceneName(sceneId);
   const sourceResults = useMemo(() => extractSourceResults(content, meta), [content, meta]);
   const contextSource = formatContextLabel(assistantSource);
@@ -242,7 +268,7 @@ export function MetaAIMessage({
   const hasContextRow = Boolean(contextSource || contextSkill || assistantWarning || errorCode);
 
   return (
-    <div className={`mb-4 flex min-w-0 gap-3 ${isThinking ? 'opacity-95' : ''}`}>
+    <div className={`mb-3 flex min-w-0 gap-3 ${isThinking ? 'opacity-95' : ''}`}>
       <div className="min-w-0 flex-1">
         {thoughts.length > 0 && (
           <AgentActionStream thoughts={thoughts} isThinking={isThinking} thinkingDuration={thinkingDuration} />
@@ -287,41 +313,39 @@ export function MetaAIMessage({
           )}
         </div>
 
+        {/* Inline artifact preview — media takes priority over code scene */}
+        {!isThinking && (
+          <>
+            {isVideoArtifact(outputKind, mediaType, skill) && (
+              <InlineMediaPreview
+                src={mediaUrl ?? null}
+                mediaType={mediaType}
+                sceneId={sceneId || "video"}
+                skill={skill || "video"}
+                statusStage={mediaStatusStage}
+                statusText={mediaStatusText}
+                onExpand={onSceneExpand}
+              />
+            )}
+            {sceneCode && !isVideoArtifact(outputKind, mediaType, skill) && (
+              <InlineScenePreview
+                code={sceneCode}
+                skill={sceneSkill || "threejs"}
+                sceneId={sceneId || "scene"}
+                versionId={sceneVersionId || ""}
+                onExpand={onSceneExpand}
+              />
+            )}
+          </>
+        )}
+
         {!isThinking && <SourceResultsList sources={sourceResults} />}
 
         {timestamp && !isThinking && (
           <div className="mt-2 text-[11px] text-white/40">{formatTime(timestamp)}</div>
         )}
 
-        {showSceneFooter && (
-          <div className="mt-2 flex items-center gap-2">
-            {onSceneCode && (
-              <button
-                type="button"
-                className={`inline-flex items-center gap-1 rounded-md border px-2 py-1 text-[10px] font-medium uppercase tracking-wide transition-colors ${isCodeActive ? "border-ide-accent/50 bg-ide-accent/10 text-meta-text" : "border-meta-border bg-surface-3 text-meta-muted hover:bg-surface"}`}
-                onClick={onSceneCode}
-                aria-label="Open code"
-                title={compactSceneId ? `Open ${compactSceneId} code` : "Open scene code"}
-              >
-                <Code2 className="h-3.5 w-3.5" aria-hidden="true" />
-                Code
-              </button>
-            )}
 
-            {onScenePreview && (
-              <button
-                type="button"
-                className={`inline-flex items-center gap-1 rounded-md border px-2 py-1 text-[10px] font-medium uppercase tracking-wide transition-colors ${isPreviewActive ? "border-ide-accent/50 bg-ide-accent/10 text-meta-text" : "border-meta-border bg-surface-3 text-meta-muted hover:bg-surface"}`}
-                onClick={onScenePreview}
-                aria-label="Open preview"
-                title={compactSceneId ? `Open ${compactSceneId} preview` : "Open scene preview"}
-              >
-                <Eye className="h-3.5 w-3.5" aria-hidden="true" />
-                Preview
-              </button>
-            )}
-          </div>
-        )}
       </div>
     </div>
   );
@@ -342,7 +366,12 @@ export function AIMessage(props: AIMessageProps) {
     sceneId,
     sceneVersionId,
     onSceneExpand,
-    onSceneCode
+    onSceneCode,
+    mediaUrl,
+    mediaType,
+    outputKind,
+    mediaStatusStage,
+    mediaStatusText,
   } = props;
   const isMetaVariant = variant === "meta";
 
@@ -371,8 +400,12 @@ export function AIMessage(props: AIMessageProps) {
     setActiveArtifactIndex((previous) => Math.min(artifactCards.length - 1, previous + 1));
   };
 
+  const showInlineMedia = !isThinking && isVideoArtifact(outputKind, mediaType, sceneSkill);
+  const showInlineScene = !isThinking && sceneCode && !showInlineMedia;
+  const hasInlinePreview = showInlineMedia || showInlineScene;
+
   return (
-    <div className={`flex min-w-0 gap-2.5 lg:gap-3 animate-message-enter ${isMetaVariant ? "mb-6" : "mb-4"}`}>
+    <div className={`flex min-w-0 gap-2.5 lg:gap-3 animate-message-enter ${isMetaVariant ? "mb-5" : "mb-3"}`}>
       <div className="flex-1 min-w-0">
         
         <div className="space-y-2 lg:space-y-3 w-full min-w-0">
@@ -391,8 +424,19 @@ export function AIMessage(props: AIMessageProps) {
             </div>
           )}
 
-          {/* Inline Scene Preview — unified, inline, never separated */}
-          {sceneCode && !isThinking && (
+          {/* Inline artifact preview */}
+          {showInlineMedia && (
+            <InlineMediaPreview
+              src={mediaUrl ?? null}
+              mediaType={mediaType}
+              sceneId={sceneId || "video"}
+              skill={sceneSkill || "video"}
+              statusStage={mediaStatusStage}
+              statusText={mediaStatusText}
+              onExpand={onSceneExpand}
+            />
+          )}
+          {showInlineScene && (
             <InlineScenePreview
               code={sceneCode}
               skill={sceneSkill || "threejs"}
@@ -402,8 +446,8 @@ export function AIMessage(props: AIMessageProps) {
             />
           )}
 
-          {/* Artifact thumbnails — only for non-scene media or when no inline preview */}
-          {activeArtifact && !sceneCode && (() => {
+          {/* Artifact thumbnails — only when no inline preview */}
+          {activeArtifact && !hasInlinePreview && (() => {
             const thumbnailUrl = normalizePreviewUrl(activeArtifact.previewUrl);
             const showVideo = isVideoThumbnail(thumbnailUrl, activeArtifact.mediaType);
             const skillLabel = (activeArtifact.skill || "scene").toUpperCase();
@@ -433,30 +477,6 @@ export function AIMessage(props: AIMessageProps) {
                     <span className="text-[9px] uppercase tracking-wider text-white/40">{skillLabel}</span>
                   </div>
 
-                  {/* Action Divider */}
-                  <div className="mx-1 h-4 w-px bg-white/10" />
-
-                  {/* Actions */}
-                  <div className="flex items-center gap-0.5">
-                    <button
-                      type="button"
-                      className={`flex h-7 w-7 items-center justify-center rounded-full transition-colors ${activeArtifact.isPreviewActive ? "bg-meta-accent/20 text-meta-accent" : "text-white/60 hover:bg-white/10 hover:text-white"}`}
-                      onClick={activeArtifact.onPreview}
-                      disabled={!activeArtifact.onPreview}
-                      title="Open Preview"
-                    >
-                      <Eye className="h-3.5 w-3.5" />
-                    </button>
-                    <button
-                      type="button"
-                      className={`flex h-7 w-7 items-center justify-center rounded-full transition-colors ${activeArtifact.isCodeActive ? "bg-meta-accent/20 text-meta-accent" : "text-white/60 hover:bg-white/10 hover:text-white"}`}
-                      onClick={activeArtifact.onCode}
-                      disabled={!activeArtifact.onCode}
-                      title="View Code"
-                    >
-                      <Code2 className="h-3.5 w-3.5" />
-                    </button>
-                  </div>
                 </div>
 
                 {/* Navigation Arrows for multi-artifact */}

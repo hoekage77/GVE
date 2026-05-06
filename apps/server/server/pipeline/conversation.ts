@@ -295,6 +295,81 @@ export async function resolveChatTurn(request: any, sessionState: any, options: 
     };
   }
 
+  // ── Instant Mode: bypass agent loops, go straight to generation ──
+  const isInstant = Boolean(request.preferences?.instant);
+  if (isInstant) {
+    console.log(`[Turn] [TRACE] Instant mode — bypassing multi-file agent for session=${request.sessionId}`);
+    const result = await generateVisual(request, { onProgress: options.onStep });
+    return {
+      mode: "generate",
+      parsedIntent,
+      assistantText: result.explanation,
+      result,
+      sceneState: result.sceneState
+    };
+  }
+
+  // ── Multi-file agent routing ──
+  const { runAgentController } = await import("./agent-controller.js");
+  const { detectIntent } = await import("./intent-detector.js");
+  let intent: any = null;
+  try {
+    intent = await detectIntent(request.query);
+  } catch { /* ignore, fall through to single-file */ }
+
+  if (intent && (intent.projectType === "multi-file" || intent.complexity === "complex")) {
+    const agentResult = await runAgentController(
+      {
+        query: request.query,
+        sessionId: request.sessionId,
+        preferredSkill: request.preferences?.skill ?? "threejs",
+        quality: request.preferences?.quality ?? "standard"
+      },
+      options.onStep
+    );
+
+    if (agentResult.success && agentResult.workspace) {
+      const entry = agentResult.workspace.files[agentResult.workspace.entryPoint];
+      const code = entry?.content ?? "";
+
+      return {
+        mode: "generate",
+        parsedIntent: { ...parsedIntent, intentType: "generate", projectType: intent.projectType },
+        assistantText: `Generated ${Object.keys(agentResult.workspace.files).length} files: ${Object.keys(agentResult.workspace.files).join(", ")}`,
+        result: {
+          sceneId: `scene-${request.sessionId}-${Date.now()}`,
+          code,
+          previewUrl: null,
+          skill: entry?.skill ?? "threejs",
+          outputKind: "code",
+          explanation: `Multi-file ${intent.domain} project with ${Object.keys(agentResult.workspace.files).length} files`,
+          workspace: agentResult.workspace,
+          agentResult
+        },
+        sceneState: {
+          ...sessionState,
+          workspace: agentResult.workspace,
+          currentScene: {
+            versionId: `v-${Date.now()}`,
+            version: (sessionState.versions?.length ?? 0) + 1,
+            artifactId: sessionState.artifacts?.[0]?.artifactId ?? "art-0",
+            artifactVersion: (sessionState.artifacts?.[0]?.revisions?.length ?? 0) + 1,
+            source: "generate",
+            sceneId: `scene-${request.sessionId}-${Date.now()}`,
+            code,
+            previewUrl: null,
+            skill: entry?.skill ?? "threejs",
+            outputKind: "code",
+            workspace: agentResult.workspace,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString()
+          }
+        }
+      };
+    }
+    // Agent failed, fall through to single-file
+  }
+
   const result = await generateVisual(request, { onProgress: options.onStep });
 
   return {

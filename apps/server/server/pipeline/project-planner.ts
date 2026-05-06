@@ -12,7 +12,7 @@ import type { SkillId } from "./workspace.js";
 export interface PlannedFile {
   path: string;
   purpose: string;
-  skill: SkillId;
+  skill: SkillId | SkillId[];
   importsFromLocal: string[];
   npmDependencies: string[];
   qualityContract?: string;
@@ -31,11 +31,12 @@ export interface WorkPlan {
 // ────────────────────────────────────────────────
 
 const skillIdEnum = z.enum(["threejs", "p5js", "d3js", "animejs", "manim"]);
+const multiSkillEnum = z.union([skillIdEnum, z.array(skillIdEnum).min(1).max(3)]);
 
 const plannedFileSchema = z.object({
   path: z.string().min(1).describe("File path relative to project root"),
   purpose: z.string().min(1).describe("What this file does — single responsibility"),
-  skill: skillIdEnum.describe("Rendering skill for this file"),
+  skill: multiSkillEnum.describe("Rendering skill(s) for this file. Use array for multi-skill files (e.g., [\"threejs\", \"d3js\"])"),
   importsFromLocal: z.array(z.string()).default([]).describe("Paths this file imports from locally"),
   npmDependencies: z.array(z.string()).default([]).describe("NPM packages this file needs"),
   qualityContract: z.string().optional().describe("Specific quality requirements this file must meet")

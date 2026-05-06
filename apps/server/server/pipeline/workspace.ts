@@ -6,12 +6,20 @@ export type SkillId = "threejs" | "p5js" | "d3js" | "animejs" | "manim";
 //  WORKSPACE TYPES
 // ────────────────────────────────────────────────
 
+export interface FileRevision {
+  version: number;
+  content: string;
+  createdAt: string;
+  agentAction: "generate" | "patch" | "user-edit";
+}
+
 export interface FileEntry {
   path: string;
   content: string;
   purpose: string;
-  skill: SkillId;
+  skill: SkillId | SkillId[];
   generatedAt: string;
+  history: FileRevision[];
 }
 
 export interface Workspace {
@@ -36,12 +44,20 @@ export interface FileDiff {
 
 const skillIdEnum = z.enum(["threejs", "p5js", "d3js", "animejs", "manim"]);
 
+export const fileRevisionSchema = z.object({
+  version: z.number().int().min(0),
+  content: z.string(),
+  createdAt: z.string().datetime(),
+  agentAction: z.enum(["generate", "patch", "user-edit"])
+});
+
 export const fileEntrySchema = z.object({
   path: z.string().min(1),
   content: z.string(),
   purpose: z.string().min(1),
   skill: skillIdEnum,
-  generatedAt: z.string().datetime().optional()
+  generatedAt: z.string().datetime().optional(),
+  history: z.array(fileRevisionSchema).default([])
 });
 
 export const workspaceSchema = z.object({
@@ -71,16 +87,30 @@ export function createWorkspace(entryPoint = "src/index.js"): Workspace {
 //  FILE OPERATIONS (immutable)
 // ────────────────────────────────────────────────
 
+const MAX_HISTORY = 3;
+
+function pushHistory(entry: FileEntry, action: FileRevision["agentAction"]): FileRevision[] {
+  const revision: FileRevision = {
+    version: entry.history.length + 1,
+    content: entry.content,
+    createdAt: entry.generatedAt,
+    agentAction: entry.history.length === 0 ? "generate" : action
+  };
+  return [...entry.history, revision].slice(-MAX_HISTORY);
+}
+
 export function addFile(
   ws: Workspace,
   path: string,
   content: string,
   purpose: string,
-  skill: SkillId = "threejs"
+  skill: SkillId | SkillId[] = "threejs",
+  agentAction: FileRevision["agentAction"] = "generate"
 ): Workspace {
   if (!content.trim()) throw new Error(`Cannot add empty file: ${path}`);
   const cleanPath = path.replace(/^\/+/, "");
   if (ws.files[cleanPath]) throw new Error(`File already exists: ${cleanPath}`);
+  const now = new Date().toISOString();
   return {
     ...ws,
     files: {
@@ -90,25 +120,37 @@ export function addFile(
         content,
         purpose,
         skill,
-        generatedAt: new Date().toISOString()
+        generatedAt: now,
+        history: []
       }
     },
-    updatedAt: new Date().toISOString()
+    updatedAt: now
   };
 }
 
-export function updateFile(ws: Workspace, path: string, content: string): Workspace {
+export function updateFile(
+  ws: Workspace,
+  path: string,
+  content: string,
+  agentAction: FileRevision["agentAction"] = "patch"
+): Workspace {
   const cleanPath = path.replace(/^\/+/, "");
   const existing = ws.files[cleanPath];
   if (!existing) throw new Error(`File not found: ${cleanPath}`);
   if (!content.trim()) throw new Error(`Cannot write empty content to: ${cleanPath}`);
+  const now = new Date().toISOString();
   return {
     ...ws,
     files: {
       ...ws.files,
-      [cleanPath]: { ...existing, content, generatedAt: new Date().toISOString() }
+      [cleanPath]: {
+        ...existing,
+        content,
+        generatedAt: now,
+        history: pushHistory(existing, agentAction)
+      }
     },
-    updatedAt: new Date().toISOString()
+    updatedAt: now
   };
 }
 
@@ -124,6 +166,28 @@ export function removeFile(ws: Workspace, path: string): Workspace {
     ...ws,
     files: next,
     updatedAt: new Date().toISOString()
+  };
+}
+
+export function revertFile(ws: Workspace, path: string, version: number): Workspace {
+  const cleanPath = path.replace(/^\/+/, "");
+  const existing = ws.files[cleanPath];
+  if (!existing) throw new Error(`File not found: ${cleanPath}`);
+  const revision = existing.history.find((h) => h.version === version);
+  if (!revision) throw new Error(`Version ${version} not found for ${cleanPath}`);
+  const now = new Date().toISOString();
+  return {
+    ...ws,
+    files: {
+      ...ws.files,
+      [cleanPath]: {
+        ...existing,
+        content: revision.content,
+        generatedAt: now,
+        history: pushHistory(existing, "user-edit"),
+      },
+    },
+    updatedAt: now,
   };
 }
 
@@ -216,14 +280,14 @@ export function getTopologicalOrder(ws: Workspace): FileEntry[] {
 // ────────────────────────────────────────────────
 
 export interface SandboxPayload {
-  files: Array<{ path: string; content: string }>;
+  files: Array<{ path: string; content: string; skill?: SkillId | SkillId[] }>;
   entryPoint: string;
   dependencies: string[];
 }
 
 export function toSandboxPayload(ws: Workspace): SandboxPayload {
   return {
-    files: Object.values(ws.files).map(f => ({ path: f.path, content: f.content })),
+    files: Object.values(ws.files).map(f => ({ path: f.path, content: f.content, skill: f.skill })),
     entryPoint: ws.entryPoint,
     dependencies: ws.dependencies
   };
@@ -243,7 +307,8 @@ export function fromSingleFile(
         content: code,
         purpose,
         skill,
-        generatedAt: now
+        generatedAt: now,
+        history: []
       }
     },
     entryPoint: entryPath,

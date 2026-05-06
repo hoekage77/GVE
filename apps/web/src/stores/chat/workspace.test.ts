@@ -19,6 +19,8 @@ function createTestStore() {
     initialize: async () => {},
     connectWebSocket: () => {},
     sendSceneCommand: async () => {},
+    setSessionsError: () => {},
+    setPendingApproval: () => {},
     setWorkspaceRecord: (record) => args[0]({ workspaceRecord: record }),
     selectWorkspaceFile: (path) => args[0]({ selectedWorkspaceFile: path }),
   } as TestChatState));

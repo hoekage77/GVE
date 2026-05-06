@@ -13,6 +13,7 @@ export interface ComposerSlice {
   activeArtifactId: string | null;
   workspaceRecord: WorkspaceRecord | null;
   selectedWorkspaceFile: string | null;
+  workspaceOpen: boolean;
 
   setComposerValue: (value: string) => void;
   setComposerImage: (image: ComposerImageAttachment | null) => void;
@@ -27,6 +28,9 @@ export interface ComposerSlice {
   closeTheaterMode: () => void;
   setWorkspaceRecord: (record: WorkspaceRecord | null) => void;
   selectWorkspaceFile: (path: string) => void;
+  openWorkspace: () => void;
+  closeWorkspace: () => void;
+  toggleWorkspace: () => void;
 }
 
 export const createComposerSlice: StateCreator<ChatState, [], [], ComposerSlice> = (set, get) => ({
@@ -43,6 +47,7 @@ export const createComposerSlice: StateCreator<ChatState, [], [], ComposerSlice>
   activeArtifactId: null,
   workspaceRecord: null,
   selectedWorkspaceFile: null,
+  workspaceOpen: false,
 
   setComposerValue: (value) => set({ composerValue: value }),
 
@@ -101,4 +106,13 @@ export const createComposerSlice: StateCreator<ChatState, [], [], ComposerSlice>
   setWorkspaceRecord: (record) => set({ workspaceRecord: record, selectedWorkspaceFile: null }),
 
   selectWorkspaceFile: (path) => set({ selectedWorkspaceFile: path }),
+
+  openWorkspace: () => set({ workspaceOpen: true }),
+
+  closeWorkspace: () => set({ workspaceOpen: false }),
+
+  toggleWorkspace: () => {
+    const { workspaceOpen } = get();
+    set({ workspaceOpen: !workspaceOpen });
+  },
 });

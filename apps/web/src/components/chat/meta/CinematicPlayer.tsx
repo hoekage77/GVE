@@ -1,7 +1,22 @@
 import { motion, AnimatePresence } from "framer-motion";
-import { X, Maximize2, Play, Pause, RotateCcw, ZoomIn, ZoomOut, Compass, Grid3X3, MessageSquare, Info, ChevronLeft, ChevronRight } from "lucide-react";
+import {
+  X,
+  Play,
+  Pause,
+  RotateCcw,
+  ZoomIn,
+  ZoomOut,
+  Compass,
+  Grid3X3,
+  MessageSquare,
+  Info,
+  ChevronLeft,
+  ChevronRight,
+  LayoutPanelTop,
+} from "lucide-react";
 import { useChatStore } from "../../../stores";
 import SceneViewer, { type SceneViewerRef } from "../../SceneViewer";
+import MediaViewer from "../../workspace/MediaViewer";
 import { useEffect, useState, useRef } from "react";
 
 export function CinematicPlayer() {
@@ -11,7 +26,6 @@ export function CinematicPlayer() {
   const selectSceneVersion = useChatStore((state) => state.selectSceneVersion);
   const sessions = useChatStore((state) => state.sessions);
   const activeSessionId = useChatStore((state) => state.activeSessionId);
-
   const viewerRef = useRef<SceneViewerRef>(null);
   const [isHudVisible, setIsHudVisible] = useState(true);
   const [isPlaying, setIsPlaying] = useState(true);
@@ -43,20 +57,18 @@ export function CinematicPlayer() {
     } else {
       document.body.style.overflow = "";
     }
-    
+
     return () => {
       document.body.style.overflow = "";
     };
   }, [activeArtifactId, selectSceneVersion]);
-
-  const isSidebarCollapsed = useChatStore((state) => state.isSidebarCollapsed);
 
   if (!activeArtifactId) return null;
 
   const session = sessions.find((s) => s.sessionId === activeSessionId);
   const artifact = session?.versions?.find((v) => v.versionId === activeArtifactId);
   const activeScene = artifact || session?.currentScene;
-  const isVideo = activeScene?.outputKind === 'media' || activeScene?.skill === 'manim';
+  const isVideo = activeScene?.outputKind === "media" || activeScene?.skill === "manim";
 
   return (
     <AnimatePresence>
@@ -65,6 +77,7 @@ export function CinematicPlayer() {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
+          transition={{ duration: 0.2 }}
           className="absolute inset-0 z-50 flex flex-col bg-black/95 backdrop-blur-2xl"
         >
           {/* Backdrop Glow */}
@@ -75,8 +88,9 @@ export function CinematicPlayer() {
 
           {/* Top Bar HUD */}
           <motion.div
-            initial={{ y: -20, opacity: 0 }}
-            animate={{ y: isHudVisible ? 0 : -20, opacity: isHudVisible ? 1 : 0 }}
+            initial={{ y: -12, opacity: 0 }}
+            animate={{ y: isHudVisible ? 0 : -12, opacity: isHudVisible ? 1 : 0 }}
+            transition={{ duration: 0.18 }}
             className="relative z-10 flex items-center justify-between px-4 py-4 md:px-6 md:py-6"
           >
             <div className="flex flex-col gap-1">
@@ -121,18 +135,27 @@ export function CinematicPlayer() {
             </div>
           </motion.div>
 
-          {/* Main Stage */}
+          {/* Main Stage — Preview Only */}
           <motion.div
             layoutId={`artifact-${activeArtifactId}`}
             className="relative flex-1 px-3 pb-20 md:px-12 md:pb-32"
           >
             <div className="relative h-full w-full overflow-hidden rounded-2xl border border-white/10 bg-[#050505] shadow-[0_0_80px_rgba(0,0,0,0.5)]">
               {activeScene ? (
-                <SceneViewer 
-                  ref={viewerRef}
-                  code={activeScene.code} 
-                  skill={activeScene.skill} 
-                />
+                isVideo ? (
+                  <MediaViewer
+                    src={activeScene.mediaUrl ?? activeScene.previewUrl ?? null}
+                    mediaType={activeScene.mediaType}
+                    sceneId={activeScene.sceneId}
+                    statusStage="ready"
+                  />
+                ) : (
+                  <SceneViewer
+                    ref={viewerRef}
+                    code={activeScene.code}
+                    skill={activeScene.skill}
+                  />
+                )
               ) : (
                 <div className="flex h-full w-full items-center justify-center text-white/20">
                   <Info className="h-12 w-12 opacity-20" />
@@ -143,66 +166,64 @@ export function CinematicPlayer() {
 
           {/* Bottom HUD / Controls */}
           <motion.div
-            initial={{ y: 20, opacity: 0 }}
-            animate={{ y: isHudVisible ? 0 : 20, opacity: isHudVisible ? 1 : 0 }}
+            initial={{ y: 12, opacity: 0 }}
+            animate={{ y: isHudVisible ? 0 : 12, opacity: isHudVisible ? 1 : 0 }}
+            transition={{ duration: 0.18 }}
             className="absolute bottom-8 left-1/2 z-20 -translate-x-1/2"
           >
             <div className="flex items-center gap-2 rounded-2xl border border-white/10 bg-black/40 p-2 backdrop-blur-2xl">
-              <div className="flex items-center gap-1 border-r border-white/5 pr-2">
-                <ControlButton icon={RotateCcw} label="Reset" onClick={() => viewerRef.current?.resetCamera()} />
-                <ControlButton icon={ZoomIn} label="Zoom In" onClick={() => viewerRef.current?.zoomIn()} />
-                <ControlButton icon={ZoomOut} label="Zoom Out" onClick={() => viewerRef.current?.zoomOut()} />
-              </div>
-              
-              <div className="flex items-center gap-1 border-r border-white/5 px-1">
-                <button 
-                  onClick={() => {
-                    viewerRef.current?.togglePlayback();
-                    setIsPlaying(!isPlaying);
-                  }}
-                  className="flex h-9 w-20 items-center justify-center gap-1.5 rounded-xl bg-white/10 text-[12px] font-medium text-white transition-colors hover:bg-white/20 md:h-10 md:w-24 md:gap-2 md:text-[13px]"
-                >
-                  {isPlaying ? (
-                    <>
-                      <Pause className="h-4 w-4 fill-white" />
-                      Pause
-                    </>
-                  ) : (
-                    <>
-                      <Play className="h-4 w-4 fill-white" />
-                      Play
-                    </>
-                  )}
-                </button>
-                <ControlButton 
-                  icon={Compass} 
-                  label="Orbit" 
-                  active={isOrbitEnabled}
-                  onClick={() => {
-                    viewerRef.current?.toggleOrbit();
-                    setIsOrbitEnabled(!isOrbitEnabled);
-                  }} 
-                />
-                <ControlButton 
-                  icon={Grid3X3} 
-                  label="Grid" 
-                  active={isGridEnabled}
-                  onClick={() => {
-                    viewerRef.current?.toggleGrid();
-                    setIsGridEnabled(!isGridEnabled);
-                  }} 
-                />
-              </div>
+              {!isVideo && (
+                <div className="flex items-center gap-1 border-r border-white/5 pr-2">
+                  <ControlButton icon={RotateCcw} label="Reset" onClick={() => viewerRef.current?.resetCamera()} />
+                  <ControlButton icon={ZoomIn} label="Zoom In" onClick={() => viewerRef.current?.zoomIn()} />
+                  <ControlButton icon={ZoomOut} label="Zoom Out" onClick={() => viewerRef.current?.zoomOut()} />
+                </div>
+              )}
+
+              {!isVideo && (
+                <div className="flex items-center gap-1 border-r border-white/5 px-1">
+                  <button
+                    onClick={() => {
+                      viewerRef.current?.togglePlayback();
+                      setIsPlaying(!isPlaying);
+                    }}
+                    className="flex h-9 w-20 items-center justify-center gap-1.5 rounded-xl bg-white/10 text-[12px] font-medium text-white transition-colors hover:bg-white/20 md:h-10 md:w-24 md:gap-2 md:text-[13px]"
+                  >
+                    {isPlaying ? (
+                      <>
+                        <Pause className="h-4 w-4 fill-white" />
+                        Pause
+                      </>
+                    ) : (
+                      <>
+                        <Play className="h-4 w-4 fill-white" />
+                        Play
+                      </>
+                    )}
+                  </button>
+                  <ControlButton
+                    icon={Compass}
+                    label="Orbit"
+                    active={isOrbitEnabled}
+                    onClick={() => {
+                      viewerRef.current?.toggleOrbit();
+                      setIsOrbitEnabled(!isOrbitEnabled);
+                    }}
+                  />
+                  <ControlButton
+                    icon={Grid3X3}
+                    label="Grid"
+                    active={isGridEnabled}
+                    onClick={() => {
+                      viewerRef.current?.toggleGrid();
+                      setIsGridEnabled(!isGridEnabled);
+                    }}
+                  />
+                </div>
+              )}
 
               <div className="flex items-center gap-1 pl-1">
                 <ControlButton icon={MessageSquare} label="Discuss" onClick={closeTheaterMode} />
-                <ControlButton icon={Maximize2} label="Fullscreen" onClick={() => {
-                  if (document.fullscreenElement) {
-                    document.exitFullscreen();
-                  } else {
-                    document.documentElement.requestFullscreen();
-                  }
-                }} />
               </div>
             </div>
           </motion.div>
@@ -212,14 +233,24 @@ export function CinematicPlayer() {
   );
 }
 
-function ControlButton({ icon: Icon, label, onClick, active }: { icon: any, label: string, onClick: () => void, active?: boolean }) {
+function ControlButton({
+  icon: Icon,
+  label,
+  onClick,
+  active,
+}: {
+  icon: any;
+  label: string;
+  onClick: () => void;
+  active?: boolean;
+}) {
   return (
     <button
       title={label}
       onClick={onClick}
       className={`flex h-10 w-10 items-center justify-center rounded-xl transition-all ${
-        active 
-          ? "bg-meta-accent/20 text-meta-accent" 
+        active
+          ? "bg-meta-accent/20 text-meta-accent"
           : "text-white/50 hover:bg-white/10 hover:text-white"
       }`}
     >

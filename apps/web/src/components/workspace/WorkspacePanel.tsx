@@ -20,7 +20,8 @@ export default function WorkspacePanel() {
     openPanel,
     sendSceneCommand,
     rerunScene,
-    taskProgressBySession
+    taskProgressBySession,
+    workspaceRecord
   } = useChatStore();
 
   const isPanelVisible = panelOpen && Boolean(panelView);
@@ -43,6 +44,16 @@ export default function WorkspacePanel() {
   const currentMediaType = currentScene?.mediaType ?? null;
   const currentMediaUrl = currentScene?.mediaUrl ?? currentScene?.previewUrl ?? null;
   const taskProgress = activeSessionId ? taskProgressBySession[activeSessionId] ?? null : null;
+
+  // Multi-skill composite workspace
+  const workspaceFiles = workspaceRecord?.files ?? null;
+  const hasMultiSkillWorkspace = workspaceFiles && Object.keys(workspaceFiles).length > 1;
+  const compositeFiles = hasMultiSkillWorkspace
+    ? Object.fromEntries(Object.entries(workspaceFiles).map(([path, entry]) => [path, entry.content]))
+    : undefined;
+  const compositeFileSkills = hasMultiSkillWorkspace
+    ? Object.fromEntries(Object.entries(workspaceFiles).map(([path, entry]) => [path, entry.skill]))
+    : undefined;
 
   useEffect(() => {
     if (!panelView) {
@@ -121,11 +132,11 @@ export default function WorkspacePanel() {
     <>
       <button
         type="button"
-        className={`fixed inset-0 z-40 bg-black/50 transition-opacity duration-200 ease-out lg:hidden ${isVisible ? 'opacity-100' : 'pointer-events-none opacity-0'}`}
+        className={`fixed inset-0 z-40 bg-black/60 backdrop-blur-sm transition-opacity duration-200 ease-out ${isVisible ? 'opacity-100' : 'pointer-events-none opacity-0'}`}
         aria-label="Close workspace panel"
         onClick={closePanel}
       />
-      <aside className={`fixed inset-y-0 right-0 z-50 h-full w-full min-h-0 min-w-0 border-l border-white/10 bg-[#0a0a0a] shadow-2xl transition-[transform,opacity] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none lg:static lg:flex-1 ${isVisible ? 'translate-x-0 opacity-100' : 'pointer-events-none translate-x-6 opacity-0'} flex flex-col`}>
+      <aside className={`fixed inset-y-0 right-0 z-50 h-full w-full min-h-0 min-w-0 border-l border-white/10 bg-[#0a0a0a] shadow-2xl transition-[transform,opacity] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none lg:w-[52vw] xl:w-[46vw] 2xl:w-[40vw] ${isVisible ? 'translate-x-0 opacity-100' : 'pointer-events-none translate-x-6 opacity-0'} flex flex-col`}>
         
         {/* Scene Workspace */}
         <div className="flex-1 overflow-hidden flex flex-col">
@@ -133,29 +144,29 @@ export default function WorkspacePanel() {
             
             {/* Card Header (Tabs + Playback) */}
             <div className="px-2.5 py-2 shrink-0 flex items-center justify-between gap-1 border-b border-white/5 flex-wrap">
-              <div className="flex items-center gap-1">
+              <div className="flex items-center gap-1.5">
                 <button
                   onClick={() => openPanel('preview')}
-                  className={`rounded-full px-2 py-0.5 text-[9px] font-semibold uppercase tracking-[0.08em] transition whitespace-nowrap ${activeView === 'preview' ? 'bg-white/12 text-white' : 'text-white/50 hover:bg-white/5 hover:text-white/90'}`}
+                  className={`rounded-full px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.08em] transition whitespace-nowrap ${activeView === 'preview' ? 'bg-white/12 text-white' : 'text-white/50 hover:bg-white/5 hover:text-white/90'}`}
                 >
                   Preview
                 </button>
                 <button
                   onClick={() => openPanel('code')}
-                  className={`rounded-full px-2 py-0.5 text-[9px] font-semibold uppercase tracking-[0.08em] transition whitespace-nowrap ${activeView === 'code' ? 'bg-white/12 text-white' : 'text-white/50 hover:bg-white/5 hover:text-white/90'}`}
+                  className={`rounded-full px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.08em] transition whitespace-nowrap ${activeView === 'code' ? 'bg-white/12 text-white' : 'text-white/50 hover:bg-white/5 hover:text-white/90'}`}
                 >
                   Code
                 </button>
                 <button
                   onClick={() => openPanel('workspace')}
-                  className={`rounded-full px-2 py-0.5 text-[9px] font-semibold uppercase tracking-[0.08em] transition whitespace-nowrap ${activeView === 'workspace' ? 'bg-white/12 text-white' : 'text-white/50 hover:bg-white/5 hover:text-white/90'}`}
+                  className={`rounded-full px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.08em] transition whitespace-nowrap ${activeView === 'workspace' ? 'bg-white/12 text-white' : 'text-white/50 hover:bg-white/5 hover:text-white/90'}`}
                 >
                   <FolderGit2 className="inline h-3 w-3 mr-0.5" />
                   Files
                 </button>
                 <button
                   onClick={() => openPanel('diff')}
-                  className={`rounded-full px-2 py-0.5 text-[9px] font-semibold uppercase tracking-[0.08em] transition whitespace-nowrap ${activeView === 'diff' ? 'bg-white/12 text-white' : 'text-white/50 hover:bg-white/5 hover:text-white/90'}`}
+                  className={`rounded-full px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.08em] transition whitespace-nowrap ${activeView === 'diff' ? 'bg-white/12 text-white' : 'text-white/50 hover:bg-white/5 hover:text-white/90'}`}
                 >
                   <GitBranch className="inline h-3 w-3 mr-0.5" />
                   Diff
@@ -204,7 +215,12 @@ export default function WorkspacePanel() {
                         statusText={taskProgress?.mediaStatusText ?? null}
                       />
                     ) : (
-                      <SceneViewer code={currentCode} skill={currentSkill} />
+                      <SceneViewer
+                        code={currentCode}
+                        skill={currentSkill}
+                        files={compositeFiles}
+                        fileSkills={compositeFileSkills}
+                      />
                     )}
                   </div>
                 ) : activeView === 'code' ? (

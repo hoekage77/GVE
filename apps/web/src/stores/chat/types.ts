@@ -153,7 +153,16 @@ export interface ChatState {
   showScrollToLatest: boolean;
   iterationState: UIIterationState | null;
   agentState: UIAgentState | null;
-  
+
+  // Agent Approval Gate
+  pendingApproval: {
+    sessionId: string;
+    stepId: string;
+    step: string;
+    description: string;
+    deadline: number;
+  } | null;
+
   // Workspace Panel State (new simplified system)
   panelOpen: boolean;
   panelView: WorkspacePanelView | null;
@@ -162,7 +171,8 @@ export interface ChatState {
   // Multi-File Workspace State
   workspaceRecord: WorkspaceRecord | null;
   selectedWorkspaceFile: string | null;
-  
+  workspaceOpen: boolean;
+
   // Theater Mode (New Cinematic Preview)
   activeArtifactId: string | null;
   
@@ -185,12 +195,9 @@ export interface ChatState {
   cycleTheaterArtifact: (direction: "next" | "prev") => void;
   
   initialize: () => Promise<void>;
-  refreshSessions: () => Promise<void>;
   fetchProviders: () => Promise<void>;
   createNewSession: () => Promise<Session | null>;
-  selectSession: (sessionId: string) => Promise<void>;
-  loadSessionMessages: (sessionId: string) => Promise<void>;
-  sendMessage: (content?: string, options?: { mode?: 'modify' | 'generate' }) => Promise<void>;
+  selectSession: (sessionId: string) => void;
   sendSceneCommand: (command: SceneHistoryCommand) => Promise<void>;
   selectSceneVersion: (versionId: string) => Promise<boolean>;
   rerunScene: (options?: { codeOverride?: string | null }) => Promise<boolean>;
@@ -200,7 +207,9 @@ export interface ChatState {
   setActiveSession: (sessionId: string | null) => void;
   addSession: (session: Session) => void;
   addMessage: (sessionId: string, message: SessionMessage) => void;
+  setMessages: (sessionId: string, messages: SessionMessage[]) => void;
   setIsSending: (value: boolean) => void;
+  setActiveRequestId: (id: string | null) => void;
   setThinking: (text: string | null, step?: string) => void;
   setComposerValue: (value: string) => void;
   setComposerImage: (image: ComposerImageAttachment | null) => void;
@@ -221,6 +230,7 @@ export interface ChatState {
   updateAgentState: (state: UIAgentState | null) => void;
   setAgentAnalyzing: (isAnalyzing: boolean) => void;
   clearAgentState: () => void;
+  setPendingApproval: (approval: ChatState["pendingApproval"]) => void;
   
   // Action Block Actions
   setActionBlocks: (messageId: string, blocks: ActionBlock[]) => void;
@@ -229,7 +239,9 @@ export interface ChatState {
   setCurrentMessageId: (messageId: string | null) => void;
   clearActionBlocks: (messageId: string) => void;
   
+  setSessionsError: (error: string | null) => void;
   clearSession: (sessionId: string) => void;
+  sendApprovalResponse: (approved: boolean) => void;
 
   // Theater Mode Actions
   openTheaterMode: (artifactId: string) => void;
@@ -238,4 +250,7 @@ export interface ChatState {
   // Workspace Actions
   setWorkspaceRecord: (record: WorkspaceRecord | null) => void;
   selectWorkspaceFile: (path: string) => void;
+  openWorkspace: () => void;
+  closeWorkspace: () => void;
+  toggleWorkspace: () => void;
 }

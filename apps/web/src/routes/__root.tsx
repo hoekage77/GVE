@@ -5,7 +5,9 @@ import AuthPage from '../pages/Auth';
 import ChatPage from '../pages/Chat';
 import ProfilePage from '../pages/Profile';
 import ScenesPage from '../pages/Scenes';
+import SessionsPage from '../pages/Sessions';
 import TasksPage from '../pages/Tasks';
+import AnimationTestPage from '../pages/AnimationTest';
 import { MainLayout } from '../components/layout/MainLayout';
 import { ToastContainer } from '../components/ToastContainer';
 
@@ -93,6 +95,16 @@ const profileRoute = new Route({
   ),
 });
 
+const sessionsRoute = new Route({
+  getParentRoute: () => rootRoute,
+  path: '/sessions',
+  component: () => (
+    <ProtectedAppShell>
+      <SessionsPage />
+    </ProtectedAppShell>
+  ),
+});
+
 function RedirectToAuth() {
   window.location.href = '/auth';
   return null;
@@ -103,13 +115,21 @@ function RedirectToChat() {
   return null;
 }
 
+const testRoute = new Route({
+  getParentRoute: () => rootRoute,
+  path: '/test',
+  component: AnimationTestPage,
+});
+
 const routeTree = rootRoute.addChildren([
   homeRoute,
   authRoute,
   chatRoute,
   scenesRoute,
   tasksRoute,
+  sessionsRoute,
   profileRoute,
+  testRoute,
 ]);
 
 export const router = createRouter({ routeTree });

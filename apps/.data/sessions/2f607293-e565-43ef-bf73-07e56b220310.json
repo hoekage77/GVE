@@ -1,0 +1,218 @@
+{
+  "sessionId": "2f607293-e565-43ef-bf73-07e56b220310",
+  "status": "idle",
+  "artifacts": [],
+  "artifactPointer": -1,
+  "currentScene": null,
+  "workspace": null,
+  "messages": [
+    {
+      "messageId": "message-1",
+      "role": "user",
+      "content": "hi",
+      "kind": "input",
+      "metadata": {},
+      "createdAt": "2026-05-05T00:02:06.320Z",
+      "updatedAt": "2026-05-05T00:02:06.320Z"
+    },
+    {
+      "messageId": "message-2",
+      "role": "assistant",
+      "content": "Hi. I can generate a new visual, modify the current one, or explain no scene yet. Try asking me to make something, change a detail, or explain what you already have for “hi”. If you do not have a scene yet, I can start one from scratch.",
+      "kind": "chat",
+      "error": null,
+      "meta": [
+        "assistantSource:local-fallback",
+        "assistantWarning:true"
+      ],
+      "metadata": [],
+      "createdAt": "2026-05-05T00:02:06.323Z",
+      "updatedAt": "2026-05-05T00:02:08.318Z"
+    },
+    {
+      "messageId": "thought-turn_started-1777939326327",
+      "role": "thought",
+      "content": "Alright, I'm reading through your request now. Let me break this down.",
+      "kind": "thought",
+      "meta": [
+        "turn_started",
+        "requestId:2f607293-e565-43ef-bf73-07e56b220310:message-2",
+        "messageId:message-2"
+      ],
+      "metadata": [
+        "turn_started",
+        "requestId:2f607293-e565-43ef-bf73-07e56b220310:message-2",
+        "messageId:message-2"
+      ],
+      "createdAt": "2026-05-05T00:02:06.327Z",
+      "updatedAt": "2026-05-05T00:02:06.327Z"
+    },
+    {
+      "messageId": "thought-turn_complete-1777939328328",
+      "role": "thought",
+      "content": "Complete. The scene has been generated and synced.",
+      "kind": "thought",
+      "meta": [
+        "turn_complete",
+        "requestId:2f607293-e565-43ef-bf73-07e56b220310:message-2",
+        "messageId:message-2"
+      ],
+      "metadata": [
+        "turn_complete",
+        "requestId:2f607293-e565-43ef-bf73-07e56b220310:message-2",
+        "messageId:message-2"
+      ],
+      "createdAt": "2026-05-05T00:02:08.328Z",
+      "updatedAt": "2026-05-05T00:02:08.328Z"
+    },
+    {
+      "messageId": "user-d64aee2a-cd98-4571-b3d4-5dc7b111cece",
+      "role": "user",
+      "content": "hi",
+      "kind": "input",
+      "metadata": {},
+      "createdAt": "2026-05-05T01:45:59.712Z",
+      "updatedAt": "2026-05-05T01:45:59.712Z"
+    },
+    {
+      "messageId": "message-6",
+      "role": "assistant",
+      "content": "Hi. I can generate a new visual, modify the current one, or explain no scene yet. Try asking me to make something, change a detail, or explain what you already have for “hi”. If you do not have a scene yet, I can start one from scratch.",
+      "kind": "chat",
+      "error": null,
+      "meta": [
+        "assistantSource:local-fallback",
+        "assistantWarning:true"
+      ],
+      "metadata": [],
+      "createdAt": "2026-05-05T01:45:59.713Z",
+      "updatedAt": "2026-05-05T01:46:06.285Z"
+    },
+    {
+      "messageId": "thought-turn_started-1777945559715",
+      "role": "thought",
+      "content": "Interesting — let me process what you're looking for here.",
+      "kind": "thought",
+      "meta": [
+        "turn_started",
+        "requestId:req-ws-1777945559636-f1d064",
+        "messageId:message-6"
+      ],
+      "metadata": [
+        "turn_started",
+        "requestId:req-ws-1777945559636-f1d064",
+        "messageId:message-6"
+      ],
+      "createdAt": "2026-05-05T01:45:59.715Z",
+      "updatedAt": "2026-05-05T01:45:59.715Z"
+    },
+    {
+      "messageId": "thought-turn_complete-1777945566286",
+      "role": "thought",
+      "content": "All done! Your visual is ready.",
+      "kind": "thought",
+      "meta": [
+        "turn_complete",
+        "requestId:req-ws-1777945559636-f1d064",
+        "messageId:message-6"
+      ],
+      "metadata": [
+        "turn_complete",
+        "requestId:req-ws-1777945559636-f1d064",
+        "messageId:message-6"
+      ],
+      "createdAt": "2026-05-05T01:46:06.286Z",
+      "updatedAt": "2026-05-05T01:46:06.286Z"
+    },
+    {
+      "messageId": "user-f368738f-d8e4-4d69-974c-81a7644ca7a9",
+      "role": "user",
+      "content": "hi",
+      "kind": "input",
+      "metadata": {},
+      "createdAt": "2026-05-05T01:46:24.425Z",
+      "updatedAt": "2026-05-05T01:46:24.425Z"
+    },
+    {
+      "messageId": "message-10",
+      "role": "assistant",
+      "content": "Hi. I can generate a new visual, modify the current one, or explain no scene yet. Try asking me to make something, change a detail, or explain what you already have for “hi”. If you do not have a scene yet, I can start one from scratch.",
+      "kind": "chat",
+      "error": null,
+      "meta": [
+        "assistantSource:local-fallback",
+        "assistantWarning:true"
+      ],
+      "metadata": [],
+      "createdAt": "2026-05-05T01:46:24.425Z",
+      "updatedAt": "2026-05-05T01:46:25.936Z"
+    },
+    {
+      "messageId": "thought-turn_started-1777945584427",
+      "role": "thought",
+      "content": "Alright, I'm reading through your request now. Let me break this down.",
+      "kind": "thought",
+      "meta": [
+        "turn_started",
+        "requestId:req-ws-1777945584338-fe14f0",
+        "messageId:message-10"
+      ],
+      "metadata": [
+        "turn_started",
+        "requestId:req-ws-1777945584338-fe14f0",
+        "messageId:message-10"
+      ],
+      "createdAt": "2026-05-05T01:46:24.427Z",
+      "updatedAt": "2026-05-05T01:46:24.427Z"
+    },
+    {
+      "messageId": "thought-turn_complete-1777945585938",
+      "role": "thought",
+      "content": "Everything's finished. Take a look at the result!",
+      "kind": "thought",
+      "meta": [
+        "turn_complete",
+        "requestId:req-ws-1777945584338-fe14f0",
+        "messageId:message-10"
+      ],
+      "metadata": [
+        "turn_complete",
+        "requestId:req-ws-1777945584338-fe14f0",
+        "messageId:message-10"
+      ],
+      "createdAt": "2026-05-05T01:46:25.938Z",
+      "updatedAt": "2026-05-05T01:46:25.938Z"
+    }
+  ],
+  "orchestrationTrace": [
+    {
+      "step": "turn_complete",
+      "payload": {
+        "sessionId": "2f607293-e565-43ef-bf73-07e56b220310",
+        "mode": "chat",
+        "messageCount": 4
+      },
+      "timestamp": "2026-05-05T00:02:08.340Z"
+    },
+    {
+      "step": "turn_complete",
+      "payload": {
+        "sessionId": "2f607293-e565-43ef-bf73-07e56b220310",
+        "mode": "chat",
+        "messageCount": 8
+      },
+      "timestamp": "2026-05-05T01:46:06.286Z"
+    },
+    {
+      "step": "turn_complete",
+      "payload": {
+        "sessionId": "2f607293-e565-43ef-bf73-07e56b220310",
+        "mode": "chat",
+        "messageCount": 12
+      },
+      "timestamp": "2026-05-05T01:46:25.939Z"
+    }
+  ],
+  "createdAt": "2026-05-04T22:01:36.199Z",
+  "updatedAt": "2026-05-05T01:46:25.939Z"
+}

@@ -1,50 +1,6 @@
 {
   "sessionId": "cff4556a-50ca-4d15-8e4b-8caf8481218a",
-  "ownerId": null,
-  "createdAt": "2026-05-03T14:30:06.332Z",
-  "updatedAt": "2026-05-03T14:32:00.941Z",
   "status": "idle",
-  "currentScene": {
-    "sessionId": "cff4556a-50ca-4d15-8e4b-8caf8481218a",
-    "sceneId": "scene-failed-1777818720934",
-    "code": "let x, y;\nlet vx, vy;\nconst radius = 25;\nconst trailLength = 30;\nlet trail = [];\n\nfunction setup() {\n  createCanvas(800, 600);\n  x = width / 2;\n  y = height / 3;\n  vx = 6;\n  vy = 2;\n}\n\nfunction draw() {\n  background(250);\n  \n  // Physics update\n  x += vx;\n  y += vy;\n  vy += 0.25; // gravity\n  \n  // Wall collisions\n  if (x > width - radius || x < radius) {\n    vx *= -0.92;\n    x = constrain(x, radius, width - radius);\n  }\n  if (y > height - radius || y < radius) {\n    vy *= -0.85;\n    y = constrain(y, radius, height - radius);\n    if (abs(vy) < 1) vy = 0;\n  }\n  \n  // Update trail history\n  trail.push({x: x, y: y});\n  if (trail.length > trailLength) {\n    trail.shift();\n  }\n  \n  // Draw trail with gradient fade\n  noStroke();\n  for (let i = 0; i < trail.length; i++) {\n    let pos = trail[i];\n    let progress = i / trail.length;\n    let alpha = progress * 180;\n    let size = radius * 2 * (0.3 + progress * 0.7);\n    fill(80, 140, 220, alpha);\n    ellipse(pos.x, pos.y, size);\n  }\n  \n  // Draw main ball\n  fill(60, 120, 200);\n  ellipse(x, y, radius * 2);\n  \n  // Specular highlight\n  fill(200, 220, 255, 180);\n  ellipse(x - radius * 0.3, y - radius * 0.3, radius * 0.6);\n}",
-    "previewUrl": null,
-    "skill": "p5js",
-    "outputKind": "code",
-    "mediaType": null,
-    "mediaUrl": null,
-    "mediaArtifactId": null,
-    "mediaDurationMs": null,
-    "mediaFps": null,
-    "mediaResolution": null,
-    "mediaBytes": null,
-    "assetPlan": {
-      "manifestVersion": "asset-plan.v1",
-      "skill": "p5js",
-      "requestedQuality": "standard",
-      "strategy": "runtime-native",
-      "subjectNeedsModel": false,
-      "categories": [],
-      "catalog": {},
-      "curatedCandidates": [],
-      "fallbackPolicy": {
-        "allowInternetFallback": false,
-        "requireFallbackWarning": false,
-        "requireInlineFallbackComment": false
-      },
-      "runtimeHelpers": []
-    },
-    "explanation": "Generated scene code for live preview. Live preview is currently unavailable (Quality threshold not met (Score: 73/undefined)). The generated code is saved and can be re-run.",
-    "messageId": "message-2",
-    "source": "generate",
-    "createdAt": "2026-05-03T14:32:00.938Z",
-    "updatedAt": "2026-05-03T14:32:00.938Z",
-    "versionId": "version-1",
-    "version": 1,
-    "artifactId": "artifact-1777818720938-da8e60",
-    "artifactVersion": 1
-  },
-  "workspace": null,
   "artifacts": [
     {
       "artifactId": "artifact-1777818720938-da8e60",
@@ -97,6 +53,47 @@
     }
   ],
   "artifactPointer": 0,
+  "currentScene": {
+    "sessionId": "cff4556a-50ca-4d15-8e4b-8caf8481218a",
+    "sceneId": "scene-failed-1777818720934",
+    "code": "let x, y;\nlet vx, vy;\nconst radius = 25;\nconst trailLength = 30;\nlet trail = [];\n\nfunction setup() {\n  createCanvas(800, 600);\n  x = width / 2;\n  y = height / 3;\n  vx = 6;\n  vy = 2;\n}\n\nfunction draw() {\n  background(250);\n  \n  // Physics update\n  x += vx;\n  y += vy;\n  vy += 0.25; // gravity\n  \n  // Wall collisions\n  if (x > width - radius || x < radius) {\n    vx *= -0.92;\n    x = constrain(x, radius, width - radius);\n  }\n  if (y > height - radius || y < radius) {\n    vy *= -0.85;\n    y = constrain(y, radius, height - radius);\n    if (abs(vy) < 1) vy = 0;\n  }\n  \n  // Update trail history\n  trail.push({x: x, y: y});\n  if (trail.length > trailLength) {\n    trail.shift();\n  }\n  \n  // Draw trail with gradient fade\n  noStroke();\n  for (let i = 0; i < trail.length; i++) {\n    let pos = trail[i];\n    let progress = i / trail.length;\n    let alpha = progress * 180;\n    let size = radius * 2 * (0.3 + progress * 0.7);\n    fill(80, 140, 220, alpha);\n    ellipse(pos.x, pos.y, size);\n  }\n  \n  // Draw main ball\n  fill(60, 120, 200);\n  ellipse(x, y, radius * 2);\n  \n  // Specular highlight\n  fill(200, 220, 255, 180);\n  ellipse(x - radius * 0.3, y - radius * 0.3, radius * 0.6);\n}",
+    "previewUrl": null,
+    "skill": "p5js",
+    "outputKind": "code",
+    "mediaType": null,
+    "mediaUrl": null,
+    "mediaArtifactId": null,
+    "mediaDurationMs": null,
+    "mediaFps": null,
+    "mediaResolution": null,
+    "mediaBytes": null,
+    "assetPlan": {
+      "manifestVersion": "asset-plan.v1",
+      "skill": "p5js",
+      "requestedQuality": "standard",
+      "strategy": "runtime-native",
+      "subjectNeedsModel": false,
+      "categories": [],
+      "catalog": {},
+      "curatedCandidates": [],
+      "fallbackPolicy": {
+        "allowInternetFallback": false,
+        "requireFallbackWarning": false,
+        "requireInlineFallbackComment": false
+      },
+      "runtimeHelpers": []
+    },
+    "explanation": "Generated scene code for live preview. Live preview is currently unavailable (Quality threshold not met (Score: 73/undefined)). The generated code is saved and can be re-run.",
+    "messageId": "message-2",
+    "source": "generate",
+    "createdAt": "2026-05-03T14:32:00.938Z",
+    "updatedAt": "2026-05-03T14:32:00.938Z",
+    "versionId": "version-1",
+    "version": 1,
+    "artifactId": "artifact-1777818720938-da8e60",
+    "artifactVersion": 1
+  },
+  "workspace": null,
   "messages": [
     {
       "messageId": "message-1",
@@ -462,5 +459,7 @@
       },
       "timestamp": "2026-05-03T14:32:00.941Z"
     }
-  ]
+  ],
+  "createdAt": "2026-05-03T14:30:06.332Z",
+  "updatedAt": "2026-05-04T13:50:47.023Z"
 }

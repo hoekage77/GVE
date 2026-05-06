@@ -1,0 +1,13 @@
+{
+  "sessionId": "crud-test-001",
+  "ownerId": null,
+  "createdAt": "2026-05-04T21:00:42.852Z",
+  "updatedAt": "2026-05-04T21:00:42.852Z",
+  "status": "idle",
+  "currentScene": null,
+  "workspace": null,
+  "artifacts": [],
+  "artifactPointer": -1,
+  "messages": [],
+  "orchestrationTrace": []
+}

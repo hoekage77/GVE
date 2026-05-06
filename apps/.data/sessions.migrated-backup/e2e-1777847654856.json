@@ -1,69 +1,6 @@
 {
   "sessionId": "e2e-1777847654856",
-  "ownerId": null,
-  "createdAt": "2026-05-03T22:34:14.861Z",
-  "updatedAt": "2026-05-03T22:35:15.914Z",
   "status": "idle",
-  "currentScene": {
-    "sessionId": "e2e-1777847654856",
-    "sceneId": "scene-1777847705422",
-    "code": "const clock = new THREE.Clock();\nscene.background = new THREE.Color(0xf4f7fb);\nrenderer.toneMapping = THREE.ACESFilmicToneMapping;\nrenderer.toneMappingExposure = 1.08;\nrenderer.shadowMap.enabled = true;\n\nconst ambient = new THREE.AmbientLight(0x7f8aa6, 0.5);\nscene.add(ambient);\n\nconst keyLight = new THREE.DirectionalLight(0xffffff, 1.2);\nkeyLight.position.set(5, 8, 6);\nkeyLight.castShadow = true;\nkeyLight.shadow.mapSize.set(1024, 1024);\nscene.add(keyLight);\n\nconst pointLight = new THREE.PointLight(0xff9f43, 1.8, 25);\npointLight.position.set(3, 4, 3);\npointLight.castShadow = true;\nscene.add(pointLight);\n\nconst floor = new THREE.Mesh(\n  new THREE.PlaneGeometry(20, 20),\n  new THREE.MeshStandardMaterial({ color: 0xe6ecf5, roughness: 0.95, metalness: 0.02 })\n);\nfloor.rotation.x = -Math.PI / 2;\nfloor.position.y = -1.5;\nfloor.receiveShadow = true;\nscene.add(floor);\n\nconst cube = new THREE.Mesh(\n  new THREE.BoxGeometry(1.6, 1.6, 1.6),\n  new THREE.MeshStandardMaterial({ color: 0xe63946, roughness: 0.35, metalness: 0.1 })\n);\ncube.castShadow = true;\ncube.receiveShadow = true;\nscene.add(cube);\n\ncamera.position.set(3, 2, 4);\ncamera.lookAt(0, 0, 0);\n\nconst controls = new OrbitControls(camera, renderer.domElement);\ncontrols.enableDamping = true;\n\nfunction animate() {\n  requestAnimationFrame(animate);\n  const t = clock.getElapsedTime();\n  cube.rotation.x = t * 0.2;\n  cube.rotation.y = t * 0.35;\n  controls.update();\n  renderer.render(scene, camera);\n}\nanimate();",
-    "previewUrl": null,
-    "skill": "threejs",
-    "outputKind": "code",
-    "mediaType": null,
-    "mediaUrl": null,
-    "mediaArtifactId": null,
-    "mediaDurationMs": null,
-    "mediaFps": null,
-    "mediaResolution": null,
-    "mediaBytes": null,
-    "assetPlan": {
-      "manifestVersion": "asset-plan.v1",
-      "skill": "threejs",
-      "requestedQuality": "draft",
-      "strategy": "hybrid",
-      "subjectNeedsModel": false,
-      "categories": [
-        "animals"
-      ],
-      "catalog": {
-        "animals": [
-          {
-            "id": "fox",
-            "url": "https://rawcdn.githack.com/mrdoob/three.js/r128/examples/models/gltf/Fox.glb",
-            "note": "Animated quadruped model"
-          }
-        ]
-      },
-      "curatedCandidates": [
-        {
-          "id": "fox",
-          "url": "https://rawcdn.githack.com/mrdoob/three.js/r128/examples/models/gltf/Fox.glb",
-          "note": "Animated quadruped model"
-        }
-      ],
-      "fallbackPolicy": {
-        "allowInternetFallback": true,
-        "requireFallbackWarning": true,
-        "requireInlineFallbackComment": true
-      },
-      "runtimeHelpers": [
-        "createGveGltfLoader",
-        "resolveGveModelCandidates"
-      ]
-    },
-    "explanation": "Generated scene code for live preview. Live preview executed successfully.",
-    "messageId": "message-2",
-    "source": "generate",
-    "createdAt": "2026-05-03T22:35:05.447Z",
-    "updatedAt": "2026-05-03T22:35:05.447Z",
-    "versionId": "version-1",
-    "version": 1,
-    "artifactId": "artifact-1777847705447-cccc44",
-    "artifactVersion": 1
-  },
-  "workspace": null,
   "artifacts": [
     {
       "artifactId": "artifact-1777847705447-cccc44",
@@ -135,6 +72,66 @@
     }
   ],
   "artifactPointer": 0,
+  "currentScene": {
+    "sessionId": "e2e-1777847654856",
+    "sceneId": "scene-1777847705422",
+    "code": "const clock = new THREE.Clock();\nscene.background = new THREE.Color(0xf4f7fb);\nrenderer.toneMapping = THREE.ACESFilmicToneMapping;\nrenderer.toneMappingExposure = 1.08;\nrenderer.shadowMap.enabled = true;\n\nconst ambient = new THREE.AmbientLight(0x7f8aa6, 0.5);\nscene.add(ambient);\n\nconst keyLight = new THREE.DirectionalLight(0xffffff, 1.2);\nkeyLight.position.set(5, 8, 6);\nkeyLight.castShadow = true;\nkeyLight.shadow.mapSize.set(1024, 1024);\nscene.add(keyLight);\n\nconst pointLight = new THREE.PointLight(0xff9f43, 1.8, 25);\npointLight.position.set(3, 4, 3);\npointLight.castShadow = true;\nscene.add(pointLight);\n\nconst floor = new THREE.Mesh(\n  new THREE.PlaneGeometry(20, 20),\n  new THREE.MeshStandardMaterial({ color: 0xe6ecf5, roughness: 0.95, metalness: 0.02 })\n);\nfloor.rotation.x = -Math.PI / 2;\nfloor.position.y = -1.5;\nfloor.receiveShadow = true;\nscene.add(floor);\n\nconst cube = new THREE.Mesh(\n  new THREE.BoxGeometry(1.6, 1.6, 1.6),\n  new THREE.MeshStandardMaterial({ color: 0xe63946, roughness: 0.35, metalness: 0.1 })\n);\ncube.castShadow = true;\ncube.receiveShadow = true;\nscene.add(cube);\n\ncamera.position.set(3, 2, 4);\ncamera.lookAt(0, 0, 0);\n\nconst controls = new OrbitControls(camera, renderer.domElement);\ncontrols.enableDamping = true;\n\nfunction animate() {\n  requestAnimationFrame(animate);\n  const t = clock.getElapsedTime();\n  cube.rotation.x = t * 0.2;\n  cube.rotation.y = t * 0.35;\n  controls.update();\n  renderer.render(scene, camera);\n}\nanimate();",
+    "previewUrl": null,
+    "skill": "threejs",
+    "outputKind": "code",
+    "mediaType": null,
+    "mediaUrl": null,
+    "mediaArtifactId": null,
+    "mediaDurationMs": null,
+    "mediaFps": null,
+    "mediaResolution": null,
+    "mediaBytes": null,
+    "assetPlan": {
+      "manifestVersion": "asset-plan.v1",
+      "skill": "threejs",
+      "requestedQuality": "draft",
+      "strategy": "hybrid",
+      "subjectNeedsModel": false,
+      "categories": [
+        "animals"
+      ],
+      "catalog": {
+        "animals": [
+          {
+            "id": "fox",
+            "url": "https://rawcdn.githack.com/mrdoob/three.js/r128/examples/models/gltf/Fox.glb",
+            "note": "Animated quadruped model"
+          }
+        ]
+      },
+      "curatedCandidates": [
+        {
+          "id": "fox",
+          "url": "https://rawcdn.githack.com/mrdoob/three.js/r128/examples/models/gltf/Fox.glb",
+          "note": "Animated quadruped model"
+        }
+      ],
+      "fallbackPolicy": {
+        "allowInternetFallback": true,
+        "requireFallbackWarning": true,
+        "requireInlineFallbackComment": true
+      },
+      "runtimeHelpers": [
+        "createGveGltfLoader",
+        "resolveGveModelCandidates"
+      ]
+    },
+    "explanation": "Generated scene code for live preview. Live preview executed successfully.",
+    "messageId": "message-2",
+    "source": "generate",
+    "createdAt": "2026-05-03T22:35:05.447Z",
+    "updatedAt": "2026-05-03T22:35:05.447Z",
+    "versionId": "version-1",
+    "version": 1,
+    "artifactId": "artifact-1777847705447-cccc44",
+    "artifactVersion": 1
+  },
+  "workspace": null,
   "messages": [
     {
       "messageId": "message-1",
@@ -451,5 +448,7 @@
       },
       "timestamp": "2026-05-03T22:35:05.463Z"
     }
-  ]
+  ],
+  "createdAt": "2026-05-03T22:34:14.861Z",
+  "updatedAt": "2026-05-04T12:26:38.440Z"
 }

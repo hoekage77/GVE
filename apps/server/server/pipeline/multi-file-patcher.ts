@@ -19,6 +19,10 @@ import {
 } from "./workspace.js";
 import type { SkillId } from "./workspace.js";
 
+function primarySkill(skill: SkillId | SkillId[]): SkillId {
+  return Array.isArray(skill) ? skill[0]! : skill;
+}
+
 // ────────────────────────────────────────────────
 //  EXTENDED PATCH TYPES
 // ────────────────────────────────────────────────
@@ -106,7 +110,7 @@ export function applyMultiFilePatches(ws: Workspace, patches: MultiFilePatch[]):
       if (entry && patch.newPath) {
         importMap.set(patch.filePath, patch.newPath);
         current = removeFile(current, patch.filePath);
-        current = addFile(current, patch.newPath, patch.patchedCode || entry.content, patch.purpose || entry.purpose, patch.skill || entry.skill);
+        current = addFile(current, patch.newPath, patch.patchedCode || entry.content, patch.purpose || entry.purpose, patch.skill || primarySkill(entry.skill));
       }
     } catch {}
   }

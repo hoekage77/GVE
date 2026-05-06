@@ -1,0 +1,514 @@
+{
+  "sessionId": "test-session-123",
+  "ownerId": null,
+  "createdAt": "2026-05-04T19:54:45.046Z",
+  "updatedAt": "2026-05-04T19:57:21.666Z",
+  "status": "idle",
+  "currentScene": {
+    "sessionId": "test-session-123",
+    "sceneId": "scene-1777924640876",
+    "code": "const clock = new THREE.C",
+    "previewUrl": null,
+    "skill": "threejs",
+    "outputKind": "code",
+    "mediaType": null,
+    "mediaUrl": null,
+    "mediaArtifactId": null,
+    "mediaDurationMs": null,
+    "mediaFps": null,
+    "mediaResolution": null,
+    "mediaBytes": null,
+    "assetPlan": {
+      "manifestVersion": "asset-plan.v1",
+      "skill": "threejs",
+      "requestedQuality": "standard",
+      "strategy": "hybrid",
+      "subjectNeedsModel": false,
+      "categories": [
+        "animals",
+        "objects"
+      ],
+      "catalog": {
+        "animals": [
+          {
+            "id": "fox",
+            "url": "/vendor/models/Fox.glb",
+            "note": "Animated fox quadruped model"
+          },
+          {
+            "id": "horse",
+            "url": "/vendor/models/Horse.glb",
+            "note": "Animated horse model"
+          }
+        ],
+        "objects": [
+          {
+            "id": "damaged-helmet",
+            "url": "/vendor/models/DamagedHelmet.glb",
+            "note": "Detailed PBR helmet model with wear textures"
+          }
+        ]
+      },
+      "curatedCandidates": [
+        {
+          "id": "fox",
+          "url": "/vendor/models/Fox.glb",
+          "note": "Animated fox quadruped model"
+        },
+        {
+          "id": "horse",
+          "url": "/vendor/models/Horse.glb",
+          "note": "Animated horse model"
+        },
+        {
+          "id": "damaged-helmet",
+          "url": "/vendor/models/DamagedHelmet.glb",
+          "note": "Detailed PBR helmet model with wear textures"
+        }
+      ],
+      "fallbackPolicy": {
+        "allowInternetFallback": true,
+        "requireFallbackWarning": true,
+        "requireInlineFallbackComment": true
+      },
+      "runtimeHelpers": [
+        "createGveGltfLoader",
+        "resolveGveModelCandidates"
+      ]
+    },
+    "explanation": "Generated scene code for live preview. Live preview executed successfully. Generated code may be missing OrbitControls setup after strict retry.",
+    "messageId": "message-2",
+    "source": "generate",
+    "createdAt": "2026-05-04T19:57:20.895Z",
+    "updatedAt": "2026-05-04T19:57:20.895Z",
+    "versionId": "version-1",
+    "version": 1,
+    "artifactId": "artifact-1777924640895-06e774",
+    "artifactVersion": 1
+  },
+  "workspace": null,
+  "artifacts": [
+    {
+      "artifactId": "artifact-1777924640895-06e774",
+      "title": "scene-1777924640876",
+      "createdAt": "2026-05-04T19:57:20.895Z",
+      "updatedAt": "2026-05-04T19:57:20.895Z",
+      "revisions": [
+        {
+          "sessionId": "test-session-123",
+          "sceneId": "scene-1777924640876",
+          "code": "const clock = new THREE.C",
+          "previewUrl": null,
+          "skill": "threejs",
+          "outputKind": "code",
+          "mediaType": null,
+          "mediaUrl": null,
+          "mediaArtifactId": null,
+          "mediaDurationMs": null,
+          "mediaFps": null,
+          "mediaResolution": null,
+          "mediaBytes": null,
+          "assetPlan": {
+            "manifestVersion": "asset-plan.v1",
+            "skill": "threejs",
+            "requestedQuality": "standard",
+            "strategy": "hybrid",
+            "subjectNeedsModel": false,
+            "categories": [
+              "animals",
+              "objects"
+            ],
+            "catalog": {
+              "animals": [
+                {
+                  "id": "fox",
+                  "url": "/vendor/models/Fox.glb",
+                  "note": "Animated fox quadruped model"
+                },
+                {
+                  "id": "horse",
+                  "url": "/vendor/models/Horse.glb",
+                  "note": "Animated horse model"
+                }
+              ],
+              "objects": [
+                {
+                  "id": "damaged-helmet",
+                  "url": "/vendor/models/DamagedHelmet.glb",
+                  "note": "Detailed PBR helmet model with wear textures"
+                }
+              ]
+            },
+            "curatedCandidates": [
+              {
+                "id": "fox",
+                "url": "/vendor/models/Fox.glb",
+                "note": "Animated fox quadruped model"
+              },
+              {
+                "id": "horse",
+                "url": "/vendor/models/Horse.glb",
+                "note": "Animated horse model"
+              },
+              {
+                "id": "damaged-helmet",
+                "url": "/vendor/models/DamagedHelmet.glb",
+                "note": "Detailed PBR helmet model with wear textures"
+              }
+            ],
+            "fallbackPolicy": {
+              "allowInternetFallback": true,
+              "requireFallbackWarning": true,
+              "requireInlineFallbackComment": true
+            },
+            "runtimeHelpers": [
+              "createGveGltfLoader",
+              "resolveGveModelCandidates"
+            ]
+          },
+          "explanation": "Generated scene code for live preview. Live preview executed successfully. Generated code may be missing OrbitControls setup after strict retry.",
+          "messageId": "message-2",
+          "source": "generate",
+          "createdAt": "2026-05-04T19:57:20.895Z",
+          "updatedAt": "2026-05-04T19:57:20.895Z",
+          "versionId": "version-1",
+          "version": 1,
+          "artifactId": "artifact-1777924640895-06e774",
+          "artifactVersion": 1
+        }
+      ],
+      "revisionPointer": 0
+    }
+  ],
+  "artifactPointer": 0,
+  "messages": [
+    {
+      "messageId": "message-1",
+      "role": "user",
+      "content": "Create a spinning cube animation with three.js",
+      "kind": "input",
+      "metadata": {},
+      "createdAt": "2026-05-04T19:55:11.917Z",
+      "updatedAt": "2026-05-04T19:55:11.917Z"
+    },
+    {
+      "messageId": "message-2",
+      "role": "assistant",
+      "content": "Generated scene code for live preview. Live preview executed successfully. Generated code may be missing OrbitControls setup after strict retry.",
+      "kind": "generate",
+      "error": null,
+      "meta": [
+        "requestId:test-req-001",
+        "scene:scene-1777924640876",
+        "skill:threejs"
+      ],
+      "metadata": [],
+      "createdAt": "2026-05-04T19:55:11.917Z",
+      "updatedAt": "2026-05-04T19:57:20.900Z"
+    },
+    {
+      "messageId": "thought-turn_started-1777924529270",
+      "role": "thought",
+      "content": "Okay, the user wants a spinning cube in Three.js and there's no existing scene, so I'm starting fresh with a scene, perspective camera, and WebGL renderer. I'll create a BoxGeometry with a MeshStandardMaterial and set up some warm directional lighting to accentuate the edges as it spins. The animation loop will rotate the mesh on both X and Y axes for a nice tumbling effect. I'll keep the background a soft dark tone so the cube pops visually.",
+      "kind": "thought",
+      "meta": [
+        "turn_started",
+        "requestId:test-req-001",
+        "messageId:message-2"
+      ],
+      "metadata": [
+        "turn_started",
+        "requestId:test-req-001",
+        "messageId:message-2"
+      ],
+      "createdAt": "2026-05-04T19:55:29.270Z",
+      "updatedAt": "2026-05-04T19:55:29.270Z"
+    },
+    {
+      "messageId": "thought-intent_parsed-1777924529292",
+      "role": "thought",
+      "content": "Okay, the user wants a spinning cube in Three.js and there's no existing scene, so I'm starting fresh with a scene, perspective camera, and WebGL renderer. I'll create a BoxGeometry with a MeshStandardMaterial and set up some warm directional lighting to accentuate the edges as it spins. The animation loop will rotate the mesh on both X and Y axes for a nice tumbling effect. I'll keep the background a soft dark tone so the cube pops visually.",
+      "kind": "thought",
+      "meta": [
+        "intent_parsed",
+        "requestId:test-req-001",
+        "messageId:message-2"
+      ],
+      "metadata": [
+        "intent_parsed",
+        "requestId:test-req-001",
+        "messageId:message-2"
+      ],
+      "createdAt": "2026-05-04T19:55:29.292Z",
+      "updatedAt": "2026-05-04T19:55:29.292Z"
+    },
+    {
+      "messageId": "thought-plan_created-1777924529292",
+      "role": "thought",
+      "content": "Alright, 7 tasks queued. I'm moving through the pipeline now.",
+      "kind": "thought",
+      "meta": [
+        "plan_created",
+        "requestId:test-req-001",
+        "messageId:message-2"
+      ],
+      "metadata": [
+        "plan_created",
+        "requestId:test-req-001",
+        "messageId:message-2"
+      ],
+      "createdAt": "2026-05-04T19:55:29.292Z",
+      "updatedAt": "2026-05-04T19:55:29.292Z"
+    },
+    {
+      "messageId": "thought-code_generated-1777924640895",
+      "role": "thought",
+      "content": "Code generation complete. Now I need to check it for safety and correctness.",
+      "kind": "thought",
+      "meta": [
+        "code_generated",
+        "requestId:test-req-001",
+        "messageId:message-2",
+        "durationMs:90699"
+      ],
+      "metadata": [
+        "code_generated",
+        "requestId:test-req-001",
+        "messageId:message-2",
+        "durationMs:90699"
+      ],
+      "createdAt": "2026-05-04T19:57:20.895Z",
+      "updatedAt": "2026-05-04T19:57:20.895Z"
+    },
+    {
+      "messageId": "thought-executing-1777924640900",
+      "role": "thought",
+      "content": "Code looks good! Spinning up the sandbox to render your scene...",
+      "kind": "thought",
+      "meta": [
+        "executing",
+        "requestId:test-req-001",
+        "messageId:message-2",
+        "durationMs:20736"
+      ],
+      "metadata": [
+        "executing",
+        "requestId:test-req-001",
+        "messageId:message-2",
+        "durationMs:20736"
+      ],
+      "createdAt": "2026-05-04T19:57:20.900Z",
+      "updatedAt": "2026-05-04T19:57:20.900Z"
+    },
+    {
+      "messageId": "thought-sync_state-1777924640900",
+      "role": "thought",
+      "content": "The render is done. I'm saving the scene state and preparing the preview.",
+      "kind": "thought",
+      "meta": [
+        "sync_state",
+        "requestId:test-req-001",
+        "messageId:message-2"
+      ],
+      "metadata": [
+        "sync_state",
+        "requestId:test-req-001",
+        "messageId:message-2"
+      ],
+      "createdAt": "2026-05-04T19:57:20.900Z",
+      "updatedAt": "2026-05-04T19:57:20.900Z"
+    },
+    {
+      "messageId": "thought-turn_complete-1777924640900",
+      "role": "thought",
+      "content": "Complete. The scene has been generated and synced.",
+      "kind": "thought",
+      "meta": [
+        "turn_complete",
+        "requestId:test-req-001",
+        "messageId:message-2"
+      ],
+      "metadata": [
+        "turn_complete",
+        "requestId:test-req-001",
+        "messageId:message-2"
+      ],
+      "createdAt": "2026-05-04T19:57:20.900Z",
+      "updatedAt": "2026-05-04T19:57:20.900Z"
+    },
+    {
+      "messageId": "thought-post_narration-1777924641666",
+      "role": "thought",
+      "content": "Processing step: post narration...",
+      "kind": "thought",
+      "meta": [
+        "post_narration",
+        "requestId:test-req-001",
+        "messageId:message-2"
+      ],
+      "metadata": [
+        "post_narration",
+        "requestId:test-req-001",
+        "messageId:message-2"
+      ],
+      "createdAt": "2026-05-04T19:57:21.666Z",
+      "updatedAt": "2026-05-04T19:57:21.666Z"
+    }
+  ],
+  "orchestrationTrace": [
+    {
+      "step": "intent_parsed",
+      "payload": {
+        "sessionId": "test-session-123",
+        "content": "Create a spinning cube animation with three.js"
+      },
+      "timestamp": "2026-05-04T19:55:29.270Z"
+    },
+    {
+      "step": "parse_intent",
+      "payload": {
+        "sessionId": "test-session-123",
+        "status": "running"
+      },
+      "timestamp": "2026-05-04T19:55:29.301Z"
+    },
+    {
+      "step": "select_skill",
+      "payload": {
+        "sessionId": "test-session-123",
+        "status": "running"
+      },
+      "timestamp": "2026-05-04T19:55:29.305Z"
+    },
+    {
+      "step": "build_prompt",
+      "payload": {
+        "sessionId": "test-session-123",
+        "status": "running"
+      },
+      "timestamp": "2026-05-04T19:55:29.314Z"
+    },
+    {
+      "step": "generate_code",
+      "payload": {
+        "sessionId": "test-session-123",
+        "status": "running"
+      },
+      "timestamp": "2026-05-04T19:55:29.323Z"
+    },
+    {
+      "step": "generate_code",
+      "payload": {
+        "sessionId": "test-session-123",
+        "status": "completed",
+        "selectedSkill": "threejs",
+        "source": "fireworks-kimi",
+        "code": "const clock = new THREE.C",
+        "stageDurationMs": 90699
+      },
+      "timestamp": "2026-05-04T19:57:00.023Z"
+    },
+    {
+      "step": "validate_code",
+      "payload": {
+        "sessionId": "test-session-123",
+        "status": "running"
+      },
+      "timestamp": "2026-05-04T19:57:00.045Z"
+    },
+    {
+      "step": "validate_code",
+      "payload": {
+        "sessionId": "test-session-123",
+        "status": "completed",
+        "valid": true,
+        "passable": true,
+        "warnings": [
+          {
+            "code": "QUALITY_MATERIAL_RECOMMENDED",
+            "message": "Use MeshStandardMaterial or MeshPhysicalMaterial for better visual fidelity."
+          },
+          {
+            "code": "QUALITY_LIGHTING_RECOMMENDED",
+            "message": "Add layered lighting (ambient plus key/fill/rim style light) for stronger depth."
+          },
+          {
+            "code": "QUALITY_MOTION_RECOMMENDED",
+            "message": "Animated prompts should include requestAnimationFrame/setAnimationLoop for motion continuity."
+          }
+        ],
+        "stageDurationMs": 1
+      },
+      "timestamp": "2026-05-04T19:57:00.047Z"
+    },
+    {
+      "step": "execute_code",
+      "payload": {
+        "sessionId": "test-session-123",
+        "status": "running"
+      },
+      "timestamp": "2026-05-04T19:57:00.117Z"
+    },
+    {
+      "step": "execute_code",
+      "payload": {
+        "sessionId": "test-session-123",
+        "status": "sandbox:creating",
+        "type": "sandbox:creating",
+        "stageDurationMs": 55
+      },
+      "timestamp": "2026-05-04T19:57:00.172Z"
+    },
+    {
+      "step": "execute_code",
+      "payload": {
+        "sessionId": "test-session-123",
+        "status": "sandbox:executing",
+        "type": "sandbox:executing",
+        "iteration": 1,
+        "stageDurationMs": 14292
+      },
+      "timestamp": "2026-05-04T19:57:14.409Z"
+    },
+    {
+      "step": "execute_code",
+      "payload": {
+        "sessionId": "test-session-123",
+        "status": "sandbox:analyzing",
+        "type": "sandbox:analyzing",
+        "iteration": 1,
+        "stageDurationMs": 15146
+      },
+      "timestamp": "2026-05-04T19:57:15.263Z"
+    },
+    {
+      "step": "execute_code",
+      "payload": {
+        "sessionId": "test-session-123",
+        "status": "quality-loop",
+        "error": null,
+        "runtimeRecoveryUsed": false,
+        "stageDurationMs": 20736
+      },
+      "timestamp": "2026-05-04T19:57:20.853Z"
+    },
+    {
+      "step": "sync_state",
+      "payload": {
+        "sessionId": "test-session-123",
+        "status": "running"
+      },
+      "timestamp": "2026-05-04T19:57:20.875Z"
+    },
+    {
+      "step": "turn_complete",
+      "payload": {
+        "sessionId": "test-session-123",
+        "mode": "generate",
+        "messageCount": 9,
+        "error": null
+      },
+      "timestamp": "2026-05-04T19:57:20.903Z"
+    }
+  ]
+}
