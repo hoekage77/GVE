@@ -65,14 +65,14 @@ export function LoginForm() {
             <SignUp
               key="auth-sign-up"
               routing="virtual"
-              redirectUrl="/chat"
+              fallbackRedirectUrl="/chat"
               appearance={clerkAppearance}
             />
           ) : (
             <SignIn
               key="auth-sign-in"
               routing="virtual"
-              redirectUrl="/chat"
+              fallbackRedirectUrl="/chat"
               appearance={clerkAppearance}
             />
           )}
