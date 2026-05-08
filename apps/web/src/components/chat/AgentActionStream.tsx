@@ -446,12 +446,23 @@ export function AgentActionStream({ thoughts, isThinking = false, onActionClick 
     <>
       <div className="my-3 select-none">
         <div className="relative overflow-hidden rounded-2xl transition-all duration-300">
-          {/* Minimal header: just orb + step count */}
-          <div className="flex items-center gap-2 px-1 py-1.5">
-            <AiOrb size={16} />
-            {rows.length > 0 && (
-              <span className="text-[11px] font-mono text-white/30">
-                {rows.length} step{rows.length !== 1 ? "s" : ""}
+          {/* Processing header */}
+          <div className="flex items-center gap-2.5 px-1 py-2">
+            <AiOrb size={isThinking ? 22 : 16} className="transition-all duration-500" />
+            <span
+              className={`text-[12.5px] font-medium transition-all duration-300 ${
+                isThinking
+                  ? "text-white/70"
+                  : "text-white/30"
+              }`}
+            >
+              {isThinking ? "Processing" : rows.length > 0 ? "Processed" : ""}
+            </span>
+            {isThinking && (
+              <span className="flex gap-[3px] items-center ml-0.5">
+                <span className="h-[3px] w-[3px] rounded-full bg-white/40 animate-[pulse-dot_1.4s_ease-in-out_infinite]" />
+                <span className="h-[3px] w-[3px] rounded-full bg-white/40 animate-[pulse-dot_1.4s_ease-in-out_0.2s_infinite]" />
+                <span className="h-[3px] w-[3px] rounded-full bg-white/40 animate-[pulse-dot_1.4s_ease-in-out_0.4s_infinite]" />
               </span>
             )}
           </div>

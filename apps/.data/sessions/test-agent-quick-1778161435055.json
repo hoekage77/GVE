@@ -1,0 +1,156 @@
+{
+  "sessionId": "test-agent-quick-1778161435055",
+  "ownerId": null,
+  "createdAt": "2026-05-07T13:43:55.059Z",
+  "updatedAt": "2026-05-07T13:44:01.324Z",
+  "status": "idle",
+  "currentScene": null,
+  "workspace": null,
+  "artifacts": [],
+  "artifactPointer": -1,
+  "messages": [
+    {
+      "messageId": "thought-turn_started-1778161435123",
+      "role": "thought",
+      "content": "Alright, I'm reading through your request now. Let me break this down.",
+      "kind": "thought",
+      "meta": [
+        "turn_started",
+        "requestId:turn-1778161435093",
+        "messageId:msg-assistant-1778161435093"
+      ],
+      "metadata": [
+        "turn_started",
+        "requestId:turn-1778161435093",
+        "messageId:msg-assistant-1778161435093"
+      ],
+      "createdAt": "2026-05-07T13:43:55.124Z",
+      "updatedAt": "2026-05-07T13:43:55.124Z"
+    },
+    {
+      "messageId": "thought-agent_thinking-1778161435198",
+      "role": "thought",
+      "content": "I'm reasoning about how to solve this. One moment...",
+      "kind": "thought",
+      "meta": [
+        "agent_thinking",
+        "requestId:turn-1778161435093",
+        "messageId:msg-assistant-1778161435093"
+      ],
+      "metadata": [
+        "agent_thinking",
+        "requestId:turn-1778161435093",
+        "messageId:msg-assistant-1778161435093"
+      ],
+      "createdAt": "2026-05-07T13:43:55.198Z",
+      "updatedAt": "2026-05-07T13:43:55.198Z"
+    },
+    {
+      "messageId": "thought-agent_tool_called-1778161437774",
+      "role": "thought",
+      "content": "Calling web_search_webSearch — let me see if the fix works...",
+      "kind": "thought",
+      "meta": [
+        "agent_tool_called",
+        "requestId:turn-1778161435093",
+        "messageId:msg-assistant-1778161435093"
+      ],
+      "metadata": [
+        "agent_tool_called",
+        "requestId:turn-1778161435093",
+        "messageId:msg-assistant-1778161435093"
+      ],
+      "createdAt": "2026-05-07T13:43:57.775Z",
+      "updatedAt": "2026-05-07T13:43:57.775Z"
+    },
+    {
+      "messageId": "thought-turn_error-1778161437779",
+      "role": "thought",
+      "content": "Unfortunately this didn't work as expected. Let me surface the issue.",
+      "kind": "thought",
+      "meta": [
+        "turn_error",
+        "requestId:turn-1778161435093",
+        "messageId:msg-assistant-1778161435093"
+      ],
+      "metadata": [
+        "turn_error",
+        "requestId:turn-1778161435093",
+        "messageId:msg-assistant-1778161435093"
+      ],
+      "createdAt": "2026-05-07T13:43:57.779Z",
+      "updatedAt": "2026-05-07T13:43:57.779Z"
+    },
+    {
+      "messageId": "thought-turn_complete-1778161441307",
+      "role": "thought",
+      "content": "Everything's finished. Take a look at the result!",
+      "kind": "thought",
+      "meta": [
+        "turn_complete",
+        "requestId:turn-1778161435093",
+        "messageId:msg-assistant-1778161435093"
+      ],
+      "metadata": [
+        "turn_complete",
+        "requestId:turn-1778161435093",
+        "messageId:msg-assistant-1778161435093"
+      ],
+      "createdAt": "2026-05-07T13:44:01.307Z",
+      "updatedAt": "2026-05-07T13:44:01.307Z"
+    },
+    {
+      "messageId": "msg-assistant-1778161435093",
+      "role": "assistant",
+      "content": "I apologize, but the web search tool is currently unavailable in this environment. However, I can provide you with the exact, internationally defined value:\n\n## Speed of Light in Vacuum\n\n**Exactly 299,792,458 meters per second (m/s)**\n\nThis value is not measured but **defined** — it is one of the seven defining constants of the International System of Units (SI). In 1983, the 17th General Conference on Weights and Measures (CGPM) fixed the speed of light in vacuum at this exact value, and the meter was subsequently redefined as the distance light travels in a vacuum in **1/299,792,458 of a second**.\n\n### Other common representations:\n- **~300,000 km/s** (approximate)\n- **~186,282 miles per second** (approximate)\n- **~1 foot per nanosecond** (approximate rule of thumb)\n\nIf you'd like me to verify this with a specific source or if you need this value used in a calculation or visualization, let me know!",
+      "kind": "agent",
+      "error": null,
+      "meta": [
+        "requestId:turn-1778161435093",
+        "scene:undefined",
+        "assistantSource:agent-coordinator"
+      ],
+      "metadata": [
+        "requestId:turn-1778161435093",
+        "scene:undefined",
+        "assistantSource:agent-coordinator"
+      ],
+      "createdAt": "2026-05-07T13:44:01.311Z",
+      "updatedAt": "2026-05-07T13:44:01.311Z"
+    },
+    {
+      "messageId": "thought-turn_complete-1778161441321",
+      "role": "thought",
+      "content": "Complete. The scene has been generated and synced.",
+      "kind": "thought",
+      "meta": [
+        "turn_complete",
+        "requestId:turn-1778161435093",
+        "messageId:msg-assistant-1778161435093"
+      ],
+      "metadata": [
+        "turn_complete",
+        "requestId:turn-1778161435093",
+        "messageId:msg-assistant-1778161435093"
+      ],
+      "createdAt": "2026-05-07T13:44:01.321Z",
+      "updatedAt": "2026-05-07T13:44:01.321Z"
+    }
+  ],
+  "orchestrationTrace": [
+    {
+      "step": "turn_complete",
+      "payload": {
+        "sessionId": "test-agent-quick-1778161435055",
+        "mode": "agent",
+        "messageCount": 7,
+        "toolCalls": 1,
+        "toolResults": 1,
+        "agentSuccess": true,
+        "agentError": null,
+        "durationMs": 6143
+      },
+      "timestamp": "2026-05-07T13:44:01.323Z"
+    }
+  ]
+}

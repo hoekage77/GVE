@@ -941,6 +941,60 @@ function buildSceneHTML(code: string, skill: string, vendorDataUrls?: Record<str
         }
       }, '*');
     }
+
+    // ── Performance watchdog: auto-throttle runaway animations ──
+    (function() {
+      var __frameCount = 0;
+      var __lastCheck = performance.now();
+      var __lowFpsStrikes = 0;
+      var __throttled = false;
+      var __origRAF = window.requestAnimationFrame;
+      var __rafCallbacks = [];
+      var __watchdogId;
+
+      // Count frames
+      function __countFrame() {
+        __frameCount++;
+        if (!__throttled) __origRAF.call(window, __countFrame);
+      }
+      __origRAF.call(window, __countFrame);
+
+      // Check FPS every 3 seconds
+      __watchdogId = setInterval(function() {
+        var now = performance.now();
+        var elapsed = (now - __lastCheck) / 1000;
+        var fps = __frameCount / elapsed;
+        __frameCount = 0;
+        __lastCheck = now;
+
+        if (fps < 8 && !__throttled) {
+          __lowFpsStrikes++;
+          if (__lowFpsStrikes >= 2) {
+            __throttled = true;
+            clearInterval(__watchdogId);
+            // Show warning overlay
+            var overlay = document.createElement('div');
+            overlay.style.cssText = 'position:fixed;inset:0;z-index:99999;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.85);backdrop-filter:blur(4px);';
+            overlay.innerHTML = '<div style="text-align:center;color:#fff;font-family:system-ui,sans-serif;">'
+              + '<div style="font-size:32px;margin-bottom:12px;">⚠️</div>'
+              + '<div style="font-size:14px;font-weight:600;margin-bottom:6px;">Scene Paused</div>'
+              + '<div style="font-size:12px;color:rgba(255,255,255,0.6);margin-bottom:16px;">This animation was using too many resources.</div>'
+              + '<button id="__gve_resume" style="padding:8px 20px;border-radius:8px;border:1px solid rgba(255,255,255,0.15);background:rgba(255,255,255,0.1);color:#fff;font-size:13px;cursor:pointer;">Resume</button>'
+              + '</div>';
+            document.body.appendChild(overlay);
+            parent.postMessage({ type: 'scene:error', error: 'Scene paused: low frame rate detected' }, '*');
+
+            document.getElementById('__gve_resume').addEventListener('click', function() {
+              __throttled = false;
+              overlay.remove();
+              __origRAF.call(window, __countFrame);
+            });
+          }
+        } else {
+          __lowFpsStrikes = 0;
+        }
+      }, 3000);
+    })();
   </script>
 </body>
 </html>`;

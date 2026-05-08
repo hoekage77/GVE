@@ -1,0 +1,242 @@
+{
+  "sessionId": "cd032bf2-9f4c-48c4-a79f-ad459e918626",
+  "ownerId": "dev-user",
+  "createdAt": "2026-05-08T02:23:50.569Z",
+  "updatedAt": "2026-05-08T02:25:14.519Z",
+  "status": "idle",
+  "currentScene": {
+    "sessionId": "cd032bf2-9f4c-48c4-a79f-ad459e918626",
+    "sceneId": "animations/protein_folding.html",
+    "code": "// === Protein Folding Simulation ===\n// Interactive 3D visualization of amino acid chain folding into protein structure\n\nimport * as THREE from 'https://esm.sh/three@0.160.0';\nimport { OrbitControls } from 'https://esm.sh/three@0.160.0/examples/jsm/controls/OrbitControls.js';\n\n// Scene setup\nconst scene = new THREE.Scene();\nscene.background = new THREE.Color(0x0a0a1a);\n\nconst camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);\ncamera.position.set(0, 0, 35);\n\nconst renderer = new THREE.WebGLRenderer({ antialias: true });\nrenderer.setSize(window.innerWidth, window.innerHeight);\nrenderer.shadowMap.enabled = true;\ndocument.body.appendChild(renderer.domElement);\n\n// Controls\nconst controls = new OrbitControls(camera, renderer.domElement);\ncontrols.enableDamping = true;\ncontrols.dampingFactor = 0.05;\ncontrols.autoRotate = true;\ncontrols.autoRotateSpeed = 1.0;\n\n// Lights\nconst ambientLight = new THREE.AmbientLight(0xffffff, 0.4);\nscene.add(ambientLight);\n\nconst pointLight = new THREE.PointLight(0xffffff, 1.2, 100);\npointLight.position.set(10, 10, 10);\nscene.add(pointLight);\n\nconst pointLight2 = new THREE.PointLight(0x88ccff, 0.6, 100);\npointLight2.position.set(-10, -5, 10);\nscene.add(pointLight2);\n\nconst pointLight3 = new THREE.PointLight(0xffaa88, 0.4, 100);\npointLight3.position.set(5, -10, -5);\nscene.add(pointLight3);\n\n// Amino acid properties\nconst AMINO_ACIDS = [\n  { name: 'Alanine', abbr: 'A', color: 0x4a90d9, type: 'nonpolar' },\n  { name: 'Arginine', abbr: 'R', color: 0xe74c3c, type: 'positive' },\n  { name: 'Asparagine', abbr: 'N', color: 0x9b59b6, type: 'polar' },\n  { name: 'Aspartic', abbr: 'D', color: 0xf39c12, type: 'negative' },\n  { name: 'Cysteine', abbr: 'C', color: 0xf1c40f, type: 'polar' },\n  { name: 'Glutamic', abbr: 'E', color: 0xe67e22, type: 'negative' },\n  { name: 'Glutamine', abbr: 'Q', color: 0x8e44ad, type: 'polar' },\n  { name: 'Glycine', abbr: 'G', color: 0x7f8c8d, type: 'nonpolar' },\n  { name: 'Histidine', abbr: 'H', color: 0xc0392b, type: 'positive' },\n  { name: 'Isoleucine', abbr: 'I', color: 0x3498db, type: 'nonpolar' },\n  { name: 'Leucine', abbr: 'L', color: 0x2980b9, type: 'nonpolar' },\n  { name: 'Lysine', abbr: 'K', color: 0xe74c3c, type: 'positive' },\n  { name: 'Methionine', abbr: 'M', color: 0x16a085, type: 'nonpolar' },\n  { name: 'Phenylalanine', abbr: 'F', color: 0x1abc9c, type: 'nonpolar' },\n  { name: 'Proline', abbr: 'P', color: 0x27ae60, type: 'nonpolar' },\n  { name: 'Serine', abbr: 'S', color: 0x9b59b6, type: 'polar' },\n  { name: 'Threonine', abbr: 'T', color: 0x8e44ad, type: 'polar' },\n  { name: 'Tryptophan', abbr: 'W', color: 0x2ecc71, type: 'nonpolar' },\n  { name: 'Tyrosine', abbr: 'Y', color: 0xd35400, type: 'polar' },\n  { name: 'Valine', abbr: 'V', color: 0x34495e, type: 'nonpolar' },\n];\n\nconst CHAIN_LENGTH = 60;\nconst aminoAcidData = [];\nfor (let i = 0; i < CHAIN_LENGTH; i++) {\n  aminoAcidData.push(AMINO_ACIDS[i % AMINO_ACIDS.length]);\n}\n\n// Create amino acid spheres\nconst sphereGeometry = new THREE.SphereGeometry(0.8, 32, 32);\nconst aminoAcidMeshes = [];\n\naminoAcidData.forEach((aa, i) => {\n  const material = new THREE.MeshPhysicalMaterial({\n    color: aa.color,\n    metalness: 0.1,\n    roughness: 0.3,\n    clearcoat: 0.8,\n    clearcoatRoughness: 0.2,\n    emissive: aa.color,\n    emissiveIntensity: 0.15,\n  });\n  const mesh = new THREE.Mesh(sphereGeometry, material);\n  mesh.castShadow = true;\n  mesh.receiveShadow = true;\n  scene.add(mesh);\n  aminoAcidMeshes.push(mesh);\n});\n\n// Create bonds between amino acids\nconst bondMaterial = new THREE.MeshStandardMaterial({\n  color: 0xaaaaaa,\n  metalness: 0.5,\n  roughness: 0.5,\n});\nconst bondGeometry = new THREE.CylinderGeometry(0.15, 0.15, 1, 8);\nconst bondMeshes = [];\n\nfor (let i = 0; i < CHAIN_LENGTH - 1; i++) {\n  const bond = new THREE.Mesh(bondGeometry, bondMaterial);\n  bond.castShadow = true;\n  scene.add(bond);\n  bondMeshes.push(bond);\n}\n\n// Secondary structure indicators\n// Alpha helix: HHHH region, Beta sheet: EEEE region\nconst SS_TYPES = [];\nfor (let i = 0; i < CHAIN_LENGTH; i++) {\n  if (i >= 10 && i < 22) SS_TYPES.push('H'); // Alpha helix\n  else if (i >= 30 && i < 38) SS_TYPES.push('E'); // Beta strand\n  else if (i >= 45 && i < 52) SS_TYPES.push('H'); // Another helix\n  else SS_TYPES.push('C'); // Coil/loop\n}\n\n// Store unfolded (linear) and folded positions\nconst unfoldedPositions = [];\nconst foldedPositions = [];\n\nfor (let i = 0; i < CHAIN_LENGTH; i++) {\n  // Unfolded: straight line with slight randomness\n  unfoldedPositions.push(new THREE.Vector3((i - CHAIN_LENGTH / 2) * 1.6, 0, 0));\n\n  // Folded: 3D structure with helices and sheets\n  let pos = new THREE.Vector3();\n\n  if (SS_TYPES[i] === 'H') {\n    // Alpha helix: spiral\n    const helixIndex = (i >= 10 && i < 22) ? i - 10 : i - 45;\n    const helixCenter = (i >= 10 && i < 22) ? new THREE.Vector3(-8, 2, 0) : new THREE.Vector3(6, -4, 4);\n    const angle = helixIndex * 1.8; // ~100 degrees per residue\n    const radius = 2.5;\n    const rise = 1.3;\n    pos.set(\n      helixCenter.x + Math.cos(angle) * radius,\n      helixCenter.y + helixIndex * rise - ((i >= 10 && i < 22) ? 4 : 2),\n      helixCenter.z + Math.sin(angle) * radius\n    );\n  } else if (SS_TYPES[i] === 'E') {\n    // Beta sheet: zigzag plane\n    const strandIndex = i - 30;\n    const zigzag = (strandIndex % 2 === 0) ? 1 : -1;\n    pos.set(\n      -2 + strandIndex * 1.2,\n      zigzag * 2.5,\n      5\n    );\n  } else {\n    // Coil/loop: smooth curves connecting structures\n    if (i < 10) {\n      // N-terminus tail\n      const t = i / 10;\n      pos.set(-14 + i * 1.2, Math.sin(t * Math.PI) * 2, Math.cos(t * Math.PI) * 1.5);\n    } else if (i >= 22 && i < 30) {\n      // Loop between helix 1 and sheet\n      const t = (i - 22) / 8;\n      pos.set(\n        -5 + t * 3,\n        2 + Math.sin(t * Math.PI) * 3,\n        2 + t * 3\n      );\n    } else if (i >= 38 && i < 45) {\n      // Loop between sheet and helix 2\n      const t = (i - 38) / 7;\n      pos.set(\n        3 + Math.sin(t * Math.PI) * 2,\n        -1 - t * 2,\n        5 - t * 4\n      );\n    } else {\n      // C-terminus tail\n      const t = (i - 52) / 8;\n      pos.set(\n        8 + t * 2,\n        -4 + Math.sin(t * Math.PI) * 1,\n        4 - t * 2\n      );\n    }\n  }\n  foldedPositions.push(pos);\n}\n\n// Animation state\nlet isFolding = true;\nlet foldProgress = 0;\nlet foldSpeed = 0.003;\nlet unfoldedOnce = false;\nlet reverseDirection = false;\n\n// Labels\nconst labelDiv = document.createElement('div');\nlabelDiv.style.cssText = 'position:absolute;top:10px;left:10px;color:#fff;font-family:Segoe UI,sans-serif;pointer-events:none;';\ndocument.body.appendChild(labelDiv);\n\nfunction updateLabel() {\n  const status = foldProgress < 0.1 ? 'Unfolded (Primary Structure)' :\n    foldProgress < 0.5 ? 'Folding in Progress...' :\n    foldProgress < 0.9 ? 'Secondary Structure Forming' :\n    'Folded (Tertiary Structure)';\n  labelDiv.innerHTML = `\n    <div style=\"background:rgba(0,0,0,0.6);padding:15px;border-radius:10px;max-width:320px;\">\n      <h2 style=\"margin:0 0 8px 0;color:#4fc3f7;font-size:18px;\">🧬 Protein Folding Simulation</h2>\n      <p style=\"margin:4px 0;font-size:14px;\"><b>Status:</b> <span style=\"color:#81c784\">${status}</span></p>\n      <p style=\"margin:4px 0;font-size:13px;color:#aaa;\">Chain: ${CHAIN_LENGTH} amino acids</p>\n      <p style=\"margin:4px 0;font-size:12px;color:#bbb;line-height:1.4;\">\n        🔵 <span style=\"color:#4a90d9\">Blue</span> = Nonpolar<br>\n        🟣 <span style=\"color:#9b59b6\">Purple</span> = Polar<br>\n        🔴 <span style=\"color:#e74c3c\">Red</span> = Positive charge<br>\n        🟠 <span style=\"color:#f39c12\">Orange</span> = Negative charge\n      </p>\n      <p style=\"margin:8px 0 0 0;font-size:11px;color:#888;\">Drag to rotate • Scroll to zoom</p>\n    </div>\n  `;\n}\n\n// UI Controls\nconst btnDiv = document.createElement('div');\nbtnDiv.style.cssText = 'position:absolute;bottom:20px;left:50%;transform:translateX(-50%);display:flex;gap:10px;';\ndocument.body.appendChild(btnDiv);\n\nfunction createButton(text, onClick) {\n  const btn = document.createElement('button');\n  btn.innerText = text;\n  btn.style.cssText = 'padding:10px 18px;background:#4fc3f7;border:none;border-radius:8px;color:#000;font-weight:bold;cursor:pointer;font-family:Segoe UI,sans-serif;font-size:14px;transition:all 0.2s;';\n  btn.onmouseenter = () => btn.style.background = '#29b6f6';\n  btn.onmouseleave = () => btn.style.background = '#4fc3f7';\n  btn.onclick = onClick;\n  return btn;\n}\n\nbtnDiv.appendChild(createButton('⏪ Reset / Unfold', () => {\n  reverseDirection = true;\n  isFolding = true;\n  controls.autoRotate = false;\n}));\nbtnDiv.appendChild(createButton('▶️ Fold Protein', () => {\n  reverseDirection = false;\n  isFolding = true;\n  controls.autoRotate = false;\n}));\nbtnDiv.appendChild(createButton('🔄 Auto Rotate', () => {\n  controls.autoRotate = !controls.autoRotate;\n}));\n\n// Animation loop\nfunction animate() {\n  requestAnimationFrame(animate);\n\n  if (isFolding) {\n    if (reverseDirection) {\n      foldProgress -= foldSpeed;\n      if (foldProgress <= 0) {\n        foldProgress = 0;\n        isFolding = false;\n      }\n    } else {\n      foldProgress += foldSpeed;\n      if (foldProgress >= 1) {\n        foldProgress = 1;\n        isFolding = false;\n      }\n    }\n  }\n\n  // Smooth ease function\n  const t = foldProgress < 0.5 ? 4 * foldProgress * foldProgress * foldProgress :\n    1 - Math.pow(-2 * foldProgress + 2, 3) / 2;\n\n  // Update amino acid positions\n  for (let i = 0; i < CHAIN_LENGTH; i++) {\n    const start = unfoldedPositions[i];\n    const end = foldedPositions[i];\n    aminoAcidMeshes[i].position.lerpVectors(start, end, t);\n\n    // Add subtle breathing animation when folded\n    if (foldProgress > 0.8) {\n      const time = Date.now() * 0.001;\n      aminoAcidMeshes[i].position.y += Math.sin(time + i * 0.5) * 0.02;\n    }\n  }\n\n  // Update bond positions and rotations\n  for (let i = 0; i < CHAIN_LENGTH - 1; i++) {\n    const p1 = aminoAcidMeshes[i].position;\n    const p2 = aminoAcidMeshes[i + 1].position;\n    const mid = new THREE.Vector3().addVectors(p1, p2).multiplyScalar(0.5);\n    bondMeshes[i].position.copy(mid);\n    bondMeshes[i].lookAt(p2);\n    bondMeshes[i].scale.y = p1.distanceTo(p2);\n  }\n\n  updateLabel();\n  controls.update();\n  renderer.render(scene, camera);\n}\n\n// Handle resize\nwindow.addEventListener('resize', () => {\n  camera.aspect = window.innerWidth / window.innerHeight;\n  camera.updateProjectionMatrix();\n  renderer.setSize(window.innerWidth, window.innerHeight);\n});\n\n// Start with folded state\nfoldProgress = 0;\nreverseDirection = false;\nisFolding = true;\n\nanimate();",
+    "previewUrl": null,
+    "skill": "threejs",
+    "outputKind": "code",
+    "mediaType": null,
+    "mediaUrl": null,
+    "mediaArtifactId": null,
+    "mediaDurationMs": null,
+    "mediaFps": null,
+    "mediaResolution": null,
+    "mediaBytes": null,
+    "assetPlan": null,
+    "explanation": "Interactive 3D protein folding simulation showing 60 amino acids transitioning from a linear unfolded chain to a folded 3D tertiary structure with alpha helices and beta sheets. Features color-coded amino acid side chains, animated bonds, and interactive camera controls.",
+    "messageId": "message-2",
+    "workspace": null,
+    "source": "generate",
+    "createdAt": "2026-05-08T02:25:09.841Z",
+    "updatedAt": "2026-05-08T02:25:09.841Z",
+    "versionId": "version-1",
+    "version": 1,
+    "artifactId": "artifact-1778207109841-641573",
+    "artifactVersion": 1
+  },
+  "workspace": null,
+  "artifacts": [
+    {
+      "artifactId": "artifact-1778207109841-641573",
+      "title": "animations/protein_folding.html",
+      "createdAt": "2026-05-08T02:25:09.841Z",
+      "updatedAt": "2026-05-08T02:25:09.841Z",
+      "revisions": [
+        {
+          "sessionId": "cd032bf2-9f4c-48c4-a79f-ad459e918626",
+          "sceneId": "animations/protein_folding.html",
+          "code": "// === Protein Folding Simulation ===\n// Interactive 3D visualization of amino acid chain folding into protein structure\n\nimport * as THREE from 'https://esm.sh/three@0.160.0';\nimport { OrbitControls } from 'https://esm.sh/three@0.160.0/examples/jsm/controls/OrbitControls.js';\n\n// Scene setup\nconst scene = new THREE.Scene();\nscene.background = new THREE.Color(0x0a0a1a);\n\nconst camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);\ncamera.position.set(0, 0, 35);\n\nconst renderer = new THREE.WebGLRenderer({ antialias: true });\nrenderer.setSize(window.innerWidth, window.innerHeight);\nrenderer.shadowMap.enabled = true;\ndocument.body.appendChild(renderer.domElement);\n\n// Controls\nconst controls = new OrbitControls(camera, renderer.domElement);\ncontrols.enableDamping = true;\ncontrols.dampingFactor = 0.05;\ncontrols.autoRotate = true;\ncontrols.autoRotateSpeed = 1.0;\n\n// Lights\nconst ambientLight = new THREE.AmbientLight(0xffffff, 0.4);\nscene.add(ambientLight);\n\nconst pointLight = new THREE.PointLight(0xffffff, 1.2, 100);\npointLight.position.set(10, 10, 10);\nscene.add(pointLight);\n\nconst pointLight2 = new THREE.PointLight(0x88ccff, 0.6, 100);\npointLight2.position.set(-10, -5, 10);\nscene.add(pointLight2);\n\nconst pointLight3 = new THREE.PointLight(0xffaa88, 0.4, 100);\npointLight3.position.set(5, -10, -5);\nscene.add(pointLight3);\n\n// Amino acid properties\nconst AMINO_ACIDS = [\n  { name: 'Alanine', abbr: 'A', color: 0x4a90d9, type: 'nonpolar' },\n  { name: 'Arginine', abbr: 'R', color: 0xe74c3c, type: 'positive' },\n  { name: 'Asparagine', abbr: 'N', color: 0x9b59b6, type: 'polar' },\n  { name: 'Aspartic', abbr: 'D', color: 0xf39c12, type: 'negative' },\n  { name: 'Cysteine', abbr: 'C', color: 0xf1c40f, type: 'polar' },\n  { name: 'Glutamic', abbr: 'E', color: 0xe67e22, type: 'negative' },\n  { name: 'Glutamine', abbr: 'Q', color: 0x8e44ad, type: 'polar' },\n  { name: 'Glycine', abbr: 'G', color: 0x7f8c8d, type: 'nonpolar' },\n  { name: 'Histidine', abbr: 'H', color: 0xc0392b, type: 'positive' },\n  { name: 'Isoleucine', abbr: 'I', color: 0x3498db, type: 'nonpolar' },\n  { name: 'Leucine', abbr: 'L', color: 0x2980b9, type: 'nonpolar' },\n  { name: 'Lysine', abbr: 'K', color: 0xe74c3c, type: 'positive' },\n  { name: 'Methionine', abbr: 'M', color: 0x16a085, type: 'nonpolar' },\n  { name: 'Phenylalanine', abbr: 'F', color: 0x1abc9c, type: 'nonpolar' },\n  { name: 'Proline', abbr: 'P', color: 0x27ae60, type: 'nonpolar' },\n  { name: 'Serine', abbr: 'S', color: 0x9b59b6, type: 'polar' },\n  { name: 'Threonine', abbr: 'T', color: 0x8e44ad, type: 'polar' },\n  { name: 'Tryptophan', abbr: 'W', color: 0x2ecc71, type: 'nonpolar' },\n  { name: 'Tyrosine', abbr: 'Y', color: 0xd35400, type: 'polar' },\n  { name: 'Valine', abbr: 'V', color: 0x34495e, type: 'nonpolar' },\n];\n\nconst CHAIN_LENGTH = 60;\nconst aminoAcidData = [];\nfor (let i = 0; i < CHAIN_LENGTH; i++) {\n  aminoAcidData.push(AMINO_ACIDS[i % AMINO_ACIDS.length]);\n}\n\n// Create amino acid spheres\nconst sphereGeometry = new THREE.SphereGeometry(0.8, 32, 32);\nconst aminoAcidMeshes = [];\n\naminoAcidData.forEach((aa, i) => {\n  const material = new THREE.MeshPhysicalMaterial({\n    color: aa.color,\n    metalness: 0.1,\n    roughness: 0.3,\n    clearcoat: 0.8,\n    clearcoatRoughness: 0.2,\n    emissive: aa.color,\n    emissiveIntensity: 0.15,\n  });\n  const mesh = new THREE.Mesh(sphereGeometry, material);\n  mesh.castShadow = true;\n  mesh.receiveShadow = true;\n  scene.add(mesh);\n  aminoAcidMeshes.push(mesh);\n});\n\n// Create bonds between amino acids\nconst bondMaterial = new THREE.MeshStandardMaterial({\n  color: 0xaaaaaa,\n  metalness: 0.5,\n  roughness: 0.5,\n});\nconst bondGeometry = new THREE.CylinderGeometry(0.15, 0.15, 1, 8);\nconst bondMeshes = [];\n\nfor (let i = 0; i < CHAIN_LENGTH - 1; i++) {\n  const bond = new THREE.Mesh(bondGeometry, bondMaterial);\n  bond.castShadow = true;\n  scene.add(bond);\n  bondMeshes.push(bond);\n}\n\n// Secondary structure indicators\n// Alpha helix: HHHH region, Beta sheet: EEEE region\nconst SS_TYPES = [];\nfor (let i = 0; i < CHAIN_LENGTH; i++) {\n  if (i >= 10 && i < 22) SS_TYPES.push('H'); // Alpha helix\n  else if (i >= 30 && i < 38) SS_TYPES.push('E'); // Beta strand\n  else if (i >= 45 && i < 52) SS_TYPES.push('H'); // Another helix\n  else SS_TYPES.push('C'); // Coil/loop\n}\n\n// Store unfolded (linear) and folded positions\nconst unfoldedPositions = [];\nconst foldedPositions = [];\n\nfor (let i = 0; i < CHAIN_LENGTH; i++) {\n  // Unfolded: straight line with slight randomness\n  unfoldedPositions.push(new THREE.Vector3((i - CHAIN_LENGTH / 2) * 1.6, 0, 0));\n\n  // Folded: 3D structure with helices and sheets\n  let pos = new THREE.Vector3();\n\n  if (SS_TYPES[i] === 'H') {\n    // Alpha helix: spiral\n    const helixIndex = (i >= 10 && i < 22) ? i - 10 : i - 45;\n    const helixCenter = (i >= 10 && i < 22) ? new THREE.Vector3(-8, 2, 0) : new THREE.Vector3(6, -4, 4);\n    const angle = helixIndex * 1.8; // ~100 degrees per residue\n    const radius = 2.5;\n    const rise = 1.3;\n    pos.set(\n      helixCenter.x + Math.cos(angle) * radius,\n      helixCenter.y + helixIndex * rise - ((i >= 10 && i < 22) ? 4 : 2),\n      helixCenter.z + Math.sin(angle) * radius\n    );\n  } else if (SS_TYPES[i] === 'E') {\n    // Beta sheet: zigzag plane\n    const strandIndex = i - 30;\n    const zigzag = (strandIndex % 2 === 0) ? 1 : -1;\n    pos.set(\n      -2 + strandIndex * 1.2,\n      zigzag * 2.5,\n      5\n    );\n  } else {\n    // Coil/loop: smooth curves connecting structures\n    if (i < 10) {\n      // N-terminus tail\n      const t = i / 10;\n      pos.set(-14 + i * 1.2, Math.sin(t * Math.PI) * 2, Math.cos(t * Math.PI) * 1.5);\n    } else if (i >= 22 && i < 30) {\n      // Loop between helix 1 and sheet\n      const t = (i - 22) / 8;\n      pos.set(\n        -5 + t * 3,\n        2 + Math.sin(t * Math.PI) * 3,\n        2 + t * 3\n      );\n    } else if (i >= 38 && i < 45) {\n      // Loop between sheet and helix 2\n      const t = (i - 38) / 7;\n      pos.set(\n        3 + Math.sin(t * Math.PI) * 2,\n        -1 - t * 2,\n        5 - t * 4\n      );\n    } else {\n      // C-terminus tail\n      const t = (i - 52) / 8;\n      pos.set(\n        8 + t * 2,\n        -4 + Math.sin(t * Math.PI) * 1,\n        4 - t * 2\n      );\n    }\n  }\n  foldedPositions.push(pos);\n}\n\n// Animation state\nlet isFolding = true;\nlet foldProgress = 0;\nlet foldSpeed = 0.003;\nlet unfoldedOnce = false;\nlet reverseDirection = false;\n\n// Labels\nconst labelDiv = document.createElement('div');\nlabelDiv.style.cssText = 'position:absolute;top:10px;left:10px;color:#fff;font-family:Segoe UI,sans-serif;pointer-events:none;';\ndocument.body.appendChild(labelDiv);\n\nfunction updateLabel() {\n  const status = foldProgress < 0.1 ? 'Unfolded (Primary Structure)' :\n    foldProgress < 0.5 ? 'Folding in Progress...' :\n    foldProgress < 0.9 ? 'Secondary Structure Forming' :\n    'Folded (Tertiary Structure)';\n  labelDiv.innerHTML = `\n    <div style=\"background:rgba(0,0,0,0.6);padding:15px;border-radius:10px;max-width:320px;\">\n      <h2 style=\"margin:0 0 8px 0;color:#4fc3f7;font-size:18px;\">🧬 Protein Folding Simulation</h2>\n      <p style=\"margin:4px 0;font-size:14px;\"><b>Status:</b> <span style=\"color:#81c784\">${status}</span></p>\n      <p style=\"margin:4px 0;font-size:13px;color:#aaa;\">Chain: ${CHAIN_LENGTH} amino acids</p>\n      <p style=\"margin:4px 0;font-size:12px;color:#bbb;line-height:1.4;\">\n        🔵 <span style=\"color:#4a90d9\">Blue</span> = Nonpolar<br>\n        🟣 <span style=\"color:#9b59b6\">Purple</span> = Polar<br>\n        🔴 <span style=\"color:#e74c3c\">Red</span> = Positive charge<br>\n        🟠 <span style=\"color:#f39c12\">Orange</span> = Negative charge\n      </p>\n      <p style=\"margin:8px 0 0 0;font-size:11px;color:#888;\">Drag to rotate • Scroll to zoom</p>\n    </div>\n  `;\n}\n\n// UI Controls\nconst btnDiv = document.createElement('div');\nbtnDiv.style.cssText = 'position:absolute;bottom:20px;left:50%;transform:translateX(-50%);display:flex;gap:10px;';\ndocument.body.appendChild(btnDiv);\n\nfunction createButton(text, onClick) {\n  const btn = document.createElement('button');\n  btn.innerText = text;\n  btn.style.cssText = 'padding:10px 18px;background:#4fc3f7;border:none;border-radius:8px;color:#000;font-weight:bold;cursor:pointer;font-family:Segoe UI,sans-serif;font-size:14px;transition:all 0.2s;';\n  btn.onmouseenter = () => btn.style.background = '#29b6f6';\n  btn.onmouseleave = () => btn.style.background = '#4fc3f7';\n  btn.onclick = onClick;\n  return btn;\n}\n\nbtnDiv.appendChild(createButton('⏪ Reset / Unfold', () => {\n  reverseDirection = true;\n  isFolding = true;\n  controls.autoRotate = false;\n}));\nbtnDiv.appendChild(createButton('▶️ Fold Protein', () => {\n  reverseDirection = false;\n  isFolding = true;\n  controls.autoRotate = false;\n}));\nbtnDiv.appendChild(createButton('🔄 Auto Rotate', () => {\n  controls.autoRotate = !controls.autoRotate;\n}));\n\n// Animation loop\nfunction animate() {\n  requestAnimationFrame(animate);\n\n  if (isFolding) {\n    if (reverseDirection) {\n      foldProgress -= foldSpeed;\n      if (foldProgress <= 0) {\n        foldProgress = 0;\n        isFolding = false;\n      }\n    } else {\n      foldProgress += foldSpeed;\n      if (foldProgress >= 1) {\n        foldProgress = 1;\n        isFolding = false;\n      }\n    }\n  }\n\n  // Smooth ease function\n  const t = foldProgress < 0.5 ? 4 * foldProgress * foldProgress * foldProgress :\n    1 - Math.pow(-2 * foldProgress + 2, 3) / 2;\n\n  // Update amino acid positions\n  for (let i = 0; i < CHAIN_LENGTH; i++) {\n    const start = unfoldedPositions[i];\n    const end = foldedPositions[i];\n    aminoAcidMeshes[i].position.lerpVectors(start, end, t);\n\n    // Add subtle breathing animation when folded\n    if (foldProgress > 0.8) {\n      const time = Date.now() * 0.001;\n      aminoAcidMeshes[i].position.y += Math.sin(time + i * 0.5) * 0.02;\n    }\n  }\n\n  // Update bond positions and rotations\n  for (let i = 0; i < CHAIN_LENGTH - 1; i++) {\n    const p1 = aminoAcidMeshes[i].position;\n    const p2 = aminoAcidMeshes[i + 1].position;\n    const mid = new THREE.Vector3().addVectors(p1, p2).multiplyScalar(0.5);\n    bondMeshes[i].position.copy(mid);\n    bondMeshes[i].lookAt(p2);\n    bondMeshes[i].scale.y = p1.distanceTo(p2);\n  }\n\n  updateLabel();\n  controls.update();\n  renderer.render(scene, camera);\n}\n\n// Handle resize\nwindow.addEventListener('resize', () => {\n  camera.aspect = window.innerWidth / window.innerHeight;\n  camera.updateProjectionMatrix();\n  renderer.setSize(window.innerWidth, window.innerHeight);\n});\n\n// Start with folded state\nfoldProgress = 0;\nreverseDirection = false;\nisFolding = true;\n\nanimate();",
+          "previewUrl": null,
+          "skill": "threejs",
+          "outputKind": "code",
+          "mediaType": null,
+          "mediaUrl": null,
+          "mediaArtifactId": null,
+          "mediaDurationMs": null,
+          "mediaFps": null,
+          "mediaResolution": null,
+          "mediaBytes": null,
+          "assetPlan": null,
+          "explanation": "Interactive 3D protein folding simulation showing 60 amino acids transitioning from a linear unfolded chain to a folded 3D tertiary structure with alpha helices and beta sheets. Features color-coded amino acid side chains, animated bonds, and interactive camera controls.",
+          "messageId": "message-2",
+          "workspace": null,
+          "source": "generate",
+          "createdAt": "2026-05-08T02:25:09.841Z",
+          "updatedAt": "2026-05-08T02:25:09.841Z",
+          "versionId": "version-1",
+          "version": 1,
+          "artifactId": "artifact-1778207109841-641573",
+          "artifactVersion": 1
+        }
+      ],
+      "revisionPointer": 0
+    }
+  ],
+  "artifactPointer": 0,
+  "messages": [
+    {
+      "messageId": "user-6270e69c-c808-4c78-bb34-aa8f860e49e1",
+      "role": "user",
+      "content": "show me a simulation of protein",
+      "kind": "input",
+      "metadata": {},
+      "createdAt": "2026-05-08T02:24:20.336Z",
+      "updatedAt": "2026-05-08T02:24:20.336Z"
+    },
+    {
+      "messageId": "message-2",
+      "role": "assistant",
+      "content": "Interactive 3D protein folding simulation showing 60 amino acids transitioning from a linear unfolded chain to a folded 3D tertiary structure with alpha helices and beta sheets. Features color-coded amino acid side chains, animated bonds, and interactive camera controls.\n\nPreview is available in the workspace.",
+      "kind": "agent",
+      "error": null,
+      "meta": [
+        "requestId:req-ws-1778207060024-51d75e",
+        "scene:animations/protein_folding.html",
+        "skill:threejs",
+        "v1",
+        "assistantSource:agent-coordinator"
+      ],
+      "metadata": [],
+      "createdAt": "2026-05-08T02:24:20.362Z",
+      "updatedAt": "2026-05-08T02:25:14.500Z"
+    },
+    {
+      "messageId": "thought-turn_started-1778207060409",
+      "role": "thought",
+      "content": "Okay, let me dive into this. I'll start by understanding what kind of visual you want.",
+      "kind": "thought",
+      "meta": [
+        "turn_started",
+        "requestId:req-ws-1778207060024-51d75e",
+        "messageId:message-2"
+      ],
+      "metadata": [
+        "turn_started",
+        "requestId:req-ws-1778207060024-51d75e",
+        "messageId:message-2"
+      ],
+      "createdAt": "2026-05-08T02:24:20.409Z",
+      "updatedAt": "2026-05-08T02:24:20.409Z"
+    },
+    {
+      "messageId": "thought-agent_thinking-1778207062393",
+      "role": "thought",
+      "content": "Planning the best approach — let me think through the steps.",
+      "kind": "thought",
+      "meta": [
+        "agent_thinking",
+        "requestId:req-ws-1778207060024-51d75e",
+        "messageId:message-2"
+      ],
+      "metadata": [
+        "agent_thinking",
+        "requestId:req-ws-1778207060024-51d75e",
+        "messageId:message-2"
+      ],
+      "createdAt": "2026-05-08T02:24:22.393Z",
+      "updatedAt": "2026-05-08T02:24:22.393Z"
+    },
+    {
+      "messageId": "thought-agent_tool_called-1778207072422",
+      "role": "thought",
+      "content": "Using web_search_webSearch to verify my changes...",
+      "kind": "thought",
+      "meta": [
+        "agent_tool_called",
+        "requestId:req-ws-1778207060024-51d75e",
+        "messageId:message-2"
+      ],
+      "metadata": [
+        "agent_tool_called",
+        "requestId:req-ws-1778207060024-51d75e",
+        "messageId:message-2"
+      ],
+      "createdAt": "2026-05-08T02:24:32.422Z",
+      "updatedAt": "2026-05-08T02:24:32.422Z"
+    },
+    {
+      "messageId": "thought-agent_tool_result-1778207076490",
+      "role": "thought",
+      "content": "web_search_webSearch finished — processing the result...",
+      "kind": "thought",
+      "meta": [
+        "agent_tool_result",
+        "requestId:req-ws-1778207060024-51d75e",
+        "messageId:message-2"
+      ],
+      "metadata": [
+        "agent_tool_result",
+        "requestId:req-ws-1778207060024-51d75e",
+        "messageId:message-2"
+      ],
+      "createdAt": "2026-05-08T02:24:36.490Z",
+      "updatedAt": "2026-05-08T02:24:36.490Z"
+    },
+    {
+      "messageId": "thought-agent_tool_called-1778207100694",
+      "role": "thought",
+      "content": "Calling animation_3js_createScene — let me see if the fix works...",
+      "kind": "thought",
+      "meta": [
+        "agent_tool_called",
+        "requestId:req-ws-1778207060024-51d75e",
+        "messageId:message-2"
+      ],
+      "metadata": [
+        "agent_tool_called",
+        "requestId:req-ws-1778207060024-51d75e",
+        "messageId:message-2"
+      ],
+      "createdAt": "2026-05-08T02:25:00.694Z",
+      "updatedAt": "2026-05-08T02:25:00.694Z"
+    },
+    {
+      "messageId": "thought-agent_tool_result-1778207109486",
+      "role": "thought",
+      "content": "animation_3js_createScene returned data. Incorporating it into my thinking...",
+      "kind": "thought",
+      "meta": [
+        "agent_tool_result",
+        "requestId:req-ws-1778207060024-51d75e",
+        "messageId:message-2"
+      ],
+      "metadata": [
+        "agent_tool_result",
+        "requestId:req-ws-1778207060024-51d75e",
+        "messageId:message-2"
+      ],
+      "createdAt": "2026-05-08T02:25:09.494Z",
+      "updatedAt": "2026-05-08T02:25:09.494Z"
+    },
+    {
+      "messageId": "thought-turn_complete-1778207114497",
+      "role": "thought",
+      "content": "Complete. The scene has been generated and synced.",
+      "kind": "thought",
+      "meta": [
+        "turn_complete",
+        "requestId:req-ws-1778207060024-51d75e",
+        "messageId:message-2"
+      ],
+      "metadata": [
+        "turn_complete",
+        "requestId:req-ws-1778207060024-51d75e",
+        "messageId:message-2"
+      ],
+      "createdAt": "2026-05-08T02:25:14.497Z",
+      "updatedAt": "2026-05-08T02:25:14.497Z"
+    }
+  ],
+  "orchestrationTrace": [
+    {
+      "step": "turn_complete",
+      "payload": {
+        "sessionId": "cd032bf2-9f4c-48c4-a79f-ad459e918626",
+        "mode": "agent",
+        "messageCount": 9,
+        "toolCalls": 2,
+        "toolResults": 2,
+        "agentSuccess": true,
+        "agentError": null,
+        "durationMs": 54080
+      },
+      "timestamp": "2026-05-08T02:25:14.519Z"
+    }
+  ]
+}

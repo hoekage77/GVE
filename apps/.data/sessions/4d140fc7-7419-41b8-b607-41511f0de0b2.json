@@ -1,0 +1,368 @@
+{
+  "sessionId": "4d140fc7-7419-41b8-b607-41511f0de0b2",
+  "ownerId": "dev-user",
+  "createdAt": "2026-05-08T02:02:32.935Z",
+  "updatedAt": "2026-05-08T02:05:04.411Z",
+  "status": "idle",
+  "currentScene": {
+    "sessionId": "4d140fc7-7419-41b8-b607-41511f0de0b2",
+    "sceneId": "animations/galaxy_collision.html",
+    "code": "\n// === MIND-BLOWING GALAXY COLLISION SIMULATION ===\n// 4000 particles, two supermassive cores, gravitational tides in real-time\n\nlet scene, camera, renderer;\nlet points, geometry, material;\nlet fadeScene, fadeCamera, fadeMesh;\n\nconst NUM_PARTICLES = 4000;\nconst G = 1.2;\nconst DT = 0.08;\nconst SOFTENING = 1.5;\nconst TRAIL_OPACITY = 0.04;\n\n// Camera orbit state\nlet camRadius = 140;\nlet camTheta = 0.2;\nlet camPhi = 1.2;\nlet isDragging = false;\nlet lastMX = 0, lastMY = 0;\n\n// Two galactic centers\nconst center1 = {\n    pos: new THREE.Vector3(-45, 0, 0),\n    vel: new THREE.Vector3(0.15, 0.32, 0),\n    mass: 4000,\n    mesh: null\n};\nconst center2 = {\n    pos: new THREE.Vector3(45, 0, 0),\n    vel: new THREE.Vector3(-0.15, -0.32, 0.08),\n    mass: 4000,\n    mesh: null\n};\n\nlet velocities = [];\nlet initialColors = []; // store galaxy identity\n\nfunction updateCamera() {\n    camera.position.x = camRadius * Math.sin(camPhi) * Math.cos(camTheta);\n    camera.position.y = camRadius * Math.cos(camPhi);\n    camera.position.z = camRadius * Math.sin(camPhi) * Math.sin(camTheta);\n    camera.lookAt(0, 0, 0);\n}\n\nfunction init() {\n    // Scene\n    scene = new THREE.Scene();\n    scene.fog = new THREE.FogExp2(0x020105, 0.0015);\n    \n    // Camera\n    camera = new THREE.PerspectiveCamera(55, window.innerWidth / window.innerHeight, 0.1, 1000);\n    updateCamera();\n    \n    // Renderer with trail support\n    renderer = new THREE.WebGLRenderer({ antialias: false, preserveDrawingBuffer: true });\n    renderer.setSize(window.innerWidth, window.innerHeight);\n    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));\n    renderer.autoClear = false;\n    renderer.domElement.style.cursor = 'move';\n    document.body.appendChild(renderer.domElement);\n    \n    // === FADE OVERLAY FOR TRAILS ===\n    fadeScene = new THREE.Scene();\n    fadeCamera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);\n    const fadeGeo = new THREE.PlaneGeometry(2, 2);\n    const fadeMat = new THREE.MeshBasicMaterial({\n        color: 0x020105,\n        transparent: true,\n        opacity: TRAIL_OPACITY,\n        depthTest: false,\n        depthWrite: false\n    });\n    fadeMesh = new THREE.Mesh(fadeGeo, fadeMat);\n    fadeMesh.position.z = -0.5;\n    fadeScene.add(fadeMesh);\n    \n    // === BACKGROUND STARS ===\n    const bgGeo = new THREE.BufferGeometry();\n    const bgPos = new Float32Array(2000 * 3);\n    const bgColors = new Float32Array(2000 * 3);\n    for (let i = 0; i < 2000; i++) {\n        const r = 300 + Math.random() * 400;\n        const theta = Math.random() * Math.PI * 2;\n        const phi = Math.acos(2 * Math.random() - 1);\n        bgPos[i*3] = r * Math.sin(phi) * Math.cos(theta);\n        bgPos[i*3+1] = r * Math.sin(phi) * Math.sin(theta);\n        bgPos[i*3+2] = r * Math.cos(phi);\n        const brightness = 0.3 + Math.random() * 0.7;\n        bgColors[i*3] = brightness;\n        bgColors[i*3+1] = brightness * (0.8 + Math.random() * 0.2);\n        bgColors[i*3+2] = brightness * (0.9 + Math.random() * 0.1);\n    }\n    bgGeo.setAttribute('position', new THREE.BufferAttribute(bgPos, 3));\n    bgGeo.setAttribute('color', new THREE.BufferAttribute(bgColors, 3));\n    const bgMat = new THREE.PointsMaterial({\n        size: 1.2,\n        vertexColors: true,\n        blending: THREE.AdditiveBlending,\n        depthWrite: false,\n        transparent: true,\n        opacity: 0.6\n    });\n    scene.add(new THREE.Points(bgGeo, bgMat));\n    \n    // === GALACTIC CENTER GLOW ===\n    const glowGeo = new THREE.SphereGeometry(3, 32, 32);\n    const glowMat = new THREE.MeshBasicMaterial({ color: 0xfff8e7, blending: THREE.AdditiveBlending, transparent: true, opacity: 0.9 });\n    center1.mesh = new THREE.Mesh(glowGeo, glowMat);\n    center2.mesh = new THREE.Mesh(glowGeo.clone(), glowMat.clone());\n    scene.add(center1.mesh);\n    scene.add(center2.mesh);\n    \n    // === PARTICLE SYSTEM ===\n    geometry = new THREE.BufferGeometry();\n    const positions = new Float32Array(NUM_PARTICLES * 3);\n    const colors = new Float32Array(NUM_PARTICLES * 3);\n    \n    // Galaxy 1: face-on disk in XY plane\n    for (let i = 0; i < NUM_PARTICLES / 2; i++) {\n        const angle = Math.random() * Math.PI * 2;\n        // Exponential disk profile\n        const r = 2 + 30 * Math.pow(Math.random(), 0.6);\n        const x = r * Math.cos(angle);\n        const y = r * Math.sin(angle);\n        const z = (Math.random() - 0.5) * (1.5 + r * 0.05);\n        \n        // Keplerian orbital velocity around center1\n        const vMag = Math.sqrt(G * center1.mass / Math.sqrt(r*r + 4)) * (0.85 + Math.random() * 0.3);\n        const vx = -vMag * Math.sin(angle);\n        const vy = vMag * Math.cos(angle);\n        const vz = (Math.random() - 0.5) * 0.1;\n        \n        positions[i*3] = center1.pos.x + x;\n        positions[i*3+1] = center1.pos.y + y;\n        positions[i*3+2] = center1.pos.z + z;\n        \n        velocities.push(new THREE.Vector3(vx + center1.vel.x, vy + center1.vel.y, vz + center1.vel.z));\n        \n        // Cool blue-white identity\n        initialColors.push(0);\n        colors[i*3] = 0.4 + Math.random() * 0.4;\n        colors[i*3+1] = 0.6 + Math.random() * 0.4;\n        colors[i*3+2] = 1.0;\n    }\n    \n    // Galaxy 2: tilted disk (rotated 60° around X)\n    const tilt = Math.PI / 3;\n    const cosT = Math.cos(tilt);\n    const sinT = Math.sin(tilt);\n    \n    for (let i = NUM_PARTICLES / 2; i < NUM_PARTICLES; i++) {\n        const angle = Math.random() * Math.PI * 2;\n        const r = 2 + 30 * Math.pow(Math.random(), 0.6);\n        const x = r * Math.cos(angle);\n        const y = r * Math.sin(angle);\n        const z = (Math.random() - 0.5) * (1.5 + r * 0.05);\n        \n        // Apply tilt rotation\n        const rx = x;\n        const ry = y * cosT - z * sinT;\n        const rz = y * sinT + z * cosT;\n        \n        const vMag = Math.sqrt(G * center2.mass / Math.sqrt(r*r + 4)) * (0.85 + Math.random() * 0.3);\n        const vx = -vMag * Math.sin(angle);\n        const vy = vMag * Math.cos(angle);\n        const vz = (Math.random() - 0.5) * 0.1;\n        \n        // Rotate velocity by same tilt\n        const rvx = vx;\n        const rvy = vy * cosT - vz * sinT;\n        const rvz = vy * sinT + vz * cosT;\n        \n        positions[i*3] = center2.pos.x + rx;\n        positions[i*3+1] = center2.pos.y + ry;\n        positions[i*3+2] = center2.pos.z + rz;\n        \n        velocities.push(new THREE.Vector3(rvx + center2.vel.x, rvy + center2.vel.y, rvz + center2.vel.z));\n        \n        // Warm gold-white identity\n        initialColors.push(1);\n        colors[i*3] = 1.0;\n        colors[i*3+1] = 0.5 + Math.random() * 0.5;\n        colors[i*3+2] = 0.2 + Math.random() * 0.4;\n    }\n    \n    geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));\n    geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));\n    \n    material = new THREE.PointsMaterial({\n        size: 1.0,\n        vertexColors: true,\n        blending: THREE.AdditiveBlending,\n        depthWrite: false,\n        transparent: true,\n        opacity: 0.9\n    });\n    \n    points = new THREE.Points(geometry, material);\n    scene.add(points);\n    \n    // === CONTROLS ===\n    renderer.domElement.addEventListener('mousedown', e => {\n        isDragging = true;\n        lastMX = e.clientX;\n        lastMY = e.clientY;\n    });\n    window.addEventListener('mouseup', () => isDragging = false);\n    window.addEventListener('mousemove', e => {\n        if (!isDragging) return;\n        const dx = e.clientX - lastMX;\n        const dy = e.clientY - lastMY;\n        camTheta -= dx * 0.008;\n        camPhi += dy * 0.008;\n        camPhi = Math.max(0.1, Math.min(Math.PI - 0.1, camPhi));\n        lastMX = e.clientX;\n        lastMY = e.clientY;\n        updateCamera();\n    });\n    renderer.domElement.addEventListener('wheel', e => {\n        camRadius *= 1 + e.deltaY * 0.001;\n        camRadius = Math.max(20, Math.min(400, camRadius));\n        updateCamera();\n    });\n    \n    // === ANIMATION ===\n    const posArray = geometry.attributes.position.array;\n    const colArray = geometry.attributes.color.array;\n    let frame = 0;\n    \n    function animate() {\n        requestAnimationFrame(animate);\n        frame++;\n        \n        // Slow auto-rotation when not dragging\n        if (!isDragging) {\n            camTheta += 0.0015;\n            updateCamera();\n        }\n        \n        // --- UPDATE CENTER BODIES (mutual gravity) ---\n        const cdx = center2.pos.x - center1.pos.x;\n        const cdy = center2.pos.y - center1.pos.y;\n        const cdz = center2.pos.z - center1.pos.z;\n        const cdistSq = cdx*cdx + cdy*cdy + cdz*cdz + SOFTENING*SOFTENING;\n        const cdist = Math.sqrt(cdistSq);\n        const cforce = G * center1.mass * center2.mass / cdistSq;\n        const cfx = cforce * cdx / cdist;\n        const cfy = cforce * cdy / cdist;\n        const cfz = cforce * cdz / cdist;\n        \n        center1.vel.x += cfx / center1.mass * DT;\n        center1.vel.y += cfy / center1.mass * DT;\n        center1.vel.z += cfz / center1.mass * DT;\n        center2.vel.x -= cfx / center2.mass * DT;\n        center2.vel.y -= cfy / center2.mass * DT;\n        center2.vel.z -= cfz / center2.mass * DT;\n        \n        center1.pos.addScaledVector(center1.vel, DT);\n        center2.pos.addScaledVector(center2.vel, DT);\n        \n        center1.mesh.position.copy(center1.pos);\n        center2.mesh.position.copy(center2.pos);\n        \n        // --- UPDATE ALL PARTICLES ---\n        for (let i = 0; i < NUM_PARTICLES; i++) {\n            const px = posArray[i*3];\n            const py = posArray[i*3+1];\n            const pz = posArray[i*3+2];\n            \n            // Gravity from center 1\n            let dx1 = center1.pos.x - px;\n            let dy1 = center1.pos.y - py;\n            let dz1 = center1.pos.z - pz;\n            let d1sq = dx1*dx1 + dy1*dy1 + dz1*dz1 + SOFTENING*SOFTENING;\n            let d1 = Math.sqrt(d1sq);\n            let f1 = G * center1.mass / d1sq;\n            \n            // Gravity from center 2\n            let dx2 = center2.pos.x - px;\n            let dy2 = center2.pos.y - py;\n            let dz2 = center2.pos.z - pz;\n            let d2sq = dx2*dx2 + dy2*dy2 + dz2*dz2 + SOFTENING*SOFTENING;\n            let d2 = Math.sqrt(d2sq);\n            let f2 = G * center2.mass / d2sq;\n            \n            // Total acceleration\n            const ax = f1 * dx1/d1 + f2 * dx2/d2;\n            const ay = f1 * dy1/d1 + f2 * dy2/d2;\n            const az = f1 * dz1/d1 + f2 * dz2/d2;\n            \n            velocities[i].x += ax * DT;\n            velocities[i].y += ay * DT;\n            velocities[i].z += az * DT;\n            \n            posArray[i*3] += velocities[i].x * DT;\n            posArray[i*3+1] += velocities[i].y * DT;\n            posArray[i*3+2] += velocities[i].z * DT;\n            \n            // Color by velocity (dynamical heating)\n            const speed = velocities[i].length();\n            const heat = Math.min(1.0, speed / 2.5); // normalize\n            const galaxy = initialColors[i];\n            \n            if (galaxy === 0) {\n                // Galaxy 1 base: blue. Hot = white/pink\n                colArray[i*3] = 0.3 + heat * 0.7 + (1-heat) * 0.2;\n                colArray[i*3+1] = 0.5 + heat * 0.5 + (1-heat) * 0.2;\n                colArray[i*3+2] = 0.8 + heat * 0.2;\n            } else {\n                // Galaxy 2 base: gold. Hot = white/yellow\n                colArray[i*3] = 0.9 + heat * 0.1;\n                colArray[i*3+1] = 0.4 + heat * 0.6;\n                colArray[i*3+2] = 0.2 + heat * 0.8;\n            }\n        }\n        \n        geometry.attributes.position.needsUpdate = true;\n        geometry.attributes.color.needsUpdate = true;\n        \n        // === RENDER WITH TRAIL FADE ===\n        // 1. Fade previous frame slightly (creates motion trails)\n        renderer.render(fadeScene, fadeCamera);\n        // 2. Clear depth so new scene renders properly\n        renderer.clearDepth();\n        // 3. Render current frame\n        renderer.render(scene, camera);\n    }\n    \n    animate();\n    \n    // === RESIZE ===\n    window.addEventListener('resize', () => {\n        camera.aspect = window.innerWidth / window.innerHeight;\n        camera.updateProjectionMatrix();\n        renderer.setSize(window.innerWidth, window.innerHeight);\n    });\n}\n\n// Overlay UI\nconst overlay = document.createElement('div');\noverlay.style.cssText = 'position:absolute;top:20px;left:20px;color:#fff;font-family:Segoe UI,sans-serif;pointer-events:none;text-shadow:0 0 10px rgba(0,0,0,0.9);';\noverlay.innerHTML = `\n    <h1 style=\"margin:0;font-size:28px;font-weight:300;letter-spacing:2px;\">GALACTIC COLLISION</h1>\n    <p style=\"margin:8px 0 0 0;font-size:14px;opacity:0.8;max-width:400px;line-height:1.5;\">\n        4,000 stars. Two supermassive cores. One law of gravity.<br>\n        Watch tidal tails, bridges, and chaos emerge from perfect simplicity.<br><br>\n        <b>Drag</b> to rotate camera • <b>Scroll</b> to zoom\n    </p>\n`;\n\ndocument.addEventListener('DOMContentLoaded', () => {\n    document.body.appendChild(overlay);\n    init();\n});\n",
+    "previewUrl": null,
+    "skill": "threejs",
+    "outputKind": "code",
+    "mediaType": null,
+    "mediaUrl": null,
+    "mediaArtifactId": null,
+    "mediaDurationMs": null,
+    "mediaFps": null,
+    "mediaResolution": null,
+    "mediaBytes": null,
+    "assetPlan": null,
+    "explanation": "Real-time 3D simulation of two colliding spiral galaxies with 4000 gravitationally interacting stars, tidal tail formation, dynamic color heating, and persistent motion trails. Demonstrates emergent complexity from Newton's law of gravitation.",
+    "messageId": "message-2",
+    "workspace": null,
+    "source": "generate",
+    "createdAt": "2026-05-08T02:04:19.005Z",
+    "updatedAt": "2026-05-08T02:04:19.005Z",
+    "versionId": "version-1",
+    "version": 1,
+    "artifactId": "artifact-1778205859005-7f6902",
+    "artifactVersion": 1
+  },
+  "workspace": null,
+  "artifacts": [
+    {
+      "artifactId": "artifact-1778205859005-7f6902",
+      "title": "animations/galaxy_collision.html",
+      "createdAt": "2026-05-08T02:04:19.005Z",
+      "updatedAt": "2026-05-08T02:04:19.005Z",
+      "revisions": [
+        {
+          "sessionId": "4d140fc7-7419-41b8-b607-41511f0de0b2",
+          "sceneId": "animations/galaxy_collision.html",
+          "code": "\n// === MIND-BLOWING GALAXY COLLISION SIMULATION ===\n// 4000 particles, two supermassive cores, gravitational tides in real-time\n\nlet scene, camera, renderer;\nlet points, geometry, material;\nlet fadeScene, fadeCamera, fadeMesh;\n\nconst NUM_PARTICLES = 4000;\nconst G = 1.2;\nconst DT = 0.08;\nconst SOFTENING = 1.5;\nconst TRAIL_OPACITY = 0.04;\n\n// Camera orbit state\nlet camRadius = 140;\nlet camTheta = 0.2;\nlet camPhi = 1.2;\nlet isDragging = false;\nlet lastMX = 0, lastMY = 0;\n\n// Two galactic centers\nconst center1 = {\n    pos: new THREE.Vector3(-45, 0, 0),\n    vel: new THREE.Vector3(0.15, 0.32, 0),\n    mass: 4000,\n    mesh: null\n};\nconst center2 = {\n    pos: new THREE.Vector3(45, 0, 0),\n    vel: new THREE.Vector3(-0.15, -0.32, 0.08),\n    mass: 4000,\n    mesh: null\n};\n\nlet velocities = [];\nlet initialColors = []; // store galaxy identity\n\nfunction updateCamera() {\n    camera.position.x = camRadius * Math.sin(camPhi) * Math.cos(camTheta);\n    camera.position.y = camRadius * Math.cos(camPhi);\n    camera.position.z = camRadius * Math.sin(camPhi) * Math.sin(camTheta);\n    camera.lookAt(0, 0, 0);\n}\n\nfunction init() {\n    // Scene\n    scene = new THREE.Scene();\n    scene.fog = new THREE.FogExp2(0x020105, 0.0015);\n    \n    // Camera\n    camera = new THREE.PerspectiveCamera(55, window.innerWidth / window.innerHeight, 0.1, 1000);\n    updateCamera();\n    \n    // Renderer with trail support\n    renderer = new THREE.WebGLRenderer({ antialias: false, preserveDrawingBuffer: true });\n    renderer.setSize(window.innerWidth, window.innerHeight);\n    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));\n    renderer.autoClear = false;\n    renderer.domElement.style.cursor = 'move';\n    document.body.appendChild(renderer.domElement);\n    \n    // === FADE OVERLAY FOR TRAILS ===\n    fadeScene = new THREE.Scene();\n    fadeCamera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);\n    const fadeGeo = new THREE.PlaneGeometry(2, 2);\n    const fadeMat = new THREE.MeshBasicMaterial({\n        color: 0x020105,\n        transparent: true,\n        opacity: TRAIL_OPACITY,\n        depthTest: false,\n        depthWrite: false\n    });\n    fadeMesh = new THREE.Mesh(fadeGeo, fadeMat);\n    fadeMesh.position.z = -0.5;\n    fadeScene.add(fadeMesh);\n    \n    // === BACKGROUND STARS ===\n    const bgGeo = new THREE.BufferGeometry();\n    const bgPos = new Float32Array(2000 * 3);\n    const bgColors = new Float32Array(2000 * 3);\n    for (let i = 0; i < 2000; i++) {\n        const r = 300 + Math.random() * 400;\n        const theta = Math.random() * Math.PI * 2;\n        const phi = Math.acos(2 * Math.random() - 1);\n        bgPos[i*3] = r * Math.sin(phi) * Math.cos(theta);\n        bgPos[i*3+1] = r * Math.sin(phi) * Math.sin(theta);\n        bgPos[i*3+2] = r * Math.cos(phi);\n        const brightness = 0.3 + Math.random() * 0.7;\n        bgColors[i*3] = brightness;\n        bgColors[i*3+1] = brightness * (0.8 + Math.random() * 0.2);\n        bgColors[i*3+2] = brightness * (0.9 + Math.random() * 0.1);\n    }\n    bgGeo.setAttribute('position', new THREE.BufferAttribute(bgPos, 3));\n    bgGeo.setAttribute('color', new THREE.BufferAttribute(bgColors, 3));\n    const bgMat = new THREE.PointsMaterial({\n        size: 1.2,\n        vertexColors: true,\n        blending: THREE.AdditiveBlending,\n        depthWrite: false,\n        transparent: true,\n        opacity: 0.6\n    });\n    scene.add(new THREE.Points(bgGeo, bgMat));\n    \n    // === GALACTIC CENTER GLOW ===\n    const glowGeo = new THREE.SphereGeometry(3, 32, 32);\n    const glowMat = new THREE.MeshBasicMaterial({ color: 0xfff8e7, blending: THREE.AdditiveBlending, transparent: true, opacity: 0.9 });\n    center1.mesh = new THREE.Mesh(glowGeo, glowMat);\n    center2.mesh = new THREE.Mesh(glowGeo.clone(), glowMat.clone());\n    scene.add(center1.mesh);\n    scene.add(center2.mesh);\n    \n    // === PARTICLE SYSTEM ===\n    geometry = new THREE.BufferGeometry();\n    const positions = new Float32Array(NUM_PARTICLES * 3);\n    const colors = new Float32Array(NUM_PARTICLES * 3);\n    \n    // Galaxy 1: face-on disk in XY plane\n    for (let i = 0; i < NUM_PARTICLES / 2; i++) {\n        const angle = Math.random() * Math.PI * 2;\n        // Exponential disk profile\n        const r = 2 + 30 * Math.pow(Math.random(), 0.6);\n        const x = r * Math.cos(angle);\n        const y = r * Math.sin(angle);\n        const z = (Math.random() - 0.5) * (1.5 + r * 0.05);\n        \n        // Keplerian orbital velocity around center1\n        const vMag = Math.sqrt(G * center1.mass / Math.sqrt(r*r + 4)) * (0.85 + Math.random() * 0.3);\n        const vx = -vMag * Math.sin(angle);\n        const vy = vMag * Math.cos(angle);\n        const vz = (Math.random() - 0.5) * 0.1;\n        \n        positions[i*3] = center1.pos.x + x;\n        positions[i*3+1] = center1.pos.y + y;\n        positions[i*3+2] = center1.pos.z + z;\n        \n        velocities.push(new THREE.Vector3(vx + center1.vel.x, vy + center1.vel.y, vz + center1.vel.z));\n        \n        // Cool blue-white identity\n        initialColors.push(0);\n        colors[i*3] = 0.4 + Math.random() * 0.4;\n        colors[i*3+1] = 0.6 + Math.random() * 0.4;\n        colors[i*3+2] = 1.0;\n    }\n    \n    // Galaxy 2: tilted disk (rotated 60° around X)\n    const tilt = Math.PI / 3;\n    const cosT = Math.cos(tilt);\n    const sinT = Math.sin(tilt);\n    \n    for (let i = NUM_PARTICLES / 2; i < NUM_PARTICLES; i++) {\n        const angle = Math.random() * Math.PI * 2;\n        const r = 2 + 30 * Math.pow(Math.random(), 0.6);\n        const x = r * Math.cos(angle);\n        const y = r * Math.sin(angle);\n        const z = (Math.random() - 0.5) * (1.5 + r * 0.05);\n        \n        // Apply tilt rotation\n        const rx = x;\n        const ry = y * cosT - z * sinT;\n        const rz = y * sinT + z * cosT;\n        \n        const vMag = Math.sqrt(G * center2.mass / Math.sqrt(r*r + 4)) * (0.85 + Math.random() * 0.3);\n        const vx = -vMag * Math.sin(angle);\n        const vy = vMag * Math.cos(angle);\n        const vz = (Math.random() - 0.5) * 0.1;\n        \n        // Rotate velocity by same tilt\n        const rvx = vx;\n        const rvy = vy * cosT - vz * sinT;\n        const rvz = vy * sinT + vz * cosT;\n        \n        positions[i*3] = center2.pos.x + rx;\n        positions[i*3+1] = center2.pos.y + ry;\n        positions[i*3+2] = center2.pos.z + rz;\n        \n        velocities.push(new THREE.Vector3(rvx + center2.vel.x, rvy + center2.vel.y, rvz + center2.vel.z));\n        \n        // Warm gold-white identity\n        initialColors.push(1);\n        colors[i*3] = 1.0;\n        colors[i*3+1] = 0.5 + Math.random() * 0.5;\n        colors[i*3+2] = 0.2 + Math.random() * 0.4;\n    }\n    \n    geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));\n    geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));\n    \n    material = new THREE.PointsMaterial({\n        size: 1.0,\n        vertexColors: true,\n        blending: THREE.AdditiveBlending,\n        depthWrite: false,\n        transparent: true,\n        opacity: 0.9\n    });\n    \n    points = new THREE.Points(geometry, material);\n    scene.add(points);\n    \n    // === CONTROLS ===\n    renderer.domElement.addEventListener('mousedown', e => {\n        isDragging = true;\n        lastMX = e.clientX;\n        lastMY = e.clientY;\n    });\n    window.addEventListener('mouseup', () => isDragging = false);\n    window.addEventListener('mousemove', e => {\n        if (!isDragging) return;\n        const dx = e.clientX - lastMX;\n        const dy = e.clientY - lastMY;\n        camTheta -= dx * 0.008;\n        camPhi += dy * 0.008;\n        camPhi = Math.max(0.1, Math.min(Math.PI - 0.1, camPhi));\n        lastMX = e.clientX;\n        lastMY = e.clientY;\n        updateCamera();\n    });\n    renderer.domElement.addEventListener('wheel', e => {\n        camRadius *= 1 + e.deltaY * 0.001;\n        camRadius = Math.max(20, Math.min(400, camRadius));\n        updateCamera();\n    });\n    \n    // === ANIMATION ===\n    const posArray = geometry.attributes.position.array;\n    const colArray = geometry.attributes.color.array;\n    let frame = 0;\n    \n    function animate() {\n        requestAnimationFrame(animate);\n        frame++;\n        \n        // Slow auto-rotation when not dragging\n        if (!isDragging) {\n            camTheta += 0.0015;\n            updateCamera();\n        }\n        \n        // --- UPDATE CENTER BODIES (mutual gravity) ---\n        const cdx = center2.pos.x - center1.pos.x;\n        const cdy = center2.pos.y - center1.pos.y;\n        const cdz = center2.pos.z - center1.pos.z;\n        const cdistSq = cdx*cdx + cdy*cdy + cdz*cdz + SOFTENING*SOFTENING;\n        const cdist = Math.sqrt(cdistSq);\n        const cforce = G * center1.mass * center2.mass / cdistSq;\n        const cfx = cforce * cdx / cdist;\n        const cfy = cforce * cdy / cdist;\n        const cfz = cforce * cdz / cdist;\n        \n        center1.vel.x += cfx / center1.mass * DT;\n        center1.vel.y += cfy / center1.mass * DT;\n        center1.vel.z += cfz / center1.mass * DT;\n        center2.vel.x -= cfx / center2.mass * DT;\n        center2.vel.y -= cfy / center2.mass * DT;\n        center2.vel.z -= cfz / center2.mass * DT;\n        \n        center1.pos.addScaledVector(center1.vel, DT);\n        center2.pos.addScaledVector(center2.vel, DT);\n        \n        center1.mesh.position.copy(center1.pos);\n        center2.mesh.position.copy(center2.pos);\n        \n        // --- UPDATE ALL PARTICLES ---\n        for (let i = 0; i < NUM_PARTICLES; i++) {\n            const px = posArray[i*3];\n            const py = posArray[i*3+1];\n            const pz = posArray[i*3+2];\n            \n            // Gravity from center 1\n            let dx1 = center1.pos.x - px;\n            let dy1 = center1.pos.y - py;\n            let dz1 = center1.pos.z - pz;\n            let d1sq = dx1*dx1 + dy1*dy1 + dz1*dz1 + SOFTENING*SOFTENING;\n            let d1 = Math.sqrt(d1sq);\n            let f1 = G * center1.mass / d1sq;\n            \n            // Gravity from center 2\n            let dx2 = center2.pos.x - px;\n            let dy2 = center2.pos.y - py;\n            let dz2 = center2.pos.z - pz;\n            let d2sq = dx2*dx2 + dy2*dy2 + dz2*dz2 + SOFTENING*SOFTENING;\n            let d2 = Math.sqrt(d2sq);\n            let f2 = G * center2.mass / d2sq;\n            \n            // Total acceleration\n            const ax = f1 * dx1/d1 + f2 * dx2/d2;\n            const ay = f1 * dy1/d1 + f2 * dy2/d2;\n            const az = f1 * dz1/d1 + f2 * dz2/d2;\n            \n            velocities[i].x += ax * DT;\n            velocities[i].y += ay * DT;\n            velocities[i].z += az * DT;\n            \n            posArray[i*3] += velocities[i].x * DT;\n            posArray[i*3+1] += velocities[i].y * DT;\n            posArray[i*3+2] += velocities[i].z * DT;\n            \n            // Color by velocity (dynamical heating)\n            const speed = velocities[i].length();\n            const heat = Math.min(1.0, speed / 2.5); // normalize\n            const galaxy = initialColors[i];\n            \n            if (galaxy === 0) {\n                // Galaxy 1 base: blue. Hot = white/pink\n                colArray[i*3] = 0.3 + heat * 0.7 + (1-heat) * 0.2;\n                colArray[i*3+1] = 0.5 + heat * 0.5 + (1-heat) * 0.2;\n                colArray[i*3+2] = 0.8 + heat * 0.2;\n            } else {\n                // Galaxy 2 base: gold. Hot = white/yellow\n                colArray[i*3] = 0.9 + heat * 0.1;\n                colArray[i*3+1] = 0.4 + heat * 0.6;\n                colArray[i*3+2] = 0.2 + heat * 0.8;\n            }\n        }\n        \n        geometry.attributes.position.needsUpdate = true;\n        geometry.attributes.color.needsUpdate = true;\n        \n        // === RENDER WITH TRAIL FADE ===\n        // 1. Fade previous frame slightly (creates motion trails)\n        renderer.render(fadeScene, fadeCamera);\n        // 2. Clear depth so new scene renders properly\n        renderer.clearDepth();\n        // 3. Render current frame\n        renderer.render(scene, camera);\n    }\n    \n    animate();\n    \n    // === RESIZE ===\n    window.addEventListener('resize', () => {\n        camera.aspect = window.innerWidth / window.innerHeight;\n        camera.updateProjectionMatrix();\n        renderer.setSize(window.innerWidth, window.innerHeight);\n    });\n}\n\n// Overlay UI\nconst overlay = document.createElement('div');\noverlay.style.cssText = 'position:absolute;top:20px;left:20px;color:#fff;font-family:Segoe UI,sans-serif;pointer-events:none;text-shadow:0 0 10px rgba(0,0,0,0.9);';\noverlay.innerHTML = `\n    <h1 style=\"margin:0;font-size:28px;font-weight:300;letter-spacing:2px;\">GALACTIC COLLISION</h1>\n    <p style=\"margin:8px 0 0 0;font-size:14px;opacity:0.8;max-width:400px;line-height:1.5;\">\n        4,000 stars. Two supermassive cores. One law of gravity.<br>\n        Watch tidal tails, bridges, and chaos emerge from perfect simplicity.<br><br>\n        <b>Drag</b> to rotate camera • <b>Scroll</b> to zoom\n    </p>\n`;\n\ndocument.addEventListener('DOMContentLoaded', () => {\n    document.body.appendChild(overlay);\n    init();\n});\n",
+          "previewUrl": null,
+          "skill": "threejs",
+          "outputKind": "code",
+          "mediaType": null,
+          "mediaUrl": null,
+          "mediaArtifactId": null,
+          "mediaDurationMs": null,
+          "mediaFps": null,
+          "mediaResolution": null,
+          "mediaBytes": null,
+          "assetPlan": null,
+          "explanation": "Real-time 3D simulation of two colliding spiral galaxies with 4000 gravitationally interacting stars, tidal tail formation, dynamic color heating, and persistent motion trails. Demonstrates emergent complexity from Newton's law of gravitation.",
+          "messageId": "message-2",
+          "workspace": null,
+          "source": "generate",
+          "createdAt": "2026-05-08T02:04:19.005Z",
+          "updatedAt": "2026-05-08T02:04:19.005Z",
+          "versionId": "version-1",
+          "version": 1,
+          "artifactId": "artifact-1778205859005-7f6902",
+          "artifactVersion": 1
+        }
+      ],
+      "revisionPointer": 0
+    }
+  ],
+  "artifactPointer": 0,
+  "messages": [
+    {
+      "messageId": "user-01fe20f3-42c5-46aa-a4c9-c1b31068518a",
+      "role": "user",
+      "content": "show me a simulation that would blow my mind away",
+      "kind": "input",
+      "metadata": {},
+      "createdAt": "2026-05-08T02:02:52.801Z",
+      "updatedAt": "2026-05-08T02:02:52.801Z"
+    },
+    {
+      "messageId": "message-2",
+      "role": "assistant",
+      "content": "No response generated.",
+      "kind": "agent",
+      "error": null,
+      "meta": [
+        "requestId:req-ws-1778205772751-791da3",
+        "scene:animations/galaxy_collision.html",
+        "skill:threejs",
+        "v1",
+        "assistantSource:agent-coordinator"
+      ],
+      "metadata": [],
+      "createdAt": "2026-05-08T02:02:52.805Z",
+      "updatedAt": "2026-05-08T02:05:04.394Z"
+    },
+    {
+      "messageId": "thought-turn_started-1778205772817",
+      "role": "thought",
+      "content": "I'm on it. First, I need to parse your intent and figure out the best approach.",
+      "kind": "thought",
+      "meta": [
+        "turn_started",
+        "requestId:req-ws-1778205772751-791da3",
+        "messageId:message-2"
+      ],
+      "metadata": [
+        "turn_started",
+        "requestId:req-ws-1778205772751-791da3",
+        "messageId:message-2"
+      ],
+      "createdAt": "2026-05-08T02:02:52.817Z",
+      "updatedAt": "2026-05-08T02:02:52.817Z"
+    },
+    {
+      "messageId": "thought-agent_thinking-1778205779775",
+      "role": "thought",
+      "content": "Planning the best approach — let me think through the steps.",
+      "kind": "thought",
+      "meta": [
+        "agent_thinking",
+        "requestId:req-ws-1778205772751-791da3",
+        "messageId:message-2"
+      ],
+      "metadata": [
+        "agent_thinking",
+        "requestId:req-ws-1778205772751-791da3",
+        "messageId:message-2"
+      ],
+      "createdAt": "2026-05-08T02:02:59.775Z",
+      "updatedAt": "2026-05-08T02:02:59.775Z"
+    },
+    {
+      "messageId": "thought-agent_tool_called-1778205855064",
+      "role": "thought",
+      "content": "Using animation_3js_createScene to verify my changes...",
+      "kind": "thought",
+      "meta": [
+        "agent_tool_called",
+        "requestId:req-ws-1778205772751-791da3",
+        "messageId:message-2"
+      ],
+      "metadata": [
+        "agent_tool_called",
+        "requestId:req-ws-1778205772751-791da3",
+        "messageId:message-2"
+      ],
+      "createdAt": "2026-05-08T02:04:15.065Z",
+      "updatedAt": "2026-05-08T02:04:15.065Z"
+    },
+    {
+      "messageId": "thought-agent_tool_result-1778205857864",
+      "role": "thought",
+      "content": "Got the result from animation_3js_createScene. Let me continue...",
+      "kind": "thought",
+      "meta": [
+        "agent_tool_result",
+        "requestId:req-ws-1778205772751-791da3",
+        "messageId:message-2"
+      ],
+      "metadata": [
+        "agent_tool_result",
+        "requestId:req-ws-1778205772751-791da3",
+        "messageId:message-2"
+      ],
+      "createdAt": "2026-05-08T02:04:17.864Z",
+      "updatedAt": "2026-05-08T02:04:17.864Z"
+    },
+    {
+      "messageId": "thought-agent_tool_called-1778205861845",
+      "role": "thought",
+      "content": "Using animation_3js_serveScene to verify my changes...",
+      "kind": "thought",
+      "meta": [
+        "agent_tool_called",
+        "requestId:req-ws-1778205772751-791da3",
+        "messageId:message-2"
+      ],
+      "metadata": [
+        "agent_tool_called",
+        "requestId:req-ws-1778205772751-791da3",
+        "messageId:message-2"
+      ],
+      "createdAt": "2026-05-08T02:04:21.845Z",
+      "updatedAt": "2026-05-08T02:04:21.845Z"
+    },
+    {
+      "messageId": "thought-agent_tool_result-1778205861858",
+      "role": "thought",
+      "content": "animation_3js_serveScene finished — processing the result...",
+      "kind": "thought",
+      "meta": [
+        "agent_tool_result",
+        "requestId:req-ws-1778205772751-791da3",
+        "messageId:message-2"
+      ],
+      "metadata": [
+        "agent_tool_result",
+        "requestId:req-ws-1778205772751-791da3",
+        "messageId:message-2"
+      ],
+      "createdAt": "2026-05-08T02:04:21.858Z",
+      "updatedAt": "2026-05-08T02:04:21.858Z"
+    },
+    {
+      "messageId": "thought-agent_tool_called-1778205865983",
+      "role": "thought",
+      "content": "Calling sandbox_files_readFile — let me see if the fix works...",
+      "kind": "thought",
+      "meta": [
+        "agent_tool_called",
+        "requestId:req-ws-1778205772751-791da3",
+        "messageId:message-2"
+      ],
+      "metadata": [
+        "agent_tool_called",
+        "requestId:req-ws-1778205772751-791da3",
+        "messageId:message-2"
+      ],
+      "createdAt": "2026-05-08T02:04:25.983Z",
+      "updatedAt": "2026-05-08T02:04:25.983Z"
+    },
+    {
+      "messageId": "thought-agent_tool_result-1778205867972",
+      "role": "thought",
+      "content": "sandbox_files_readFile finished — processing the result...",
+      "kind": "thought",
+      "meta": [
+        "agent_tool_result",
+        "requestId:req-ws-1778205772751-791da3",
+        "messageId:message-2"
+      ],
+      "metadata": [
+        "agent_tool_result",
+        "requestId:req-ws-1778205772751-791da3",
+        "messageId:message-2"
+      ],
+      "createdAt": "2026-05-08T02:04:27.972Z",
+      "updatedAt": "2026-05-08T02:04:27.972Z"
+    },
+    {
+      "messageId": "thought-agent_tool_called-1778205894332",
+      "role": "thought",
+      "content": "Using sandbox_files_writeFile to verify my changes...",
+      "kind": "thought",
+      "meta": [
+        "agent_tool_called",
+        "requestId:req-ws-1778205772751-791da3",
+        "messageId:message-2"
+      ],
+      "metadata": [
+        "agent_tool_called",
+        "requestId:req-ws-1778205772751-791da3",
+        "messageId:message-2"
+      ],
+      "createdAt": "2026-05-08T02:04:54.332Z",
+      "updatedAt": "2026-05-08T02:04:54.332Z"
+    },
+    {
+      "messageId": "thought-agent_tool_result-1778205895860",
+      "role": "thought",
+      "content": "sandbox_files_writeFile returned data. Incorporating it into my thinking...",
+      "kind": "thought",
+      "meta": [
+        "agent_tool_result",
+        "requestId:req-ws-1778205772751-791da3",
+        "messageId:message-2"
+      ],
+      "metadata": [
+        "agent_tool_result",
+        "requestId:req-ws-1778205772751-791da3",
+        "messageId:message-2"
+      ],
+      "createdAt": "2026-05-08T02:04:55.860Z",
+      "updatedAt": "2026-05-08T02:04:55.860Z"
+    },
+    {
+      "messageId": "thought-agent_tool_called-1778205898491",
+      "role": "thought",
+      "content": "Running animation_3js_serveScene to check the code...",
+      "kind": "thought",
+      "meta": [
+        "agent_tool_called",
+        "requestId:req-ws-1778205772751-791da3",
+        "messageId:message-2"
+      ],
+      "metadata": [
+        "agent_tool_called",
+        "requestId:req-ws-1778205772751-791da3",
+        "messageId:message-2"
+      ],
+      "createdAt": "2026-05-08T02:04:58.491Z",
+      "updatedAt": "2026-05-08T02:04:58.491Z"
+    },
+    {
+      "messageId": "thought-agent_tool_result-1778205898496",
+      "role": "thought",
+      "content": "Got the result from animation_3js_serveScene. Let me continue...",
+      "kind": "thought",
+      "meta": [
+        "agent_tool_result",
+        "requestId:req-ws-1778205772751-791da3",
+        "messageId:message-2"
+      ],
+      "metadata": [
+        "agent_tool_result",
+        "requestId:req-ws-1778205772751-791da3",
+        "messageId:message-2"
+      ],
+      "createdAt": "2026-05-08T02:04:58.496Z",
+      "updatedAt": "2026-05-08T02:04:58.496Z"
+    },
+    {
+      "messageId": "thought-turn_complete-1778205904389",
+      "role": "thought",
+      "content": "Complete. The scene has been generated and synced.",
+      "kind": "thought",
+      "meta": [
+        "turn_complete",
+        "requestId:req-ws-1778205772751-791da3",
+        "messageId:message-2"
+      ],
+      "metadata": [
+        "turn_complete",
+        "requestId:req-ws-1778205772751-791da3",
+        "messageId:message-2"
+      ],
+      "createdAt": "2026-05-08T02:05:04.389Z",
+      "updatedAt": "2026-05-08T02:05:04.389Z"
+    },
+    {
+      "messageId": "thought-turn_complete-1778205904408",
+      "role": "thought",
+      "content": "Everything's finished. Take a look at the result!",
+      "kind": "thought",
+      "meta": [
+        "turn_complete",
+        "requestId:req-ws-1778205772751-791da3",
+        "messageId:message-2"
+      ],
+      "metadata": [
+        "turn_complete",
+        "requestId:req-ws-1778205772751-791da3",
+        "messageId:message-2"
+      ],
+      "createdAt": "2026-05-08T02:05:04.408Z",
+      "updatedAt": "2026-05-08T02:05:04.408Z"
+    }
+  ],
+  "orchestrationTrace": [
+    {
+      "step": "turn_complete",
+      "payload": {
+        "sessionId": "4d140fc7-7419-41b8-b607-41511f0de0b2",
+        "mode": "agent",
+        "messageCount": 16,
+        "toolCalls": 5,
+        "toolResults": 5,
+        "agentSuccess": true,
+        "agentError": null,
+        "durationMs": 131569
+      },
+      "timestamp": "2026-05-08T02:05:04.410Z"
+    }
+  ]
+}

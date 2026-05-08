@@ -1,0 +1,372 @@
+{
+  "sessionId": "test-agent-1778160050784",
+  "ownerId": null,
+  "createdAt": "2026-05-07T13:20:50.789Z",
+  "updatedAt": "2026-05-07T13:21:38.679Z",
+  "status": "idle",
+  "currentScene": null,
+  "workspace": null,
+  "artifacts": [],
+  "artifactPointer": -1,
+  "messages": [
+    {
+      "messageId": "thought-turn_started-1778160050823",
+      "role": "thought",
+      "content": "Okay, let me dive into this. I'll start by understanding what kind of visual you want.",
+      "kind": "thought",
+      "meta": [
+        "turn_started",
+        "requestId:turn-1778160050803",
+        "messageId:msg-assistant-1778160050803"
+      ],
+      "metadata": [
+        "turn_started",
+        "requestId:turn-1778160050803",
+        "messageId:msg-assistant-1778160050803"
+      ],
+      "createdAt": "2026-05-07T13:20:50.827Z",
+      "updatedAt": "2026-05-07T13:20:50.827Z"
+    },
+    {
+      "messageId": "thought-agent_thinking-1778160050864",
+      "role": "thought",
+      "content": "Planning the best approach — let me think through the steps.",
+      "kind": "thought",
+      "meta": [
+        "agent_thinking",
+        "requestId:turn-1778160050803",
+        "messageId:msg-assistant-1778160050803"
+      ],
+      "metadata": [
+        "agent_thinking",
+        "requestId:turn-1778160050803",
+        "messageId:msg-assistant-1778160050803"
+      ],
+      "createdAt": "2026-05-07T13:20:50.864Z",
+      "updatedAt": "2026-05-07T13:20:50.864Z"
+    },
+    {
+      "messageId": "thought-agent_tool_called-1778160064677",
+      "role": "thought",
+      "content": "Using create_scene to verify my changes...",
+      "kind": "thought",
+      "meta": [
+        "agent_tool_called",
+        "requestId:turn-1778160050803",
+        "messageId:msg-assistant-1778160050803"
+      ],
+      "metadata": [
+        "agent_tool_called",
+        "requestId:turn-1778160050803",
+        "messageId:msg-assistant-1778160050803"
+      ],
+      "createdAt": "2026-05-07T13:21:04.678Z",
+      "updatedAt": "2026-05-07T13:21:04.678Z"
+    },
+    {
+      "messageId": "thought-turn_error-1778160064681",
+      "role": "thought",
+      "content": "I hit an error in the pipeline. Here are the details...",
+      "kind": "thought",
+      "meta": [
+        "turn_error",
+        "requestId:turn-1778160050803",
+        "messageId:msg-assistant-1778160050803"
+      ],
+      "metadata": [
+        "turn_error",
+        "requestId:turn-1778160050803",
+        "messageId:msg-assistant-1778160050803"
+      ],
+      "createdAt": "2026-05-07T13:21:04.681Z",
+      "updatedAt": "2026-05-07T13:21:04.681Z"
+    },
+    {
+      "messageId": "thought-agent_thinking-1778160064687",
+      "role": "thought",
+      "content": "Checking what tools would help me answer this best.",
+      "kind": "thought",
+      "meta": [
+        "agent_thinking",
+        "requestId:turn-1778160050803",
+        "messageId:msg-assistant-1778160050803"
+      ],
+      "metadata": [
+        "agent_thinking",
+        "requestId:turn-1778160050803",
+        "messageId:msg-assistant-1778160050803"
+      ],
+      "createdAt": "2026-05-07T13:21:04.687Z",
+      "updatedAt": "2026-05-07T13:21:04.687Z"
+    },
+    {
+      "messageId": "thought-agent_tool_called-1778160070037",
+      "role": "thought",
+      "content": "Calling write_file — let me see if the fix works...",
+      "kind": "thought",
+      "meta": [
+        "agent_tool_called",
+        "requestId:turn-1778160050803",
+        "messageId:msg-assistant-1778160050803"
+      ],
+      "metadata": [
+        "agent_tool_called",
+        "requestId:turn-1778160050803",
+        "messageId:msg-assistant-1778160050803"
+      ],
+      "createdAt": "2026-05-07T13:21:10.037Z",
+      "updatedAt": "2026-05-07T13:21:10.037Z"
+    },
+    {
+      "messageId": "thought-turn_error-1778160070039",
+      "role": "thought",
+      "content": "Something went wrong during execution. Let me show you what happened.",
+      "kind": "thought",
+      "meta": [
+        "turn_error",
+        "requestId:turn-1778160050803",
+        "messageId:msg-assistant-1778160050803"
+      ],
+      "metadata": [
+        "turn_error",
+        "requestId:turn-1778160050803",
+        "messageId:msg-assistant-1778160050803"
+      ],
+      "createdAt": "2026-05-07T13:21:10.039Z",
+      "updatedAt": "2026-05-07T13:21:10.039Z"
+    },
+    {
+      "messageId": "thought-agent_thinking-1778160070042",
+      "role": "thought",
+      "content": "Planning the best approach — let me think through the steps.",
+      "kind": "thought",
+      "meta": [
+        "agent_thinking",
+        "requestId:turn-1778160050803",
+        "messageId:msg-assistant-1778160050803"
+      ],
+      "metadata": [
+        "agent_thinking",
+        "requestId:turn-1778160050803",
+        "messageId:msg-assistant-1778160050803"
+      ],
+      "createdAt": "2026-05-07T13:21:10.042Z",
+      "updatedAt": "2026-05-07T13:21:10.042Z"
+    },
+    {
+      "messageId": "thought-agent_tool_called-1778160080281",
+      "role": "thought",
+      "content": "Running create_scene to check the code...",
+      "kind": "thought",
+      "meta": [
+        "agent_tool_called",
+        "requestId:turn-1778160050803",
+        "messageId:msg-assistant-1778160050803"
+      ],
+      "metadata": [
+        "agent_tool_called",
+        "requestId:turn-1778160050803",
+        "messageId:msg-assistant-1778160050803"
+      ],
+      "createdAt": "2026-05-07T13:21:20.281Z",
+      "updatedAt": "2026-05-07T13:21:20.281Z"
+    },
+    {
+      "messageId": "thought-turn_error-1778160080286",
+      "role": "thought",
+      "content": "I hit an error in the pipeline. Here are the details...",
+      "kind": "thought",
+      "meta": [
+        "turn_error",
+        "requestId:turn-1778160050803",
+        "messageId:msg-assistant-1778160050803"
+      ],
+      "metadata": [
+        "turn_error",
+        "requestId:turn-1778160050803",
+        "messageId:msg-assistant-1778160050803"
+      ],
+      "createdAt": "2026-05-07T13:21:20.286Z",
+      "updatedAt": "2026-05-07T13:21:20.286Z"
+    },
+    {
+      "messageId": "thought-agent_thinking-1778160080290",
+      "role": "thought",
+      "content": "Planning the best approach — let me think through the steps.",
+      "kind": "thought",
+      "meta": [
+        "agent_thinking",
+        "requestId:turn-1778160050803",
+        "messageId:msg-assistant-1778160050803"
+      ],
+      "metadata": [
+        "agent_thinking",
+        "requestId:turn-1778160050803",
+        "messageId:msg-assistant-1778160050803"
+      ],
+      "createdAt": "2026-05-07T13:21:20.290Z",
+      "updatedAt": "2026-05-07T13:21:20.290Z"
+    },
+    {
+      "messageId": "thought-agent_tool_called-1778160086494",
+      "role": "thought",
+      "content": "Calling create_scene — let me see if the fix works...",
+      "kind": "thought",
+      "meta": [
+        "agent_tool_called",
+        "requestId:turn-1778160050803",
+        "messageId:msg-assistant-1778160050803"
+      ],
+      "metadata": [
+        "agent_tool_called",
+        "requestId:turn-1778160050803",
+        "messageId:msg-assistant-1778160050803"
+      ],
+      "createdAt": "2026-05-07T13:21:26.494Z",
+      "updatedAt": "2026-05-07T13:21:26.494Z"
+    },
+    {
+      "messageId": "thought-turn_error-1778160086503",
+      "role": "thought",
+      "content": "I hit an error in the pipeline. Here are the details...",
+      "kind": "thought",
+      "meta": [
+        "turn_error",
+        "requestId:turn-1778160050803",
+        "messageId:msg-assistant-1778160050803"
+      ],
+      "metadata": [
+        "turn_error",
+        "requestId:turn-1778160050803",
+        "messageId:msg-assistant-1778160050803"
+      ],
+      "createdAt": "2026-05-07T13:21:26.503Z",
+      "updatedAt": "2026-05-07T13:21:26.503Z"
+    },
+    {
+      "messageId": "thought-agent_thinking-1778160086513",
+      "role": "thought",
+      "content": "Planning the best approach — let me think through the steps.",
+      "kind": "thought",
+      "meta": [
+        "agent_thinking",
+        "requestId:turn-1778160050803",
+        "messageId:msg-assistant-1778160050803"
+      ],
+      "metadata": [
+        "agent_thinking",
+        "requestId:turn-1778160050803",
+        "messageId:msg-assistant-1778160050803"
+      ],
+      "createdAt": "2026-05-07T13:21:26.513Z",
+      "updatedAt": "2026-05-07T13:21:26.513Z"
+    },
+    {
+      "messageId": "thought-agent_tool_called-1778160093243",
+      "role": "thought",
+      "content": "Running create_scene to check the code...",
+      "kind": "thought",
+      "meta": [
+        "agent_tool_called",
+        "requestId:turn-1778160050803",
+        "messageId:msg-assistant-1778160050803"
+      ],
+      "metadata": [
+        "agent_tool_called",
+        "requestId:turn-1778160050803",
+        "messageId:msg-assistant-1778160050803"
+      ],
+      "createdAt": "2026-05-07T13:21:33.243Z",
+      "updatedAt": "2026-05-07T13:21:33.243Z"
+    },
+    {
+      "messageId": "thought-turn_error-1778160093246",
+      "role": "thought",
+      "content": "I hit an error in the pipeline. Here are the details...",
+      "kind": "thought",
+      "meta": [
+        "turn_error",
+        "requestId:turn-1778160050803",
+        "messageId:msg-assistant-1778160050803"
+      ],
+      "metadata": [
+        "turn_error",
+        "requestId:turn-1778160050803",
+        "messageId:msg-assistant-1778160050803"
+      ],
+      "createdAt": "2026-05-07T13:21:33.246Z",
+      "updatedAt": "2026-05-07T13:21:33.246Z"
+    },
+    {
+      "messageId": "thought-agent_thinking-1778160093251",
+      "role": "thought",
+      "content": "Checking what tools would help me answer this best.",
+      "kind": "thought",
+      "meta": [
+        "agent_thinking",
+        "requestId:turn-1778160050803",
+        "messageId:msg-assistant-1778160050803"
+      ],
+      "metadata": [
+        "agent_thinking",
+        "requestId:turn-1778160050803",
+        "messageId:msg-assistant-1778160050803"
+      ],
+      "createdAt": "2026-05-07T13:21:33.251Z",
+      "updatedAt": "2026-05-07T13:21:33.251Z"
+    },
+    {
+      "messageId": "thought-turn_complete-1778160098661",
+      "role": "thought",
+      "content": "Everything's finished. Take a look at the result!",
+      "kind": "thought",
+      "meta": [
+        "turn_complete",
+        "requestId:turn-1778160050803",
+        "messageId:msg-assistant-1778160050803"
+      ],
+      "metadata": [
+        "turn_complete",
+        "requestId:turn-1778160050803",
+        "messageId:msg-assistant-1778160050803"
+      ],
+      "createdAt": "2026-05-07T13:21:38.661Z",
+      "updatedAt": "2026-05-07T13:21:38.661Z"
+    },
+    {
+      "messageId": "msg-assistant-1778160050803",
+      "role": "assistant",
+      "content": "No response generated.",
+      "kind": "agent",
+      "error": null,
+      "meta": [
+        "requestId:turn-1778160050803",
+        "scene:undefined",
+        "assistantSource:agent-coordinator"
+      ],
+      "metadata": [
+        "requestId:turn-1778160050803",
+        "scene:undefined",
+        "assistantSource:agent-coordinator"
+      ],
+      "createdAt": "2026-05-07T13:21:38.669Z",
+      "updatedAt": "2026-05-07T13:21:38.669Z"
+    }
+  ],
+  "orchestrationTrace": [
+    {
+      "step": "turn_complete",
+      "payload": {
+        "sessionId": "test-agent-1778160050784",
+        "mode": "agent",
+        "messageCount": 19,
+        "toolCalls": 5,
+        "toolResults": 5,
+        "agentSuccess": true,
+        "agentError": null,
+        "durationMs": 47815
+      },
+      "timestamp": "2026-05-07T13:21:38.679Z"
+    }
+  ]
+}

@@ -1,0 +1,13 @@
+{
+  "sessionId": "draft-87327a35-adf7-4589-ab34-d08c374917c4",
+  "ownerId": null,
+  "createdAt": "2026-05-08T00:07:06.905Z",
+  "updatedAt": "2026-05-08T00:07:06.905Z",
+  "status": "idle",
+  "currentScene": null,
+  "workspace": null,
+  "artifacts": [],
+  "artifactPointer": -1,
+  "messages": [],
+  "orchestrationTrace": []
+}

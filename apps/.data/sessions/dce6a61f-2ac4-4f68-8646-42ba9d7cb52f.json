@@ -1,0 +1,344 @@
+{
+  "sessionId": "dce6a61f-2ac4-4f68-8646-42ba9d7cb52f",
+  "status": "idle",
+  "artifacts": [],
+  "artifactPointer": -1,
+  "currentScene": null,
+  "workspace": null,
+  "messages": [
+    {
+      "messageId": "user-77dd8848-1df0-4a01-ade5-2cebb9339509",
+      "role": "user",
+      "content": "generate a video with manim explaining somethinh mystical about our world",
+      "kind": "input",
+      "metadata": {},
+      "createdAt": "2026-05-07T21:41:45.482Z",
+      "updatedAt": "2026-05-07T21:41:45.482Z"
+    },
+    {
+      "messageId": "message-2",
+      "role": "assistant",
+      "content": "Agent encountered an error: Tool turn failed: fireworks-kimi stream failed (412): {\"error\":{\"message\":\"Account sapaunited-c0keio3zl is suspended, possibly due to reaching the monthly spending limit or failure to pay past invoices. Please go to https://fireworks.ai/account/billing for more information.",
+      "kind": "agent",
+      "error": {
+        "message": "Tool turn failed: fireworks-kimi stream failed (412): {\"error\":{\"message\":\"Account sapaunited-c0keio3zl is suspended, possibly due to reaching the monthly spending limit or failure to pay past invoices. Please go to https://fireworks.ai/account/billing for more information."
+      },
+      "meta": [
+        "assistantSource:agent-coordinator"
+      ],
+      "metadata": [],
+      "createdAt": "2026-05-07T21:41:45.485Z",
+      "updatedAt": "2026-05-07T21:41:58.915Z"
+    },
+    {
+      "messageId": "thought-turn_started-1778190105495",
+      "role": "thought",
+      "content": "I'm on it. First, I need to parse your intent and figure out the best approach.",
+      "kind": "thought",
+      "meta": [
+        "turn_started",
+        "requestId:req-ws-1778190105322-d6640e",
+        "messageId:message-2"
+      ],
+      "metadata": [
+        "turn_started",
+        "requestId:req-ws-1778190105322-d6640e",
+        "messageId:message-2"
+      ],
+      "createdAt": "2026-05-07T21:41:45.495Z",
+      "updatedAt": "2026-05-07T21:41:45.495Z"
+    },
+    {
+      "messageId": "thought-agent_thinking-1778190106257",
+      "role": "thought",
+      "content": "I'm reasoning about how to solve this. One moment...",
+      "kind": "thought",
+      "meta": [
+        "agent_thinking",
+        "requestId:req-ws-1778190105322-d6640e",
+        "messageId:message-2"
+      ],
+      "metadata": [
+        "agent_thinking",
+        "requestId:req-ws-1778190105322-d6640e",
+        "messageId:message-2"
+      ],
+      "createdAt": "2026-05-07T21:41:46.257Z",
+      "updatedAt": "2026-05-07T21:41:46.257Z"
+    },
+    {
+      "messageId": "thought-turn_error-1778190118913",
+      "role": "thought",
+      "content": "Something went wrong during execution. Let me show you what happened.",
+      "kind": "thought",
+      "meta": [
+        "turn_error",
+        "requestId:req-ws-1778190105322-d6640e",
+        "messageId:message-2"
+      ],
+      "metadata": [
+        "turn_error",
+        "requestId:req-ws-1778190105322-d6640e",
+        "messageId:message-2"
+      ],
+      "createdAt": "2026-05-07T21:41:58.913Z",
+      "updatedAt": "2026-05-07T21:41:58.913Z"
+    },
+    {
+      "messageId": "thought-turn_complete-1778190118917",
+      "role": "thought",
+      "content": "Complete. The scene has been generated and synced.",
+      "kind": "thought",
+      "meta": [
+        "turn_complete",
+        "requestId:req-ws-1778190105322-d6640e",
+        "messageId:message-2"
+      ],
+      "metadata": [
+        "turn_complete",
+        "requestId:req-ws-1778190105322-d6640e",
+        "messageId:message-2"
+      ],
+      "createdAt": "2026-05-07T21:41:58.917Z",
+      "updatedAt": "2026-05-07T21:41:58.917Z"
+    },
+    {
+      "messageId": "user-eb160324-450c-4a79-add4-cd9753d41a1f",
+      "role": "user",
+      "content": "generate a video with manim explaining somethinh mystical about our world",
+      "kind": "input",
+      "metadata": {},
+      "createdAt": "2026-05-07T21:42:33.811Z",
+      "updatedAt": "2026-05-07T21:42:33.811Z"
+    },
+    {
+      "messageId": "message-8",
+      "role": "assistant",
+      "content": "Agent encountered an error: Tool turn failed: fireworks-kimi stream failed (412): {\"error\":{\"message\":\"Account sapaunited-c0keio3zl is suspended, possibly due to reaching the monthly spending limit or failure to pay past invoices. Please go to https://fireworks.ai/account/billing for more information.",
+      "kind": "agent",
+      "error": {
+        "message": "Tool turn failed: fireworks-kimi stream failed (412): {\"error\":{\"message\":\"Account sapaunited-c0keio3zl is suspended, possibly due to reaching the monthly spending limit or failure to pay past invoices. Please go to https://fireworks.ai/account/billing for more information."
+      },
+      "meta": [
+        "assistantSource:agent-coordinator"
+      ],
+      "metadata": [],
+      "createdAt": "2026-05-07T21:42:33.811Z",
+      "updatedAt": "2026-05-07T21:42:36.941Z"
+    },
+    {
+      "messageId": "thought-turn_started-1778190153816",
+      "role": "thought",
+      "content": "Okay, let me dive into this. I'll start by understanding what kind of visual you want.",
+      "kind": "thought",
+      "meta": [
+        "turn_started",
+        "requestId:req-ws-1778190153700-758d26",
+        "messageId:message-8"
+      ],
+      "metadata": [
+        "turn_started",
+        "requestId:req-ws-1778190153700-758d26",
+        "messageId:message-8"
+      ],
+      "createdAt": "2026-05-07T21:42:33.816Z",
+      "updatedAt": "2026-05-07T21:42:33.816Z"
+    },
+    {
+      "messageId": "thought-agent_thinking-1778190153841",
+      "role": "thought",
+      "content": "Planning the best approach — let me think through the steps.",
+      "kind": "thought",
+      "meta": [
+        "agent_thinking",
+        "requestId:req-ws-1778190153700-758d26",
+        "messageId:message-8"
+      ],
+      "metadata": [
+        "agent_thinking",
+        "requestId:req-ws-1778190153700-758d26",
+        "messageId:message-8"
+      ],
+      "createdAt": "2026-05-07T21:42:33.841Z",
+      "updatedAt": "2026-05-07T21:42:33.841Z"
+    },
+    {
+      "messageId": "thought-turn_error-1778190156940",
+      "role": "thought",
+      "content": "Unfortunately this didn't work as expected. Let me surface the issue.",
+      "kind": "thought",
+      "meta": [
+        "turn_error",
+        "requestId:req-ws-1778190153700-758d26",
+        "messageId:message-8"
+      ],
+      "metadata": [
+        "turn_error",
+        "requestId:req-ws-1778190153700-758d26",
+        "messageId:message-8"
+      ],
+      "createdAt": "2026-05-07T21:42:36.940Z",
+      "updatedAt": "2026-05-07T21:42:36.940Z"
+    },
+    {
+      "messageId": "thought-turn_complete-1778190156943",
+      "role": "thought",
+      "content": "Everything's finished. Take a look at the result!",
+      "kind": "thought",
+      "meta": [
+        "turn_complete",
+        "requestId:req-ws-1778190153700-758d26",
+        "messageId:message-8"
+      ],
+      "metadata": [
+        "turn_complete",
+        "requestId:req-ws-1778190153700-758d26",
+        "messageId:message-8"
+      ],
+      "createdAt": "2026-05-07T21:42:36.943Z",
+      "updatedAt": "2026-05-07T21:42:36.943Z"
+    },
+    {
+      "messageId": "user-5599de3c-97c2-4c03-8308-c599b963cbe2",
+      "role": "user",
+      "content": "generate a video with manim explaining somethinh mystical about our world",
+      "kind": "input",
+      "metadata": {},
+      "createdAt": "2026-05-07T21:43:24.221Z",
+      "updatedAt": "2026-05-07T21:43:24.221Z"
+    },
+    {
+      "messageId": "message-14",
+      "role": "assistant",
+      "content": "Agent encountered an error: Tool turn failed: fireworks-kimi stream failed (412): {\"error\":{\"message\":\"Account sapaunited-c0keio3zl is suspended, possibly due to reaching the monthly spending limit or failure to pay past invoices. Please go to https://fireworks.ai/account/billing for more information.",
+      "kind": "agent",
+      "error": {
+        "message": "Tool turn failed: fireworks-kimi stream failed (412): {\"error\":{\"message\":\"Account sapaunited-c0keio3zl is suspended, possibly due to reaching the monthly spending limit or failure to pay past invoices. Please go to https://fireworks.ai/account/billing for more information."
+      },
+      "meta": [
+        "assistantSource:agent-coordinator"
+      ],
+      "metadata": [],
+      "createdAt": "2026-05-07T21:43:24.222Z",
+      "updatedAt": "2026-05-07T21:43:26.980Z"
+    },
+    {
+      "messageId": "thought-turn_started-1778190204225",
+      "role": "thought",
+      "content": "Let me think about this... I need to understand what you're asking for.",
+      "kind": "thought",
+      "meta": [
+        "turn_started",
+        "requestId:req-ws-1778190204111-62f186",
+        "messageId:message-14"
+      ],
+      "metadata": [
+        "turn_started",
+        "requestId:req-ws-1778190204111-62f186",
+        "messageId:message-14"
+      ],
+      "createdAt": "2026-05-07T21:43:24.225Z",
+      "updatedAt": "2026-05-07T21:43:24.225Z"
+    },
+    {
+      "messageId": "thought-agent_thinking-1778190204253",
+      "role": "thought",
+      "content": "I'm reasoning about how to solve this. One moment...",
+      "kind": "thought",
+      "meta": [
+        "agent_thinking",
+        "requestId:req-ws-1778190204111-62f186",
+        "messageId:message-14"
+      ],
+      "metadata": [
+        "agent_thinking",
+        "requestId:req-ws-1778190204111-62f186",
+        "messageId:message-14"
+      ],
+      "createdAt": "2026-05-07T21:43:24.253Z",
+      "updatedAt": "2026-05-07T21:43:24.253Z"
+    },
+    {
+      "messageId": "thought-turn_error-1778190206980",
+      "role": "thought",
+      "content": "Unfortunately this didn't work as expected. Let me surface the issue.",
+      "kind": "thought",
+      "meta": [
+        "turn_error",
+        "requestId:req-ws-1778190204111-62f186",
+        "messageId:message-14"
+      ],
+      "metadata": [
+        "turn_error",
+        "requestId:req-ws-1778190204111-62f186",
+        "messageId:message-14"
+      ],
+      "createdAt": "2026-05-07T21:43:26.980Z",
+      "updatedAt": "2026-05-07T21:43:26.980Z"
+    },
+    {
+      "messageId": "thought-turn_complete-1778190206981",
+      "role": "thought",
+      "content": "Everything's finished. Take a look at the result!",
+      "kind": "thought",
+      "meta": [
+        "turn_complete",
+        "requestId:req-ws-1778190204111-62f186",
+        "messageId:message-14"
+      ],
+      "metadata": [
+        "turn_complete",
+        "requestId:req-ws-1778190204111-62f186",
+        "messageId:message-14"
+      ],
+      "createdAt": "2026-05-07T21:43:26.981Z",
+      "updatedAt": "2026-05-07T21:43:26.981Z"
+    }
+  ],
+  "orchestrationTrace": [
+    {
+      "step": "turn_complete",
+      "payload": {
+        "sessionId": "dce6a61f-2ac4-4f68-8646-42ba9d7cb52f",
+        "mode": "agent",
+        "messageCount": 6,
+        "toolCalls": 0,
+        "toolResults": 0,
+        "agentSuccess": false,
+        "agentError": "Tool turn failed: fireworks-kimi stream failed (412): {\"error\":{\"message\":\"Account sapaunited-c0keio3zl is suspended, possibly due to reaching the monthly spending limit or failure to pay past invoices. Please go to https://fireworks.ai/account/billing for more information.",
+        "durationMs": 13417
+      },
+      "timestamp": "2026-05-07T21:41:58.918Z"
+    },
+    {
+      "step": "turn_complete",
+      "payload": {
+        "sessionId": "dce6a61f-2ac4-4f68-8646-42ba9d7cb52f",
+        "mode": "agent",
+        "messageCount": 12,
+        "toolCalls": 0,
+        "toolResults": 0,
+        "agentSuccess": false,
+        "agentError": "Tool turn failed: fireworks-kimi stream failed (412): {\"error\":{\"message\":\"Account sapaunited-c0keio3zl is suspended, possibly due to reaching the monthly spending limit or failure to pay past invoices. Please go to https://fireworks.ai/account/billing for more information.",
+        "durationMs": 3122
+      },
+      "timestamp": "2026-05-07T21:42:36.944Z"
+    },
+    {
+      "step": "turn_complete",
+      "payload": {
+        "sessionId": "dce6a61f-2ac4-4f68-8646-42ba9d7cb52f",
+        "mode": "agent",
+        "messageCount": 18,
+        "toolCalls": 0,
+        "toolResults": 0,
+        "agentSuccess": false,
+        "agentError": "Tool turn failed: fireworks-kimi stream failed (412): {\"error\":{\"message\":\"Account sapaunited-c0keio3zl is suspended, possibly due to reaching the monthly spending limit or failure to pay past invoices. Please go to https://fireworks.ai/account/billing for more information.",
+        "durationMs": 2754
+      },
+      "timestamp": "2026-05-07T21:43:26.981Z"
+    }
+  ],
+  "createdAt": "2026-05-07T20:04:39.679Z",
+  "updatedAt": "2026-05-07T21:43:26.981Z"
+}

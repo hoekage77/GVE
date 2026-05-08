@@ -1,0 +1,118 @@
+{
+  "sessionId": "test-agent-1778159874640",
+  "ownerId": null,
+  "createdAt": "2026-05-07T13:17:54.643Z",
+  "updatedAt": "2026-05-07T13:17:58.575Z",
+  "status": "idle",
+  "currentScene": null,
+  "workspace": null,
+  "artifacts": [],
+  "artifactPointer": -1,
+  "messages": [
+    {
+      "messageId": "thought-turn_started-1778159874656",
+      "role": "thought",
+      "content": "Alright, I'm reading through your request now. Let me break this down.",
+      "kind": "thought",
+      "meta": [
+        "turn_started",
+        "requestId:turn-1778159874649",
+        "messageId:msg-assistant-1778159874649"
+      ],
+      "metadata": [
+        "turn_started",
+        "requestId:turn-1778159874649",
+        "messageId:msg-assistant-1778159874649"
+      ],
+      "createdAt": "2026-05-07T13:17:54.658Z",
+      "updatedAt": "2026-05-07T13:17:54.658Z"
+    },
+    {
+      "messageId": "thought-agent_thinking-1778159874699",
+      "role": "thought",
+      "content": "Checking what tools would help me answer this best.",
+      "kind": "thought",
+      "meta": [
+        "agent_thinking",
+        "requestId:turn-1778159874649",
+        "messageId:msg-assistant-1778159874649"
+      ],
+      "metadata": [
+        "agent_thinking",
+        "requestId:turn-1778159874649",
+        "messageId:msg-assistant-1778159874649"
+      ],
+      "createdAt": "2026-05-07T13:17:54.699Z",
+      "updatedAt": "2026-05-07T13:17:54.699Z"
+    },
+    {
+      "messageId": "thought-turn_error-1778159878567",
+      "role": "thought",
+      "content": "Something went wrong during execution. Let me show you what happened.",
+      "kind": "thought",
+      "meta": [
+        "turn_error",
+        "requestId:turn-1778159874649",
+        "messageId:msg-assistant-1778159874649"
+      ],
+      "metadata": [
+        "turn_error",
+        "requestId:turn-1778159874649",
+        "messageId:msg-assistant-1778159874649"
+      ],
+      "createdAt": "2026-05-07T13:17:58.567Z",
+      "updatedAt": "2026-05-07T13:17:58.567Z"
+    },
+    {
+      "messageId": "msg-assistant-1778159874649",
+      "role": "assistant",
+      "content": "Agent encountered an error: Tool turn failed: fireworks-kimi request failed (400): {\"error\":{\"object\":\"error\",\"type\":\"invalid_request_error\",\"code\":\"invalid_request_error\",\"message\":\"80 request validation errors: Missing required input field: 'tools[0].type'; Extra inputs are not permitted, field: 'too",
+      "kind": "agent",
+      "error": {
+        "message": "Tool turn failed: fireworks-kimi request failed (400): {\"error\":{\"object\":\"error\",\"type\":\"invalid_request_error\",\"code\":\"invalid_request_error\",\"message\":\"80 request validation errors: Missing required input field: 'tools[0].type'; Extra inputs are not permitted, field: 'too"
+      },
+      "meta": [
+        "assistantSource:agent-coordinator"
+      ],
+      "metadata": [
+        "assistantSource:agent-coordinator"
+      ],
+      "createdAt": "2026-05-07T13:17:58.570Z",
+      "updatedAt": "2026-05-07T13:17:58.570Z"
+    },
+    {
+      "messageId": "thought-turn_complete-1778159878573",
+      "role": "thought",
+      "content": "That's a wrap — your visualization should be live now.",
+      "kind": "thought",
+      "meta": [
+        "turn_complete",
+        "requestId:turn-1778159874649",
+        "messageId:msg-assistant-1778159874649"
+      ],
+      "metadata": [
+        "turn_complete",
+        "requestId:turn-1778159874649",
+        "messageId:msg-assistant-1778159874649"
+      ],
+      "createdAt": "2026-05-07T13:17:58.573Z",
+      "updatedAt": "2026-05-07T13:17:58.573Z"
+    }
+  ],
+  "orchestrationTrace": [
+    {
+      "step": "turn_complete",
+      "payload": {
+        "sessionId": "test-agent-1778159874640",
+        "mode": "agent",
+        "messageCount": 5,
+        "toolCalls": 0,
+        "toolResults": 0,
+        "agentSuccess": false,
+        "agentError": "Tool turn failed: fireworks-kimi request failed (400): {\"error\":{\"object\":\"error\",\"type\":\"invalid_request_error\",\"code\":\"invalid_request_error\",\"message\":\"80 request validation errors: Missing required input field: 'tools[0].type'; Extra inputs are not permitted, field: 'too",
+        "durationMs": 3891
+      },
+      "timestamp": "2026-05-07T13:17:58.575Z"
+    }
+  ]
+}

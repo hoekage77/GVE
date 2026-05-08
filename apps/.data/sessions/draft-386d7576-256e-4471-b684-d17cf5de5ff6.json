@@ -1,0 +1,888 @@
+{
+  "sessionId": "draft-386d7576-256e-4471-b684-d17cf5de5ff6",
+  "status": "idle",
+  "artifacts": [],
+  "artifactPointer": -1,
+  "currentScene": null,
+  "workspace": null,
+  "messages": [
+    {
+      "messageId": "user-9b27528a-3d09-4025-94bb-9893d49da32a",
+      "role": "user",
+      "content": "hi",
+      "kind": "input",
+      "metadata": {},
+      "createdAt": "2026-05-07T21:16:32.986Z",
+      "updatedAt": "2026-05-07T21:16:32.986Z"
+    },
+    {
+      "messageId": "message-2",
+      "role": "assistant",
+      "content": "Agent encountered an error: Tool turn failed: fireworks-kimi stream failed (400): {\"error\":{\"object\":\"error\",\"type\":\"invalid_request_error\",\"code\":\"invalid_request_error\",\"message\":\"Extra inputs are not permitted, field: 'messages[0].cache_control'\"}}",
+      "kind": "agent",
+      "error": {
+        "message": "Tool turn failed: fireworks-kimi stream failed (400): {\"error\":{\"object\":\"error\",\"type\":\"invalid_request_error\",\"code\":\"invalid_request_error\",\"message\":\"Extra inputs are not permitted, field: 'messages[0].cache_control'\"}}"
+      },
+      "meta": [
+        "assistantSource:agent-coordinator"
+      ],
+      "metadata": [],
+      "createdAt": "2026-05-07T21:16:32.994Z",
+      "updatedAt": "2026-05-07T21:16:37.608Z"
+    },
+    {
+      "messageId": "thought-turn_started-1778188593025",
+      "role": "thought",
+      "content": "Okay, let me dive into this. I'll start by understanding what kind of visual you want.",
+      "kind": "thought",
+      "meta": [
+        "turn_started",
+        "requestId:req-ws-1778188592863-80a942",
+        "messageId:message-2"
+      ],
+      "metadata": [
+        "turn_started",
+        "requestId:req-ws-1778188592863-80a942",
+        "messageId:message-2"
+      ],
+      "createdAt": "2026-05-07T21:16:33.025Z",
+      "updatedAt": "2026-05-07T21:16:33.025Z"
+    },
+    {
+      "messageId": "thought-agent_thinking-1778188593037",
+      "role": "thought",
+      "content": "Analyzing your request and deciding which tools to use...",
+      "kind": "thought",
+      "meta": [
+        "agent_thinking",
+        "requestId:req-ws-1778188592863-80a942",
+        "messageId:message-2"
+      ],
+      "metadata": [
+        "agent_thinking",
+        "requestId:req-ws-1778188592863-80a942",
+        "messageId:message-2"
+      ],
+      "createdAt": "2026-05-07T21:16:33.037Z",
+      "updatedAt": "2026-05-07T21:16:33.037Z"
+    },
+    {
+      "messageId": "thought-turn_error-1778188597605",
+      "role": "thought",
+      "content": "Unfortunately this didn't work as expected. Let me surface the issue.",
+      "kind": "thought",
+      "meta": [
+        "turn_error",
+        "requestId:req-ws-1778188592863-80a942",
+        "messageId:message-2"
+      ],
+      "metadata": [
+        "turn_error",
+        "requestId:req-ws-1778188592863-80a942",
+        "messageId:message-2"
+      ],
+      "createdAt": "2026-05-07T21:16:37.605Z",
+      "updatedAt": "2026-05-07T21:16:37.605Z"
+    },
+    {
+      "messageId": "thought-turn_complete-1778188597616",
+      "role": "thought",
+      "content": "Complete. The scene has been generated and synced.",
+      "kind": "thought",
+      "meta": [
+        "turn_complete",
+        "requestId:req-ws-1778188592863-80a942",
+        "messageId:message-2"
+      ],
+      "metadata": [
+        "turn_complete",
+        "requestId:req-ws-1778188592863-80a942",
+        "messageId:message-2"
+      ],
+      "createdAt": "2026-05-07T21:16:37.616Z",
+      "updatedAt": "2026-05-07T21:16:37.616Z"
+    },
+    {
+      "messageId": "user-d7735331-27f8-4315-91be-82aabf4e8203",
+      "role": "user",
+      "content": "hi",
+      "kind": "input",
+      "metadata": {},
+      "createdAt": "2026-05-07T21:18:25.150Z",
+      "updatedAt": "2026-05-07T21:18:25.150Z"
+    },
+    {
+      "messageId": "message-8",
+      "role": "assistant",
+      "content": "Agent encountered an error: Tool turn failed: fireworks-kimi stream failed (400): {\"error\":{\"object\":\"error\",\"type\":\"invalid_request_error\",\"code\":\"invalid_request_error\",\"message\":\"2 request validation errors: Input should be a valid string, field: 'messages[0].content.str', value: [{'type': 'text', ",
+      "kind": "agent",
+      "error": {
+        "message": "Tool turn failed: fireworks-kimi stream failed (400): {\"error\":{\"object\":\"error\",\"type\":\"invalid_request_error\",\"code\":\"invalid_request_error\",\"message\":\"2 request validation errors: Input should be a valid string, field: 'messages[0].content.str', value: [{'type': 'text', "
+      },
+      "meta": [
+        "assistantSource:agent-coordinator"
+      ],
+      "metadata": [],
+      "createdAt": "2026-05-07T21:18:25.152Z",
+      "updatedAt": "2026-05-07T21:18:29.919Z"
+    },
+    {
+      "messageId": "thought-turn_started-1778188705159",
+      "role": "thought",
+      "content": "I'm on it. First, I need to parse your intent and figure out the best approach.",
+      "kind": "thought",
+      "meta": [
+        "turn_started",
+        "requestId:req-ws-1778188705031-1db3c8",
+        "messageId:message-8"
+      ],
+      "metadata": [
+        "turn_started",
+        "requestId:req-ws-1778188705031-1db3c8",
+        "messageId:message-8"
+      ],
+      "createdAt": "2026-05-07T21:18:25.159Z",
+      "updatedAt": "2026-05-07T21:18:25.159Z"
+    },
+    {
+      "messageId": "thought-agent_thinking-1778188705161",
+      "role": "thought",
+      "content": "I'm reasoning about how to solve this. One moment...",
+      "kind": "thought",
+      "meta": [
+        "agent_thinking",
+        "requestId:req-ws-1778188705031-1db3c8",
+        "messageId:message-8"
+      ],
+      "metadata": [
+        "agent_thinking",
+        "requestId:req-ws-1778188705031-1db3c8",
+        "messageId:message-8"
+      ],
+      "createdAt": "2026-05-07T21:18:25.161Z",
+      "updatedAt": "2026-05-07T21:18:25.161Z"
+    },
+    {
+      "messageId": "thought-turn_error-1778188709919",
+      "role": "thought",
+      "content": "Something went wrong during execution. Let me show you what happened.",
+      "kind": "thought",
+      "meta": [
+        "turn_error",
+        "requestId:req-ws-1778188705031-1db3c8",
+        "messageId:message-8"
+      ],
+      "metadata": [
+        "turn_error",
+        "requestId:req-ws-1778188705031-1db3c8",
+        "messageId:message-8"
+      ],
+      "createdAt": "2026-05-07T21:18:29.919Z",
+      "updatedAt": "2026-05-07T21:18:29.919Z"
+    },
+    {
+      "messageId": "thought-turn_complete-1778188709920",
+      "role": "thought",
+      "content": "All done! Your visual is ready.",
+      "kind": "thought",
+      "meta": [
+        "turn_complete",
+        "requestId:req-ws-1778188705031-1db3c8",
+        "messageId:message-8"
+      ],
+      "metadata": [
+        "turn_complete",
+        "requestId:req-ws-1778188705031-1db3c8",
+        "messageId:message-8"
+      ],
+      "createdAt": "2026-05-07T21:18:29.920Z",
+      "updatedAt": "2026-05-07T21:18:29.920Z"
+    },
+    {
+      "messageId": "user-836d3b4d-5759-40df-8004-42e660057b0a",
+      "role": "user",
+      "content": "hi",
+      "kind": "input",
+      "metadata": {},
+      "createdAt": "2026-05-07T21:21:23.996Z",
+      "updatedAt": "2026-05-07T21:21:23.996Z"
+    },
+    {
+      "messageId": "message-14",
+      "role": "assistant",
+      "content": "Hello! I'm your STEM tutor and animation developer. I can help you with:\n\n- **Math, Physics, Chemistry, Biology, Computer Science** concepts\n- **Interactive 3D/2D animations** using Three.js, p5.js, or Manim\n- **Simulations** and visual explanations\n- **Web searches** for up-to-date information or documentation\n- **Coding help** and problem solving\n\nWhat would you like to explore today? 😊",
+      "kind": "agent",
+      "error": null,
+      "meta": [
+        "requestId:req-ws-1778188883788-72afc5",
+        "scene:null",
+        "assistantSource:agent-coordinator"
+      ],
+      "metadata": [],
+      "createdAt": "2026-05-07T21:21:23.998Z",
+      "updatedAt": "2026-05-07T21:21:28.102Z"
+    },
+    {
+      "messageId": "thought-turn_started-1778188884003",
+      "role": "thought",
+      "content": "Let me think about this... I need to understand what you're asking for.",
+      "kind": "thought",
+      "meta": [
+        "turn_started",
+        "requestId:req-ws-1778188883788-72afc5",
+        "messageId:message-14"
+      ],
+      "metadata": [
+        "turn_started",
+        "requestId:req-ws-1778188883788-72afc5",
+        "messageId:message-14"
+      ],
+      "createdAt": "2026-05-07T21:21:24.003Z",
+      "updatedAt": "2026-05-07T21:21:24.003Z"
+    },
+    {
+      "messageId": "thought-agent_thinking-1778188884005",
+      "role": "thought",
+      "content": "Analyzing your request and deciding which tools to use...",
+      "kind": "thought",
+      "meta": [
+        "agent_thinking",
+        "requestId:req-ws-1778188883788-72afc5",
+        "messageId:message-14"
+      ],
+      "metadata": [
+        "agent_thinking",
+        "requestId:req-ws-1778188883788-72afc5",
+        "messageId:message-14"
+      ],
+      "createdAt": "2026-05-07T21:21:24.005Z",
+      "updatedAt": "2026-05-07T21:21:24.005Z"
+    },
+    {
+      "messageId": "thought-turn_complete-1778188888101",
+      "role": "thought",
+      "content": "Complete. The scene has been generated and synced.",
+      "kind": "thought",
+      "meta": [
+        "turn_complete",
+        "requestId:req-ws-1778188883788-72afc5",
+        "messageId:message-14"
+      ],
+      "metadata": [
+        "turn_complete",
+        "requestId:req-ws-1778188883788-72afc5",
+        "messageId:message-14"
+      ],
+      "createdAt": "2026-05-07T21:21:28.101Z",
+      "updatedAt": "2026-05-07T21:21:28.101Z"
+    },
+    {
+      "messageId": "thought-turn_complete-1778188888103",
+      "role": "thought",
+      "content": "Everything's finished. Take a look at the result!",
+      "kind": "thought",
+      "meta": [
+        "turn_complete",
+        "requestId:req-ws-1778188883788-72afc5",
+        "messageId:message-14"
+      ],
+      "metadata": [
+        "turn_complete",
+        "requestId:req-ws-1778188883788-72afc5",
+        "messageId:message-14"
+      ],
+      "createdAt": "2026-05-07T21:21:28.103Z",
+      "updatedAt": "2026-05-07T21:21:28.103Z"
+    },
+    {
+      "messageId": "user-a18e7674-8bc6-4f19-a415-e4b26881475b",
+      "role": "user",
+      "content": "show me a manim video explaining a fun but random stem comcept",
+      "kind": "input",
+      "metadata": {},
+      "createdAt": "2026-05-07T21:21:56.019Z",
+      "updatedAt": "2026-05-07T21:21:56.019Z"
+    },
+    {
+      "messageId": "message-20",
+      "role": "assistant",
+      "content": "No response generated.",
+      "kind": "agent",
+      "error": null,
+      "meta": [
+        "requestId:req-ws-1778188915906-1665d2",
+        "scene:null",
+        "assistantSource:agent-coordinator"
+      ],
+      "metadata": [],
+      "createdAt": "2026-05-07T21:21:56.019Z",
+      "updatedAt": "2026-05-07T21:22:37.979Z"
+    },
+    {
+      "messageId": "thought-turn_started-1778188916020",
+      "role": "thought",
+      "content": "Let me think about this... I need to understand what you're asking for.",
+      "kind": "thought",
+      "meta": [
+        "turn_started",
+        "requestId:req-ws-1778188915906-1665d2",
+        "messageId:message-20"
+      ],
+      "metadata": [
+        "turn_started",
+        "requestId:req-ws-1778188915906-1665d2",
+        "messageId:message-20"
+      ],
+      "createdAt": "2026-05-07T21:21:56.020Z",
+      "updatedAt": "2026-05-07T21:21:56.020Z"
+    },
+    {
+      "messageId": "thought-agent_thinking-1778188916022",
+      "role": "thought",
+      "content": "Planning the best approach — let me think through the steps.",
+      "kind": "thought",
+      "meta": [
+        "agent_thinking",
+        "requestId:req-ws-1778188915906-1665d2",
+        "messageId:message-20"
+      ],
+      "metadata": [
+        "agent_thinking",
+        "requestId:req-ws-1778188915906-1665d2",
+        "messageId:message-20"
+      ],
+      "createdAt": "2026-05-07T21:21:56.022Z",
+      "updatedAt": "2026-05-07T21:21:56.022Z"
+    },
+    {
+      "messageId": "thought-agent_tool_called-1778188931842",
+      "role": "thought",
+      "content": "Using sandbox_files_writeFile to verify my changes...",
+      "kind": "thought",
+      "meta": [
+        "agent_tool_called",
+        "requestId:req-ws-1778188915906-1665d2",
+        "messageId:message-20"
+      ],
+      "metadata": [
+        "agent_tool_called",
+        "requestId:req-ws-1778188915906-1665d2",
+        "messageId:message-20"
+      ],
+      "createdAt": "2026-05-07T21:22:11.842Z",
+      "updatedAt": "2026-05-07T21:22:11.842Z"
+    },
+    {
+      "messageId": "thought-turn_error-1778188931843",
+      "role": "thought",
+      "content": "I hit an error in the pipeline. Here are the details...",
+      "kind": "thought",
+      "meta": [
+        "turn_error",
+        "requestId:req-ws-1778188915906-1665d2",
+        "messageId:message-20"
+      ],
+      "metadata": [
+        "turn_error",
+        "requestId:req-ws-1778188915906-1665d2",
+        "messageId:message-20"
+      ],
+      "createdAt": "2026-05-07T21:22:11.843Z",
+      "updatedAt": "2026-05-07T21:22:11.843Z"
+    },
+    {
+      "messageId": "thought-agent_tool_called-1778188933472",
+      "role": "thought",
+      "content": "Using sandbox_shell_executeCommand to verify my changes...",
+      "kind": "thought",
+      "meta": [
+        "agent_tool_called",
+        "requestId:req-ws-1778188915906-1665d2",
+        "messageId:message-20"
+      ],
+      "metadata": [
+        "agent_tool_called",
+        "requestId:req-ws-1778188915906-1665d2",
+        "messageId:message-20"
+      ],
+      "createdAt": "2026-05-07T21:22:13.472Z",
+      "updatedAt": "2026-05-07T21:22:13.472Z"
+    },
+    {
+      "messageId": "thought-turn_error-1778188933473",
+      "role": "thought",
+      "content": "Something went wrong during execution. Let me show you what happened.",
+      "kind": "thought",
+      "meta": [
+        "turn_error",
+        "requestId:req-ws-1778188915906-1665d2",
+        "messageId:message-20"
+      ],
+      "metadata": [
+        "turn_error",
+        "requestId:req-ws-1778188915906-1665d2",
+        "messageId:message-20"
+      ],
+      "createdAt": "2026-05-07T21:22:13.473Z",
+      "updatedAt": "2026-05-07T21:22:13.473Z"
+    },
+    {
+      "messageId": "thought-agent_tool_called-1778188944672",
+      "role": "thought",
+      "content": "Calling sandbox_files_writeFile — let me see if the fix works...",
+      "kind": "thought",
+      "meta": [
+        "agent_tool_called",
+        "requestId:req-ws-1778188915906-1665d2",
+        "messageId:message-20"
+      ],
+      "metadata": [
+        "agent_tool_called",
+        "requestId:req-ws-1778188915906-1665d2",
+        "messageId:message-20"
+      ],
+      "createdAt": "2026-05-07T21:22:24.672Z",
+      "updatedAt": "2026-05-07T21:22:24.672Z"
+    },
+    {
+      "messageId": "thought-turn_error-1778188944675",
+      "role": "thought",
+      "content": "Something went wrong during execution. Let me show you what happened.",
+      "kind": "thought",
+      "meta": [
+        "turn_error",
+        "requestId:req-ws-1778188915906-1665d2",
+        "messageId:message-20"
+      ],
+      "metadata": [
+        "turn_error",
+        "requestId:req-ws-1778188915906-1665d2",
+        "messageId:message-20"
+      ],
+      "createdAt": "2026-05-07T21:22:24.675Z",
+      "updatedAt": "2026-05-07T21:22:24.675Z"
+    },
+    {
+      "messageId": "thought-agent_tool_called-1778188946066",
+      "role": "thought",
+      "content": "Calling sandbox_files_listFiles — let me see if the fix works...",
+      "kind": "thought",
+      "meta": [
+        "agent_tool_called",
+        "requestId:req-ws-1778188915906-1665d2",
+        "messageId:message-20"
+      ],
+      "metadata": [
+        "agent_tool_called",
+        "requestId:req-ws-1778188915906-1665d2",
+        "messageId:message-20"
+      ],
+      "createdAt": "2026-05-07T21:22:26.066Z",
+      "updatedAt": "2026-05-07T21:22:26.066Z"
+    },
+    {
+      "messageId": "thought-agent_tool_called-1778188947802",
+      "role": "thought",
+      "content": "Calling sandbox_shell_executeCommand — let me see if the fix works...",
+      "kind": "thought",
+      "meta": [
+        "agent_tool_called",
+        "requestId:req-ws-1778188915906-1665d2",
+        "messageId:message-20"
+      ],
+      "metadata": [
+        "agent_tool_called",
+        "requestId:req-ws-1778188915906-1665d2",
+        "messageId:message-20"
+      ],
+      "createdAt": "2026-05-07T21:22:27.802Z",
+      "updatedAt": "2026-05-07T21:22:27.802Z"
+    },
+    {
+      "messageId": "thought-turn_error-1778188947803",
+      "role": "thought",
+      "content": "Unfortunately this didn't work as expected. Let me surface the issue.",
+      "kind": "thought",
+      "meta": [
+        "turn_error",
+        "requestId:req-ws-1778188915906-1665d2",
+        "messageId:message-20"
+      ],
+      "metadata": [
+        "turn_error",
+        "requestId:req-ws-1778188915906-1665d2",
+        "messageId:message-20"
+      ],
+      "createdAt": "2026-05-07T21:22:27.803Z",
+      "updatedAt": "2026-05-07T21:22:27.803Z"
+    },
+    {
+      "messageId": "thought-turn_complete-1778188957978",
+      "role": "thought",
+      "content": "That's a wrap — your visualization should be live now.",
+      "kind": "thought",
+      "meta": [
+        "turn_complete",
+        "requestId:req-ws-1778188915906-1665d2",
+        "messageId:message-20"
+      ],
+      "metadata": [
+        "turn_complete",
+        "requestId:req-ws-1778188915906-1665d2",
+        "messageId:message-20"
+      ],
+      "createdAt": "2026-05-07T21:22:37.978Z",
+      "updatedAt": "2026-05-07T21:22:37.978Z"
+    },
+    {
+      "messageId": "user-3736d8c3-a906-4680-a5b1-d5336716a9d9",
+      "role": "user",
+      "content": "show me a manim video explaining a fun but random and hidden stem comcept",
+      "kind": "input",
+      "metadata": {},
+      "createdAt": "2026-05-07T21:30:06.157Z",
+      "updatedAt": "2026-05-07T21:30:06.157Z"
+    },
+    {
+      "messageId": "message-34",
+      "role": "assistant",
+      "content": "No response generated.",
+      "kind": "agent",
+      "error": null,
+      "meta": [
+        "requestId:req-ws-1778189406001-10c500",
+        "scene:null",
+        "assistantSource:agent-coordinator"
+      ],
+      "metadata": [],
+      "createdAt": "2026-05-07T21:30:06.158Z",
+      "updatedAt": "2026-05-07T21:32:25.194Z"
+    },
+    {
+      "messageId": "thought-turn_started-1778189406163",
+      "role": "thought",
+      "content": "Interesting — let me process what you're looking for here.",
+      "kind": "thought",
+      "meta": [
+        "turn_started",
+        "requestId:req-ws-1778189406001-10c500",
+        "messageId:message-34"
+      ],
+      "metadata": [
+        "turn_started",
+        "requestId:req-ws-1778189406001-10c500",
+        "messageId:message-34"
+      ],
+      "createdAt": "2026-05-07T21:30:06.163Z",
+      "updatedAt": "2026-05-07T21:30:06.163Z"
+    },
+    {
+      "messageId": "thought-agent_thinking-1778189408104",
+      "role": "thought",
+      "content": "Analyzing your request and deciding which tools to use...",
+      "kind": "thought",
+      "meta": [
+        "agent_thinking",
+        "requestId:req-ws-1778189406001-10c500",
+        "messageId:message-34"
+      ],
+      "metadata": [
+        "agent_thinking",
+        "requestId:req-ws-1778189406001-10c500",
+        "messageId:message-34"
+      ],
+      "createdAt": "2026-05-07T21:30:08.104Z",
+      "updatedAt": "2026-05-07T21:30:08.104Z"
+    },
+    {
+      "messageId": "thought-agent_tool_called-1778189442884",
+      "role": "thought",
+      "content": "Calling sandbox_files_writeFile — let me see if the fix works...",
+      "kind": "thought",
+      "meta": [
+        "agent_tool_called",
+        "requestId:req-ws-1778189406001-10c500",
+        "messageId:message-34"
+      ],
+      "metadata": [
+        "agent_tool_called",
+        "requestId:req-ws-1778189406001-10c500",
+        "messageId:message-34"
+      ],
+      "createdAt": "2026-05-07T21:30:42.884Z",
+      "updatedAt": "2026-05-07T21:30:42.884Z"
+    },
+    {
+      "messageId": "thought-turn_error-1778189442893",
+      "role": "thought",
+      "content": "Something went wrong during execution. Let me show you what happened.",
+      "kind": "thought",
+      "meta": [
+        "turn_error",
+        "requestId:req-ws-1778189406001-10c500",
+        "messageId:message-34"
+      ],
+      "metadata": [
+        "turn_error",
+        "requestId:req-ws-1778189406001-10c500",
+        "messageId:message-34"
+      ],
+      "createdAt": "2026-05-07T21:30:42.893Z",
+      "updatedAt": "2026-05-07T21:30:42.893Z"
+    },
+    {
+      "messageId": "thought-agent_tool_called-1778189446289",
+      "role": "thought",
+      "content": "Using sandbox_files_listFiles to verify my changes...",
+      "kind": "thought",
+      "meta": [
+        "agent_tool_called",
+        "requestId:req-ws-1778189406001-10c500",
+        "messageId:message-34"
+      ],
+      "metadata": [
+        "agent_tool_called",
+        "requestId:req-ws-1778189406001-10c500",
+        "messageId:message-34"
+      ],
+      "createdAt": "2026-05-07T21:30:46.289Z",
+      "updatedAt": "2026-05-07T21:30:46.289Z"
+    },
+    {
+      "messageId": "thought-agent_tool_result-1778189446296",
+      "role": "thought",
+      "content": "Got the result from sandbox_files_listFiles. Let me continue...",
+      "kind": "thought",
+      "meta": [
+        "agent_tool_result",
+        "requestId:req-ws-1778189406001-10c500",
+        "messageId:message-34"
+      ],
+      "metadata": [
+        "agent_tool_result",
+        "requestId:req-ws-1778189406001-10c500",
+        "messageId:message-34"
+      ],
+      "createdAt": "2026-05-07T21:30:46.296Z",
+      "updatedAt": "2026-05-07T21:30:46.296Z"
+    },
+    {
+      "messageId": "thought-agent_tool_called-1778189473024",
+      "role": "thought",
+      "content": "Running sandbox_files_writeFile to check the code...",
+      "kind": "thought",
+      "meta": [
+        "agent_tool_called",
+        "requestId:req-ws-1778189406001-10c500",
+        "messageId:message-34"
+      ],
+      "metadata": [
+        "agent_tool_called",
+        "requestId:req-ws-1778189406001-10c500",
+        "messageId:message-34"
+      ],
+      "createdAt": "2026-05-07T21:31:13.024Z",
+      "updatedAt": "2026-05-07T21:31:13.024Z"
+    },
+    {
+      "messageId": "thought-turn_error-1778189473042",
+      "role": "thought",
+      "content": "I hit an error in the pipeline. Here are the details...",
+      "kind": "thought",
+      "meta": [
+        "turn_error",
+        "requestId:req-ws-1778189406001-10c500",
+        "messageId:message-34"
+      ],
+      "metadata": [
+        "turn_error",
+        "requestId:req-ws-1778189406001-10c500",
+        "messageId:message-34"
+      ],
+      "createdAt": "2026-05-07T21:31:13.042Z",
+      "updatedAt": "2026-05-07T21:31:13.042Z"
+    },
+    {
+      "messageId": "thought-agent_tool_called-1778189479423",
+      "role": "thought",
+      "content": "Using sandbox_shell_executeCommand to verify my changes...",
+      "kind": "thought",
+      "meta": [
+        "agent_tool_called",
+        "requestId:req-ws-1778189406001-10c500",
+        "messageId:message-34"
+      ],
+      "metadata": [
+        "agent_tool_called",
+        "requestId:req-ws-1778189406001-10c500",
+        "messageId:message-34"
+      ],
+      "createdAt": "2026-05-07T21:31:19.423Z",
+      "updatedAt": "2026-05-07T21:31:19.423Z"
+    },
+    {
+      "messageId": "thought-agent_tool_result-1778189479628",
+      "role": "thought",
+      "content": "sandbox_shell_executeCommand finished — processing the result...",
+      "kind": "thought",
+      "meta": [
+        "agent_tool_result",
+        "requestId:req-ws-1778189406001-10c500",
+        "messageId:message-34"
+      ],
+      "metadata": [
+        "agent_tool_result",
+        "requestId:req-ws-1778189406001-10c500",
+        "messageId:message-34"
+      ],
+      "createdAt": "2026-05-07T21:31:19.628Z",
+      "updatedAt": "2026-05-07T21:31:19.628Z"
+    },
+    {
+      "messageId": "thought-agent_tool_called-1778189508101",
+      "role": "thought",
+      "content": "Using sandbox_shell_executeCommand to verify my changes...",
+      "kind": "thought",
+      "meta": [
+        "agent_tool_called",
+        "requestId:req-ws-1778189406001-10c500",
+        "messageId:message-34"
+      ],
+      "metadata": [
+        "agent_tool_called",
+        "requestId:req-ws-1778189406001-10c500",
+        "messageId:message-34"
+      ],
+      "createdAt": "2026-05-07T21:31:48.101Z",
+      "updatedAt": "2026-05-07T21:31:48.101Z"
+    },
+    {
+      "messageId": "thought-agent_tool_result-1778189508301",
+      "role": "thought",
+      "content": "sandbox_shell_executeCommand finished — processing the result...",
+      "kind": "thought",
+      "meta": [
+        "agent_tool_result",
+        "requestId:req-ws-1778189406001-10c500",
+        "messageId:message-34"
+      ],
+      "metadata": [
+        "agent_tool_result",
+        "requestId:req-ws-1778189406001-10c500",
+        "messageId:message-34"
+      ],
+      "createdAt": "2026-05-07T21:31:48.301Z",
+      "updatedAt": "2026-05-07T21:31:48.301Z"
+    },
+    {
+      "messageId": "thought-turn_complete-1778189545192",
+      "role": "thought",
+      "content": "Complete. The scene has been generated and synced.",
+      "kind": "thought",
+      "meta": [
+        "turn_complete",
+        "requestId:req-ws-1778189406001-10c500",
+        "messageId:message-34"
+      ],
+      "metadata": [
+        "turn_complete",
+        "requestId:req-ws-1778189406001-10c500",
+        "messageId:message-34"
+      ],
+      "createdAt": "2026-05-07T21:32:25.192Z",
+      "updatedAt": "2026-05-07T21:32:25.192Z"
+    },
+    {
+      "messageId": "thought-turn_complete-1778189545196",
+      "role": "thought",
+      "content": "That's a wrap — your visualization should be live now.",
+      "kind": "thought",
+      "meta": [
+        "turn_complete",
+        "requestId:req-ws-1778189406001-10c500",
+        "messageId:message-34"
+      ],
+      "metadata": [
+        "turn_complete",
+        "requestId:req-ws-1778189406001-10c500",
+        "messageId:message-34"
+      ],
+      "createdAt": "2026-05-07T21:32:25.196Z",
+      "updatedAt": "2026-05-07T21:32:25.196Z"
+    }
+  ],
+  "orchestrationTrace": [
+    {
+      "step": "turn_complete",
+      "payload": {
+        "sessionId": "draft-386d7576-256e-4471-b684-d17cf5de5ff6",
+        "mode": "agent",
+        "messageCount": 6,
+        "toolCalls": 0,
+        "toolResults": 0,
+        "agentSuccess": false,
+        "agentError": "Tool turn failed: fireworks-kimi stream failed (400): {\"error\":{\"object\":\"error\",\"type\":\"invalid_request_error\",\"code\":\"invalid_request_error\",\"message\":\"Extra inputs are not permitted, field: 'messages[0].cache_control'\"}}",
+        "durationMs": 4572
+      },
+      "timestamp": "2026-05-07T21:16:37.617Z"
+    },
+    {
+      "step": "turn_complete",
+      "payload": {
+        "sessionId": "draft-386d7576-256e-4471-b684-d17cf5de5ff6",
+        "mode": "agent",
+        "messageCount": 12,
+        "toolCalls": 0,
+        "toolResults": 0,
+        "agentSuccess": false,
+        "agentError": "Tool turn failed: fireworks-kimi stream failed (400): {\"error\":{\"object\":\"error\",\"type\":\"invalid_request_error\",\"code\":\"invalid_request_error\",\"message\":\"2 request validation errors: Input should be a valid string, field: 'messages[0].content.str', value: [{'type': 'text', ",
+        "durationMs": 4759
+      },
+      "timestamp": "2026-05-07T21:18:29.920Z"
+    },
+    {
+      "step": "turn_complete",
+      "payload": {
+        "sessionId": "draft-386d7576-256e-4471-b684-d17cf5de5ff6",
+        "mode": "agent",
+        "messageCount": 18,
+        "toolCalls": 0,
+        "toolResults": 0,
+        "agentSuccess": true,
+        "agentError": null,
+        "durationMs": 4097
+      },
+      "timestamp": "2026-05-07T21:21:28.103Z"
+    },
+    {
+      "step": "turn_complete",
+      "payload": {
+        "sessionId": "draft-386d7576-256e-4471-b684-d17cf5de5ff6",
+        "mode": "agent",
+        "messageCount": 32,
+        "toolCalls": 5,
+        "toolResults": 5,
+        "agentSuccess": true,
+        "agentError": null,
+        "durationMs": 41957
+      },
+      "timestamp": "2026-05-07T21:22:37.982Z"
+    },
+    {
+      "step": "turn_complete",
+      "payload": {
+        "sessionId": "draft-386d7576-256e-4471-b684-d17cf5de5ff6",
+        "mode": "agent",
+        "messageCount": 48,
+        "toolCalls": 5,
+        "toolResults": 5,
+        "agentSuccess": true,
+        "agentError": null,
+        "durationMs": 139028
+      },
+      "timestamp": "2026-05-07T21:32:25.200Z"
+    }
+  ],
+  "createdAt": "2026-05-07T21:16:30.357Z",
+  "updatedAt": "2026-05-07T21:32:25.200Z"
+}

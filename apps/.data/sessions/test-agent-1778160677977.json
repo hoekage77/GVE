@@ -1,0 +1,318 @@
+{
+  "sessionId": "test-agent-1778160677977",
+  "ownerId": null,
+  "createdAt": "2026-05-07T13:31:17.979Z",
+  "updatedAt": "2026-05-07T13:31:48.294Z",
+  "status": "idle",
+  "currentScene": null,
+  "workspace": null,
+  "artifacts": [],
+  "artifactPointer": -1,
+  "messages": [
+    {
+      "messageId": "thought-turn_started-1778160677996",
+      "role": "thought",
+      "content": "Interesting — let me process what you're looking for here.",
+      "kind": "thought",
+      "meta": [
+        "turn_started",
+        "requestId:turn-1778160677987",
+        "messageId:msg-assistant-1778160677987"
+      ],
+      "metadata": [
+        "turn_started",
+        "requestId:turn-1778160677987",
+        "messageId:msg-assistant-1778160677987"
+      ],
+      "createdAt": "2026-05-07T13:31:17.998Z",
+      "updatedAt": "2026-05-07T13:31:17.998Z"
+    },
+    {
+      "messageId": "thought-agent_thinking-1778160678055",
+      "role": "thought",
+      "content": "Checking what tools would help me answer this best.",
+      "kind": "thought",
+      "meta": [
+        "agent_thinking",
+        "requestId:turn-1778160677987",
+        "messageId:msg-assistant-1778160677987"
+      ],
+      "metadata": [
+        "agent_thinking",
+        "requestId:turn-1778160677987",
+        "messageId:msg-assistant-1778160677987"
+      ],
+      "createdAt": "2026-05-07T13:31:18.055Z",
+      "updatedAt": "2026-05-07T13:31:18.055Z"
+    },
+    {
+      "messageId": "thought-agent_tool_called-1778160690961",
+      "role": "thought",
+      "content": "Using animation_3js_createScene to verify my changes...",
+      "kind": "thought",
+      "meta": [
+        "agent_tool_called",
+        "requestId:turn-1778160677987",
+        "messageId:msg-assistant-1778160677987"
+      ],
+      "metadata": [
+        "agent_tool_called",
+        "requestId:turn-1778160677987",
+        "messageId:msg-assistant-1778160677987"
+      ],
+      "createdAt": "2026-05-07T13:31:30.961Z",
+      "updatedAt": "2026-05-07T13:31:30.961Z"
+    },
+    {
+      "messageId": "thought-turn_error-1778160690972",
+      "role": "thought",
+      "content": "Something went wrong during execution. Let me show you what happened.",
+      "kind": "thought",
+      "meta": [
+        "turn_error",
+        "requestId:turn-1778160677987",
+        "messageId:msg-assistant-1778160677987"
+      ],
+      "metadata": [
+        "turn_error",
+        "requestId:turn-1778160677987",
+        "messageId:msg-assistant-1778160677987"
+      ],
+      "createdAt": "2026-05-07T13:31:30.972Z",
+      "updatedAt": "2026-05-07T13:31:30.972Z"
+    },
+    {
+      "messageId": "thought-agent_thinking-1778160690975",
+      "role": "thought",
+      "content": "I'm reasoning about how to solve this. One moment...",
+      "kind": "thought",
+      "meta": [
+        "agent_thinking",
+        "requestId:turn-1778160677987",
+        "messageId:msg-assistant-1778160677987"
+      ],
+      "metadata": [
+        "agent_thinking",
+        "requestId:turn-1778160677987",
+        "messageId:msg-assistant-1778160677987"
+      ],
+      "createdAt": "2026-05-07T13:31:30.975Z",
+      "updatedAt": "2026-05-07T13:31:30.975Z"
+    },
+    {
+      "messageId": "thought-agent_tool_called-1778160693213",
+      "role": "thought",
+      "content": "Using sandbox_shell_executeCommand to verify my changes...",
+      "kind": "thought",
+      "meta": [
+        "agent_tool_called",
+        "requestId:turn-1778160677987",
+        "messageId:msg-assistant-1778160677987"
+      ],
+      "metadata": [
+        "agent_tool_called",
+        "requestId:turn-1778160677987",
+        "messageId:msg-assistant-1778160677987"
+      ],
+      "createdAt": "2026-05-07T13:31:33.214Z",
+      "updatedAt": "2026-05-07T13:31:33.214Z"
+    },
+    {
+      "messageId": "thought-agent_thinking-1778160693219",
+      "role": "thought",
+      "content": "Analyzing your request and deciding which tools to use...",
+      "kind": "thought",
+      "meta": [
+        "agent_thinking",
+        "requestId:turn-1778160677987",
+        "messageId:msg-assistant-1778160677987"
+      ],
+      "metadata": [
+        "agent_thinking",
+        "requestId:turn-1778160677987",
+        "messageId:msg-assistant-1778160677987"
+      ],
+      "createdAt": "2026-05-07T13:31:33.219Z",
+      "updatedAt": "2026-05-07T13:31:33.219Z"
+    },
+    {
+      "messageId": "thought-agent_tool_called-1778160699612",
+      "role": "thought",
+      "content": "Using sandbox_files_writeFile to verify my changes...",
+      "kind": "thought",
+      "meta": [
+        "agent_tool_called",
+        "requestId:turn-1778160677987",
+        "messageId:msg-assistant-1778160677987"
+      ],
+      "metadata": [
+        "agent_tool_called",
+        "requestId:turn-1778160677987",
+        "messageId:msg-assistant-1778160677987"
+      ],
+      "createdAt": "2026-05-07T13:31:39.612Z",
+      "updatedAt": "2026-05-07T13:31:39.612Z"
+    },
+    {
+      "messageId": "thought-turn_error-1778160699616",
+      "role": "thought",
+      "content": "I hit an error in the pipeline. Here are the details...",
+      "kind": "thought",
+      "meta": [
+        "turn_error",
+        "requestId:turn-1778160677987",
+        "messageId:msg-assistant-1778160677987"
+      ],
+      "metadata": [
+        "turn_error",
+        "requestId:turn-1778160677987",
+        "messageId:msg-assistant-1778160677987"
+      ],
+      "createdAt": "2026-05-07T13:31:39.616Z",
+      "updatedAt": "2026-05-07T13:31:39.616Z"
+    },
+    {
+      "messageId": "thought-agent_thinking-1778160699618",
+      "role": "thought",
+      "content": "I'm reasoning about how to solve this. One moment...",
+      "kind": "thought",
+      "meta": [
+        "agent_thinking",
+        "requestId:turn-1778160677987",
+        "messageId:msg-assistant-1778160677987"
+      ],
+      "metadata": [
+        "agent_thinking",
+        "requestId:turn-1778160677987",
+        "messageId:msg-assistant-1778160677987"
+      ],
+      "createdAt": "2026-05-07T13:31:39.618Z",
+      "updatedAt": "2026-05-07T13:31:39.618Z"
+    },
+    {
+      "messageId": "thought-agent_tool_called-1778160700876",
+      "role": "thought",
+      "content": "Using sandbox_shell_executeCommand to verify my changes...",
+      "kind": "thought",
+      "meta": [
+        "agent_tool_called",
+        "requestId:turn-1778160677987",
+        "messageId:msg-assistant-1778160677987"
+      ],
+      "metadata": [
+        "agent_tool_called",
+        "requestId:turn-1778160677987",
+        "messageId:msg-assistant-1778160677987"
+      ],
+      "createdAt": "2026-05-07T13:31:40.876Z",
+      "updatedAt": "2026-05-07T13:31:40.876Z"
+    },
+    {
+      "messageId": "thought-agent_thinking-1778160700892",
+      "role": "thought",
+      "content": "Checking what tools would help me answer this best.",
+      "kind": "thought",
+      "meta": [
+        "agent_thinking",
+        "requestId:turn-1778160677987",
+        "messageId:msg-assistant-1778160677987"
+      ],
+      "metadata": [
+        "agent_thinking",
+        "requestId:turn-1778160677987",
+        "messageId:msg-assistant-1778160677987"
+      ],
+      "createdAt": "2026-05-07T13:31:40.892Z",
+      "updatedAt": "2026-05-07T13:31:40.892Z"
+    },
+    {
+      "messageId": "thought-agent_tool_called-1778160702504",
+      "role": "thought",
+      "content": "Calling sandbox_files_listFiles — let me see if the fix works...",
+      "kind": "thought",
+      "meta": [
+        "agent_tool_called",
+        "requestId:turn-1778160677987",
+        "messageId:msg-assistant-1778160677987"
+      ],
+      "metadata": [
+        "agent_tool_called",
+        "requestId:turn-1778160677987",
+        "messageId:msg-assistant-1778160677987"
+      ],
+      "createdAt": "2026-05-07T13:31:42.504Z",
+      "updatedAt": "2026-05-07T13:31:42.504Z"
+    },
+    {
+      "messageId": "thought-turn_error-1778160702516",
+      "role": "thought",
+      "content": "Unfortunately this didn't work as expected. Let me surface the issue.",
+      "kind": "thought",
+      "meta": [
+        "turn_error",
+        "requestId:turn-1778160677987",
+        "messageId:msg-assistant-1778160677987"
+      ],
+      "metadata": [
+        "turn_error",
+        "requestId:turn-1778160677987",
+        "messageId:msg-assistant-1778160677987"
+      ],
+      "createdAt": "2026-05-07T13:31:42.516Z",
+      "updatedAt": "2026-05-07T13:31:42.516Z"
+    },
+    {
+      "messageId": "thought-turn_complete-1778160708284",
+      "role": "thought",
+      "content": "Everything's finished. Take a look at the result!",
+      "kind": "thought",
+      "meta": [
+        "turn_complete",
+        "requestId:turn-1778160677987",
+        "messageId:msg-assistant-1778160677987"
+      ],
+      "metadata": [
+        "turn_complete",
+        "requestId:turn-1778160677987",
+        "messageId:msg-assistant-1778160677987"
+      ],
+      "createdAt": "2026-05-07T13:31:48.284Z",
+      "updatedAt": "2026-05-07T13:31:48.284Z"
+    },
+    {
+      "messageId": "msg-assistant-1778160677987",
+      "role": "assistant",
+      "content": "No response generated.",
+      "kind": "agent",
+      "error": null,
+      "meta": [
+        "requestId:turn-1778160677987",
+        "scene:undefined",
+        "assistantSource:agent-coordinator"
+      ],
+      "metadata": [
+        "requestId:turn-1778160677987",
+        "scene:undefined",
+        "assistantSource:agent-coordinator"
+      ],
+      "createdAt": "2026-05-07T13:31:48.288Z",
+      "updatedAt": "2026-05-07T13:31:48.288Z"
+    }
+  ],
+  "orchestrationTrace": [
+    {
+      "step": "turn_complete",
+      "payload": {
+        "sessionId": "test-agent-1778160677977",
+        "mode": "agent",
+        "messageCount": 16,
+        "toolCalls": 5,
+        "toolResults": 5,
+        "agentSuccess": true,
+        "agentError": null,
+        "durationMs": 30260
+      },
+      "timestamp": "2026-05-07T13:31:48.294Z"
+    }
+  ]
+}

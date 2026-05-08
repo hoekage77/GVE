@@ -1,0 +1,212 @@
+{
+  "sessionId": "test-agent-1778161128609",
+  "ownerId": null,
+  "createdAt": "2026-05-07T13:38:48.611Z",
+  "updatedAt": "2026-05-07T13:39:27.286Z",
+  "status": "planning",
+  "currentScene": null,
+  "workspace": null,
+  "artifacts": [],
+  "artifactPointer": -1,
+  "messages": [
+    {
+      "messageId": "thought-turn_started-1778161128641",
+      "role": "thought",
+      "content": "I'm on it. First, I need to parse your intent and figure out the best approach.",
+      "kind": "thought",
+      "meta": [
+        "turn_started",
+        "requestId:turn-1778161128630",
+        "messageId:msg-assistant-1778161128630"
+      ],
+      "metadata": [
+        "turn_started",
+        "requestId:turn-1778161128630",
+        "messageId:msg-assistant-1778161128630"
+      ],
+      "createdAt": "2026-05-07T13:38:48.645Z",
+      "updatedAt": "2026-05-07T13:38:48.645Z"
+    },
+    {
+      "messageId": "thought-agent_thinking-1778161128727",
+      "role": "thought",
+      "content": "Planning the best approach — let me think through the steps.",
+      "kind": "thought",
+      "meta": [
+        "agent_thinking",
+        "requestId:turn-1778161128630",
+        "messageId:msg-assistant-1778161128630"
+      ],
+      "metadata": [
+        "agent_thinking",
+        "requestId:turn-1778161128630",
+        "messageId:msg-assistant-1778161128630"
+      ],
+      "createdAt": "2026-05-07T13:38:48.727Z",
+      "updatedAt": "2026-05-07T13:38:48.727Z"
+    },
+    {
+      "messageId": "thought-agent_tool_called-1778161159030",
+      "role": "thought",
+      "content": "Running animation_3js_createScene to check the code...",
+      "kind": "thought",
+      "meta": [
+        "agent_tool_called",
+        "requestId:turn-1778161128630",
+        "messageId:msg-assistant-1778161128630"
+      ],
+      "metadata": [
+        "agent_tool_called",
+        "requestId:turn-1778161128630",
+        "messageId:msg-assistant-1778161128630"
+      ],
+      "createdAt": "2026-05-07T13:39:19.030Z",
+      "updatedAt": "2026-05-07T13:39:19.030Z"
+    },
+    {
+      "messageId": "thought-turn_error-1778161159035",
+      "role": "thought",
+      "content": "Something went wrong during execution. Let me show you what happened.",
+      "kind": "thought",
+      "meta": [
+        "turn_error",
+        "requestId:turn-1778161128630",
+        "messageId:msg-assistant-1778161128630"
+      ],
+      "metadata": [
+        "turn_error",
+        "requestId:turn-1778161128630",
+        "messageId:msg-assistant-1778161128630"
+      ],
+      "createdAt": "2026-05-07T13:39:19.035Z",
+      "updatedAt": "2026-05-07T13:39:19.035Z"
+    },
+    {
+      "messageId": "thought-agent_thinking-1778161159038",
+      "role": "thought",
+      "content": "Analyzing your request and deciding which tools to use...",
+      "kind": "thought",
+      "meta": [
+        "agent_thinking",
+        "requestId:turn-1778161128630",
+        "messageId:msg-assistant-1778161128630"
+      ],
+      "metadata": [
+        "agent_thinking",
+        "requestId:turn-1778161128630",
+        "messageId:msg-assistant-1778161128630"
+      ],
+      "createdAt": "2026-05-07T13:39:19.038Z",
+      "updatedAt": "2026-05-07T13:39:19.038Z"
+    },
+    {
+      "messageId": "thought-agent_tool_called-1778161161428",
+      "role": "thought",
+      "content": "Calling sandbox_shell_executeCommand — let me see if the fix works...",
+      "kind": "thought",
+      "meta": [
+        "agent_tool_called",
+        "requestId:turn-1778161128630",
+        "messageId:msg-assistant-1778161128630"
+      ],
+      "metadata": [
+        "agent_tool_called",
+        "requestId:turn-1778161128630",
+        "messageId:msg-assistant-1778161128630"
+      ],
+      "createdAt": "2026-05-07T13:39:21.428Z",
+      "updatedAt": "2026-05-07T13:39:21.428Z"
+    },
+    {
+      "messageId": "thought-turn_error-1778161161431",
+      "role": "thought",
+      "content": "I hit an error in the pipeline. Here are the details...",
+      "kind": "thought",
+      "meta": [
+        "turn_error",
+        "requestId:turn-1778161128630",
+        "messageId:msg-assistant-1778161128630"
+      ],
+      "metadata": [
+        "turn_error",
+        "requestId:turn-1778161128630",
+        "messageId:msg-assistant-1778161128630"
+      ],
+      "createdAt": "2026-05-07T13:39:21.431Z",
+      "updatedAt": "2026-05-07T13:39:21.431Z"
+    },
+    {
+      "messageId": "thought-agent_thinking-1778161161434",
+      "role": "thought",
+      "content": "I'm reasoning about how to solve this. One moment...",
+      "kind": "thought",
+      "meta": [
+        "agent_thinking",
+        "requestId:turn-1778161128630",
+        "messageId:msg-assistant-1778161128630"
+      ],
+      "metadata": [
+        "agent_thinking",
+        "requestId:turn-1778161128630",
+        "messageId:msg-assistant-1778161128630"
+      ],
+      "createdAt": "2026-05-07T13:39:21.434Z",
+      "updatedAt": "2026-05-07T13:39:21.434Z"
+    },
+    {
+      "messageId": "thought-agent_tool_called-1778161167277",
+      "role": "thought",
+      "content": "Calling sandbox_files_writeFile — let me see if the fix works...",
+      "kind": "thought",
+      "meta": [
+        "agent_tool_called",
+        "requestId:turn-1778161128630",
+        "messageId:msg-assistant-1778161128630"
+      ],
+      "metadata": [
+        "agent_tool_called",
+        "requestId:turn-1778161128630",
+        "messageId:msg-assistant-1778161128630"
+      ],
+      "createdAt": "2026-05-07T13:39:27.277Z",
+      "updatedAt": "2026-05-07T13:39:27.277Z"
+    },
+    {
+      "messageId": "thought-turn_error-1778161167283",
+      "role": "thought",
+      "content": "Something went wrong during execution. Let me show you what happened.",
+      "kind": "thought",
+      "meta": [
+        "turn_error",
+        "requestId:turn-1778161128630",
+        "messageId:msg-assistant-1778161128630"
+      ],
+      "metadata": [
+        "turn_error",
+        "requestId:turn-1778161128630",
+        "messageId:msg-assistant-1778161128630"
+      ],
+      "createdAt": "2026-05-07T13:39:27.283Z",
+      "updatedAt": "2026-05-07T13:39:27.283Z"
+    },
+    {
+      "messageId": "thought-agent_thinking-1778161167286",
+      "role": "thought",
+      "content": "Checking what tools would help me answer this best.",
+      "kind": "thought",
+      "meta": [
+        "agent_thinking",
+        "requestId:turn-1778161128630",
+        "messageId:msg-assistant-1778161128630"
+      ],
+      "metadata": [
+        "agent_thinking",
+        "requestId:turn-1778161128630",
+        "messageId:msg-assistant-1778161128630"
+      ],
+      "createdAt": "2026-05-07T13:39:27.286Z",
+      "updatedAt": "2026-05-07T13:39:27.286Z"
+    }
+  ],
+  "orchestrationTrace": []
+}
