@@ -1,9 +1,10 @@
 import { useMemo, useRef, useEffect, useState, useCallback } from "react";
-import { LayoutPanelTop } from "lucide-react";
+import { LayoutPanelTop, Terminal } from "lucide-react";
 import { UserMessage, AIMessage, type ChatArtifactCard } from "./MessageComponents";
 import { CinematicPlayer } from "./meta/CinematicPlayer";
 import { Composer } from "./Composer";
 import { useChatStore, type Session, type SessionMessage } from "../../stores";
+import type { AgentFileEntry, AgentToolLogEntry } from "../../stores/chat/types";
 import { useMessageSync, useSendMessage } from "../../hooks/queries";
 import { createClientMessageId, dedupeMessages } from "../../stores/chat/helpers";
 import TaskStatusBar from "./TaskStatusBar";
@@ -27,6 +28,8 @@ type DisplayMessage = {
   assistantSource?: string;
   assistantWarning?: boolean;
   errorCode?: string;
+  agentFiles?: AgentFileEntry[];
+  agentToolLog?: AgentToolLogEntry[];
 };
 
 type SceneVersionRecord = NonNullable<Session["currentScene"]>;
@@ -431,6 +434,8 @@ export function ChatContainer() {
     sessionsError,
     isBootstrapping,
     isSending,
+    agentFiles,
+    agentToolLog,
     activeRequestId,
     thinkingText,
     thinkingStep,
@@ -524,7 +529,19 @@ export function ChatContainer() {
   const activeStatusStep = activeTaskProgress?.liveThought?.step ?? activeTaskProgress?.currentStep ?? thinkingStep;
   const activeStatusText = activeTaskProgress?.liveThought?.text ?? thinkingText ?? null;
 
-  const displayMessages = useMemo(() => buildDisplayMessages(dedupeMessages(activeMessages)), [activeMessages]);
+  const displayMessages = useMemo(() => {
+    const built = buildDisplayMessages(dedupeMessages(activeMessages));
+    // Attach live agent-mode files + tool log to the last assistant message when streaming
+    if (isSending && (agentFiles.length > 0 || agentToolLog.length > 0)) {
+      for (let i = built.length - 1; i >= 0; i--) {
+        if (built[i]!.message.role === "assistant") {
+          built[i] = { ...built[i]!, agentFiles, agentToolLog };
+          break;
+        }
+      }
+    }
+    return built;
+  }, [activeMessages, isSending, agentFiles, agentToolLog]);
   const sceneVersions = useMemo(
     () => (activeSession?.sceneVersions ?? []).filter((version): version is SceneVersionRecord => {
       return Boolean(version && typeof version.versionId === "string");
@@ -700,16 +717,19 @@ export function ChatContainer() {
             ) : (
               <>
                 <div className="flex-1 min-h-[40px]" />
-          {displayMessages.map(({ message, thoughts, sceneId, promptContext, skill, assistantSource, assistantWarning, errorCode }, index) => {
+          {displayMessages.map(({ message, thoughts, sceneId, promptContext, skill, assistantSource, assistantWarning, errorCode, agentFiles: msgAgentFiles, agentToolLog: msgAgentToolLog }, index) => {
             const isLast = index === displayMessages.length - 1;
+            const isLatest = isLast;
             const thinkingDuration = getThinkingDuration(thoughts);
             const matchedVersion = message.role === 'assistant'
               ? (versionsByMessageId.get(message.id)
                 ?? (sceneId ? uniqueVersionsBySceneId.get(sceneId) : undefined)
                 ?? undefined)
               : undefined;
-            const resolvedSceneId = matchedVersion?.sceneId ?? sceneId;
-            const resolvedVersionId = matchedVersion?.versionId ?? null;
+            const isLiveStreaming = isLast && lastAssistantIsThinking && !message.content;
+            const liveScene = (isLiveStreaming || isLast) ? activeSession?.currentScene : null;
+            const resolvedSceneId = matchedVersion?.sceneId ?? sceneId ?? liveScene?.sceneId;
+            const resolvedVersionId = matchedVersion?.versionId ?? liveScene?.versionId ?? null;
             const isPreviewActive = Boolean(
               isWorkspaceVisible
               && panelView === 'preview'
@@ -780,7 +800,6 @@ export function ChatContainer() {
                   key={message.id || `msg-user-${index}`}
                   content={message.content}
                   timestamp={Date.parse(message.createdAt)}
-                  variant="meta"
                 />
               );
             }
@@ -804,7 +823,6 @@ export function ChatContainer() {
                 meta={message.meta}
                 isPreviewActive={isPreviewActive}
                 isCodeActive={isCodeActive}
-                variant="meta"
                 onSceneCode={resolvedVersionId
                   ? () => {
                       void handleMessageSceneAction('code', resolvedVersionId);
@@ -816,8 +834,8 @@ export function ChatContainer() {
                     }
                   : undefined}
                 artifactCards={artifactCards}
-                sceneCode={matchedVersion?.code}
-                sceneSkill={matchedVersion?.skill}
+                sceneCode={matchedVersion?.code ?? liveScene?.code ?? null}
+                sceneSkill={matchedVersion?.skill ?? liveScene?.skill ?? null}
                 sceneVersionId={resolvedVersionId}
                 onSceneExpand={resolvedVersionId
                   ? () => {
@@ -829,6 +847,10 @@ export function ChatContainer() {
                 outputKind={matchedVersion?.outputKind ?? null}
                 mediaStatusStage={isLast ? (activeTaskProgress?.mediaStage ?? 'idle') : (matchedVersion?.mediaUrl ? 'ready' : 'idle')}
                 mediaStatusText={isLast ? (activeTaskProgress?.mediaStatusText ?? null) : null}
+                messageKind={message.kind ?? null}
+                agentFiles={msgAgentFiles}
+                agentToolLog={msgAgentToolLog}
+                isLatest={isLatest}
               />
             );
           })}
@@ -842,7 +864,7 @@ export function ChatContainer() {
               thinkingStep={thinkingStep}
               thoughts={[{ text: thinkingText ?? "", step: thinkingStep, timestamp: Date.now(), meta: [thinkingStep, "status:streaming"] }]}
               taskProgress={activeTaskProgress}
-              variant="meta"
+              isLatest={true}
             />
           )}
               </>
@@ -868,15 +890,15 @@ export function ChatContainer() {
               </div>
             )}
 
-            {/* Floating Workspace Button — only on chat, only when scene exists */}
-            {activeSession?.currentScene && (
+            {/* Floating Agent Terminal Button — always available when a session is active */}
+            {activeSession && (
               <button
                 type="button"
                 onClick={openWorkspace}
                 className="absolute right-4 bottom-24 z-30 flex items-center gap-2 rounded-full border border-white/[0.06] bg-[#18181B]/80 px-3.5 py-2 backdrop-blur-xl text-[11px] font-medium text-white/60 shadow-[0_4px_24px_rgba(0,0,0,0.4)] transition-all duration-200 hover:bg-[#18181B] hover:text-white/90 hover:shadow-[0_4px_32px_rgba(0,0,0,0.5)] active:scale-95 md:right-8 md:bottom-28"
               >
-                <LayoutPanelTop className="h-3.5 w-3.5" />
-                <span className="hidden sm:inline">Workspace</span>
+                <Terminal className="h-3.5 w-3.5 text-[#79c0ff]/60" />
+                <span className="hidden sm:inline">Agent Terminal</span>
               </button>
             )}
 
@@ -926,7 +948,6 @@ export function ChatContainer() {
                   onRemoveImage={clearComposerImage}
                   isSending={isSending}
                   onStop={handleStop}
-                  variant="meta"
                   placeholder="Send a message..."
                   providers={providers}
                   activeProviderId={activeProviderId}

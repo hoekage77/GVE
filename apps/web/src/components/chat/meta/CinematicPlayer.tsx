@@ -151,6 +151,7 @@ export function CinematicPlayer() {
                   />
                 ) : (
                   <SceneViewer
+                    key={`theater-${activeArtifactId}-${activeScene?.versionId ?? 'none'}`}
                     ref={viewerRef}
                     code={activeScene.code}
                     skill={activeScene.skill}

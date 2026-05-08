@@ -6,6 +6,7 @@ import WorkspaceFileTree from './WorkspaceFileTree';
 import WorkspaceFileViewer from './WorkspaceFileViewer';
 import DiffViewer from './DiffViewer';
 import { useChatStore } from '../../stores';
+import { useClientQualityLoop } from '../../hooks/useClientQualityLoop';
 import { useEffect, useMemo, useState } from 'react';
 
 const PANEL_EXIT_MS = 260;
@@ -20,6 +21,7 @@ export default function WorkspacePanel() {
     openPanel,
     sendSceneCommand,
     rerunScene,
+    setCurrentSceneCode,
     taskProgressBySession,
     workspaceRecord
   } = useChatStore();
@@ -45,15 +47,34 @@ export default function WorkspacePanel() {
   const currentMediaUrl = currentScene?.mediaUrl ?? currentScene?.previewUrl ?? null;
   const taskProgress = activeSessionId ? taskProgressBySession[activeSessionId] ?? null : null;
 
+  // Get last user message content as prompt for quality analysis
+  const lastUserMessage = currentSession?.messages?.slice().reverse().find(m => m.role === "user");
+  const prompt = lastUserMessage?.content ?? null;
+
+  // Client-side quality loop: analyze execution telemetry and request patches
+  useClientQualityLoop({
+    code: currentCode,
+    skill: currentSkill,
+    prompt,
+    sessionId: activeSessionId,
+    enabled: true,
+    maxIterations: 2,
+    threshold: 75
+  });
+
   // Multi-skill composite workspace
   const workspaceFiles = workspaceRecord?.files ?? null;
   const hasMultiSkillWorkspace = workspaceFiles && Object.keys(workspaceFiles).length > 1;
-  const compositeFiles = hasMultiSkillWorkspace
+  const compositeFiles = useMemo(() => hasMultiSkillWorkspace
     ? Object.fromEntries(Object.entries(workspaceFiles).map(([path, entry]) => [path, entry.content]))
-    : undefined;
-  const compositeFileSkills = hasMultiSkillWorkspace
+    : undefined,
+    [workspaceFiles, hasMultiSkillWorkspace]
+  );
+  const compositeFileSkills = useMemo(() => hasMultiSkillWorkspace
     ? Object.fromEntries(Object.entries(workspaceFiles).map(([path, entry]) => [path, entry.skill]))
-    : undefined;
+    : undefined,
+    [workspaceFiles, hasMultiSkillWorkspace]
+  );
 
   useEffect(() => {
     if (!panelView) {
@@ -101,25 +122,20 @@ export default function WorkspacePanel() {
     }
   };
 
-  const handleRunScene = async (code: string) => {
-    if (isRerunning) {
+  const handleRunScene = (code: string) => {
+    if (!activeSessionId || isRerunning) {
       return;
     }
 
     setPanelError(null);
     setIsRerunning(true);
 
-    try {
-      const rerunSucceeded = await rerunScene({ codeOverride: code });
-      if (!rerunSucceeded) {
-        setPanelError('Unable to rerun the selected scene.');
-        return;
-      }
+    // Update the scene code locally so the iframe re-renders client-side
+    setCurrentSceneCode(activeSessionId, code);
+    openPanel('preview');
 
-      openPanel('preview');
-    } finally {
-      setIsRerunning(false);
-    }
+    // Give the iframe a moment to rebuild, then clear the spinner
+    setTimeout(() => setIsRerunning(false), 800);
   };
 
   if (!isMounted) {
@@ -216,10 +232,12 @@ export default function WorkspacePanel() {
                       />
                     ) : (
                       <SceneViewer
+                        key={`${activeSessionId}-${currentScene?.versionId ?? 'none'}-${currentScene?.sceneId ?? 'none'}`}
                         code={currentCode}
                         skill={currentSkill}
                         files={compositeFiles}
                         fileSkills={compositeFileSkills}
+                        streaming={Boolean(currentScene?.streaming)}
                       />
                     )}
                   </div>
@@ -230,6 +248,7 @@ export default function WorkspacePanel() {
                       skill={currentSkill}
                       readOnly={true}
                       runPending={isRerunning}
+                      streaming={Boolean(currentScene?.streaming)}
                       onRun={(code) => { void handleRunScene(code); }}
                     />
                   </div>

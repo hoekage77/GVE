@@ -8,6 +8,7 @@ export interface ProviderCapabilities {
   vision: boolean;
   streaming: boolean;
   reasoning?: boolean;
+  supportsPromptCaching?: boolean;
 }
 
 export interface ProviderLimits {
@@ -53,9 +54,17 @@ export interface ChatCompletionPayload {
   [key: string]: unknown;
 }
 
+export type ChatMessageContent =
+  | string
+  | null
+  | Array<
+      | { type: "text"; text: string }
+      | { type: "image_url"; image_url: { url: string; detail?: "low" | "high" | "auto" } }
+    >;
+
 export interface ChatMessage {
   role: "system" | "user" | "assistant" | "tool";
-  content: string | null;
+  content: ChatMessageContent;
   name?: string;
   tool_calls?: ToolCall[];
   tool_call_id?: string;

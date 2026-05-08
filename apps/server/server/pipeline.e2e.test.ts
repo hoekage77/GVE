@@ -10,7 +10,7 @@ describe("pipeline HTTP (plan + execute)", () => {
   let server: ReturnType<typeof createServer>;
 
   beforeAll(async () => {
-    const app = createApp();
+    const app = await createApp();
     server = createServer(app);
     await new Promise<void>((resolve, reject) => {
       server.listen(0, "127.0.0.1", () => resolve());

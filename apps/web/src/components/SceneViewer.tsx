@@ -19,6 +19,7 @@ interface SceneViewerProps {
   fileSkills?: Record<string, string>;
   onError?: (error: string) => void;
   onExpand?: () => void;
+  streaming?: boolean;
 }
 
 const CDN_VENDOR_FILES: Record<string, string[]> = {
@@ -99,8 +100,33 @@ function getInitialGridEnabled(): boolean {
   return stored === "1";
 }
 
+function sanitizeGeometryParameters(code: string): string {
+  // Clamp extreme geometry parameters that crash GPUs
+  return code
+    // IcosahedronGeometry(radius, detail) — detail > 4 is impossibly high
+    .replace(/IcosahedronGeometry\s*\(\s*([^,]+),\s*(\d+)\s*\)/g, (_m, radius, detail) => {
+      const clamped = Math.min(parseInt(detail, 10), 4);
+      return `IcosahedronGeometry(${radius}, ${clamped})`;
+    })
+    // SphereGeometry(radius, widthSeg, heightSeg)
+    .replace(/SphereGeometry\s*\(\s*([^,]+),\s*(\d+)(?:\s*,\s*(\d+))?\s*\)/g, (_m, radius, wSeg, hSeg) => {
+      const w = Math.min(parseInt(wSeg, 10), 64);
+      return hSeg ? `SphereGeometry(${radius}, ${w}, ${Math.min(parseInt(hSeg, 10), 32)})` : `SphereGeometry(${radius}, ${w})`;
+    })
+    // RingGeometry(inner, outer, thetaSeg, phiSeg)
+    .replace(/RingGeometry\s*\(\s*([^,]+)\s*,\s*([^,]+)\s*,\s*(\d+)(?:\s*,\s*(\d+))?\s*\)/g, (_m, inner, outer, tSeg, pSeg) => {
+      const t = Math.min(parseInt(tSeg, 10), 128);
+      return pSeg ? `RingGeometry(${inner}, ${outer}, ${t}, ${Math.min(parseInt(pSeg, 10), 8)})` : `RingGeometry(${inner}, ${outer}, ${t})`;
+    })
+    // TorusGeometry(radius, tube, radialSeg, tubularSeg)
+    .replace(/TorusGeometry\s*\(\s*([^,]+)\s*,\s*([^,]+)\s*,\s*(\d+)\s*,\s*(\d+)\s*\)/g, (_m, radius, tube, rSeg, tSeg) => {
+      return `TorusGeometry(${radius}, ${tube}, ${Math.min(parseInt(rSeg, 10), 16)}, ${Math.min(parseInt(tSeg, 10), 100)})`;
+    });
+}
+
 function buildSceneHTML(code: string, skill: string, vendorDataUrls?: Record<string, string>, cdnInlineScripts?: string): string {
-  const userCodeSource = JSON.stringify(code ?? "");
+  const sanitizedCode = sanitizeGeometryParameters(code);
+  const userCodeSource = JSON.stringify(sanitizedCode ?? "");
 
   const cdnScripts = cdnInlineScripts || '';
 
@@ -120,9 +146,9 @@ function buildSceneHTML(code: string, skill: string, vendorDataUrls?: Record<str
       const __container = document.getElementById('scene-container');
       const __scene = new THREE.Scene();
       const __camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-      const __renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+      const __renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, powerPreference: 'low-power', stencil: false });
       __renderer.setSize(window.innerWidth, window.innerHeight);
-      __renderer.setPixelRatio(window.devicePixelRatio);
+      __renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
       __renderer.setClearColor(0x0a0a0a, 1);
       if (window.THREE && window.THREE.SRGBColorSpace) {
         __renderer.outputColorSpace = window.THREE.SRGBColorSpace;
@@ -133,10 +159,7 @@ function buildSceneHTML(code: string, skill: string, vendorDataUrls?: Record<str
         __renderer.toneMapping = window.THREE.ACESFilmicToneMapping;
       }
       __renderer.toneMappingExposure = 1.0;
-      __renderer.shadowMap.enabled = true;
-      if (window.THREE && window.THREE.PCFSoftShadowMap) {
-        __renderer.shadowMap.type = window.THREE.PCFSoftShadowMap;
-      }
+      __renderer.shadowMap.enabled = false; // User code must opt-in; default off for performance
       __container.appendChild(__renderer.domElement);
 
       const __controlsCtor = window.OrbitControls || (window.THREE && window.THREE.OrbitControls) || null;
@@ -291,11 +314,15 @@ function buildSceneHTML(code: string, skill: string, vendorDataUrls?: Record<str
       window.container = __container;
       window.__terranetGridHelper = __gridHelper;
       
-      // Handle resize
+      // Handle resize — debounced to avoid thrashing the renderer during panel transitions
+      let __resizeTimer = null;
       window.addEventListener('resize', () => {
-        __camera.aspect = window.innerWidth / window.innerHeight;
-        __camera.updateProjectionMatrix();
-        __renderer.setSize(window.innerWidth, window.innerHeight);
+        if (__resizeTimer) clearTimeout(__resizeTimer);
+        __resizeTimer = setTimeout(() => {
+          __camera.aspect = window.innerWidth / window.innerHeight;
+          __camera.updateProjectionMatrix();
+          __renderer.setSize(window.innerWidth, window.innerHeight);
+        }, 120);
       });
 
       window.__terranetSceneControl = {
@@ -331,7 +358,18 @@ function buildSceneHTML(code: string, skill: string, vendorDataUrls?: Record<str
       };
     `,
     p5js: `
-      // p5.js will auto-initialize with setup() and draw()
+      // Relocate p5.js canvas into #scene-container after global-mode init
+      const __p5Root = document.getElementById('scene-container');
+      window.addEventListener('load', function() {
+        setTimeout(function() {
+          var canvases = document.querySelectorAll('body > canvas, body > .p5Canvas');
+          for (var i = 0; i < canvases.length; i++) {
+            if (__p5Root && canvases[i].parentNode !== __p5Root) {
+              __p5Root.appendChild(canvases[i]);
+            }
+          }
+        }, 0);
+      });
     `,
     d3js: `
       // D3.js container ready
@@ -359,10 +397,11 @@ function buildSceneHTML(code: string, skill: string, vendorDataUrls?: Record<str
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline' 'unsafe-eval' blob: data:; connect-src 'self' https:; img-src blob: data: https:; style-src 'unsafe-inline'; media-src blob: data:; font-src 'none'; object-src 'none'; child-src 'none'; frame-src 'none'; base-uri 'none'; form-action 'none';">
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { overflow: hidden; background: #0a0a0a; }
-    #scene-container { width: 100vw; height: 100vh; }
+    body { overflow: hidden; background: #0a0a0a; position: relative; }
+    #scene-container { position: absolute; inset: 0; width: 100%; height: 100%; }
     #error-display {
       position: fixed;
       bottom: 12px;
@@ -501,27 +540,59 @@ function buildSceneHTML(code: string, skill: string, vendorDataUrls?: Record<str
 
     __patchWebGLUniformVectors();
 
+    // Resource limits & security patches
+    (function() {
+      window.Worker = undefined;
+      window.SharedArrayBuffer = undefined;
+      window.WebAssembly = undefined;
+      const __nativeFetch = window.fetch;
+      window.fetch = function(url, opts) {
+        if (typeof url === 'string' && !url.match(/^https?:|^blob:|^data:/i)) {
+          throw new Error('Sandbox fetch blocked: ' + url);
+        }
+        return __nativeFetch.apply(this, arguments);
+      };
+    })();
+
     const __nativeRequestAnimationFrame = window.requestAnimationFrame.bind(window);
     let __scenePaused = false;
     let __gameModeEnabled = false;
     let __awaitingPointerLock = false;
+    const __TARGET_FPS = 60;
+    const __FRAME_BUDGET = 1000 / __TARGET_FPS; // ~16.67 ms
 
     window.requestAnimationFrame = function(callback) {
+      // Each RAF call gets its own throttle state so multiple loops don't collide.
+      let lastTime = 0;
+
       return __nativeRequestAnimationFrame(function frameProxy(time) {
-        if (!__scenePaused) {
+        if (__scenePaused) {
+          const waitUntilPlay = function(nextTime) {
+            if (__scenePaused) {
+              __nativeRequestAnimationFrame(waitUntilPlay);
+              return;
+            }
+            lastTime = nextTime; // reset to avoid a massive delta jump
+            callback(nextTime);
+          };
+          __nativeRequestAnimationFrame(waitUntilPlay);
+          return;
+        }
+
+        if (!lastTime) {
+          lastTime = time;
           callback(time);
           return;
         }
 
-        const waitUntilPlay = function(nextTime) {
-          if (__scenePaused) {
-            __nativeRequestAnimationFrame(waitUntilPlay);
-            return;
-          }
-          callback(nextTime);
-        };
-
-        __nativeRequestAnimationFrame(waitUntilPlay);
+        const delta = time - lastTime;
+        if (delta >= __FRAME_BUDGET) {
+          // Accurate timing: keep the fractional remainder so we don't drift
+          lastTime = time - (delta % __FRAME_BUDGET);
+          callback(time);
+        } else {
+          __nativeRequestAnimationFrame(frameProxy);
+        }
       });
     };
 
@@ -730,16 +801,145 @@ function buildSceneHTML(code: string, skill: string, vendorDataUrls?: Record<str
       }
     });
     
+    // Telemetry capture
+    const __telemetry = {
+      logs: [],
+      renderCount: 0,
+      frameCount: 0,
+      startTime: performance.now()
+    };
+
+    // Patch console to capture logs
+    const __origConsole = {
+      log: console.log,
+      warn: console.warn,
+      error: console.error,
+      info: console.info
+    };
+
+    function __captureLog(level, args) {
+      __telemetry.logs.push({
+        level,
+        message: args.map(a => typeof a === 'string' ? a : JSON.stringify(a)).join(' '),
+        timestamp: new Date().toISOString()
+      });
+    }
+
+    console.log = (...args) => { __captureLog('log', args); __origConsole.log.apply(console, args); };
+    console.warn = (...args) => { __captureLog('warn', args); __origConsole.warn.apply(console, args); };
+    console.error = (...args) => { __captureLog('error', args); __origConsole.error.apply(console, args); };
+    console.info = (...args) => { __captureLog('info', args); __origConsole.info.apply(console, args); };
+
+    // Note: requestAnimationFrame left untouched to avoid per-frame overhead.
+    // Frame counts are estimated from render loop telemetry instead.
+
     try {
       ${skillInit[skill] || ''}
       const __userCodeSource = ${userCodeSource};
-      const __executeGeneratedCode = new Function(__userCodeSource);
-      __executeGeneratedCode.call(window);
+      const __userScript = document.createElement('script');
+      __userScript.textContent = __userCodeSource;
+      document.head.appendChild(__userScript);
+
+      // Capture GPU info for normalized scoring
+      const __canvas = document.createElement('canvas');
+      const __gl = __canvas.getContext('webgl') || __canvas.getContext('webgl2');
+      const __deviceInfo = {
+        gpuRenderer: __gl ? __gl.getParameter(__gl.RENDERER) : 'unknown',
+        gpuVendor: __gl ? __gl.getParameter(__gl.VENDOR) : 'unknown',
+        userAgent: navigator.userAgent
+      };
+
+      // Send telemetry after successful execution
+      setTimeout(() => {
+        parent.postMessage({
+          type: 'scene:telemetry',
+          telemetry: {
+            success: true,
+            durationMs: Math.round(performance.now() - __telemetry.startTime),
+            renderCount: __telemetry.renderCount,
+            frameCount: __telemetry.frameCount,
+            logs: __telemetry.logs.slice(0, 50),
+            errorCount: __telemetry.logs.filter(l => l.level === 'error').length,
+            warningCount: __telemetry.logs.filter(l => l.level === 'warn').length,
+            deviceInfo: __deviceInfo
+          }
+        }, '*');
+
+        // Capture screenshot for vision-in-the-loop analysis
+        const __sceneCanvas = document.querySelector('canvas');
+        if (__sceneCanvas && __sceneCanvas.width > 0 && __sceneCanvas.height > 0) {
+          const __thumbSize = 256;
+          const __thumb = document.createElement('canvas');
+          __thumb.width = __thumbSize;
+          __thumb.height = __thumbSize;
+          const __thumbCtx = __thumb.getContext('2d', { willReadFrequently: true });
+          if (__thumbCtx) {
+            __thumbCtx.drawImage(__sceneCanvas, 0, 0, __thumbSize, __thumbSize);
+            const __imgData = __thumbCtx.getImageData(0, 0, __thumbSize, __thumbSize).data;
+
+            // Compute dHash (perceptual hash) for deduplication
+            function __computeDHash(data, size) {
+              const gray = [];
+              for (let i = 0; i < size * size; i++) {
+                const r = data[i * 4];
+                const g = data[i * 4 + 1];
+                const b = data[i * 4 + 2];
+                gray.push(Math.round(0.299 * r + 0.587 * g + 0.114 * b));
+              }
+              let hash = '';
+              for (let y = 0; y < size; y++) {
+                for (let x = 0; x < size - 1; x++) {
+                  hash += gray[y * size + x] > gray[y * size + x + 1] ? '1' : '0';
+                }
+              }
+              return hash;
+            }
+
+            const __dhash = __computeDHash(__imgData, __thumbSize);
+            const __dataUrl = __thumb.toDataURL('image/jpeg', 0.7);
+
+            parent.postMessage({
+              type: 'scene:screenshot',
+              screenshot: {
+                dataUrl: __dataUrl,
+                hash: __dhash,
+                width: __sceneCanvas.width,
+                height: __sceneCanvas.height
+              }
+            }, '*');
+          }
+        }
+      }, 100);
     } catch (err) {
       const errorDisplay = document.getElementById('error-display');
       errorDisplay.textContent = 'Error: ' + err.message;
       errorDisplay.style.display = 'block';
       parent.postMessage({ type: 'scene:error', error: err.message }, '*');
+
+      // Capture GPU info for normalized scoring
+      const __canvasErr = document.createElement('canvas');
+      const __glErr = __canvasErr.getContext('webgl') || __canvasErr.getContext('webgl2');
+      const __deviceInfoErr = {
+        gpuRenderer: __glErr ? __glErr.getParameter(__glErr.RENDERER) : 'unknown',
+        gpuVendor: __glErr ? __glErr.getParameter(__glErr.VENDOR) : 'unknown',
+        userAgent: navigator.userAgent
+      };
+
+      // Send telemetry even on error
+      parent.postMessage({
+        type: 'scene:telemetry',
+        telemetry: {
+          success: false,
+          durationMs: Math.round(performance.now() - __telemetry.startTime),
+          renderCount: __telemetry.renderCount,
+          frameCount: __telemetry.frameCount,
+          logs: __telemetry.logs.slice(0, 50),
+          errorCount: __telemetry.logs.filter(l => l.level === 'error').length + 1,
+          warningCount: __telemetry.logs.filter(l => l.level === 'warn').length,
+          error: err.message,
+          deviceInfo: __deviceInfoErr
+        }
+      }, '*');
     }
   </script>
 </body>
@@ -815,12 +1015,14 @@ function buildCompositeSceneHTML(
       const s = fileSkills[path];
       if (!s) return '';
       const preamble = SKILL_PREAMBLES[s] || '';
+      const safeCode = s === 'threejs' ? sanitizeGeometryParameters(code) : code;
       return `<script type="module">
 ${preamble}
 try {
-  const __userCodeSource = ${JSON.stringify(code)};
-  const __executeGeneratedCode = new Function(__userCodeSource);
-  __executeGeneratedCode.call(window);
+  const __userCodeSource = ${JSON.stringify(safeCode)};
+  const __userScript = document.createElement('script');
+  __userScript.textContent = __userCodeSource;
+  document.head.appendChild(__userScript);
 } catch (err) {
   console.error('[GenVis]', err);
   parent.postMessage({ type: 'scene:error', error: err.message }, '*');
@@ -835,6 +1037,7 @@ try {
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline' 'unsafe-eval' blob: data:; connect-src 'self' https:; img-src blob: data: https:; style-src 'unsafe-inline'; media-src blob: data:; font-src 'none'; object-src 'none'; child-src 'none'; frame-src 'none'; base-uri 'none'; form-action 'none';">
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body { overflow: hidden; background: #0a0a0a; }
@@ -861,7 +1064,7 @@ try {
 </html>`;
 }
 
-const SceneViewer = forwardRef<SceneViewerRef, SceneViewerProps>(({ code, skill, files, fileSkills, onError, onExpand }, ref) => {
+const SceneViewer = forwardRef<SceneViewerRef, SceneViewerProps>(({ code, skill, files, fileSkills, onError, onExpand, streaming = false }, ref) => {
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const [runtimeError, setRuntimeError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -873,6 +1076,14 @@ const SceneViewer = forwardRef<SceneViewerRef, SceneViewerProps>(({ code, skill,
   const [isGamepadConnected, setIsGamepadConnected] = useState(false);
   const [isGridEnabled, setIsGridEnabled] = useState(getInitialGridEnabled);
   const [pointerLockHint, setPointerLockHint] = useState<string | null>(null);
+  const [isBuilding, setIsBuilding] = useState(false);
+
+  // Debounce timer for streaming mode
+  const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Batch iframe postMessages to avoid long message handlers
+  const messageQueueRef = useRef<MessageEvent['data'][]>([]);
+  const flushHandleRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useImperativeHandle(ref, () => ({
     zoomIn: handleZoomIn,
@@ -885,48 +1096,90 @@ const SceneViewer = forwardRef<SceneViewerRef, SceneViewerProps>(({ code, skill,
 
   // Listen for errors from iframe
   useEffect(() => {
-    const handleMessage = (event: MessageEvent) => {
-      if (event.data?.type === 'scene:error') {
-        const error = event.data.error;
-        setRuntimeError(error);
-        onError?.(error);
-      }
+    const SCENE_MSG_PREFIX = 'scene:';
 
-      if (event.data?.type === 'scene:orbit') {
-        setOrbitEnabled(Boolean(event.data.enabled));
-      }
+    const flushMessages = () => {
+      flushHandleRef.current = null;
+      const queue = messageQueueRef.current;
+      if (queue.length === 0) return;
 
-      if (event.data?.type === 'scene:playback') {
-        setIsPlaying(!Boolean(event.data.paused));
-      }
+      // Deduplicate: for state-type messages keep only the LAST value per type
+      const lastByType = new Map<string, MessageEvent['data']>();
+      const forwardQueue: MessageEvent['data'][] = [];
 
-      if (event.data?.type === 'scene:game_mode') {
-        setIsGameModeEnabled(Boolean(event.data.enabled));
+      for (const data of queue) {
+        const t = data?.type as string | undefined;
+        if (!t) continue;
+        // Forward-type messages (telemetry/screenshot) must all be sent
+        if (t === 'scene:telemetry' || t === 'scene:screenshot') {
+          forwardQueue.push(data);
+        } else {
+          lastByType.set(t, data);
+        }
       }
+      queue.length = 0;
 
-      if (event.data?.type === 'scene:pointer_lock') {
-        setIsPointerLocked(Boolean(event.data.locked));
+      // Apply deduplicated state — at most one setState per message type
+      const error = lastByType.get('scene:error');
+      if (error && !streaming) {
+        setRuntimeError(error.error);
+        onError?.(error.error);
       }
+      const orbit = lastByType.get('scene:orbit');
+      if (orbit) setOrbitEnabled(Boolean(orbit.enabled));
 
-      if (event.data?.type === 'scene:pointer_lock_hint') {
-        const message = typeof event.data.message === 'string' ? event.data.message : null;
-        setPointerLockHint(message);
-      }
+      const playback = lastByType.get('scene:playback');
+      if (playback) setIsPlaying(!Boolean(playback.paused));
 
-      if (event.data?.type === 'scene:gamepad') {
-        setIsGamepadConnected(Boolean(event.data.connected));
-      }
+      const gameMode = lastByType.get('scene:game_mode');
+      if (gameMode) setIsGameModeEnabled(Boolean(gameMode.enabled));
 
-      if (event.data?.type === 'scene:grid') {
-        setIsGridEnabled(Boolean(event.data.enabled));
+      const ptrLock = lastByType.get('scene:pointer_lock');
+      if (ptrLock) setIsPointerLocked(Boolean(ptrLock.locked));
+
+      const ptrHint = lastByType.get('scene:pointer_lock_hint');
+      if (ptrHint) setPointerLockHint(typeof ptrHint.message === 'string' ? ptrHint.message : null);
+
+      const gamepad = lastByType.get('scene:gamepad');
+      if (gamepad) setIsGamepadConnected(Boolean(gamepad.connected));
+
+      const grid = lastByType.get('scene:grid');
+      if (grid) setIsGridEnabled(Boolean(grid.enabled));
+
+      // Forward messages (not deduplicated)
+      for (const data of forwardQueue) {
+        if (data.type === 'scene:telemetry') {
+          window.parent.postMessage({ type: 'scene:telemetry_forward', telemetry: data.telemetry }, '*');
+        } else if (data.type === 'scene:screenshot') {
+          window.parent.postMessage({ type: 'scene:screenshot_forward', screenshot: data.screenshot }, '*');
+        }
       }
     };
 
+    const handleMessage = (event: MessageEvent) => {
+      // Early filter: ignore non-scene messages entirely
+      if (!event.data?.type || !(event.data.type as string).startsWith(SCENE_MSG_PREFIX)) return;
+
+      messageQueueRef.current.push(event.data);
+
+      // Debounce: coalesce burst messages over 80ms window into a single flush
+      if (flushHandleRef.current) clearTimeout(flushHandleRef.current);
+      flushHandleRef.current = setTimeout(flushMessages, 80);
+    };
+
     window.addEventListener('message', handleMessage);
-    return () => window.removeEventListener('message', handleMessage);
-  }, [onError]);
+    return () => {
+      window.removeEventListener('message', handleMessage);
+      if (flushHandleRef.current) {
+        clearTimeout(flushHandleRef.current);
+        flushMessages();
+      }
+    };
+  }, [onError, streaming]);
 
   // Render scene when code/skill or files change
+  // During streaming we skip iframe rebuilds entirely — the code editor shows live
+  // progress, and we only build the 3D scene once streaming finishes.
   useEffect(() => {
     const isMultiSkill = files && fileSkills && Object.keys(files).length > 0;
     const hasSingle = code && skill;
@@ -937,63 +1190,81 @@ const SceneViewer = forwardRef<SceneViewerRef, SceneViewerProps>(({ code, skill,
     }
     if (!iframeRef.current) return;
 
-    setIsLoading(true);
-    setRuntimeError(null);
-    setIsRendered(false);
-    setIsPlaying(true);
-    setIsGameModeEnabled(false);
-    setIsPointerLocked(false);
-    setIsGamepadConnected(false);
-    setPointerLockHint(null);
+    // Skip iframe rebuilds while streaming — just show the building indicator
+    if (streaming) {
+      setIsBuilding(true);
+      return;
+    }
 
-    let cancelled = false;
+    // Cancel any pending debounced render from a previous streaming burst
+    if (debounceTimerRef.current) {
+      clearTimeout(debounceTimerRef.current);
+      debounceTimerRef.current = null;
+    }
 
-    const renderScene = async () => {
-      const iframe = iframeRef.current;
-      if (!iframe || cancelled) return;
+    const executeRender = () => {
+      setIsLoading(true);
+      setIsBuilding(false);
+      setRuntimeError(null);
+      setIsRendered(false);
+      setIsPlaying(true);
+      setIsGameModeEnabled(false);
+      setIsPointerLocked(false);
+      setIsGamepadConnected(false);
+      setPointerLockHint(null);
 
-      let html: string;
-      if (isMultiSkill && files && fileSkills) {
-        const allSkills = [...new Set(Object.values(fileSkills))];
-        const needsThree = allSkills.includes('threejs');
-        const vendorDataUrls = needsThree ? await fetchThreeVendorDataUrls() : undefined;
-        if (cancelled) return;
+      let cancelled = false;
 
-        const cdnPaths = allSkills.flatMap((s) => CDN_VENDOR_FILES[s] || []);
-        const cdnInlineScripts = cdnPaths.length > 0 ? await fetchCdnInlineScripts(cdnPaths) : undefined;
-        if (cancelled) return;
+      const renderScene = async () => {
+        const iframe = iframeRef.current;
+        if (!iframe || cancelled) return;
 
-        html = buildCompositeSceneHTML(files, fileSkills, vendorDataUrls, cdnInlineScripts);
-      } else {
-        const vendorDataUrls = skill === 'threejs' ? await fetchThreeVendorDataUrls() : undefined;
-        if (cancelled) return;
+        let html: string;
+        if (isMultiSkill && files && fileSkills) {
+          const allSkills = [...new Set(Object.values(fileSkills))];
+          const needsThree = allSkills.includes('threejs');
+          const vendorDataUrls = needsThree ? await fetchThreeVendorDataUrls() : undefined;
+          if (cancelled) return;
 
-        const cdnPaths = skill ? CDN_VENDOR_FILES[skill] : undefined;
-        const cdnInlineScripts = cdnPaths ? await fetchCdnInlineScripts(cdnPaths) : undefined;
-        if (cancelled) return;
+          const cdnPaths = allSkills.flatMap((s) => CDN_VENDOR_FILES[s] || []);
+          const cdnInlineScripts = cdnPaths.length > 0 ? await fetchCdnInlineScripts(cdnPaths) : undefined;
+          if (cancelled) return;
 
-        html = buildSceneHTML(code!, skill!, vendorDataUrls, cdnInlineScripts);
-      }
+          html = buildCompositeSceneHTML(files, fileSkills, vendorDataUrls, cdnInlineScripts);
+        } else {
+          const vendorDataUrls = skill === 'threejs' ? await fetchThreeVendorDataUrls() : undefined;
+          if (cancelled) return;
 
-      iframe.srcdoc = html;
+          const cdnPaths = skill ? CDN_VENDOR_FILES[skill] : undefined;
+          const cdnInlineScripts = cdnPaths ? await fetchCdnInlineScripts(cdnPaths) : undefined;
+          if (cancelled) return;
 
-      const timer = setTimeout(() => {
-        if (!cancelled) {
-          setIsLoading(false);
-          setIsRendered(true);
+          html = buildSceneHTML(code!, skill!, vendorDataUrls, cdnInlineScripts);
         }
-      }, 1000);
 
-      return () => clearTimeout(timer);
+        iframe.srcdoc = html;
+
+        const timer = setTimeout(() => {
+          if (!cancelled) {
+            setIsLoading(false);
+            setIsBuilding(false);
+            setIsRendered(true);
+          }
+        }, 200);
+
+        return () => clearTimeout(timer);
+      };
+
+      const result = renderScene();
+
+      return () => {
+        cancelled = true;
+        result.then(cleanup => cleanup?.());
+      };
     };
 
-    const result = renderScene();
-
-    return () => {
-      cancelled = true;
-      result.then(cleanup => cleanup?.());
-    };
-  }, [code, skill, files, fileSkills]);
+    return executeRender();
+  }, [code, skill, files, fileSkills, streaming]);
 
   useEffect(() => {
     if (typeof window === "undefined") {
@@ -1094,8 +1365,8 @@ const SceneViewer = forwardRef<SceneViewerRef, SceneViewerProps>(({ code, skill,
         />
       </div>
 
-      <div className="relative z-10 flex h-full flex-col">
-        <div className="relative flex-1 min-h-0 overflow-hidden">
+      <div className="relative z-10 flex h-full flex-col" style={{ contain: 'strict' }}>
+        <div className="relative flex-1 min-h-0 overflow-hidden" style={{ contentVisibility: 'auto' }}>
           {runtimeError ? (
             <div className="flex h-full flex-col items-center justify-center px-8 text-center">
               <AlertCircle className="mb-3 h-12 w-12 text-red-400/70" />
@@ -1115,6 +1386,7 @@ const SceneViewer = forwardRef<SceneViewerRef, SceneViewerProps>(({ code, skill,
                 ref={iframeRef}
                 className="h-full w-full border-none bg-transparent"
                 sandbox="allow-scripts allow-pointer-lock"
+                allow="accelerometer; gyroscope; magnetometer; gamepad"
                 tabIndex={0}
                 title="Scene preview"
               />
@@ -1133,7 +1405,12 @@ const SceneViewer = forwardRef<SceneViewerRef, SceneViewerProps>(({ code, skill,
               {isLoading && (
                 <div className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-[#050507]/78 backdrop-blur-sm">
                   <div className="mb-3 h-9 w-9 animate-spin rounded-full border-2 border-white/15 border-t-cyan-300" />
-                  <p className="text-sm text-white/75">Rendering scene...</p>
+                  <p className="text-sm text-white/75">
+                    {isBuilding ? "Building scene in real-time..." : "Rendering scene..."}
+                  </p>
+                  {isBuilding && (
+                    <p className="mt-1 text-xs text-white/40">Code is streaming from the AI as it writes</p>
+                  )}
                 </div>
               )}
             </>
@@ -1198,8 +1475,8 @@ const SceneViewer = forwardRef<SceneViewerRef, SceneViewerProps>(({ code, skill,
             )}
 
             <span className="inline-flex items-center gap-1 rounded-full border border-white/10 bg-white/5 px-2 py-0.5 font-mono text-[11px] text-white/60">
-              <CheckCircle2 className="h-3.5 w-3.5 text-emerald-300" />
-              {isLoading ? "Rendering" : runtimeError ? "Error" : isRendered ? "Ready" : "Idle"}
+              <CheckCircle2 className={cn("h-3.5 w-3.5", isBuilding ? "text-amber-300 animate-pulse" : "text-emerald-300")} />
+              {isBuilding ? "Building" : isLoading ? "Rendering" : runtimeError ? "Error" : isRendered ? "Ready" : "Idle"}
             </span>
             {isGamepadConnected && (
               <span className="inline-flex items-center gap-1 rounded-full border border-sky-400/25 bg-sky-400/10 px-2 py-0.5 font-mono text-[11px] text-sky-200">

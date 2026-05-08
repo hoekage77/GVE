@@ -78,7 +78,7 @@ export class SandboxFileSystem {
       // Read from sandbox
       const readCmd = `cat "${path}" 2>/dev/null || echo ""`;
       const result = await this.workspace.process.executeCommand(readCmd);
-      const content = String(result || '');
+      const content = String(result?.stdout ?? result?.result ?? result ?? '');
 
       // Cache it
       this.fileCache.set(path, {
@@ -106,7 +106,7 @@ export class SandboxFileSystem {
     try {
       const cmd = `test -f "${path}" && echo "yes" || echo "no"`;
       const result = await this.workspace.process.executeCommand(cmd);
-      return String(result).trim() === 'yes';
+      return String(result?.stdout ?? result?.result ?? result).trim() === 'yes';
     } catch {
       return false;
     }
@@ -121,7 +121,8 @@ export class SandboxFileSystem {
     try {
       const cmd = `find "${path}" -type f -o -type d | sort`;
       const result = await this.workspace.process.executeCommand(cmd);
-      const lines = String(result || '').split('\n').filter(l => l.trim());
+      const output = String(result?.stdout ?? result?.result ?? result ?? '');
+      const lines = output.split('\n').filter(l => l.trim());
 
       return {
         success: true,
@@ -155,7 +156,8 @@ export class SandboxFileSystem {
       for (const path of paths) {
         const cmd = `stat -f%z "${path}" 2>/dev/null || stat -c%s "${path}" 2>/dev/null || echo 0`;
         const result = await this.workspace.process.executeCommand(cmd);
-        const bytes = parseInt(String(result || '0'), 10) || 0;
+        const raw = String(result?.stdout ?? result?.result ?? result ?? '0');
+        const bytes = parseInt(raw, 10) || 0;
         fileInfo[path] = bytes;
         totalBytes += bytes;
       }

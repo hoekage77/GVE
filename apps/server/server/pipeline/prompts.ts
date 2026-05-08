@@ -33,6 +33,7 @@ const defaultPromptConfig = {
       "Generate runnable JavaScript scene code only.",
       "Use the selected skill runtime assumptions provided in the user prompt.",
       "If the selected skill is Three.js, prioritize premium visual quality: layered composition, detailed geometry, rich PBR materials, cinematic lighting, and smooth motion. Always instantiate OrbitControls with damping enabled and call controls.update() in the animation loop.",
+      "Critical geometry limits for Three.js: IcosahedronGeometry detail ≤ 4, SphereGeometry/SphereGeometry widthSegments ≤ 64, heightSegments ≤ 32. RingGeometry thetaSegments ≤ 128. TorusGeometry tubularSegments ≤ 100, radialSegments ≤ 16. Never use detail=64 or segments > 200 on any geometry — it will crash the GPU.",
       "If a Three.js quality contract and asset catalog are provided, follow them strictly.",
       "If the selected skill is Anime.js, prioritize premium motion design: timeline composition, staggered choreography, expressive easing, and layered DOM/SVG animation.",
       "Respect requested quality level: draft = minimal, standard = polished, high = maximum detail and fidelity.",
@@ -591,4 +592,61 @@ export function buildImageToCodePromptBundle({ imageUrl, query, selectedSkill, p
   });
 
   return { systemPrompt, userContent };
+}
+
+/**
+ * Build a system prompt that includes available tool descriptions.
+ * This is used for the agent mode where the LLM can call tools.
+ */
+export function buildToolAwareSystemPrompt(toolsSummary: Array<{
+  name: string;
+  display_name: string;
+  description: string;
+  methods: Array<{ name: string; display_name: string; description: string }>;
+}>): string {
+  const toolDescriptions = toolsSummary.map((tool) => {
+    const methods = tool.methods
+      .map((m) => `  - ${m.display_name || m.name}: ${m.description || ""}`)
+      .join("\n");
+    return `- ${tool.display_name} (${tool.name}):\n  ${tool.description}\n${methods}`;
+  }).join("\n\n");
+
+  return [
+    "You are an expert STEM tutor and animation developer with access to specialized tools.",
+    "",
+    "When the user asks for a visualization, simulation, or needs current information:",
+    "1. Think step-by-step about what tools would help",
+    "2. Use the available tools to create, edit, or preview animations",
+    "3. Use web_search for current facts, data, or documentation",
+    "4. Use browser to read specific web pages for detailed information",
+    "5. Use sandbox_files and sandbox_shell to manage the workspace",
+    "6. Use animation_3js, animation_p5js, or animation_manim to generate visualizations",
+    "",
+    "IMPORTANT — Manim large-code pattern:",
+    "When generating a Manim animation, the Python code is often too large to fit inline in a tool call.",
+    "Always follow this two-step pattern:",
+    "  Step 1: Use sandbox_files_writeFile to write the Python code to a file (e.g. /tmp/manim_scene.py)",
+    "  Step 2: Call animation_manim_render_scene with file_path instead of code",
+    "This avoids JSON encoding issues with large inline code strings.",
+    "",
+    "Available tools:",
+    toolDescriptions,
+    "",
+    "When calling tools, use ONE of these exact formats in your response:",
+    "",
+    "XML format:",
+    '<function_calls>',
+    '  <invoke name="tool_name">',
+    '    <param name="arg1">value1</param>',
+    '    <param name="arg2">value2</param>',
+    '  </invoke>',
+    '</function_calls>',
+    "",
+    "JSON format:",
+    '<tool_call>{"name": "tool_name", "arguments": {"arg1": "value1", "arg2": "value2"}}</tool_call>',
+    "",
+    "Keep tool call arguments small. For large content (code, data), write to a file first and pass the file path.",
+    "",
+    "After each tool result, continue the thought process until you can present the final result to the user.",
+  ].join("\n");
 }

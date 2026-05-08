@@ -144,6 +144,21 @@ const thoughtTemplates: Record<string, string[] | Record<string, string[]>> = {
     "Using {toolName} to verify my changes..."
   ],
 
+  // ── Tool Coordinator Streaming Templates ──
+
+  agent_thinking: [
+    "Analyzing your request and deciding which tools to use...",
+    "Planning the best approach — let me think through the steps.",
+    "I'm reasoning about how to solve this. One moment...",
+    "Checking what tools would help me answer this best."
+  ],
+
+  agent_tool_result: [
+    "{toolName} finished — processing the result...",
+    "Got the result from {toolName}. Let me continue...",
+    "{toolName} returned data. Incorporating it into my thinking..."
+  ],
+
   agent_debug_fixed: [
     "Found the issue and fixed it. The code now passes validation.",
     "Got it — {changesMade}. Code is clean now.",
@@ -196,6 +211,8 @@ const stepToLlmKey: Record<string, string | null> = {
   // Agent mode steps — always use templates (no pre-generated LLM key)
   agent_debug_started: null,
   agent_tool_called: null,
+  agent_tool_result: null,
+  agent_thinking: null,
   agent_debug_fixed: null,
   agent_debug_failed: null,
   image_analyzing: null,

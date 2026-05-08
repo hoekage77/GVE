@@ -174,10 +174,11 @@ export class SandboxPoolManager {
       0
     );
     // Idle sandbox TTL: evict pool entries older than this (ms). 0 = disabled.
+    // Reduced from 300s to 60s default to prevent disk quota exhaustion.
     this.idleSandboxTtlMs = parsePositiveIntEnv(
       process.env.DAYTONA_IDLE_SANDBOX_TTL_SECONDS,
-      300,
-      30
+      60,
+      10
     ) * 1000;
     // Liveness ping timeout before sending the full execution payload.
     // Increased from 800ms to 2000ms to be more forgiving for slower networks
@@ -239,12 +240,25 @@ export class SandboxPoolManager {
     );
     this.deleteIdleOnShutdown = parseBooleanEnv(
       process.env.DAYTONA_DELETE_IDLE_ON_SHUTDOWN,
-      false
+      true
     );
     this.idleSandboxes = [];
     this.pendingWarmups = 0;
     this.closed = false;
     this.lastAcquireDiagnostics = null;
+    // Track ALL provisioned workspace IDs (including failed ones) for orphan cleanup
+    this.provisionedWorkspaces = new Map(); // workspaceId -> { workspace, createdAt, deleted }
+    // Global orphan cleanup interval (ms). 0 = disabled.
+    this.orphanCleanupIntervalMs = parsePositiveIntEnv(
+      process.env.DAYTONA_ORPHAN_CLEANUP_INTERVAL_SECONDS,
+      300,
+      60
+    ) * 1000;
+    this.orphanCleanupMaxAgeMs = parsePositiveIntEnv(
+      process.env.DAYTONA_ORPHAN_MAX_AGE_SECONDS,
+      3600,
+      300
+    ) * 1000;
     this._directFailureTimestamps = [];
     this._directCircuitOpenUntilMs = 0;
     this.metrics = {
@@ -281,10 +295,14 @@ export class SandboxPoolManager {
       directCircuitSkipTotal: 0,
       livenessPingAttemptsTotal: 0,
       livenessPingFailureTotal: 0,
-      idleTtlEvictionTotal: 0
+      idleTtlEvictionTotal: 0,
+      // Per-skill metrics
+      perSkillAcquires: new Map(),
+      perSkillPrewarmHits: new Map()
     };
 
     this._startMaintenanceLoop();
+    this._startOrphanCleanupLoop();
   }
 
   _resolveDirectCreateImageForSkill(skillId = "unknown") {
@@ -340,6 +358,87 @@ export class SandboxPoolManager {
     }
 
     this._ensurePrewarmCapacity("startup", { force: true });
+  }
+
+  _startOrphanCleanupLoop() {
+    if (this.closed || this.orphanCleanupIntervalMs <= 0) {
+      return;
+    }
+    // Only run if credentials are available
+    const hasCredentials = Boolean(
+      process.env.DAYTONA_API_KEY ||
+      process.env.DAYTONA_API_TOKEN ||
+      process.env.DAYTONA_JWT ||
+      process.env.DAYTONA_TOKEN
+    );
+    if (!hasCredentials) return;
+
+    this._orphanCleanupTimer = setInterval(() => {
+      void this._cleanupOrganizationOrphans();
+    }, this.orphanCleanupIntervalMs);
+
+    if (typeof this._orphanCleanupTimer.unref === "function") {
+      this._orphanCleanupTimer.unref();
+    }
+  }
+
+  /**
+   * List and delete sandboxes in the organization that are older than
+   * orphanCleanupMaxAgeMs and not tracked in our pool. This prevents
+   * disk quota exhaustion from leaked sandboxes (failed creates, crashes, etc).
+   */
+  async _cleanupOrganizationOrphans() {
+    try {
+      const daytona = await this._getDaytonaClient();
+      const orgId = process.env.DAYTONA_ORGANIZATION_ID || process.env.DAYTONA_ORG_ID || null;
+      const qs = new URLSearchParams({ limit: "100" });
+      if (orgId) qs.set("organizationId", orgId);
+
+      const response = await fetch(`https://app.daytona.io/api/sandbox?${qs.toString()}`, {
+        headers: {
+          Authorization: `Bearer ${process.env.DAYTONA_API_KEY || process.env.DAYTONA_API_TOKEN || ""}`,
+          "Content-Type": "application/json",
+        },
+      });
+      if (!response.ok) return;
+
+      const payload = await response.json();
+      const items = Array.isArray(payload) ? payload : (payload.items || []);
+      const nowMs = Date.now();
+      let deleted = 0;
+
+      for (const item of items) {
+        const id = item.id || item.sandboxId;
+        if (!id) continue;
+
+        // Skip if it's currently in our idle pool
+        if (this.idleSandboxes.some((s) => s.workspaceId === id)) continue;
+
+        // Skip if it's recently provisioned and still tracked
+        const tracked = this.provisionedWorkspaces.get(id);
+        if (tracked && !tracked.deleted && (nowMs - tracked.createdAt) < this.orphanCleanupMaxAgeMs) {
+          continue;
+        }
+
+        const createdAt = item.createdAt || item.created_at;
+        const ageMs = createdAt ? nowMs - new Date(createdAt).getTime() : Number.POSITIVE_INFINITY;
+        if (ageMs > this.orphanCleanupMaxAgeMs) {
+          try {
+            await daytona.delete({ id });
+            deleted += 1;
+            if (tracked) tracked.deleted = true;
+          } catch (err) {
+            // Best-effort
+          }
+        }
+      }
+
+      if (deleted > 0) {
+        console.log(`[Daytona][OrphanCleanup] Deleted ${deleted} orphaned sandbox(es).`);
+      }
+    } catch (err) {
+      // Silently fail — orphan cleanup is best-effort
+    }
   }
 
   _pushRollingMetric(list, value) {
@@ -726,6 +825,9 @@ export class SandboxPoolManager {
     let directCreateDurationMs = 0;
     let directError = null;
 
+    // Track this workspace ID for orphan cleanup regardless of success/failure
+    this.provisionedWorkspaces.set(workspaceId, { workspace: null, createdAt: Date.now(), deleted: false });
+
     const directRemainingBudgetMs = getRemainingBudgetMs(turnDeadlineAtMs);
     const circuitOpen = this._isDirectCircuitOpen();
     const shouldSkipDirectForBudget = Number.isFinite(directRemainingBudgetMs)
@@ -778,6 +880,8 @@ export class SandboxPoolManager {
         workspace = await daytona.create(directCreateOptions, { timeout: directTimeoutSec });
         directCreateDurationMs = Date.now() - directCreateStartedAt;
         this._recordDirectCreateSuccess();
+        const tracked = this.provisionedWorkspaces.get(workspaceId);
+        if (tracked) tracked.workspace = workspace;
         console.log(
           `[Daytona] Workspace ${workspaceId} created in ${directCreateDurationMs}ms (${reason}, skill=${skillId}).`
         );
@@ -845,6 +949,8 @@ export class SandboxPoolManager {
         : undefined;
       workspace = await daytona.create(fallbackCreateOptions, { timeout: fallbackTimeoutSec });
       workspaceId = workspace.id;
+      const tracked2 = this.provisionedWorkspaces.get(workspaceId);
+      if (tracked2) tracked2.workspace = workspace;
       const fallbackDurationMs = Date.now() - fallbackCreateStartedAt;
       const totalAcquireMs = Date.now() - acquireStartedAt;
       if (diagnostics?.fallback) {
@@ -989,9 +1095,10 @@ export class SandboxPoolManager {
             return;
           }
 
-          this.idleSandboxes.push({ workspace, workspaceId, idledAt: Date.now(), imageRef: imageRef ?? null });
+          this.idleSandboxes.push({ workspace, workspaceId, idledAt: Date.now(), imageRef: imageRef ?? null, skillId: skillId ?? "unknown" });
+          this.metrics.perSkillPrewarmHits.set(skillId, (this.metrics.perSkillPrewarmHits.get(skillId) || 0) + 1);
           console.log(
-            `[Daytona] Prewarmed sandbox ${workspaceId} ready via ${creationMode} in ${acquireDurationMs}ms. idle=${this.idleSandboxes.length}/${this.prewarmSize}`
+            `[Daytona] Prewarmed sandbox ${workspaceId} ready via ${creationMode} in ${acquireDurationMs}ms (skill=${skillId}). idle=${this.idleSandboxes.length}/${this.prewarmSize}`
           );
         })
         .catch((error) => {
@@ -1008,13 +1115,14 @@ export class SandboxPoolManager {
     this._ensurePrewarmCapacity(skillId, { force: true });
   }
 
-  _createSandboxHandle({ workspaceId, workspace, source = "ondemand", imageRef = null }) {
+  _createSandboxHandle({ workspaceId, workspace, source = "ondemand", imageRef = null, skillId = "unknown" }) {
     const handle = {
       workspaceId,
       _workspace: workspace,
       _reusable: true,
       _source: source,
       _imageRef: imageRef,
+      _lastSkillId: skillId,
       execute: async (payloadStr) => {
         const runnerPath = path.join(__dirname, "runner-script.js");
         const runnerScript = await fs.readFile(runnerPath, "utf-8");
@@ -1075,7 +1183,8 @@ export class SandboxPoolManager {
 
         const executionStartedAt = Date.now();
         try {
-          execResult = await workspace.process.executeCommand(bashCmd);
+          // Allow up to 120s for skill execution (Manim renders need 30–90s)
+          execResult = await workspace.process.executeCommand(bashCmd, undefined, undefined, 120000);
         } catch (err) {
           handle._reusable = false;
           console.error(`[Daytona] [ERROR] Execution failed after ${Date.now() - executionStartedAt}ms:`, err.message);
@@ -1160,13 +1269,30 @@ export class SandboxPoolManager {
     this._ensurePrewarmCapacity(normalizedSkillId, { force: false });
 
     // Try to acquire a healthy idle sandbox with liveness check
+    // Prefer sandboxes tagged with the matching skillId first
     const deferredIdleSandboxes = [];
+    const skillMatches = [];
+    const skillMismatches = [];
+
     while (this.idleSandboxes.length > 0) {
       const reused = this.idleSandboxes.pop();
       if (!this._isSandboxImageCompatible(reused?.imageRef ?? null, requestedImageRef)) {
         deferredIdleSandboxes.push(reused);
         continue;
       }
+      if (reused.skillId === normalizedSkillId) {
+        skillMatches.push(reused);
+      } else {
+        skillMismatches.push(reused);
+      }
+    }
+
+    // Re-assemble: skill matches first, then mismatches, then deferred
+    const orderedPool = [...skillMatches, ...skillMismatches];
+    this.idleSandboxes = orderedPool;
+
+    while (this.idleSandboxes.length > 0) {
+      const reused = this.idleSandboxes.pop();
       
       // ── Liveness ping before reuse ─────────────────────────────────────────
       // Verify the idle sandbox is still responsive before handing it to executor
@@ -1217,7 +1343,8 @@ export class SandboxPoolManager {
           workspaceId: reused.workspaceId,
           workspace: reused.workspace,
           source: "prewarm",
-          imageRef: reused.imageRef ?? null
+          imageRef: reused.imageRef ?? null,
+          skillId: normalizedSkillId
         });
         if (deferredIdleSandboxes.length > 0) {
           this.idleSandboxes.push(...deferredIdleSandboxes);
@@ -1247,6 +1374,10 @@ export class SandboxPoolManager {
       this._recordAcquireFailure(error, Date.now() - acquireStartedAt);
       this.metrics.externalFirstTryFailureTotal += 1;
       this.metrics.onDemandAcquireFailureTotal += 1;
+      this.metrics.perSkillAcquires.set(
+        normalizedSkillId,
+        (this.metrics.perSkillAcquires.get(normalizedSkillId) || 0) + 1
+      );
       if (acquireDiagnostics?.directAttemptedAny) {
         this.metrics.directAttemptedTotal += 1;
       }
@@ -1264,6 +1395,10 @@ export class SandboxPoolManager {
     this._recordAcquireSuccess(provisioned.creationMode, Date.now() - acquireStartedAt);
     this.metrics.externalFirstTrySuccessTotal += 1;
     this.metrics.onDemandAcquireSuccessTotal += 1;
+    this.metrics.perSkillAcquires.set(
+      normalizedSkillId,
+      (this.metrics.perSkillAcquires.get(normalizedSkillId) || 0) + 1
+    );
     if (acquireDiagnostics?.directAttemptedAny) {
       this.metrics.directAttemptedTotal += 1;
     }
@@ -1288,7 +1423,8 @@ export class SandboxPoolManager {
       workspaceId: provisioned.workspaceId,
       workspace: provisioned.workspace,
       source: provisioned.creationMode,
-      imageRef: provisioned.imageRef ?? null
+      imageRef: provisioned.imageRef ?? null,
+      skillId: normalizedSkillId
     });
     handle._acquireDiagnostics = acquireDiagnostics;
     return handle;
@@ -1298,9 +1434,21 @@ export class SandboxPoolManager {
     try {
       const daytona = await this._getDaytonaClient();
       await daytona.delete(workspace);
+      const tracked = this.provisionedWorkspaces.get(workspaceId);
+      if (tracked) tracked.deleted = true;
       console.log(`[Daytona] Deleted sandbox ${workspaceId} (${reason}).`);
     } catch (err) {
       console.error(`[Daytona] Error deleting workspace ${workspaceId}:`, err.message);
+    }
+    // Prune old tracking entries to prevent unbounded growth
+    const maxTracked = 500;
+    if (this.provisionedWorkspaces.size > maxTracked) {
+      const now = Date.now();
+      for (const [key, value] of this.provisionedWorkspaces.entries()) {
+        if (value.deleted || (now - value.createdAt) > this.orphanCleanupMaxAgeMs * 2) {
+          this.provisionedWorkspaces.delete(key);
+        }
+      }
     }
   }
 
@@ -1373,25 +1521,28 @@ export class SandboxPoolManager {
     }
 
     const reusable = sandboxEnv._reusable !== false;
+    const skillId = sandboxEnv._lastSkillId ?? "unknown";
+
     if (this.prewarmSize > 0 && reusable && this.idleSandboxes.length < this.prewarmSize) {
       this.idleSandboxes.push({
         workspaceId: sandboxEnv.workspaceId,
         workspace: sandboxEnv._workspace,
         idledAt: Date.now(),
-        imageRef: sandboxEnv._imageRef ?? null
+        imageRef: sandboxEnv._imageRef ?? null,
+        skillId
       });
       this.metrics.releaseReturnedToPoolTotal += 1;
       console.log(
-        `[Daytona] Returned sandbox ${sandboxEnv.workspaceId} to warm pool. idle=${this.idleSandboxes.length}/${this.prewarmSize}`
+        `[Daytona] Returned sandbox ${sandboxEnv.workspaceId} to warm pool (skill=${skillId}). idle=${this.idleSandboxes.length}/${this.prewarmSize}`
       );
-      this._ensurePrewarmCapacity("release", { force: false });
+      this._ensurePrewarmCapacity(skillId, { force: false });
       return;
     }
 
     console.log(`[Daytona] Releasing/Deleting sandbox ${sandboxEnv.workspaceId}...`);
     this.metrics.releaseDeletedTotal += 1;
     await this._deleteWorkspace(sandboxEnv._workspace, sandboxEnv.workspaceId, reusable ? "release" : "unhealthy");
-    this._ensurePrewarmCapacity("release", { force: false });
+    this._ensurePrewarmCapacity(skillId, { force: false });
   }
 
   /**
@@ -1492,20 +1643,76 @@ export class SandboxPoolManager {
       clearInterval(this._maintenanceTimer);
       this._maintenanceTimer = null;
     }
+    if (this._orphanCleanupTimer) {
+      clearInterval(this._orphanCleanupTimer);
+      this._orphanCleanupTimer = null;
+    }
 
     const shouldDeleteIdle = options.deleteIdleSandboxes ?? this.deleteIdleOnShutdown;
     const idleToDelete = [...this.idleSandboxes];
     this.idleSandboxes = [];
 
-    if (!shouldDeleteIdle || idleToDelete.length === 0) {
-      return;
+    if (shouldDeleteIdle && idleToDelete.length > 0) {
+      for (const sandbox of idleToDelete) {
+        // Best-effort cleanup at shutdown time.
+        // eslint-disable-next-line no-await-in-loop
+        await this._deleteWorkspace(sandbox.workspace, sandbox.workspaceId, "shutdown_cleanup");
+      }
     }
 
-    for (const sandbox of idleToDelete) {
-      // Best-effort cleanup at shutdown time.
-      // eslint-disable-next-line no-await-in-loop
-      await this._deleteWorkspace(sandbox.workspace, sandbox.workspaceId, "shutdown_cleanup");
+    // Also run a one-time orphan cleanup if requested
+    if (options.deleteOrphans) {
+      await this._cleanupOrganizationOrphans();
     }
+  }
+
+  /**
+   * Admin/manual cleanup: delete all organization sandboxes regardless of state.
+   * Use with caution — this deletes EVERY sandbox in the org.
+   */
+  async cleanupAllOrganizationSandboxes() {
+    let deleted = 0;
+    let failed = 0;
+    try {
+      const daytona = await this._getDaytonaClient();
+      const orgId = process.env.DAYTONA_ORGANIZATION_ID || process.env.DAYTONA_ORG_ID || null;
+      const all = [];
+      let page = 1;
+      while (true) {
+        const qs = new URLSearchParams({ limit: "100", page: String(page) });
+        if (orgId) qs.set("organizationId", orgId);
+        const response = await fetch(`https://app.daytona.io/api/sandbox?${qs.toString()}`, {
+          headers: {
+            Authorization: `Bearer ${process.env.DAYTONA_API_KEY || process.env.DAYTONA_API_TOKEN || ""}`,
+            "Content-Type": "application/json",
+          },
+        });
+        if (!response.ok) break;
+        const payload = await response.json();
+        const items = Array.isArray(payload) ? payload : (payload.items || []);
+        if (items.length === 0) break;
+        all.push(...items);
+        if (items.length < 100) break;
+        page += 1;
+      }
+
+      for (const item of all) {
+        const id = item.id || item.sandboxId;
+        if (!id) continue;
+        try {
+          await daytona.delete({ id });
+          deleted += 1;
+          const tracked = this.provisionedWorkspaces.get(id);
+          if (tracked) tracked.deleted = true;
+        } catch {
+          failed += 1;
+        }
+      }
+    } catch (err) {
+      console.error("[Daytona][AdminCleanup] Failed:", err.message);
+    }
+    console.log(`[Daytona][AdminCleanup] Deleted ${deleted} sandboxes, ${failed} failed.`);
+    return { deleted, failed };
   }
 }
 

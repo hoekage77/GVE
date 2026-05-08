@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Play, Copy, Check, RotateCcw, FileCode, Loader2 } from "lucide-react";
 import { Highlight, themes } from "prism-react-renderer";
 import { cn } from "../lib/utils";
@@ -10,9 +10,10 @@ interface CodeEditorProps {
   onChange?: (code: string) => void;
   onRun?: (code: string) => void;
   runPending?: boolean;
+  streaming?: boolean;
 }
 
-export default function CodeEditor({ code, skill, readOnly, onRun, runPending = false }: CodeEditorProps) {
+export default function CodeEditor({ code, skill, readOnly, onRun, runPending = false, streaming = false }: CodeEditorProps) {
   const [localCode, setLocalCode] = useState(code ?? "");
   const [copied, setCopied] = useState(false);
   const [isDirty, setIsDirty] = useState(false);
@@ -24,6 +25,16 @@ export default function CodeEditor({ code, skill, readOnly, onRun, runPending = 
     setLocalCode(code ?? "");
     setIsDirty(false);
   }, [code]);
+
+  const scrollRef = useRef<HTMLDivElement>(null);
+
+  // Auto-scroll to bottom during streaming so the user sees the latest code
+  useEffect(() => {
+    if (!streaming) return;
+    const el = scrollRef.current;
+    if (!el) return;
+    el.scrollTop = el.scrollHeight;
+  }, [localCode, streaming]);
 
   const handleCopy = async () => {
     try {
@@ -108,29 +119,35 @@ export default function CodeEditor({ code, skill, readOnly, onRun, runPending = 
           </div>
         </div>
 
-        <div className="min-h-0 flex-1 overflow-auto bg-black/35">
-          <Highlight
-            theme={editorTheme}
-            code={localCode}
-            language={highlightLanguage}
-          >
-            {({ className, style, tokens, getLineProps, getTokenProps }) => (
-              <pre className={cn(className, "m-0 min-h-full p-4 font-mono text-[12px] leading-6")} style={style}>
-                <code>
-                  {tokens.map((line, i) => (
-                    <div key={i} {...getLineProps({ line })} className="flex">
-                      <span className="w-11 select-none pr-3 text-right text-white/25">{i + 1}</span>
-                      <span className="flex-1 text-white/90">
-                        {line.map((token, key) => (
-                          <span key={key} {...getTokenProps({ token })} />
-                        ))}
-                      </span>
-                    </div>
-                  ))}
-                </code>
-              </pre>
-            )}
-          </Highlight>
+        <div ref={scrollRef} className="min-h-0 flex-1 overflow-auto bg-black/35">
+          {streaming ? (
+            <pre className="m-0 min-h-full p-4 font-mono text-[12px] leading-6 text-white/90">
+              <code>{localCode}</code>
+            </pre>
+          ) : (
+            <Highlight
+              theme={editorTheme}
+              code={localCode}
+              language={highlightLanguage}
+            >
+              {({ className, style, tokens, getLineProps, getTokenProps }) => (
+                <pre className={cn(className, "m-0 min-h-full p-4 font-mono text-[12px] leading-6")} style={style}>
+                  <code>
+                    {tokens.map((line, i) => (
+                      <div key={i} {...getLineProps({ line })} className="flex">
+                        <span className="w-11 select-none pr-3 text-right text-white/25">{i + 1}</span>
+                        <span className="flex-1 text-white/90">
+                          {line.map((token, key) => (
+                            <span key={key} {...getTokenProps({ token })} />
+                          ))}
+                        </span>
+                      </div>
+                    ))}
+                  </code>
+                </pre>
+              )}
+            </Highlight>
+          )}
         </div>
 
         <div className="flex h-8 shrink-0 items-center justify-between border-t border-white/10 bg-black/40 px-3 text-[11px] text-white/55">

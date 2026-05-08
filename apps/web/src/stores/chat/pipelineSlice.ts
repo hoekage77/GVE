@@ -39,7 +39,11 @@ export const createPipelineSlice: StateCreator<ChatState, [], [], PipelineSlice>
   currentTurnCheckpoints: [],
   currentMessageId: null,
 
-  setIsSending: (value) => set({ isSending: value }),
+  setIsSending: (value) =>
+    set({
+      isSending: value,
+      ...(value ? { agentFiles: [], agentToolLog: [] } : {}),
+    }),
 
   setActiveRequestId: (id) => set({ activeRequestId: id }),
 

@@ -98,14 +98,6 @@ export function resolveModelCategories(sourceText?: string | null): string[] {
     categories.add("objects");
   }
 
-  if (categories.size === 0) {
-    categories.add("humans");
-    categories.add("birds");
-    categories.add("animals");
-    categories.add("vehicles");
-    categories.add("objects");
-  }
-
   return Array.from(categories);
 }
 

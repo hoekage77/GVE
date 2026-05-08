@@ -151,34 +151,32 @@ export const createInfraSlice: StateCreator<ChatState, [], [], InfraSlice> = (se
 
             const state = get() as any;
             const existing = state.messages[sessionId] || [];
-            const target = existing.find((msg: any) => msg.id === messageId);
-            const isStreaming = target && target.kind === "streaming" && m.kind === "streaming";
-            const nextContent = isStreaming ? target.content + m.content : m.content;
-            const nextKind = m.kind || target?.kind || "message";
+            const targetIndex = existing.findIndex((msg: any) => msg.id === messageId);
+            if (targetIndex >= 0) {
+              const target = existing[targetIndex];
+              const isStreaming = target.kind === "streaming" && m.kind === "streaming";
+              const nextContent = isStreaming ? target.content + m.content : m.content;
+              const nextKind = m.kind || target.kind || "message";
 
-            if (target) {
-              const updated = existing.map((msg: any) =>
-                msg.id === messageId
-                  ? {
-                      ...msg,
-                      ...m,
-                      content: nextContent,
-                      kind: nextKind,
-                      updatedAt: nowIso(),
-                    }
-                  : msg
-              );
+              const updated = [...existing];
+              updated[targetIndex] = {
+                ...target,
+                ...m,
+                content: nextContent,
+                kind: nextKind,
+                updatedAt: nowIso(),
+              };
               set({ messages: { ...state.messages, [sessionId]: updated } });
             } else {
               state.addMessage(sessionId, {
                 id: messageId,
                 role: m.role || "assistant",
                 content: m.content,
-                kind: nextKind,
+                kind: m.kind || "message",
                 meta: m.meta || [],
                 error: m.error || null,
                 createdAt: m.createdAt || nowIso(),
-                updatedAt: m.updatedAt || nowIso(),
+                updatedAt: m.createdAt || nowIso(),
               });
             }
 
@@ -189,11 +187,15 @@ export const createInfraSlice: StateCreator<ChatState, [], [], InfraSlice> = (se
               (msg.id || msg.messageId) === messageId
             );
             if (cachedIndex >= 0) {
+              const nextContentCached = cached[cachedIndex].kind === "streaming" && m.kind === "streaming"
+                ? cached[cachedIndex].content + m.content
+                : m.content;
+              const nextKindCached = m.kind || cached[cachedIndex].kind || "message";
               const updatedCache = [...cached];
               updatedCache[cachedIndex] = {
                 ...updatedCache[cachedIndex],
-                content: nextContent,
-                kind: nextKind,
+                content: nextContentCached,
+                kind: nextKindCached,
                 meta: m.meta || updatedCache[cachedIndex].meta || [],
                 updatedAt: nowIso(),
               };
@@ -201,7 +203,6 @@ export const createInfraSlice: StateCreator<ChatState, [], [], InfraSlice> = (se
             }
             break;
           }
-
           case "message:update": {
             const p = msg.payload;
             const m = p?.message;
@@ -216,12 +217,12 @@ export const createInfraSlice: StateCreator<ChatState, [], [], InfraSlice> = (se
             const updates = { ...m, id: messageId };
             delete (updates as any).messageId;
 
-            const updated = existing.map((msg: any) =>
-              msg.id === messageId
-                ? { ...msg, ...updates, updatedAt: nowIso() }
-                : msg
-            );
-            set({ messages: { ...state.messages, [sessionId]: updated } });
+            const targetIndex = existing.findIndex((msg: any) => msg.id === messageId);
+            if (targetIndex >= 0) {
+              const updated = [...existing];
+              updated[targetIndex] = { ...existing[targetIndex], ...updates, updatedAt: nowIso() };
+              set({ messages: { ...state.messages, [sessionId]: updated } });
+            }
 
             // Also update Query cache
             const cacheKey = ["messages", sessionId];
@@ -256,7 +257,7 @@ export const createInfraSlice: StateCreator<ChatState, [], [], InfraSlice> = (se
                 s.sessionId === sessionId
                   ? {
                       ...s,
-                      currentScene: scene,
+                      currentScene: scene ? { ...(s.currentScene || {}), ...scene } : scene,
                       versions,
                       versionPointer,
                       versionCount: Array.isArray(versions) ? versions.length : s.versionCount,
@@ -265,6 +266,12 @@ export const createInfraSlice: StateCreator<ChatState, [], [], InfraSlice> = (se
               ),
               workspaceRecord: workspace ?? state.workspaceRecord,
             }));
+
+            // If the user was watching code stream, switch them to preview now that the scene is ready
+            const st = get() as any;
+            if (sessionId === st.activeSessionId && st.panelOpen && st.panelView === "code") {
+              st.openPanel("preview");
+            }
             break;
           }
 
@@ -302,10 +309,19 @@ export const createInfraSlice: StateCreator<ChatState, [], [], InfraSlice> = (se
           case "agent:file_complete": {
             const p = msg.payload;
             if (!p?.path) break;
-            set({
+            set((state: any) => ({
               thinkingStep: `file_complete`,
               thinkingText: `Completed ${p.path} (${p.lines} lines)`,
-            });
+              agentFiles: [
+                ...state.agentFiles,
+                {
+                  path: p.path,
+                  previewUrl: p.previewUrl ?? null,
+                  lines: p.lines ?? null,
+                  createdAt: new Date().toISOString(),
+                },
+              ],
+            }));
             break;
           }
 
@@ -392,14 +408,55 @@ export const createInfraSlice: StateCreator<ChatState, [], [], InfraSlice> = (se
             });
             break;
 
-          case "code:stream":
-            if (msg.payload?.code != null) {
-              set({
-                thinkingText: msg.payload.code.slice(0, 200) + "...",
-                thinkingStep: "generating_code",
+          case "code:live_stream": {
+            const livePayload = msg.payload;
+            if (!livePayload?.delta) break;
+
+            const sessionId = livePayload.sessionId || (get() as any).activeSessionId;
+            if (!sessionId) break;
+
+            set((s: any) => {
+              const session = s.sessions.find((sess: any) => sess.sessionId === sessionId);
+              if (!session) return {};
+
+              const currentCode = session.currentScene?.code ?? "";
+              // Always accumulate — the server sends incremental deltas, never a full replacement
+              const newCode = currentCode + livePayload.delta;
+
+              const updatedSessions = s.sessions.map((sess: any) => {
+                if (sess.sessionId !== sessionId) return sess;
+                return {
+                  ...sess,
+                  currentScene: {
+                    ...(sess.currentScene || {}),
+                    code: newCode,
+                    skill: livePayload.skill ?? sess.currentScene?.skill ?? "threejs",
+                    streaming: !livePayload.isComplete,
+                    streamingComplete: livePayload.isComplete,
+                  },
+                };
               });
+
+              return {
+                sessions: updatedSessions,
+                thinkingText: livePayload.isComplete
+                  ? "Generation complete"
+                  : `Generating ${livePayload.skill ?? "code"}...`,
+                thinkingStep: livePayload.isComplete ? "code_generated" : "generating_code",
+              };
+            });
+
+            // Auto-open panel to code view when streaming starts so the user can watch it write
+            const state = get() as any;
+            if (!livePayload.isComplete) {
+              if (!state.panelOpen) {
+                state.openPanel("code");
+              } else if (state.panelView !== "code") {
+                state.openPanel("code");
+              }
             }
             break;
+          }
 
           case "orchestration:step":
             if (msg.payload?.step) {
@@ -517,6 +574,25 @@ export const createInfraSlice: StateCreator<ChatState, [], [], InfraSlice> = (se
             break;
           }
 
+          case "tool:result": {
+            const p = msg.payload;
+            if (!p?.tool) break;
+            set((state: any) => ({
+              agentToolLog: [
+                ...state.agentToolLog,
+                {
+                  id: p.callId || `tool-${Date.now()}`,
+                  tool: p.tool,
+                  status: p.success ? "success" : "error",
+                  output: String(p.output ?? "").slice(0, 500),
+                  durationMs: p.durationMs ?? 0,
+                  timestamp: new Date().toISOString(),
+                },
+              ],
+            }));
+            break;
+          }
+
           case "agent:approval_request": {
             const p = msg.payload;
             if (p?.sessionId && p?.stepId) {
@@ -538,6 +614,51 @@ export const createInfraSlice: StateCreator<ChatState, [], [], InfraSlice> = (se
             if (p?.resolved) {
               set({ pendingApproval: null });
             }
+            break;
+          }
+
+          case "client:patch_result": {
+            const p = msg.payload;
+            if (p?.accepted && p?.patchedCode) {
+              // Update current scene code with patched version
+              set((s: any) => {
+                const session = s.sessions.find((sess: any) => sess.sessionId === p.sessionId);
+                if (!session) return {};
+                
+                const updatedSessions = s.sessions.map((sess: any) => {
+                  if (sess.sessionId !== p.sessionId) return sess;
+                  return {
+                    ...sess,
+                    currentScene: {
+                      ...(sess.currentScene || {}),
+                      code: p.patchedCode,
+                      patched: true,
+                      patchIteration: p.iteration ?? 1,
+                    },
+                  };
+                });
+
+                return { sessions: updatedSessions };
+              });
+            }
+            break;
+          }
+
+          case "client:vision_result": {
+            const p = msg.payload;
+            if (!p?.sessionId) break;
+
+            const visualGoals = Array.isArray(p?.visualGoals) ? p.visualGoals : [];
+            set((s: any) => {
+              const updatedSessions = s.sessions.map((sess: any) => {
+                if (sess.sessionId !== p.sessionId) return sess;
+                return {
+                  ...sess,
+                  visualGoals,
+                };
+              });
+              return { sessions: updatedSessions };
+            });
             break;
           }
         }

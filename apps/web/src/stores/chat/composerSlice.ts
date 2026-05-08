@@ -1,5 +1,5 @@
 import type { StateCreator } from "zustand";
-import type { ChatState, WorkspacePanelView, ComposerImageAttachment } from "./types";
+import type { ChatState, WorkspacePanelView, ComposerImageAttachment, AgentFileEntry, AgentToolLogEntry } from "./types";
 import type { WorkspaceRecord } from "../../api";
 
 export interface ComposerSlice {
@@ -14,6 +14,8 @@ export interface ComposerSlice {
   workspaceRecord: WorkspaceRecord | null;
   selectedWorkspaceFile: string | null;
   workspaceOpen: boolean;
+  agentFiles: AgentFileEntry[];
+  agentToolLog: AgentToolLogEntry[];
 
   setComposerValue: (value: string) => void;
   setComposerImage: (image: ComposerImageAttachment | null) => void;
@@ -31,6 +33,10 @@ export interface ComposerSlice {
   openWorkspace: () => void;
   closeWorkspace: () => void;
   toggleWorkspace: () => void;
+  addAgentFile: (file: AgentFileEntry) => void;
+  clearAgentFiles: () => void;
+  addAgentToolLog: (entry: AgentToolLogEntry) => void;
+  clearAgentToolLog: () => void;
 }
 
 export const createComposerSlice: StateCreator<ChatState, [], [], ComposerSlice> = (set, get) => ({
@@ -48,6 +54,8 @@ export const createComposerSlice: StateCreator<ChatState, [], [], ComposerSlice>
   workspaceRecord: null,
   selectedWorkspaceFile: null,
   workspaceOpen: false,
+  agentFiles: [],
+  agentToolLog: [],
 
   setComposerValue: (value) => set({ composerValue: value }),
 
@@ -115,4 +123,18 @@ export const createComposerSlice: StateCreator<ChatState, [], [], ComposerSlice>
     const { workspaceOpen } = get();
     set({ workspaceOpen: !workspaceOpen });
   },
+
+  addAgentFile: (file) =>
+    set((state) => ({
+      agentFiles: [...state.agentFiles, file],
+    })),
+
+  clearAgentFiles: () => set({ agentFiles: [] }),
+
+  addAgentToolLog: (entry: AgentToolLogEntry) =>
+    set((state) => ({
+      agentToolLog: [...state.agentToolLog, entry],
+    })),
+
+  clearAgentToolLog: () => set({ agentToolLog: [] }),
 });

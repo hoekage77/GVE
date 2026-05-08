@@ -38,8 +38,10 @@ export function useSessionMessages(sessionId: string | null) {
       return mapApiMessages(response);
     },
     enabled: Boolean(sessionId),
-    staleTime: 30_000,
+    staleTime: 5 * 60 * 1000,
+    gcTime: 10 * 60 * 1000,
     refetchOnWindowFocus: false,
+    refetchOnMount: false,
   });
 }
 
@@ -290,6 +292,7 @@ export function useSendMessage() {
       const sessionId = context?.sessionId;
       if (!sessionId) return;
       qc.invalidateQueries({ queryKey: ["sessions"] });
+      qc.invalidateQueries({ queryKey: [MESSAGES_KEY, sessionId] });
     },
   });
 }

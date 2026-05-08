@@ -22,9 +22,9 @@ const apiLimiter = rateLimit({
   validate: { xForwardedForHeader: false }
 });
 
-export function createApp(): express.Express {
+export async function createApp(): Promise<express.Express> {
   runMigration();
-  initializeSessions();
+  await initializeSessions();
   initializeTokenUsage();
   const app = express();
   app.set("trust proxy", 1);

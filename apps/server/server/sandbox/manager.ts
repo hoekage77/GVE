@@ -42,7 +42,7 @@ export interface SandboxExecutionResult {
   durationMs: number;
 }
 
-const activeContainers = new Map<string, ContainerInfo>();
+export const activeContainers = new Map<string, ContainerInfo>();
 
 function generateContainerName(sessionId: string): string {
   const random = randomBytes(4).toString("hex");
@@ -60,6 +60,12 @@ export async function createSandbox(options: { sessionId: string; tools?: string
   const workspacePath = join(tmpdir(), "terranet-sandboxes", sessionId);
 
   await mkdir(workspacePath, { recursive: true });
+  // Ensure host Node.js process can write to workspace regardless of
+  // ownership changes from inside the Docker container (entrypoint chown).
+  await execAsync(`chmod 777 "${workspacePath}"`).catch(() => {});
+  // Also ensure the parent sandboxes directory is accessible.
+  const parentDir = join(tmpdir(), "terranet-sandboxes");
+  await execAsync(`chmod 777 "${parentDir}"`).catch(() => {});
   await initializeWorkspace(workspacePath, tools);
 
   try {
@@ -95,6 +101,9 @@ export async function createSandbox(options: { sessionId: string; tools?: string
 
     // Fix permissions so the non-root container user can write to the mounted workspace
     await execAsync(`docker exec -u root ${trimmedContainerId} chown -R terranet:terranet /workspace`);
+    // Re-apply world-writable permissions so the host Node.js process
+    // (different UID than container's terranet) can still write files.
+    await execAsync(`chmod 777 "${workspacePath}"`).catch(() => {});
 
     const containerInfo: ContainerInfo = {
       containerId: trimmedContainerId,
@@ -222,6 +231,40 @@ async function installTools(containerId: string, tools: string[], maxRetries = 3
   throw lastError;
 }
 
+async function isContainerRunning(containerId: string): Promise<boolean> {
+  try {
+    const { stdout } = await execAsync(`docker inspect -f '{{.State.Running}}' ${containerId}`);
+    return stdout.trim() === 'true';
+  } catch {
+    return false;
+  }
+}
+
+export async function getActiveContainer(sessionId: string): Promise<ContainerInfo | null> {
+  const container = activeContainers.get(sessionId);
+
+  if (container) {
+    const stillRunning = await isContainerRunning(container.containerId);
+    if (stillRunning) {
+      container.status = 'running';
+      return container;
+    }
+    console.log(`[Sandbox] Container ${container.containerId.slice(0, 8)} for ${sessionId} is dead (status: ${container.status}). Cleaning up...`);
+    await cleanupSessionSandbox(sessionId);
+  }
+
+  return null;
+}
+
+export async function ensureSandboxRunning(options: { sessionId: string; tools?: string[]; timeoutMs?: number; keepAlive?: boolean }): Promise<ContainerInfo> {
+  const { sessionId } = options;
+  const existing = await getActiveContainer(sessionId);
+  if (existing) return existing;
+
+  console.log(`[Sandbox] No running container for ${sessionId}. Creating new sandbox...`);
+  return createSandbox(options);
+}
+
 export async function executeInSandbox(
   options: {
     sessionId: string;
@@ -243,7 +286,12 @@ export async function executeInSandbox(
     fileSkills
   } = options;
   console.log(`[Sandbox] executeInSandbox called for ${sessionId}, activeContainers=${activeContainers.size}, keys=[${Array.from(activeContainers.keys()).join(",")}]`);
-  const container = activeContainers.get(sessionId);
+
+  // Auto-recover: ensure the Docker container is actually running
+  const container = await ensureSandboxRunning({ sessionId }).catch((err: any) => {
+    console.error(`[Sandbox] ensureSandboxRunning failed for ${sessionId}: ${err.message}`);
+    return null;
+  });
 
   if (!container || container.status !== "running") {
     console.error(`[Sandbox] No active container for ${sessionId}. status=${container?.status ?? "null"}`);

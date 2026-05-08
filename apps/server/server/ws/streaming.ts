@@ -1,4 +1,4 @@
-import { wsClients } from "./handler.js";
+import { wsClients, sessionClients } from "./handler.js";
 
 import { generateThought, tokenizeThought } from "../pipeline/thoughts.js";
 import { appendSessionMessage } from "../state/session.js";
@@ -6,8 +6,6 @@ import { appendSessionMessage } from "../state/session.js";
 const fastModeEnabled = process.env.FAST_MODE !== "false" && process.env.FAST_MODE !== "0";
 const thoughtStreamingMode = (process.env.THOUGHT_STREAM_MODE ?? (fastModeEnabled ? "compact" : "token")).toLowerCase();
 const thoughtTokenDelayMs = Number.parseInt(String(process.env.THOUGHT_TOKEN_DELAY_MS ?? (fastModeEnabled ? "0" : "35")), 10);
-const codeStreamChunkSize = Number.parseInt(String(process.env.CODE_STREAM_CHUNK_SIZE ?? (fastModeEnabled ? "480" : "220")), 10);
-const codeStreamChunkDelayMs = Number.parseInt(String(process.env.CODE_STREAM_CHUNK_DELAY_MS ?? (fastModeEnabled ? "0" : "8")), 10);
 const wsReplayBufferSize = Number.parseInt(String(process.env.WS_REPLAY_BUFFER_SIZE ?? "2000"), 10);
 
 const STEP_DISPLAY_LABELS: Record<string, string> = {
@@ -110,6 +108,21 @@ export function broadcastEvent(type: string, payload: any) {
   const event = createReplayableEvent(type, payload);
   const message = JSON.stringify(event);
 
+  const targetSessionId = String(
+    payload?.sessionId ?? payload?.payload?.sessionId ?? payload?.message?.sessionId ?? ""
+  ).trim();
+
+  if (targetSessionId && sessionClients.has(targetSessionId)) {
+    const clients = sessionClients.get(targetSessionId)!;
+    for (const client of clients) {
+      if (client.readyState === 1) {
+        client.send(message);
+      }
+    }
+    return;
+  }
+
+  // Fallback for events without a sessionId or untracked sessions
   for (const client of Array.from(wsClients) as any[]) {
     if (client.readyState === 1) {
       client.send(message);
@@ -190,7 +203,7 @@ export async function broadcastThought(sessionId: string, step: string, context:
   }
 
   // Persist thought as a session message with kind: "thought"
-  appendSessionMessage(sessionId, {
+  await appendSessionMessage(sessionId, {
     id: `thought-${step}-${Date.now()}`,
     role: "thought",
     content: thought,
@@ -206,67 +219,4 @@ export async function broadcastThought(sessionId: string, step: string, context:
   return thought;
 }
 
-export async function broadcastCodeStream(sessionId: string, code: string, options: any = {}): Promise<void> {
-  const normalizedCode = String(code ?? "");
-  const messageId = options.messageId ?? null;
-  const mode = options.mode ?? "generate";
-  const diff = options.diff ?? null;
-  const chunkSize = Number.isFinite(options.chunkSize) ? Math.max(24, options.chunkSize) : codeStreamChunkSize;
-  const chunkDelayMs = Number.isFinite(options.chunkDelayMs) ? Math.max(0, options.chunkDelayMs) : codeStreamChunkDelayMs;
 
-  broadcastEvent("code:stream", {
-    sessionId,
-    messageId,
-    mode,
-    reset: true,
-    done: false,
-    delta: "",
-    code: ""
-  });
-
-  if (!normalizedCode) {
-    broadcastEvent("code:stream", {
-      sessionId,
-      messageId,
-      mode,
-      reset: false,
-      done: true,
-      delta: "",
-      code: "",
-      diff
-    });
-    return;
-  }
-
-  let runningCode = "";
-
-  for (let offset = 0; offset < normalizedCode.length; offset += chunkSize) {
-    const delta = normalizedCode.slice(offset, offset + chunkSize);
-    runningCode += delta;
-
-    broadcastEvent("code:stream", {
-      sessionId,
-      messageId,
-      mode,
-      reset: false,
-      done: false,
-      delta,
-      code: runningCode
-    });
-
-    if (chunkDelayMs > 0) {
-      await new Promise((resolve) => setTimeout(resolve, chunkDelayMs));
-    }
-  }
-
-  broadcastEvent("code:stream", {
-    sessionId,
-    messageId,
-    mode,
-    reset: false,
-    done: true,
-    delta: "",
-    code: runningCode,
-    diff
-  });
-}

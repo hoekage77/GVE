@@ -1,4 +1,5 @@
-import { db, isoNow } from "../index.js";
+import { supabase, isoNow } from "../index.js";
+import { sessionRepo } from "./session-repo.js";
 
 export interface MessageRow {
   id: string;
@@ -19,97 +20,102 @@ export interface PaginatedMessages {
 }
 
 export const messageRepo = {
-  create(row: Omit<MessageRow, "created_at" | "updated_at"> & { created_at?: string }): MessageRow {
+  async create(row: Omit<MessageRow, "created_at" | "updated_at"> & { created_at?: string }): Promise<MessageRow> {
     const now = isoNow();
     const createdAt = row.created_at ?? now;
-    db.prepare(
-      `INSERT OR REPLACE INTO messages (id, session_id, role, content, kind, error, meta, metadata, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
-    ).run(
-      row.id,
-      row.session_id,
-      row.role,
-      row.content,
-      row.kind ?? null,
-      row.error ?? null,
-      row.meta ?? null,
-      row.metadata ?? null,
-      createdAt,
-      now
-    );
+
+    // Ensure the parent session row exists before inserting (FK constraint).
+    // This is a no-op if the session already exists (upsert).
+    try {
+      await sessionRepo.create(row.session_id, null);
+    } catch {
+      // Session may already exist — ignore duplicate key errors
+    }
+
+    const insertRow = {
+      id: row.id,
+      session_id: row.session_id,
+      role: row.role,
+      content: row.content,
+      kind: row.kind ?? null,
+      error: row.error ?? null,
+      meta: row.meta ?? null,
+      metadata: row.metadata ?? null,
+      created_at: createdAt,
+      updated_at: now,
+    };
+    const { error } = await supabase.from("messages").upsert(insertRow);
+    if (error) {
+      console.error("[messageRepo] create error:", error.message);
+      throw error;
+    }
     return { ...row, created_at: createdAt, updated_at: now };
   },
 
-  findById(id: string): MessageRow | undefined {
-    return db.prepare("SELECT * FROM messages WHERE id = ?").get(id) as MessageRow | undefined;
+  async findById(id: string): Promise<MessageRow | undefined> {
+    const { data, error } = await supabase.from("messages").select("*").eq("id", id).single();
+    if (error || !data) return undefined;
+    return data as MessageRow;
   },
 
-  findBySession(sessionId: string, opts?: { limit?: number; offset?: number; before?: string }): PaginatedMessages {
+  async findBySession(sessionId: string, opts?: { limit?: number; offset?: number; before?: string }): Promise<PaginatedMessages> {
     const limit = Math.min(opts?.limit ?? 50, 200);
     const offset = opts?.offset ?? 0;
 
-    let countStmt = "SELECT COUNT(*) as total FROM messages WHERE session_id = ?";
-    let selectStmt = "SELECT * FROM messages WHERE session_id = ?";
-    const params: any[] = [sessionId];
+    let query = supabase.from("messages").select("*", { count: "exact" }).eq("session_id", sessionId);
 
     if (opts?.before) {
-      countStmt += " AND created_at < (SELECT created_at FROM messages WHERE id = ?)";
-      selectStmt += " AND created_at < (SELECT created_at FROM messages WHERE id = ?)";
-      params.push(opts.before);
+      // Find the created_at of the before message
+      const { data: beforeMsg } = await supabase.from("messages").select("created_at").eq("id", opts.before).single();
+      if (beforeMsg) {
+        query = query.lt("created_at", beforeMsg.created_at);
+      }
     }
 
-    const countRow = db.prepare(countStmt).get(...params) as { total: number };
+    const { data, error, count } = await query
+      .order("created_at", { ascending: false })
+      .range(offset, offset + limit - 1);
 
-    const rows = db.prepare(
-      `${selectStmt} ORDER BY created_at DESC LIMIT ? OFFSET ?`
-    ).all(...params, limit, offset) as MessageRow[];
+    if (error) {
+      console.error("[messageRepo] findBySession error:", error.message);
+      return { data: [], meta: { page: 1, limit, total: 0, before: opts?.before } };
+    }
 
     return {
-      data: rows,
-      meta: { page: Math.floor(offset / limit) + 1, limit, total: countRow.total, before: opts?.before },
+      data: (data ?? []) as MessageRow[],
+      meta: { page: Math.floor(offset / limit) + 1, limit, total: count ?? 0, before: opts?.before },
     };
   },
 
-  update(id: string, patch: Partial<Pick<MessageRow, "content" | "kind" | "error" | "meta" | "metadata">>): MessageRow | undefined {
-    const fields: string[] = [];
-    const values: any[] = [];
+  async update(
+    id: string,
+    patch: Partial<Pick<MessageRow, "content" | "kind" | "error" | "meta" | "metadata">>
+  ): Promise<MessageRow | undefined> {
+    const fields: Record<string, any> = { updated_at: isoNow() };
+    if (patch.content !== undefined) fields.content = patch.content;
+    if (patch.kind !== undefined) fields.kind = patch.kind;
+    if (patch.error !== undefined) fields.error = patch.error ? JSON.stringify(patch.error) : null;
+    if (patch.meta !== undefined) fields.meta = Array.isArray(patch.meta) ? JSON.stringify(patch.meta) : patch.meta;
+    if (patch.metadata !== undefined) fields.metadata = patch.metadata ? JSON.stringify(patch.metadata) : null;
 
-    if (patch.content !== undefined) {
-      fields.push("content = ?");
-      values.push(patch.content);
+    const { error } = await supabase.from("messages").update(fields).eq("id", id);
+    if (error) {
+      console.error("[messageRepo] update error:", error.message);
+      return undefined;
     }
-    if (patch.kind !== undefined) {
-      fields.push("kind = ?");
-      values.push(patch.kind);
-    }
-    if (patch.error !== undefined) {
-      fields.push("error = ?");
-      values.push(patch.error ? JSON.stringify(patch.error) : null);
-    }
-    if (patch.meta !== undefined) {
-      fields.push("meta = ?");
-      values.push(Array.isArray(patch.meta) ? JSON.stringify(patch.meta) : patch.meta);
-    }
-    if (patch.metadata !== undefined) {
-      fields.push("metadata = ?");
-      values.push(patch.metadata ? JSON.stringify(patch.metadata) : null);
-    }
-    if (fields.length === 0) return this.findById(id);
-
-    fields.push("updated_at = ?");
-    values.push(isoNow());
-    values.push(id);
-
-    db.prepare(`UPDATE messages SET ${fields.join(", ")} WHERE id = ?`).run(...values);
     return this.findById(id);
   },
 
-  delete(id: string): boolean {
-    const result = db.prepare("DELETE FROM messages WHERE id = ?").run(id);
-    return (result.changes ?? 0) > 0;
+  async delete(id: string): Promise<boolean> {
+    const { error } = await supabase.from("messages").delete().eq("id", id);
+    if (error) {
+      console.error("[messageRepo] delete error:", error.message);
+      return false;
+    }
+    return true;
   },
 
-  deleteBySession(sessionId: string): void {
-    db.prepare("DELETE FROM messages WHERE session_id = ?").run(sessionId);
+  async deleteBySession(sessionId: string): Promise<void> {
+    await supabase.from("messages").delete().eq("session_id", sessionId);
   },
 };

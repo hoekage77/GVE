@@ -63,7 +63,7 @@ export function buildTurnRuntimeError(turn: any, turnRequestId: string, sessionI
   });
 }
 
-export function handleTurnExecutionError(params: {
+export async function handleTurnExecutionError(params: {
   error: unknown;
   sessionId: string;
   turnRequestId: string;
@@ -86,7 +86,7 @@ export function handleTurnExecutionError(params: {
     diagnostics
   });
 
-  const assistantErrorMessage = updateSessionMessage(sessionId, assistantMessageId, {
+  const assistantErrorMessage = await updateSessionMessage(sessionId, assistantMessageId, {
     content: structuredError.userMessage,
     kind: "error",
     error: structuredError,

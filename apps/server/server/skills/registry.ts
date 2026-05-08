@@ -1,6 +1,11 @@
 /**
  * Skill Registry — deterministic skill selection via weighted scoring.
+ *
+ * Execution reliability scores blend static metadata with live metrics
+ * from the SkillMetricsStore when sufficient samples are available.
  */
+
+import { getSkillReliability } from "./metrics-store.js";
 
 // ─── Types ───────────────────────────────────────────────────────────
 
@@ -249,12 +254,21 @@ function constraintFit(skill: SkillDefinition, intent: NormalizedIntent): number
   return Math.min(1, score);
 }
 
+function resolveExecutionReliability(skill: SkillDefinition): number {
+  const live = getSkillReliability(skill.id);
+  if (live === null) {
+    return skill.executionReliability;
+  }
+  // Blend: 70% live metric + 30% static baseline (prevents over-reaction to short windows)
+  return Math.round((live * 0.7 + skill.executionReliability * 0.3) * 100) / 100;
+}
+
 function scoreSkill(skill: SkillDefinition, intent: NormalizedIntent): number {
   return (
     0.45 * domainMatch(skill, intent) +
     0.25 * capabilityCoverage(skill, intent) +
     0.15 * constraintFit(skill, intent) +
-    0.1 * skill.executionReliability +
+    0.1 * resolveExecutionReliability(skill) +
     0.05 * skill.warmPoolAvailability
   );
 }

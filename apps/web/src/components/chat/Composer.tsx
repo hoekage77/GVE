@@ -22,7 +22,6 @@ interface ComposerProps {
   isSending?: boolean;
   onStop?: () => void;
   placeholder?: string;
-  variant?: "legacy" | "meta";
   participantLabel?: string;
   modelLabel?: string;
   providers?: LlmProviderItem[];

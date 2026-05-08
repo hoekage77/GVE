@@ -1,6 +1,5 @@
 import { normalizeQuery } from "./intent-classifier.js";
 import { sleep, truncateDiagnostic } from "../lib/utils.js";
-import { recordTokenUsage } from "../state/token-usage.js";
 import { z } from "zod";
 
 // Moonshot configuration
@@ -15,16 +14,6 @@ export const narrationRetryDelaysMs = fastModeEnabled ? [] : [1000, 2500, 5000];
 export const selfDebugSessionTimeoutMs = fastModeEnabled ? 9_000 : 14_000;
 export const selfDebugMaxIterations = 2;
 export const runtimeDebugMaxIterations = 2;
-
-// Re-export from runtime-executor for pipeline convenience
-export {
-  runtimeExecutionMaxFrames,
-  resolveRuntimeExecutionTimeoutMs,
-  getTurnDeadlineAtMs,
-  computeBoundedTimeoutMs,
-  shouldDegradeRuntimeFailure,
-  buildDegradedRuntimeResult
-} from "./runtime-executor.js";
 
 export function shouldRequireOrbitControls(state: any) {
   if (state?.selectedSkill !== "threejs") {
@@ -522,7 +511,8 @@ export async function generateConversationReplyWithMoonshot(options: any): Promi
       mode: "thinking",
       retryDelays: moonshotRetryDelaysMs,
       executeProvider: async ({ provider, mode: providerMode, retryDelays }: any) => {
-        const response = await fetchChatCompletion(
+        const { streamChatCompletion } = await import("../llm/streaming.js");
+        const result = await streamChatCompletion(
           provider,
           {
             messages: [
@@ -533,19 +523,8 @@ export async function generateConversationReplyWithMoonshot(options: any): Promi
           { mode: providerMode, retryDelays }
         );
 
-        const payload = await response.json();
-        const message = payload?.choices?.[0]?.message ?? {};
-        const content = message.content ?? "";
-        const reasoningContent = (message as any).reasoning_content ?? null;
-        const replyText = typeof content === "string" ? content : "";
-
-        // Record token usage from conversation reply.
-        if (payload?.usage) {
-          recordTokenUsage(
-            { providerId: provider.id, model: payload.model ?? provider.model ?? null },
-            payload.usage
-          );
-        }
+        const replyText = result.content ?? "";
+        const reasoningContent = result.reasoningContent || null;
 
         if (!replyText) {
           throw createRetryableProviderError(`${provider.id} returned empty conversational output.`, "PROVIDER_EMPTY_OUTPUT");
@@ -618,6 +597,10 @@ export async function generateConversationReplyWithMoonshot(options: any): Promi
   }
 }
 
+/**
+ * Apply Anthropic-style prompt caching to the first system message.
+ * Only applies when the provider explicitly advertises `supportsPromptCaching`.
+ */
 export async function applyFallbackSceneEdit(currentCode: string, instruction: string): Promise<any> {
   // Stub - will be implemented from orchestrator extraction
   return {
@@ -626,69 +609,4 @@ export async function applyFallbackSceneEdit(currentCode: string, instruction: s
   };
 }
 
-export async function fetchChatCompletion(provider: any, payload: any, options: any = {}) {
-  const mode = options.mode ?? "instant";
-  const retryDelays = options.retryDelays ?? [150, 350];
-  let lastError = null;
-  let attempt = 0;
 
-  const resolvedModel = payload.model ?? provider.model;
-  const resolvedPayload = { max_tokens: provider.maxTokens ?? 8192, ...payload, model: resolvedModel };
-
-  while (attempt <= retryDelays.length) {
-    const enrichedPayload = typeof provider.payloadTransform === "function"
-      ? provider.payloadTransform.call(provider, resolvedPayload, { mode })
-      : resolvedPayload;
-
-    const endpoint = `${provider.baseUrl.replace(/\/$/, "")}/chat/completions`;
-
-    try {
-      const fetchStartMs = Date.now();
-      const response = await fetch(endpoint, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${provider.apiKey}`,
-        },
-        body: JSON.stringify(enrichedPayload),
-      });
-      const fetchDurationMs = Date.now() - fetchStartMs;
-
-      if (response.ok) {
-        return response;
-      }
-
-      const bodyText = await response.text();
-      const error: any = new Error(`${provider.id} request failed (${response.status}): ${bodyText.slice(0, 220)}`);
-      error.status = response.status;
-
-      if (response.status === 429) {
-        error.code = "PROVIDER_RATE_LIMITED";
-        throw error;
-      }
-
-      if (attempt >= retryDelays.length) {
-        throw error;
-      }
-
-      lastError = error;
-      await sleep(retryDelays[attempt]);
-      attempt += 1;
-    } catch (error: any) {
-      if (error?.code === "PROVIDER_RATE_LIMITED" || error?.status === 429) {
-        throw error;
-      }
-
-      lastError = error;
-
-      if (attempt >= retryDelays.length) {
-        throw error;
-      }
-
-      await sleep(retryDelays[attempt]);
-      attempt += 1;
-    }
-  }
-
-  throw lastError ?? new Error(`${provider.id} request failed.`);
-}

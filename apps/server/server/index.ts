@@ -8,8 +8,10 @@ import { shutdownSandboxRuntime } from "./sandbox/skill-runtime.js";
 import { shutdownSessions } from "./state/session.js";
 import { shutdownTokenUsage } from "./state/token-usage.js";
 import { setupWebSocketHandler } from "./ws/handler.js";
+import { warmUpRegistry } from "./tools/registry.js";
 
-const app = createApp();
+async function main() {
+  const app = await createApp();
 const port = Number(process.env.PORT ?? 8000);
 const server = createServer(app);
 const wsServer = new WebSocketServer({ noServer: true });
@@ -29,42 +31,49 @@ server.on("upgrade", (request, socket, head) => {
 });
 
 server.listen(port, () => {
-  console.log(`GVE JS backend listening on http://localhost:${port}`);
-});
+    console.log(`GVE JS backend listening on http://localhost:${port}`);
+    warmUpRegistry();
+  });
 
-// ── Graceful shutdown ──
-const SHUTDOWN_TIMEOUT_MS = 30_000;
+  // ── Graceful shutdown ──
+  const SHUTDOWN_TIMEOUT_MS = 30_000;
 
-function gracefulShutdown(signal: "SIGTERM" | "SIGINT"): void {
-  console.log(`[Server] Received ${signal}. Flushing sessions and shutting down...`);
+  function gracefulShutdown(signal: "SIGTERM" | "SIGINT"): void {
+    console.log(`[Server] Received ${signal}. Flushing sessions and shutting down...`);
 
-  const timeout = setTimeout(() => {
-    console.error("[Server] Shutdown timed out. Forcing exit.");
-    process.exit(1);
-  }, SHUTDOWN_TIMEOUT_MS);
+    const timeout = setTimeout(() => {
+      console.error("[Server] Shutdown timed out. Forcing exit.");
+      process.exit(1);
+    }, SHUTDOWN_TIMEOUT_MS);
 
-  void (async () => {
-    try {
-      await shutdownSandboxRuntime({ deleteIdleSandboxes: true });
-    } catch (error) {
-      console.warn(`[Server] Sandbox runtime shutdown warning: ${error instanceof Error ? error.message : String(error)}`);
-    }
-
-    shutdownSessions();
-    shutdownTokenUsage();
-
-    server.close((err) => {
-      clearTimeout(timeout);
-      if (err) {
-        console.error("[Server] Error closing server:", err);
-        process.exit(1);
+    void (async () => {
+      try {
+        await shutdownSandboxRuntime({ deleteIdleSandboxes: true });
+      } catch (error) {
+        console.warn(`[Server] Sandbox runtime shutdown warning: ${error instanceof Error ? error.message : String(error)}`);
       }
-      console.log("[Server] Closed gracefully.");
-      process.exit(0);
-    });
-  })();
+
+      shutdownSessions();
+      shutdownTokenUsage();
+
+      server.close((err) => {
+        clearTimeout(timeout);
+        if (err) {
+          console.error("[Server] Error closing server:", err);
+          process.exit(1);
+        }
+        console.log("[Server] Closed gracefully.");
+        process.exit(0);
+      });
+    })();
+  }
+
+  process.on("SIGTERM", () => gracefulShutdown("SIGTERM"));
+  process.on("SIGINT", () => gracefulShutdown("SIGINT"));
 }
 
-process.on("SIGTERM", () => gracefulShutdown("SIGTERM"));
-process.on("SIGINT", () => gracefulShutdown("SIGINT"));
+main().catch((err) => {
+  console.error("[Server] Failed to start:", err);
+  process.exit(1);
+});
 

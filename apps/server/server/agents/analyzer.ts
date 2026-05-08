@@ -1,5 +1,5 @@
 import { getPool } from "../llm/pool.js";
-import { fetchChatCompletion } from "../pipeline/utils.js";
+import { streamChatCompletion } from "../llm/streaming.js";
 
 export async function runMultiAgentAnalysis(code: string): Promise<{
   results: Record<string, { name: string; score: number; findings: string[]; recommendations: string[] }>;
@@ -55,7 +55,7 @@ You MUST respond with ONLY valid JSON and no markdown wrapping. The JSON must ex
     const { provider } = acquired;
 
     try {
-      const response = await fetchChatCompletion(provider, {
+      const result = await streamChatCompletion(provider, {
         messages: [
           { role: "system", content: systemPrompt },
           { role: "user", content: userPrompt }
@@ -63,8 +63,7 @@ You MUST respond with ONLY valid JSON and no markdown wrapping. The JSON must ex
         temperature: 0.2,
       }, { mode: "instant" });
 
-      const payload = await response.json();
-      let content = payload?.choices?.[0]?.message?.content || "";
+      let content = result.content || "";
       
       // Clean up potential markdown formatting (e.g. ```json ... ```)
       content = content.replace(/^```json\n?/, '').replace(/\n?```$/, '').trim();

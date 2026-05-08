@@ -16,15 +16,61 @@ const sessions = new Map<string, InternalSessionState>();
 let initialized = false;
 
 /**
- * Initialize sessions from disk. Call once on server startup.
+ * Initialize sessions from Supabase (primary) with file-store fallback.
+ * Call once on server startup.
  */
-export function initializeSessions(): void {
+export async function initializeSessions(): Promise<void> {
   if (initialized) return;
 
+  const failedFromSupabase = new Set<string>();
+
+  try {
+    const { data: rows, error } = await sessionRepo.getAll();
+    if (error) throw error;
+    for (const row of rows ?? []) {
+      try {
+        const mRows = await messageRepo.findBySession(row.id, { limit: 200, offset: 0 });
+        const messages = (mRows.data ?? []).map((mr) => ({
+          messageId: mr.id,
+          role: mr.role,
+          content: mr.content,
+          kind: mr.kind ?? undefined,
+          error: mr.error ? (safeJsonParse(mr.error) as any) : null,
+          meta: mr.meta ? (safeJsonParse(mr.meta) as string[]) : [],
+          metadata: mr.metadata ? safeJsonParse(mr.metadata) : {},
+          createdAt: mr.created_at,
+          updatedAt: mr.updated_at,
+        }));
+        const st: any = {
+          sessionId: row.id,
+          ownerId: row.owner_id,
+          status: row.status ?? "idle",
+          artifacts: [],
+          artifactPointer: -1,
+          currentScene: null,
+          workspace: null,
+          messages,
+          orchestrationTrace: [],
+          createdAt: row.created_at,
+          updatedAt: row.updated_at,
+        };
+        const internalState = migrateToInternalState(st);
+        sessions.set(row.id, internalState);
+      } catch {
+        failedFromSupabase.add(row.id);
+      }
+    }
+  } catch (supaErr) {
+    console.warn("[SessionState] Supabase load failed, falling back to file store:", (supaErr as Error).message);
+  }
+
+  // Fill in any sessions not loaded from Supabase with file store
   const persisted = loadAllSessions();
   for (const [id, state] of persisted) {
-    const internalState = migrateToInternalState(state);
-    sessions.set(id, internalState);
+    if (!sessions.has(id) || failedFromSupabase.has(id)) {
+      const internalState = migrateToInternalState(state);
+      sessions.set(id, internalState);
+    }
   }
 
   initialized = true;
@@ -41,6 +87,11 @@ function persistSession(session: InternalSessionState): void {
 
 function isoNow(): string {
   return new Date().toISOString();
+}
+
+function safeJsonParse(raw: string | null | undefined): any {
+  if (!raw) return null;
+  try { return JSON.parse(raw); } catch { return raw; }
 }
 
 function clamp(value: number, minimum: number, maximum: number): number {
@@ -365,6 +416,13 @@ export function getOrCreateInternalSession(sessionId: string, ownerId: string | 
 
   const session = createInternalSession(resolvedSessionId, ownerId);
   sessions.set(resolvedSessionId, session);
+  saveSessionSync(resolvedSessionId, session as any);
+
+  // Fire-and-forget to Supabase (getOrCreateInternalSession is called sync)
+  sessionRepo.create(resolvedSessionId, ownerId, null).catch((err) => {
+    console.error("[SessionState] Failed to create session in Supabase:", (err as Error).message);
+  });
+
   return session;
 }
 
@@ -380,23 +438,26 @@ export function createSession(sessionId?: string, ownerId: string | null = null)
   sessions.set(resolvedSessionId, session);
   saveSessionSync(resolvedSessionId, session as any);
 
-  // Mirror to SQLite registry
-  try {
-    sessionRepo.create(resolvedSessionId, ownerId, null);
-  } catch (err) {
-    console.error("[SessionState] Failed to mirror session to DB:", (err as Error).message);
-  }
+  // Primary: ensure session row exists in Supabase
+  sessionRepo.create(resolvedSessionId, ownerId, null).catch((err) => {
+    console.error("[SessionState] Failed to create session in Supabase:", (err as Error).message);
+  });
 
   return cloneSessionState(session);
 }
 
-export function deleteSession(sessionId: string): boolean {
+export async function deleteSession(sessionId: string): Promise<boolean> {
   sessions.delete(sessionId);
   try {
-    return sessionRepo.delete(sessionId);
-  } catch {
+    await Promise.all([
+      sessionRepo.delete(sessionId),
+      messageRepo.deleteBySession(sessionId)
+    ]);
+  } catch (err) {
+    console.error("[SessionState] Failed to delete session from Supabase:", (err as Error).message);
     return false;
   }
+  return true;
 }
 
 export function isSessionOwner(session: SessionState | InternalSessionState, userId: string | null): boolean {
@@ -404,7 +465,7 @@ export function isSessionOwner(session: SessionState | InternalSessionState, use
   return session.ownerId === userId;
 }
 
-export function listSessions(userId: string | null = null): SessionState[] {
+export async function listSessions(userId: string | null = null): Promise<SessionState[]> {
   const inMemory = Array.from(sessions.values())
     .filter(s => isSessionOwner(s, userId))
     .map(cloneSessionState);
@@ -412,8 +473,7 @@ export function listSessions(userId: string | null = null): SessionState[] {
   // Also read from DB to catch sessions created via new CRUD endpoints
   if (userId) {
     try {
-      const dbResult = sessionRepo.findByOwner(userId, { limit: 100, offset: 0 });
-      const dbIds = new Set(dbResult.data.map(r => r.id));
+      const dbResult = await sessionRepo.findByOwner(userId, { limit: 100, offset: 0 });
       const missing = dbResult.data
         .filter(r => !sessions.has(r.id))
         .map(r => {
@@ -432,6 +492,12 @@ export function listSessions(userId: string | null = null): SessionState[] {
 
 export function ensureSession(sessionId: string): SessionState {
   return createSession(sessionId);
+}
+
+export function getSessionState(sessionId: string): SessionState | undefined {
+  const existing = sessions.get(sessionId);
+  if (!existing) return undefined;
+  return cloneSessionState(existing);
 }
 
 export function recordSceneVersion(sessionId: string, sceneSnapshot: any): SessionState {
@@ -740,7 +806,7 @@ export function setSessionStatus(sessionId: string, status: SessionStatus): Sess
   return cloneSessionState(session);
 }
 
-export function appendSessionMessage(sessionId: string, message: any): SessionMessage {
+export async function appendSessionMessage(sessionId: string, message: any): Promise<SessionMessage> {
   const session = getOrCreateInternalSession(sessionId);
   const now = isoNow();
   const messageId = message.id ?? `message-${session.messages.length + 1}`;
@@ -779,9 +845,9 @@ export function appendSessionMessage(sessionId: string, message: any): SessionMe
   session.updatedAt = now;
   persistSession(session);
 
-  // Mirror to SQLite
+  // Primary: write to Supabase
   try {
-    messageRepo.create({
+    await messageRepo.create({
       id: messageId,
       session_id: sessionId,
       role: storedMessage.role,
@@ -792,13 +858,13 @@ export function appendSessionMessage(sessionId: string, message: any): SessionMe
       metadata: storedMessage.metadata ? JSON.stringify(storedMessage.metadata) : null,
     });
   } catch (err) {
-    console.error("[SessionState] Failed to mirror message to DB:", (err as Error).message);
+    console.error("[SessionState] Failed to persist message to Supabase:", (err as Error).message);
   }
 
   return { ...storedMessage };
 }
 
-export function updateSessionMessage(sessionId: string, messageId: string, updates: Partial<SessionMessage>): SessionMessage | null {
+export async function updateSessionMessage(sessionId: string, messageId: string, updates: Partial<SessionMessage>): Promise<SessionMessage | null> {
   const session = getOrCreateInternalSession(sessionId);
   const messageIndex = session.messages.findIndex(m => m.messageId === messageId);
   
@@ -822,15 +888,15 @@ export function updateSessionMessage(sessionId: string, messageId: string, updat
   session.updatedAt = now;
   persistSession(session);
 
-  // Mirror to SQLite so refetches return the latest content
+  // Primary: update in Supabase
   try {
-    messageRepo.update(messageId, {
+    await messageRepo.update(messageId, {
       content: updatedMessage.content,
       kind: updatedMessage.kind,
       meta: Array.isArray(updatedMessage.meta) ? JSON.stringify(updatedMessage.meta) : undefined,
     });
   } catch (err) {
-    console.error("[SessionState] Failed to mirror message update to DB:", (err as Error).message);
+    console.error("[SessionState] Failed to update message in Supabase:", (err as Error).message);
   }
 
   return { ...updatedMessage };
@@ -853,6 +919,25 @@ export function buildWebSocketUrl(req: any): string {
 export function listSessionMessages(sessionId: string): SessionMessage[] {
   const session = getOrCreateInternalSession(sessionId);
   return session.messages.map((m: SessionMessage) => ({ ...m }));
+}
+
+export async function listSessionMessagesFromSupabase(sessionId: string): Promise<SessionMessage[]> {
+  try {
+    const result = await messageRepo.findBySession(sessionId, { limit: 200, offset: 0 });
+    return (result.data ?? []).map((row) => ({
+      messageId: row.id,
+      id: row.id,
+      role: row.role as SessionMessage["role"],
+      content: row.content,
+      kind: row.kind ?? undefined,
+      meta: row.meta ? (safeJsonParse(row.meta) as string[] ?? []) : [],
+      error: row.error ? (safeJsonParse(row.error) as any) : null,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+    }));
+  } catch {
+    return [];
+  }
 }
 
 export function buildSceneUpdatePayload(sessionId: string): any {

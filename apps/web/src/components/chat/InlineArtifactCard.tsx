@@ -31,7 +31,7 @@ export function InlineArtifactCard({
       <button
         type="button"
         onClick={() => setIsCollapsed(false)}
-        className="group mt-3 flex w-full items-center gap-2 rounded-xl border border-white/[0.06] bg-white/[0.02] px-3 py-2 text-left transition-all hover:border-white/[0.12] hover:bg-white/[0.04]"
+        className="group mt-3 flex w-full items-center gap-2 card-glass px-3 py-2 text-left transition-all"
       >
         <div className={`h-2 w-2 rounded-full ${dotColor}`} />
         <span className="text-[11px] font-medium text-white/50">{sceneId || "Artifact"}</span>
@@ -46,7 +46,7 @@ export function InlineArtifactCard({
 
   return (
     <div
-      className="group relative mt-3 overflow-hidden rounded-2xl border border-white/[0.06] bg-black/40 backdrop-blur-sm transition-all duration-300 hover:border-white/[0.12]"
+      className="card-glass card-glass-accent group relative mt-3 overflow-hidden rounded-2xl transition-all duration-300 hover:-translate-y-px"
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >

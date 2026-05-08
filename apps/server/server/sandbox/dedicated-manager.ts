@@ -230,6 +230,10 @@ export function setDedicatedSandboxInstance(instance: DedicatedSandboxManager): 
   _instance = instance;
 }
 
+export function getDedicatedSandboxInstance(): DedicatedSandboxManager | null {
+  return _instance;
+}
+
 export function getDedicatedSandboxStatus(): any {
   if (!_instance) {
     return { enabled: false, activeRecords: 0, inflightAcquires: 0, records: [] };

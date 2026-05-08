@@ -11,6 +11,7 @@ import {
   previousArtifact,
   nextArtifact,
   selectVersion,
+  modifyVisual,
 } from "../../api";
 
 export interface SessionSlice {
@@ -31,6 +32,7 @@ export interface SessionSlice {
   setSessionsError: (error: string | null) => void;
   selectSceneVersion: (versionId: string) => Promise<boolean>;
   rerunScene: (options?: { codeOverride?: string | null }) => Promise<boolean>;
+  setCurrentSceneCode: (sessionId: string, code: string) => void;
 }
 
 export const createSessionSlice: StateCreator<ChatState, [], [], SessionSlice> = (set, get) => ({
@@ -44,9 +46,24 @@ export const createSessionSlice: StateCreator<ChatState, [], [], SessionSlice> =
   setActiveSession: (sessionId) => set({ activeSessionId: sessionId }),
 
   addSession: (session) =>
-    set((state) => ({
-      sessions: [...state.sessions.filter((s) => s.sessionId !== session.sessionId), session],
-    })),
+    set((state) => {
+      const existing = state.sessions.find((s) => s.sessionId === session.sessionId);
+      const merged = existing
+        ? {
+            ...session,
+            // Preserve scene data if the server payload is missing it
+            // (e.g. listSessions only returns metadata without currentScene)
+            currentScene: session.currentScene ?? existing.currentScene ?? null,
+            versions: session.versions?.length ? session.versions : existing.versions ?? [],
+            versionCount: session.versionCount ?? existing.versionCount ?? 0,
+            versionPointer: session.versionPointer ?? existing.versionPointer ?? 0,
+            sceneId: session.sceneId ?? existing.sceneId ?? null,
+          }
+        : session;
+      return {
+        sessions: [...state.sessions.filter((s) => s.sessionId !== session.sessionId), merged],
+      };
+    }),
 
   startDraftSession: () => {
     const draftId = `draft-${crypto.randomUUID?.() ?? Date.now().toString(36)}`;
@@ -132,10 +149,42 @@ export const createSessionSlice: StateCreator<ChatState, [], [], SessionSlice> =
     const { activeSessionId } = get();
     if (!activeSessionId) return false;
     try {
+      if (options?.codeOverride) {
+        const result = await modifyVisual({
+          sessionId: activeSessionId,
+          instruction: "Rerun current scene.",
+          runMode: "rerun",
+          codeOverride: options.codeOverride,
+        });
+        if (result?.sceneState) {
+          const updated = buildClientSession(result.sceneState);
+          if (updated) {
+            set((state) => ({
+              sessions: state.sessions.map((s) => (s.sessionId === activeSessionId ? updated : s)),
+            }));
+          }
+        }
+        return result?.sceneState != null;
+      }
       const result = await selectVersion(activeSessionId, activeSessionId);
       return result?.success ?? false;
     } catch {
       return false;
     }
+  },
+
+  setCurrentSceneCode: (sessionId, code) => {
+    set((state) => ({
+      sessions: state.sessions.map((s) =>
+        s.sessionId === sessionId
+          ? {
+              ...s,
+              currentScene: s.currentScene
+                ? { ...s.currentScene, code, streaming: false, streamingComplete: true }
+                : null,
+            }
+          : s
+      ),
+    }));
   },
 });

@@ -1,4 +1,4 @@
-import { db, isoNow } from "../index.js";
+import { supabase, isoNow } from "../index.js";
 import { createHash, randomBytes } from "node:crypto";
 
 function hashKey(key: string): string {
@@ -28,35 +28,63 @@ export interface ApiKeyResponse {
 }
 
 export const apiKeyRepo = {
-  generate(userId: string, name: string, scopes?: string[]): { row: ApiKeyRow; plainKey: string } {
+  async generate(userId: string, name: string, scopes?: string[]): Promise<{ row: ApiKeyRow; plainKey: string }> {
     const id = `ak_${randomBytes(16).toString("hex")}`;
     const plainKey = `genvis_${randomBytes(32).toString("base64url")}`;
     const keyHash = hashKey(plainKey);
     const scopeStr = JSON.stringify(scopes?.length ? scopes : ["*"]);
 
     const now = isoNow();
-    db.prepare(
-      `INSERT INTO api_keys (id, user_id, name, key_hash, scopes, created_at, expires_at, last_used_at, revoked)
-       VALUES (?, ?, ?, ?, ?, ?, NULL, NULL, 0)`
-    ).run(id, userId, name, keyHash, scopeStr, now);
+    const row: ApiKeyRow = {
+      id,
+      user_id: userId,
+      name,
+      key_hash: keyHash,
+      scopes: scopeStr,
+      created_at: now,
+      expires_at: null,
+      last_used_at: null,
+      revoked: 0,
+    };
 
-    const row = { id, user_id: userId, name, key_hash: keyHash, scopes: scopeStr, created_at: now, expires_at: null, last_used_at: null, revoked: 0 };
+    const { error } = await supabase.from("api_keys").insert(row);
+    if (error) {
+      console.error("[apiKeyRepo] generate error:", error.message);
+      throw error;
+    }
+
     return { row, plainKey };
   },
 
-  findByHash(keyHash: string): ApiKeyRow | undefined {
-    return db.prepare(
-      "SELECT * FROM api_keys WHERE key_hash = ? AND revoked = 0 AND (expires_at IS NULL OR expires_at > ?)"
-    ).get(keyHash, isoNow()) as ApiKeyRow | undefined;
+  async findByHash(keyHash: string): Promise<ApiKeyRow | undefined> {
+    const { data, error } = await supabase
+      .from("api_keys")
+      .select("*")
+      .eq("key_hash", keyHash)
+      .eq("revoked", 0)
+      .or(`expires_at.is.null,expires_at.gt.${isoNow()}`)
+      .single();
+
+    if (error || !data) return undefined;
+    return data as ApiKeyRow;
   },
 
-  findById(id: string): ApiKeyRow | undefined {
-    return db.prepare("SELECT * FROM api_keys WHERE id = ?").get(id) as ApiKeyRow | undefined;
+  async findById(id: string): Promise<ApiKeyRow | undefined> {
+    const { data, error } = await supabase.from("api_keys").select("*").eq("id", id).single();
+    if (error || !data) return undefined;
+    return data as ApiKeyRow;
   },
 
-  listByUser(userId: string): ApiKeyResponse[] {
-    const rows = db.prepare("SELECT * FROM api_keys WHERE user_id = ? ORDER BY created_at DESC").all(userId) as ApiKeyRow[];
-    return rows.map((r) => ({
+  async listByUser(userId: string): Promise<ApiKeyResponse[]> {
+    const { data, error } = await supabase
+      .from("api_keys")
+      .select("*")
+      .eq("user_id", userId)
+      .order("created_at", { ascending: false });
+
+    if (error || !data) return [];
+
+    return (data as ApiKeyRow[]).map((r) => ({
       id: r.id,
       name: r.name,
       scopes: JSON.parse(r.scopes),
@@ -67,18 +95,31 @@ export const apiKeyRepo = {
     }));
   },
 
-  touch(id: string): void {
-    db.prepare("UPDATE api_keys SET last_used_at = ? WHERE id = ?").run(isoNow(), id);
+  async touch(id: string): Promise<void> {
+    await supabase.from("api_keys").update({ last_used_at: isoNow() }).eq("id", id);
   },
 
-  revoke(id: string, userId: string): boolean {
-    const result = db.prepare("UPDATE api_keys SET revoked = 1 WHERE id = ? AND user_id = ?").run(id, userId);
-    return (result.changes ?? 0) > 0;
+  async revoke(id: string, userId: string): Promise<boolean> {
+    const { error } = await supabase
+      .from("api_keys")
+      .update({ revoked: 1 })
+      .eq("id", id)
+      .eq("user_id", userId);
+
+    if (error) {
+      console.error("[apiKeyRepo] revoke error:", error.message);
+      return false;
+    }
+    return true;
   },
 
-  delete(id: string, userId: string): boolean {
-    const result = db.prepare("DELETE FROM api_keys WHERE id = ? AND user_id = ?").run(id, userId);
-    return (result.changes ?? 0) > 0;
+  async delete(id: string, userId: string): Promise<boolean> {
+    const { error } = await supabase.from("api_keys").delete().eq("id", id).eq("user_id", userId);
+    if (error) {
+      console.error("[apiKeyRepo] delete error:", error.message);
+      return false;
+    }
+    return true;
   },
 
   checkScope(row: ApiKeyRow, requiredScope: string): boolean {

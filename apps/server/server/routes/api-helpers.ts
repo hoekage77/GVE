@@ -21,13 +21,13 @@ export function resolveUserId(req: Request): string | null {
 /**
  * Dual-auth middleware: tries API key first, then Clerk JWT.
  */
-export function requireAuthOrApiKey(req: Request, res: Response, next: NextFunction): void {
+export async function requireAuthOrApiKey(req: Request, res: Response, next: NextFunction): Promise<void> {
   const apiKeyHeader = req.headers["x-api-key"];
   if (typeof apiKeyHeader === "string" && apiKeyHeader.trim().length > 0) {
     const keyHash = apiKeyRepo.hash(apiKeyHeader.trim());
-    const row = apiKeyRepo.findByHash(keyHash);
+    const row = await apiKeyRepo.findByHash(keyHash);
     if (row) {
-      apiKeyRepo.touch(row.id);
+      await apiKeyRepo.touch(row.id);
       (req as any).apiKeyUserId = row.user_id;
       (req as any).authMethod = "api_key";
       (req as any).apiKeyScopes = JSON.parse(row.scopes);

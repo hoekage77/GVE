@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback, useEffect } from "react";
+import { useState, useRef, useCallback, useEffect, memo } from "react";
 import { Film, Play, AlertCircle, Loader2 } from "lucide-react";
 import { InlineArtifactCard } from "./InlineArtifactCard";
 
@@ -12,7 +12,7 @@ interface InlineMediaPreviewProps {
   onExpand?: () => void;
 }
 
-export function InlineMediaPreview({
+const InlineMediaPreviewInner = memo(function InlineMediaPreviewInner({
   src,
   mediaType,
   sceneId,
@@ -113,4 +113,18 @@ export function InlineMediaPreview({
       </div>
     </InlineArtifactCard>
   );
+}, (prev, next) => {
+  // Deep comparison to prevent remounting video player during parent re-renders
+  return (
+    prev.src === next.src &&
+    prev.mediaType === next.mediaType &&
+    prev.sceneId === next.sceneId &&
+    prev.skill === next.skill &&
+    prev.statusStage === next.statusStage &&
+    prev.statusText === next.statusText
+  );
+});
+
+export function InlineMediaPreview(props: InlineMediaPreviewProps) {
+  return <InlineMediaPreviewInner {...props} />;
 }

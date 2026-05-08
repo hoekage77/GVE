@@ -2,7 +2,7 @@ import { Router } from "express";
 import { requireAuthOrApiKey, resolveUserId, handleError } from "./api-helpers.js";
 import { getDaytonaEnvPreflight } from "../env.js";
 import { getPool } from "../llm/pool.js";
-import { getSandboxRuntimeMetrics } from "../sandbox/skill-runtime.js";
+import { getSandboxRuntimeMetrics, cleanupAllDaytonaSandboxes } from "../sandbox/skill-runtime.js";
 import { getSkillCatalog } from "../skills/registry.js";
 import { streamMediaArtifact } from "./media.js";
 import { planTasks, executeTask } from "../pipeline/index.js";
@@ -68,6 +68,15 @@ infraRouter.get("/api/v1/sandboxes/status", (_req: any, res: any) => {
   res.json({ pool: sandboxMetrics, dedicated: dedicatedStatus });
 });
 
+infraRouter.post("/api/v1/sandboxes/cleanup", requireAuthOrApiKey, async (_req: any, res: any) => {
+  try {
+    const result = await cleanupAllDaytonaSandboxes();
+    res.json({ success: true, ...result });
+  } catch (error) {
+    handleError(error, res);
+  }
+});
+
 infraRouter.get("/api/v1/skills", (_req: any, res: any) => {
   const skills = getSkillCatalog();
   res.json({ skills });
@@ -131,12 +140,12 @@ infraRouter.post("/api/v1/tasks/execute", requireAuthOrApiKey, async (req: any, 
 
 /* ─── API Key Management ─── */
 
-infraRouter.post("/api/v1/auth/api-keys", requireAuthOrApiKey, (req: any, res: any) => {
+infraRouter.post("/api/v1/auth/api-keys", requireAuthOrApiKey, async (req: any, res: any) => {
   try {
     const userId = resolveUserId(req);
     const name = String(req.body?.name ?? "").trim() || "Unnamed Key";
     const scopes = Array.isArray(req.body?.scopes) ? req.body.scopes : ["*"];
-    const { row, plainKey } = apiKeyRepo.generate(userId!, name, scopes);
+    const { row, plainKey } = await apiKeyRepo.generate(userId!, name, scopes);
     res.json({
       data: {
         id: row.id,
@@ -152,21 +161,21 @@ infraRouter.post("/api/v1/auth/api-keys", requireAuthOrApiKey, (req: any, res: a
   }
 });
 
-infraRouter.get("/api/v1/auth/api-keys", requireAuthOrApiKey, (req: any, res: any) => {
+infraRouter.get("/api/v1/auth/api-keys", requireAuthOrApiKey, async (req: any, res: any) => {
   try {
     const userId = resolveUserId(req);
-    const keys = apiKeyRepo.listByUser(userId!);
+    const keys = await apiKeyRepo.listByUser(userId!);
     res.json({ data: keys, error: null });
   } catch (error) {
     handleError(error, res);
   }
 });
 
-infraRouter.delete("/api/v1/auth/api-keys/:id", requireAuthOrApiKey, (req: any, res: any) => {
+infraRouter.delete("/api/v1/auth/api-keys/:id", requireAuthOrApiKey, async (req: any, res: any) => {
   try {
     const userId = resolveUserId(req);
     const id = String(req.params.id);
-    const deleted = apiKeyRepo.delete(id, userId!);
+    const deleted = await apiKeyRepo.delete(id, userId!);
     if (!deleted) {
       res.status(404).json({ error: "NOT_FOUND", message: "API key not found." });
       return;

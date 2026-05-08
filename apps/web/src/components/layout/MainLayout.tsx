@@ -2,7 +2,7 @@ import { Outlet, useRouterState } from '@tanstack/react-router';
 import { useEffect } from 'react';
 import Sidebar from './Sidebar';
 import { MetaHeader } from './MetaHeader';
-import { WorkspaceDrawer } from '../workspace/WorkspaceDrawer';
+import { AgentTerminalDrawer } from '../workspace/AgentTerminalDrawer';
 import { useChatStore } from '../../stores';
 import { useAuth } from '../../lib/clerk';
 import { setAuthTokenProvider } from '../../api';
@@ -49,7 +49,7 @@ export function MainLayout({ children }: MainLayoutProps) {
           {children || <Outlet />}
         </main>
       </div>
-      <WorkspaceDrawer />
+      <AgentTerminalDrawer />
     </div>
   );
 }

@@ -99,12 +99,12 @@ const skillRuntimeProfiles: Record<string, SkillRuntimeProfile> = {
     name: "Manim Video Composer",
     runtime: {
       adapter: "python-manim",
-      timeoutMs: 180000,
+      timeoutMs: 300000,
       maxFrames: 1,
       quality: {
-        width: 1920,
-        height: 1080,
-        fps: 60
+        width: 1280,
+        height: 720,
+        fps: 30
       }
     },
     dependencies: ["manim", "numpy", "pillow"],

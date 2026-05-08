@@ -1,4 +1,5 @@
 export const wsClients = new Set<any>();
+export const sessionClients = new Map<string, Set<any>>();
 
 import { 
   executeChatTurn, 
@@ -13,6 +14,8 @@ import { runWithTraceContext } from "../trace/context.js";
 import { sendSocketPayload, sendSocketEvent, replayEventsSince, broadcastEvent, wsEventSequence } from "./streaming.js";
 import { listSessionMessages } from "../state/session.js";
 import { checkTokenLimit } from "../state/token-usage.js";
+import { storeClientValidationResult } from "../sandbox/runtime/client-validation-cache.js";
+import { recordSkillExecution } from "../skills/metrics-store.js";
 const completedTurnCacheSize = Number.parseInt(String(process.env.WS_COMPLETED_TURN_CACHE_SIZE ?? "300"), 10);
 
 const activeChatTurns = new Map<string, Promise<any>>();
@@ -20,6 +23,31 @@ const completedChatTurns = new Map<string, any>();
 const activeSceneCommands = new Map<string, Promise<any>>();
 const completedSceneCommands = new Map<string, any>();
 const abortedChatTurns = new Set<string>();
+
+function associateSocketWithSession(socket: any, sessionId: string) {
+  if (!sessionId) return;
+  for (const [sid, set] of sessionClients.entries()) {
+    if (set.has(socket)) {
+      set.delete(socket);
+      if (set.size === 0) sessionClients.delete(sid);
+    }
+  }
+  let set = sessionClients.get(sessionId);
+  if (!set) {
+    set = new Set();
+    sessionClients.set(sessionId, set);
+  }
+  set.add(socket);
+}
+
+function removeSocketFromAllSessions(socket: any) {
+  for (const [sid, set] of sessionClients.entries()) {
+    if (set.has(socket)) {
+      set.delete(socket);
+      if (set.size === 0) sessionClients.delete(sid);
+    }
+  }
+}
 
 function pruneCompletedTurnCache() {
   if (completedChatTurns.size <= completedTurnCacheSize) return;
@@ -61,12 +89,18 @@ export function setupWebSocketHandler(wsServer: any) {
 
   socket.on("close", () => {
     wsClients.delete(socket);
+    removeSocketFromAllSessions(socket);
   });
 
   socket.on("message", (rawMessage: any) => {
     void (async () => {
       try {
         const parsedMessage = JSON.parse(rawMessage.toString());
+
+        const anySessionId = String(parsedMessage?.payload?.sessionId ?? "").trim();
+        if (anySessionId) {
+          associateSocketWithSession(socket, anySessionId);
+        }
 
         if (parsedMessage?.type === "turn.abort") {
           const abortSessionId = String(parsedMessage?.payload?.sessionId ?? "").trim();
@@ -94,6 +128,153 @@ export function setupWebSocketHandler(wsServer: any) {
           const lastSeq = Number(parsedMessage?.payload?.lastSeq ?? 0);
           const sessionId = String(parsedMessage?.payload?.sessionId ?? "").trim();
           replayEventsSince(socket, lastSeq, sessionId);
+          return;
+        }
+
+        if (parsedMessage?.type === "client:validation_result") {
+          const payload = parsedMessage?.payload;
+          const sessionId = String(payload?.sessionId ?? "").trim();
+          const skillId = String(payload?.skillId ?? "").trim();
+
+          if (!sessionId || !skillId) {
+            sendSocketEvent(socket, "client:validation_ack", {
+              sessionId: sessionId || null,
+              skillId: skillId || null,
+              accepted: false,
+              error: "sessionId and skillId are required for client:validation_result"
+            });
+            return;
+          }
+
+          const deviceInfo = payload?.deviceInfo ?? undefined;
+
+          const result = storeClientValidationResult(sessionId, {
+            sessionId,
+            skillId,
+            success: Boolean(payload?.success),
+            status: payload?.status ?? "completed",
+            durationMs: Number(payload?.durationMs ?? 0),
+            renderCount: Number(payload?.renderCount ?? 0),
+            frameCount: Number(payload?.frameCount ?? 0),
+            logs: Array.isArray(payload?.logs) ? payload.logs : [],
+            summary: payload?.summary ?? { childCount: 0, types: [] },
+            error: payload?.error ?? null,
+            frameBudgetReached: Boolean(payload?.frameBudgetReached),
+            deviceInfo
+          });
+
+          // Record client telemetry in global metrics for skill scoring
+          recordSkillExecution(skillId, {
+            success: Boolean(payload?.success),
+            durationMs: Number(payload?.durationMs ?? 0),
+            errorCode: payload?.error ? "CLIENT_RENDER_ERROR" : null,
+            gpuRenderer: deviceInfo?.gpuRenderer ?? null
+          });
+
+          sendSocketEvent(socket, "client:validation_ack", {
+            sessionId,
+            skillId,
+            accepted: true,
+            cachedAt: result.receivedAt
+          });
+
+          // Broadcast to all connected clients of the same session so UI can update
+          broadcastEvent("client:validation_complete", {
+            sessionId,
+            skillId,
+            success: result.success,
+            status: result.status,
+            renderCount: result.renderCount,
+            frameCount: result.frameCount,
+            error: result.error
+          });
+          return;
+        }
+
+        if (parsedMessage?.type === "client:vision_request") {
+          const payload = parsedMessage?.payload;
+          const sessionId = String(payload?.sessionId ?? "").trim();
+          const skillId = String(payload?.skillId ?? "").trim();
+          const code = payload?.code;
+          const prompt = String(payload?.prompt ?? "").trim();
+          const screenshot = payload?.screenshot;
+
+          if (!sessionId || !skillId || !code || !screenshot?.dataUrl) {
+            sendSocketEvent(socket, "client:vision_result", {
+              sessionId: sessionId || null,
+              skillId: skillId || null,
+              accepted: false,
+              error: "sessionId, skillId, code, and screenshot.dataUrl are required for client:vision_request"
+            });
+            return;
+          }
+
+          try {
+            const { getPool } = await import("../llm/pool.js");
+            const { streamChatCompletion } = await import("../llm/streaming.js");
+            const pool = getPool();
+            const acquired = pool.acquire({ requireVision: true });
+
+            if (!acquired) {
+              sendSocketEvent(socket, "client:vision_result", {
+                sessionId,
+                skillId,
+                accepted: false,
+                error: "No vision-capable LLM provider available"
+              });
+              return;
+            }
+
+            const { provider } = acquired;
+            const visionPayload = {
+              messages: [
+                {
+                  role: "system",
+                  content: "You are a visual quality analyzer for code-generated scenes. Analyze the rendered image and compare it to the user's request. Identify visual issues (lighting, geometry, colors, composition, missing elements). Respond with ONLY a JSON array of patch goals, each with: id (string), category (string), severity ('critical'|'warning'|'suggestion'), description (string). If the scene looks good, return an empty array."
+                },
+                {
+                  role: "user",
+                  content: [
+                    { type: "text", text: `User request: "${prompt}"\n\nSkill: ${skillId}\n\nAnalyze the rendered scene in the image. Identify visual issues and suggest fixes.` },
+                    { type: "image_url", image_url: { url: screenshot.dataUrl, detail: "low" } }
+                  ]
+                }
+              ],
+              temperature: 0.2,
+              max_tokens: 2048
+            };
+
+            const result = await streamChatCompletion(provider, visionPayload, { mode: "instant", maxTokensOverride: 2048 });
+            const content = result.content ?? "";
+
+            // Extract JSON array from response (may be wrapped in markdown fences)
+            const jsonMatch = content.match(/\[[\s\S]*\]/);
+            let visualGoals: any[] = [];
+            if (jsonMatch) {
+              try {
+                visualGoals = JSON.parse(jsonMatch[0]);
+                if (!Array.isArray(visualGoals)) visualGoals = [];
+              } catch {
+                visualGoals = [];
+              }
+            }
+
+            sendSocketEvent(socket, "client:vision_result", {
+              sessionId,
+              skillId,
+              accepted: visualGoals.length > 0,
+              visualGoals,
+              provider: provider.id,
+              model: result.model ?? provider.model ?? null
+            });
+          } catch (error: any) {
+            sendSocketEvent(socket, "client:vision_result", {
+              sessionId,
+              skillId,
+              accepted: false,
+              error: error instanceof Error ? error.message : String(error)
+            });
+          }
           return;
         }
 
@@ -246,6 +427,52 @@ export function setupWebSocketHandler(wsServer: any) {
             message: commandResult.message,
             sceneState: commandResult.sceneState
           });
+          return;
+        }
+
+        /* ── Tool call handler ── */
+        if (parsedMessage?.type === "tool:call") {
+          const payload = parsedMessage?.payload;
+          const toolName = String(payload?.tool ?? "").trim();
+          const toolArgs = payload?.args ?? {};
+          const callId = String(payload?.callId ?? `tool-${Date.now()}`).trim();
+
+          if (!toolName) {
+            sendSocketEvent(socket, "tool:result", {
+              callId,
+              success: false,
+              output: "Missing tool name"
+            });
+            return;
+          }
+
+          try {
+            const { executeTool, getTool } = await import("../tools/registry.js");
+            const tool = getTool(toolName);
+            if (!tool) {
+              sendSocketEvent(socket, "tool:result", {
+                callId,
+                tool: toolName,
+                success: false,
+                output: `Tool "${toolName}" not found`
+              });
+              return;
+            }
+
+            const result = await executeTool(toolName, toolArgs);
+            sendSocketEvent(socket, "tool:result", {
+              callId,
+              tool: toolName,
+              ...result
+            });
+          } catch (err: any) {
+            sendSocketEvent(socket, "tool:result", {
+              callId,
+              tool: toolName,
+              success: false,
+              output: `Tool execution error: ${err.message}`
+            });
+          }
           return;
         }
 

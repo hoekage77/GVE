@@ -1,42 +1,37 @@
 /**
  * Skill Runtime
  *
- * Executes specific skills within the sandbox environment, providing adapters for
- * Python/Manim and other specialized tools. Integrates with Daytona Pool Manager.
+ * Executes specific skills within the sandbox environment. Now uses the
+ * SkillAdapter pattern so each runtime kind (JavaScript scene, Python/Manim)
+ * is handled by a dedicated adapter instead of inline branches.
+ *
+ * Execution flow:
+ *   1. acquireSandbox   — get a sandbox from Daytona pool or dedicated manager
+ *   2. prepareSandbox   — install tools, write multi-file projects, build
+ *   3. dispatchExecution — use SkillAdapter to run code inside the sandbox
+ *   4. releaseSandbox   — return the sandbox to the pool
  */
 
 import { getSkillRuntimeProfile } from "../skills/loader.js";
-import { persistMediaArtifact } from "../routes/media.js";
+import { recordSkillExecution } from "../skills/metrics-store.js";
 import { SandboxPoolManager, toolRegistry } from "@visual-runtime/sandbox-pool";
 import { DedicatedSandboxManager, setDedicatedSandboxInstance } from "./dedicated-manager.js";
-import { createSandbox, executeInSandbox, cleanupSessionSandbox, healthCheck as dockerHealthCheck } from "./manager.js";
+import { getAdapter } from "./adapters/index.js";
 import { traceEvent } from "../trace/events.js";
 import { getTraceContext } from "../trace/context.js";
 
 function parsePositiveIntEnv(rawValue: string | undefined | null, fallbackValue: number, minimum = 1): number {
   const parsed = Number.parseInt(String(rawValue ?? ""), 10);
-  if (!Number.isFinite(parsed)) {
-    return fallbackValue;
-  }
+  if (!Number.isFinite(parsed)) return fallbackValue;
   return Math.max(minimum, parsed);
 }
 
 function parseBooleanEnv(rawValue: string | undefined | null | boolean, fallbackValue: boolean): boolean {
-  if (rawValue === undefined || rawValue === null || rawValue === "") {
-    return fallbackValue;
-  }
+  if (rawValue === undefined || rawValue === null || rawValue === "") return fallbackValue;
   const normalized = String(rawValue).trim().toLowerCase();
   if (["1", "true", "yes", "on"].includes(normalized)) return true;
   if (["0", "false", "no", "off"].includes(normalized)) return false;
   return fallbackValue;
-}
-
-function escapeDoubleQuotedShellValue(value: string | undefined | null): string {
-  return String(value ?? "")
-    .replace(/\\/g, "\\\\")
-    .replace(/"/g, '\\"')
-    .replace(/\$/g, "\\$")
-    .replace(/`/g, "\\`");
 }
 
 const poolManager = new SandboxPoolManager();
@@ -44,28 +39,18 @@ const dedicatedSandboxManager = new DedicatedSandboxManager(poolManager);
 setDedicatedSandboxInstance(dedicatedSandboxManager);
 
 const runtimeAcquireBudgetMs = parsePositiveIntEnv(process.env.RUNTIME_ACQUIRE_BUDGET_MS, 12_000, 1_000);
-const manimRenderWidth = parsePositiveIntEnv(process.env.MANIM_RENDER_WIDTH, 1920, 320);
-const manimRenderHeight = parsePositiveIntEnv(process.env.MANIM_RENDER_HEIGHT, 1080, 240);
-const manimRenderFps = parsePositiveIntEnv(process.env.MANIM_RENDER_FPS, 60, 12);
-const manimInstallOnDemand = parseBooleanEnv(process.env.MANIM_PIP_INSTALL_ON_DEMAND, true);
-const manimPipPackage = String(process.env.MANIM_PIP_PACKAGE ?? "manim==0.20.1").trim() || "manim==0.20.1";
-const manimLatexInstallOnDemand = parseBooleanEnv(process.env.MANIM_LATEX_INSTALL_ON_DEMAND, true);
-const defaultManimLatexAptPackages = "texlive-latex-base texlive-latex-extra texlive-fonts-recommended dvisvgm";
-const manimLatexAptPackages = String(process.env.MANIM_LATEX_APT_PACKAGES ?? defaultManimLatexAptPackages).trim() || defaultManimLatexAptPackages;
+
+// ── Utilities ─────────────────────────────────────────────────────────
 
 function cloneAcquireDiagnostics(diagnostics: any): any {
   if (!diagnostics || typeof diagnostics !== "object") return null;
-  try {
-    return JSON.parse(JSON.stringify(diagnostics));
-  } catch {
-    return null;
-  }
+  try { return JSON.parse(JSON.stringify(diagnostics)); } catch { return null; }
 }
 
 function resolveAcquireDeadlineAtMs(turnDeadlineAtMs: number | null): number | null {
   const now = Date.now();
   const acquireBudgetDeadlineAtMs = now + runtimeAcquireBudgetMs;
-  const turnDeadline = typeof turnDeadlineAtMs === 'number' && Number.isFinite(turnDeadlineAtMs) ? turnDeadlineAtMs : Number.POSITIVE_INFINITY;
+  const turnDeadline = typeof turnDeadlineAtMs === "number" && Number.isFinite(turnDeadlineAtMs) ? turnDeadlineAtMs : Number.POSITIVE_INFINITY;
   const resolved = Math.min(acquireBudgetDeadlineAtMs, turnDeadline);
   return Number.isFinite(resolved) ? resolved : null;
 }
@@ -73,12 +58,6 @@ function resolveAcquireDeadlineAtMs(turnDeadlineAtMs: number | null): number | n
 function remainingBudgetMs(deadlineAtMs: number | null): number {
   if (deadlineAtMs === null || !Number.isFinite(deadlineAtMs)) return Number.POSITIVE_INFINITY;
   return deadlineAtMs - Date.now();
-}
-
-function extractCodeContent(rawCode: any): string {
-  const text = String(rawCode ?? "");
-  const fencedBlock = text.match(/```(?:[a-z0-9_-]+)?\s*([\s\S]*?)```/i);
-  return (fencedBlock ? fencedBlock[1] ?? text : text).trim();
 }
 
 function isMultiFileProject(code: any): code is { files: any[]; entryPoint: string } {
@@ -122,202 +101,211 @@ async function buildProject(buildManager: any, skillId: string, installDeps = tr
   }
 }
 
-function withTimeout<T>(promise: Promise<T>, timeoutMs: number, timeoutMessage: string): Promise<T> {
-  if (!Number.isFinite(timeoutMs) || timeoutMs <= 0) return Promise.reject(new Error(timeoutMessage));
-  return Promise.race([
-    promise,
-    new Promise<T>((_, reject) => setTimeout(() => reject(new Error(timeoutMessage)), timeoutMs))
-  ]);
+// ── Phase 4: Separated Stages ────────────────────────────────────────
+
+interface AcquireResult {
+  sandboxEnv: any;
+  acquireDiagnostics: any;
+  dedicatedKey: string | null;
 }
 
-function readCommandOutput(executionResult: any): string {
-  if (!executionResult || typeof executionResult !== "object") return "";
-  const candidates = [executionResult.result, executionResult.stdout, executionResult.output, executionResult.stderr];
-  return candidates.filter((value) => typeof value === "string" && value.trim().length > 0).join("\\n");
+async function acquireSandbox(
+  skillId: string,
+  turnDeadlineAtMs: number | null,
+  effectiveSessionId: string | null
+): Promise<AcquireResult> {
+  const acquireBudgetMs = remainingBudgetMs(resolveAcquireDeadlineAtMs(turnDeadlineAtMs));
+  if (acquireBudgetMs <= 0) throw new Error("Runtime budget exhausted before sandbox acquisition.");
+
+  const traceCtx = getTraceContext();
+  const dedicatedKey = dedicatedSandboxManager.getKey({ userId: traceCtx.userId ?? null, sessionId: effectiveSessionId });
+
+  traceEvent("sandbox.acquire_start", {
+    skillId,
+    sessionId: effectiveSessionId,
+    dedicated: dedicatedSandboxManager.isEnabled(),
+    key: dedicatedKey
+  });
+
+  try {
+    const acquireStartMs = Date.now();
+    const sandboxEnv = dedicatedKey
+      ? await dedicatedSandboxManager.acquireForKey(dedicatedKey, { skillId, turnDeadlineAtMs: resolveAcquireDeadlineAtMs(turnDeadlineAtMs) })
+      : await poolManager.acquire({ skillId, turnDeadlineAtMs: resolveAcquireDeadlineAtMs(turnDeadlineAtMs) });
+
+    traceEvent("sandbox.acquire_ok", {
+      skillId,
+      workspaceId: sandboxEnv?.workspaceId ?? null,
+      acquireMs: Date.now() - acquireStartMs,
+      key: dedicatedKey
+    });
+
+    return {
+      sandboxEnv,
+      acquireDiagnostics: cloneAcquireDiagnostics(sandboxEnv?._acquireDiagnostics),
+      dedicatedKey
+    };
+  } catch (acquireError: any) {
+    throw acquireError;
+  }
 }
 
-function buildManimRunnerScript(): string {
-  return [
-    "import importlib.util",
-    "import inspect",
-    "import json",
-    "import os",
-    "import traceback",
-    "import manim as manim_module",
-    "import numpy as np",
-    "from manim import Axes as BaseAxes, NumberPlane as BaseNumberPlane, Scene, config",
-    "def find_scene_classes(module):",
-    "    scene_classes = []",
-    "    for _, value in inspect.getmembers(module, inspect.isclass):",
-    "        try:",
-    "            if value.__module__ != module.__name__: continue",
-    "            if issubclass(value, Scene) and value is not Scene: scene_classes.append(value)",
-    "        except Exception: continue",
-    "    return scene_classes",
-    "def emit(payload): print('__GVE_MANIM_RESULT__' + json.dumps(payload) + '__GVE_MANIM_RESULT_END__')",
-    "def normalize_range(min_value, max_value, step_value, fallback):",
-    "    if min_value is None and max_value is None and step_value is None: return fallback",
-    "    start = fallback[0] if min_value is None else min_value",
-    "    end = fallback[1] if max_value is None else max_value",
-    "    step = fallback[2] if step_value is None else step_value",
-    "    if step == 0: step = fallback[2]",
-    "    return [start, end, step]",
-    "class GVEAxesCompat(BaseAxes):",
-    "    def __init__(self, *args, **kwargs):",
-    "        x_min, x_max, x_step = kwargs.pop('x_min', None), kwargs.pop('x_max', None), kwargs.pop('x_step', None)",
-    "        y_min, y_max, y_step = kwargs.pop('y_min', None), kwargs.pop('y_max', None), kwargs.pop('y_step', None)",
-    "        if (x_min is not None or x_max is not None or x_step is not None) and 'x_range' not in kwargs:",
-    "            kwargs['x_range'] = normalize_range(x_min, x_max, x_step, [-6, 6, 1])",
-    "        if (y_min is not None or y_max is not None or y_step is not None) and 'y_range' not in kwargs:",
-    "            kwargs['y_range'] = normalize_range(y_min, y_max, y_step, [-4, 4, 1])",
-    "        super().__init__(*args, **kwargs)",
-    "class GVENumberPlaneCompat(BaseNumberPlane):",
-    "    def __init__(self, *args, **kwargs):",
-    "        x_min, x_max, x_step = kwargs.pop('x_min', None), kwargs.pop('x_max', None), kwargs.pop('x_step', None)",
-    "        y_min, y_max, y_step = kwargs.pop('y_min', None), kwargs.pop('y_max', None), kwargs.pop('y_step', None)",
-    "        if (x_min is not None or x_max is not None or x_step is not None) and 'x_range' not in kwargs:",
-    "            kwargs['x_range'] = normalize_range(x_min, x_max, x_step, [-6, 6, 1])",
-    "        if (y_min is not None or y_max is not None or y_step is not None) and 'y_range' not in kwargs:",
-    "            kwargs['y_range'] = normalize_range(y_min, y_max, y_step, [-4, 4, 1])",
-    "        super().__init__(*args, **kwargs)",
-    "def inject_runtime_symbols(module):",
-    "    setattr(manim_module, 'Axes', GVEAxesCompat)",
-    "    setattr(manim_module, 'NumberPlane', GVENumberPlaneCompat)",
-    "    for name in dir(manim_module):",
-    "        if name.startswith('_'): continue",
-    "        module.__dict__.setdefault(name, getattr(manim_module, name))",
-    "    module.__dict__.setdefault('np', np)",
-    "def main():",
-    "    script_path = os.environ.get('GVE_MANIM_SCRIPT')",
-    "    output_dir = os.environ.get('GVE_MANIM_OUTPUT_DIR')",
-    "    width = int(os.environ.get('GVE_MANIM_WIDTH', '1920'))",
-    "    height = int(os.environ.get('GVE_MANIM_HEIGHT', '1080'))",
-    "    fps = int(os.environ.get('GVE_MANIM_FPS', '60'))",
-    "    if not script_path or not output_dir: raise RuntimeError('Missing config.')",
-    "    os.makedirs(output_dir, exist_ok=True)",
-    "    config.media_dir = config.video_dir = output_dir",
-    "    config.pixel_width = width",
-    "    config.pixel_height = height",
-    "    config.frame_rate = fps",
-    "    config.quality = 'high_quality'",
-    "    config.progress_bar = 'none'",
-    "    config.disable_caching = True",
-    "    spec = importlib.util.spec_from_file_location('gve_manim_scene_module', script_path)",
-    "    module = importlib.util.module_from_spec(spec)",
-    "    inject_runtime_symbols(module)",
-    "    spec.loader.exec_module(module)",
-    "    scene_classes = find_scene_classes(module)",
-    "    if not scene_classes: raise RuntimeError('No Scene subclass found.')",
-    "    scene_class = scene_classes[0]",
-    "    scene = scene_class()",
-    "    scene.render()",
-    "    movie_path = getattr(scene.renderer.file_writer, 'movie_file_path', None)",
-    "    if not movie_path: raise RuntimeError('No video output path.')",
-    "    emit({'success': True, 'videoPath': str(movie_path), 'sceneClass': scene_class.__name__, 'width': width, 'height': height, 'fps': fps})",
-    "if __name__ == '__main__':",
-    "    try: main()",
-    "    except Exception as error: emit({'success': False, 'error': str(error), 'traceback': traceback.format_exc()})"
-  ].join("\\n");
+async function prepareSandbox(
+  sandboxEnv: any,
+  code: any,
+  tools: any[],
+  skillId: string
+): Promise<{ executionCode: string; buildArtifacts: any }> {
+  // Install tools
+  if (Array.isArray(tools) && tools.length > 0) {
+    const normalizedTools = tools.map((t: any) => {
+      if (typeof t === "string") return { name: t, version: "latest" };
+      return { name: t?.npmPackage ?? t?.name ?? String(t), version: t?.version ?? "latest" };
+    });
+    const isCached = toolRegistry.isInstalled(sandboxEnv.workspaceId, normalizedTools);
+    if (isCached) {
+      toolRegistry.recordCacheHit();
+    } else {
+      const installResult = await poolManager.installTools(sandboxEnv.workspaceId, normalizedTools);
+      if (installResult.success) toolRegistry.markInstalled(sandboxEnv.workspaceId, normalizedTools);
+      else toolRegistry.markFailed(sandboxEnv.workspaceId, new Error(installResult.errors));
+    }
+  }
+
+  let executionCode = code;
+  let buildArtifacts = null;
+
+  // Handle multi-file projects
+  if (isMultiFileProject(code)) {
+    const filesystem = poolManager.getFileSystem(sandboxEnv.workspaceId, sandboxEnv._workspace);
+    const writeResult = await writeProjectToFS(filesystem, code);
+    if (!writeResult.success) throw new Error(`Failed to write project files: ${writeResult.error}`);
+
+    if (shouldBuildSkill(skillId)) {
+      try {
+        const buildManager = poolManager.getBuildManager(sandboxEnv.workspaceId, sandboxEnv._workspace, filesystem);
+        const buildResult = await buildProject(buildManager, skillId, true);
+        if (buildResult.success) buildArtifacts = buildResult.artifacts;
+      } catch { /* build failure is non-fatal */ }
+    }
+
+    executionCode = getEntryPointCode(code);
+    if (!executionCode) throw new Error(`Entry point code not found: ${code.entryPoint}`);
+  }
+
+  return { executionCode, buildArtifacts };
 }
 
-async function executeManimRuntime({ workspace, code, timeoutMs, sessionId }: { workspace: any; code: string; timeoutMs: number; sessionId: string | null }): Promise<any> {
-  const normalizedCode = extractCodeContent(code);
-  if (!normalizedCode) {
-    return { success: false, status: "error", error: "Generated Manim code is empty.", errorCode: "RUNTIME_MANIM_EMPTY_CODE" };
-  }
+async function dispatchExecution(
+  sandboxEnv: any,
+  executionCode: string | any,
+  skill: any,
+  timeoutMs: number,
+  maxFrames: number | undefined,
+  sessionId: string | null
+): Promise<any> {
+  const adapter = getAdapter(skill.runtime?.adapter ?? "javascript");
 
-  const runId = `${Date.now().toString(36)}-${Math.random().toString(16).slice(2, 8)}`;
-  const remoteCodePath = `/tmp/gve_manim_scene_${runId}.py`;
-  const remoteRunnerPath = `/tmp/gve_manim_runner_${runId}.py`;
-  const remoteOutputDir = `/tmp/gve_manim_output_${runId}`;
-
-  await workspace.fs.uploadFile(Buffer.from(normalizedCode, "utf-8"), remoteCodePath);
-  await workspace.fs.uploadFile(Buffer.from(buildManimRunnerScript(), "utf-8"), remoteRunnerPath);
-
-  const command = [
-    "set -euo pipefail",
-    "PYTHON_BIN=\"$(command -v python3 || command -v python || true)\"",
-    "if [ -z \"${PYTHON_BIN}\" ]; then echo '__GVE_MANIM_RESULT__{\"success\": false, \"error\": \"Python runtime not found in sandbox.\"}__GVE_MANIM_RESULT_END__'; exit 0; fi",
-    'mkdir -p "' + remoteOutputDir + '"',
-    'export GVE_MANIM_SCRIPT="' + remoteCodePath + '"',
-    'export GVE_MANIM_OUTPUT_DIR="' + remoteOutputDir + '"',
-    'export GVE_MANIM_WIDTH="' + manimRenderWidth + '"',
-    'export GVE_MANIM_HEIGHT="' + manimRenderHeight + '"',
-    'export GVE_MANIM_FPS="' + manimRenderFps + '"',
-    '"$PYTHON_BIN" "' + remoteRunnerPath + '"'
-  ].join("\n");
-
-  const executionResult = await withTimeout(workspace.process.executeCommand(command), timeoutMs + 5_000, `Manim execution timed out after ${timeoutMs + 5000}ms.`);
-  const rawOutput = readCommandOutput(executionResult);
-  const markerPayloads = Array.from(rawOutput.matchAll(/__GVE_MANIM_RESULT__((?:\\.|[\s\S])*?)__GVE_MANIM_RESULT_END__/g), (match) => String(match?.[1] ?? "").trim()).filter(Boolean);
-
-  if (markerPayloads.length === 0) {
-    return { success: false, status: "error", error: `Manim runtime did not return a structured result.`, errorCode: "RUNTIME_MANIM_INVALID_RESULT" };
-  }
-
-  let parsedResult: any = null;
-  for (let index = markerPayloads.length - 1; index >= 0; index -= 1) {
-    try { parsedResult = JSON.parse(markerPayloads[index]!); break; } catch { continue; }
-  }
-
-  if (!parsedResult?.success) {
-    return { success: false, status: "error", error: parsedResult?.error ?? "Manim rendering failed.", errorCode: parsedResult?.errorCode ?? "RUNTIME_MANIM_RENDER_FAILED" };
-  }
-
-  const remoteVideoPath = String(parsedResult.videoPath ?? "").trim();
-  if (!remoteVideoPath) {
-    return { success: false, status: "error", error: "Manim completed without a downloadable video path.", errorCode: "RUNTIME_MANIM_MISSING_VIDEO" };
-  }
-
-  const downloaded = await workspace.fs.downloadFile(remoteVideoPath);
-  const videoBuffer = Buffer.isBuffer(downloaded) ? downloaded : Buffer.from(downloaded);
-  const persisted = persistMediaArtifact({ buffer: videoBuffer, extension: "mp4", mediaType: "video/mp4", sessionId: sessionId ?? undefined });
-
-  return { success: true, status: "completed", previewUrl: persisted.previewUrl, outputKind: "media", mediaType: persisted.mediaType, mediaArtifactId: persisted.mediaKey, renderCount: 1 };
-}
-
-function isDaytonaProvisioningError(error: any): boolean {
-  const msg = String(error?.message ?? error ?? "").toLowerCase();
-  return /dns|eai_again|enotfound|getaddrinfo|enetunreach|provision|acquire failed|acquire_budget|pool_shutdown|no credentials/i.test(msg);
-}
-
-async function executeViaLocalDocker({ skillId, code, timeoutMs, sessionId }: { skillId: string; code: string; timeoutMs: number; sessionId: string }): Promise<any> {
-  const dockerStatus = await dockerHealthCheck();
-  if (!dockerStatus.dockerAvailable) {
-    throw new Error("Local Docker fallback unavailable: Docker not running.");
-  }
-
-  const skillTools: Record<string, string[]> = {
-    threejs: ["three", "vite"],
-    p5js: ["p5", "vite"],
-    d3js: ["d3", "vite"],
-    animejs: ["animejs", "vite"],
+  const context = {
+    workspace: sandboxEnv._workspace,
+    execute: (payload: string) => sandboxEnv.execute(payload)
   };
 
-  const tools = skillTools[skillId] ?? ["vite"];
-  console.log(`[LocalDocker] Falling back to local Docker sandbox for skill=${skillId}, tools=${tools.join(",")}`);
+  const execStartMs = Date.now();
+  const result = await adapter.execute(context, executionCode, {
+    timeoutMs,
+    maxFrames,
+    sessionId
+  });
 
-  const containerInfo = await createSandbox({ sessionId, tools, timeoutMs });
-  const execResult = await executeInSandbox({ sessionId, code, skill: skillId, timeoutMs });
+  traceEvent("sandbox.execute_complete", {
+    skillId: skill.id,
+    workspaceId: sandboxEnv?.workspaceId ?? null,
+    execMs: Date.now() - execStartMs,
+    success: result.success,
+    adapter: adapter.kind
+  });
 
-  await cleanupSessionSandbox(sessionId).catch(() => {});
+  return result;
+}
 
-  const execCode = extractCodeContent(code);
-  const resultObj: any = {
-    success: execResult.success,
-    status: execResult.success ? "completed" : "error",
-    outputKind: "code",
-    renderCount: execResult.success ? 1 : 0,
-    error: execResult.error ?? null,
-    _source: "local-docker",
-  };
-
-  if (!resultObj.success && !resultObj.error) {
-    const combinedLogs = (execResult.logs ?? []).join("\n");
-    if (combinedLogs) resultObj.error = combinedLogs.slice(0, 500);
+async function releaseSandbox(sandboxEnv: any, dedicatedKey: string | null): Promise<void> {
+  if (!sandboxEnv) return;
+  if (dedicatedKey) {
+    await dedicatedSandboxManager.releaseForKey(dedicatedKey, sandboxEnv).catch(() => {});
+  } else {
+    await poolManager.release(sandboxEnv).catch(() => {});
   }
+}
 
-  return resultObj;
+// ── Public API ────────────────────────────────────────────────────────
+
+export async function executeSkillRuntime({ skillId, code, timeoutMs, maxFrames, turnDeadlineAtMs = null, sessionId = null, tools = [] }: any) {
+  const skill = getSkillRuntimeProfile(skillId);
+  const startedAt = Date.now();
+  const traceCtx = getTraceContext();
+  const effectiveSessionId = sessionId ?? traceCtx.sessionId ?? null;
+
+  let sandboxEnv: any = null;
+  let dedicatedKey: string | null = null;
+  let acquireDiagnostics: any = null;
+
+  try {
+    // ── 1. Acquire ──
+    const acquireResult = await acquireSandbox(skillId, turnDeadlineAtMs, effectiveSessionId);
+
+    sandboxEnv = acquireResult.sandboxEnv;
+    acquireDiagnostics = acquireResult.acquireDiagnostics;
+    dedicatedKey = acquireResult.dedicatedKey;
+
+    // ── 2. Prepare ──
+    const { executionCode, buildArtifacts } = await prepareSandbox(sandboxEnv, code, tools, skillId);
+
+    // ── 3. Budget check before dispatch ──
+    const executionBudgetMs = remainingBudgetMs(turnDeadlineAtMs);
+    if (executionBudgetMs <= 0) throw new Error("Runtime budget exhausted before sandbox execution.");
+
+    const effectiveTimeoutMs = timeoutMs ?? 2200;
+
+    // ── 4. Dispatch ──
+    const result = await dispatchExecution(sandboxEnv, executionCode, skill, effectiveTimeoutMs, maxFrames, effectiveSessionId);
+
+    return recordAndReturn(skillId, startedAt, {
+      success: result.success,
+      status: result.status,
+      previewUrl: result.success ? (result.previewUrl ?? "about:blank") : null,
+      outputKind: result.outputKind ?? "code",
+      mediaType: result.mediaType ?? null,
+      mediaUrl: result.mediaUrl ?? null,
+      skillId: skill?.id,
+      durationMs: Date.now() - startedAt,
+      renderCount: result.renderCount || 0,
+      error: result.error || null,
+      buildArtifacts,
+      acquireDiagnostics
+    });
+  } catch (error: any) {
+    return recordAndReturn(skillId, startedAt, {
+      success: false,
+      status: "error",
+      skillId: skill?.id,
+      durationMs: Date.now() - startedAt,
+      error: error?.message || String(error),
+      acquireDiagnostics
+    });
+  } finally {
+    // ── 5. Release ──
+    await releaseSandbox(sandboxEnv, dedicatedKey);
+  }
+}
+
+function recordAndReturn(skillId: string, startedAt: number, result: any): any {
+  recordSkillExecution(skillId, {
+    success: Boolean(result.success),
+    durationMs: result.durationMs ?? 0,
+    errorCode: result.errorCode ?? (result.error ? "RUNTIME_EXEC_ERROR" : null)
+  });
+  return result;
 }
 
 export function getSandboxRuntimeMetrics() {
@@ -332,159 +320,6 @@ export async function shutdownSandboxRuntime(options = {}) {
   await poolManager.shutdown(options);
 }
 
-export async function executeSkillRuntime({ skillId, code, timeoutMs, maxFrames, turnDeadlineAtMs = null, sessionId = null, tools = [] }: any) {
-  const skill = getSkillRuntimeProfile(skillId);
-  const startedAt = Date.now();
-  let sandboxEnv: any = null;
-  let acquireDiagnostics: any = null;
-  const traceCtx = getTraceContext();
-  const effectiveSessionId = sessionId ?? traceCtx.sessionId ?? null;
-  const dedicatedKey = dedicatedSandboxManager.getKey({ userId: traceCtx.userId ?? null, sessionId: effectiveSessionId });
-  const localDockerFallbackEnabled = parseBooleanEnv(process.env.LOCAL_DOCKER_FALLBACK, true);
-
-  try {
-    const acquireBudgetMs = remainingBudgetMs(resolveAcquireDeadlineAtMs(turnDeadlineAtMs));
-    if (acquireBudgetMs <= 0) throw new Error("Runtime budget exhausted before sandbox acquisition.");
-
-    traceEvent("sandbox.acquire_start", { skillId, sessionId: effectiveSessionId, dedicated: dedicatedSandboxManager.isEnabled(), key: dedicatedKey });
-
-    try {
-      const acquireStartMs = Date.now();
-      sandboxEnv = dedicatedKey
-        ? await dedicatedSandboxManager.acquireForKey(dedicatedKey, { skillId, turnDeadlineAtMs: resolveAcquireDeadlineAtMs(turnDeadlineAtMs) })
-        : await poolManager.acquire({ skillId, turnDeadlineAtMs: resolveAcquireDeadlineAtMs(turnDeadlineAtMs) });
-      traceEvent("sandbox.acquire_ok", { skillId, workspaceId: sandboxEnv?.workspaceId ?? null, acquireMs: Date.now() - acquireStartMs, key: dedicatedKey });
-      acquireDiagnostics = cloneAcquireDiagnostics(sandboxEnv?._acquireDiagnostics);
-    } catch (acquireError: any) {
-      if (localDockerFallbackEnabled && isDaytonaProvisioningError(acquireError) && effectiveSessionId) {
-        console.warn(`[SkillRuntime] Daytona acquire failed (${acquireError.message}), falling back to local Docker.`);
-        traceEvent("sandbox.daytona_fallback_local_docker", { skillId, sessionId: effectiveSessionId, error: acquireError.message });
-
-        const dockerTimeoutMs = timeoutMs ?? 60000;
-        const resultObj = await executeViaLocalDocker({ skillId, code, timeoutMs: dockerTimeoutMs, sessionId: effectiveSessionId });
-
-        return {
-          success: resultObj.success,
-          status: resultObj.status ?? (resultObj.success ? "degraded" : "error"),
-          previewUrl: resultObj.success ? (resultObj.previewUrl ?? "about:blank") : null,
-          outputKind: resultObj.outputKind ?? "code",
-          mediaType: resultObj.mediaType ?? null,
-          mediaUrl: resultObj.mediaUrl ?? null,
-          skillId: skill?.id,
-          durationMs: Date.now() - startedAt,
-          renderCount: resultObj.renderCount || 0,
-          error: resultObj.error || null,
-          acquireDiagnostics: null,
-          _source: "local-docker",
-        };
-      }
-      throw acquireError;
-    }
-
-    if (Array.isArray(tools) && tools.length > 0) {
-      const normalizedTools = tools.map((t: any) => {
-        if (typeof t === "string") return { name: t, version: "latest" };
-        return { name: t?.npmPackage ?? t?.name ?? String(t), version: t?.version ?? "latest" };
-      });
-      const isCached = toolRegistry.isInstalled(sandboxEnv.workspaceId, normalizedTools);
-      if (isCached) {
-        toolRegistry.recordCacheHit();
-      } else {
-        const installResult = await poolManager.installTools(sandboxEnv.workspaceId, normalizedTools);
-        if (installResult.success) toolRegistry.markInstalled(sandboxEnv.workspaceId, normalizedTools);
-        else toolRegistry.markFailed(sandboxEnv.workspaceId, new Error(installResult.errors));
-      }
-    }
-
-    let executionCode = code;
-    let buildArtifacts = null;
-
-    if (isMultiFileProject(code)) {
-      const filesystem = poolManager.getFileSystem(sandboxEnv.workspaceId, sandboxEnv._workspace);
-      const writeResult = await writeProjectToFS(filesystem, code);
-      if (!writeResult.success) throw new Error(`Failed to write project files: ${writeResult.error}`);
-
-      if (shouldBuildSkill(skillId)) {
-        try {
-          const buildManager = poolManager.getBuildManager(sandboxEnv.workspaceId, sandboxEnv._workspace, filesystem);
-          const buildResult = await buildProject(buildManager, skillId, true);
-          if (buildResult.success) buildArtifacts = buildResult.artifacts;
-        } catch (buildError) { }
-      }
-      executionCode = getEntryPointCode(code);
-      if (!executionCode) throw new Error(`Entry point code not found: ${code.entryPoint}`);
-    }
-
-    const executionBudgetMs = remainingBudgetMs(turnDeadlineAtMs);
-    if (executionBudgetMs <= 0) throw new Error("Runtime budget exhausted before sandbox execution.");
-
-    const effectiveTimeoutMs = timeoutMs ?? 2200;
-    let resultObj: any;
-
-    if (skill?.runtime?.adapter === "python-manim") {
-      resultObj = await executeManimRuntime({ workspace: sandboxEnv._workspace, code: executionCode, timeoutMs: effectiveTimeoutMs, sessionId });
-    } else {
-      const payload = JSON.stringify({ skill, code: executionCode, timeoutMs: effectiveTimeoutMs, maxFrames });
-      const execStartMs = Date.now();
-      resultObj = await sandboxEnv.execute(payload);
-      traceEvent("sandbox.execute_complete", { skillId, workspaceId: sandboxEnv?.workspaceId ?? null, execMs: Date.now() - execStartMs, success: Boolean(resultObj?.success) });
-    }
-
-    return {
-      success: resultObj.success,
-      status: resultObj.status,
-      previewUrl: resultObj.success ? (resultObj.previewUrl ?? "about:blank") : null,
-      outputKind: resultObj.outputKind ?? "code",
-      mediaType: resultObj.mediaType ?? null,
-      mediaUrl: resultObj.mediaUrl ?? null,
-      skillId: skill?.id,
-      durationMs: Date.now() - startedAt,
-      renderCount: resultObj.renderCount || 0,
-      error: resultObj.error || null,
-      buildArtifacts,
-      acquireDiagnostics
-    };
-  } catch (error: any) {
-    if (localDockerFallbackEnabled && isDaytonaProvisioningError(error) && effectiveSessionId && !sandboxEnv) {
-      console.warn(`[SkillRuntime] Daytona error in outer catch (${error.message}), falling back to local Docker.`);
-      traceEvent("sandbox.daytona_fallback_local_docker", { skillId, sessionId: effectiveSessionId, error: error.message, phase: "outer_catch" });
-      try {
-        const dockerTimeoutMs = timeoutMs ?? 60000;
-        const resultObj = await executeViaLocalDocker({ skillId, code, timeoutMs: dockerTimeoutMs, sessionId: effectiveSessionId });
-        return {
-          success: resultObj.success,
-          status: resultObj.status ?? (resultObj.success ? "degraded" : "error"),
-          previewUrl: resultObj.success ? (resultObj.previewUrl ?? "about:blank") : null,
-          outputKind: resultObj.outputKind ?? "code",
-          mediaType: resultObj.mediaType ?? null,
-          mediaUrl: resultObj.mediaUrl ?? null,
-          skillId: skill?.id,
-          durationMs: Date.now() - startedAt,
-          renderCount: resultObj.renderCount || 0,
-          error: resultObj.error || null,
-          acquireDiagnostics: null,
-          _source: "local-docker",
-        };
-      } catch (dockerError: any) {
-        console.error(`[SkillRuntime] Local Docker fallback also failed: ${dockerError.message}`);
-      }
-    }
-    return {
-      success: false,
-      status: "error",
-      skillId: skill?.id,
-      durationMs: Date.now() - startedAt,
-      error: error?.message || String(error),
-      acquireDiagnostics
-    };
-  } finally {
-    if (sandboxEnv) {
-      if (dedicatedKey) {
-        await dedicatedSandboxManager.releaseForKey(dedicatedKey, sandboxEnv).catch(() => {});
-      } else {
-        await poolManager.release(sandboxEnv).catch(() => { });
-      }
-    }
-  }
+export async function cleanupAllDaytonaSandboxes() {
+  return poolManager.cleanupAllOrganizationSandboxes();
 }
-

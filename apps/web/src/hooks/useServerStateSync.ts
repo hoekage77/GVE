@@ -1,11 +1,18 @@
 import { useEffect } from "react";
 import { useSessions } from "../hooks/queries";
 import { useChatStore } from "../stores";
+import { buildClientSession } from "../stores/chat/helpers";
 
 /**
  * Syncs TanStack Query session data into the Zustand store.
  * This bridges server state (React Query) with legacy UI state (Zustand).
- * Over time, components should read directly from React Query hooks instead.
+ *
+ * Merge strategy:
+ * - New sessions from the server are always added.
+ * - Existing sessions are only overwritten if the server copy carries scene
+ *   data (currentScene code / previewUrl). This prevents a restarted server
+ *   (which returns empty DB-reconstructed sessions) from wiping client-side
+ *   scenes that were persisted in Zustand.
  */
 export function useServerStateSync() {
   const { data, isSuccess } = useSessions();
@@ -14,14 +21,23 @@ export function useServerStateSync() {
   useEffect(() => {
     if (!isSuccess || !data?.sessions) return;
 
-    // Merge fetched sessions into Zustand without duplicates
-    const existingIds = new Set(
-      useChatStore.getState().sessions.map((s) => s.sessionId)
-    );
+    for (const raw of data.sessions) {
+      const serverSession = buildClientSession(raw);
+      if (!serverSession) continue;
 
-    for (const session of data.sessions) {
-      if (!existingIds.has(session.sessionId)) {
-        addSession(session);
+      const existing = useChatStore
+        .getState()
+        .sessions.find((s) => s.sessionId === serverSession.sessionId);
+
+      const serverHasScene = Boolean(
+        serverSession.currentScene?.code || serverSession.currentScene?.previewUrl
+      );
+      const clientHasScene = Boolean(
+        existing?.currentScene?.code || existing?.currentScene?.previewUrl
+      );
+
+      if (!existing || serverHasScene || !clientHasScene) {
+        addSession(serverSession);
       }
     }
   }, [data, isSuccess, addSession]);

@@ -1,3 +1,4 @@
+import { memo } from "react";
 import SceneViewer from "../SceneViewer";
 import { InlineArtifactCard } from "./InlineArtifactCard";
 
@@ -7,13 +8,16 @@ interface InlineScenePreviewProps {
   sceneId: string;
   versionId: string;
   onExpand?: () => void;
+  streaming?: boolean;
 }
 
-export function InlineScenePreview({
+const InlineScenePreviewInner = memo(function InlineScenePreviewInner({
   code,
   skill,
   sceneId,
+  versionId,
   onExpand,
+  streaming = false,
 }: InlineScenePreviewProps) {
   return (
     <InlineArtifactCard
@@ -21,8 +25,20 @@ export function InlineScenePreview({
       skill={skill}
     >
       <div className="relative aspect-[16/10] w-full overflow-hidden">
-        <SceneViewer code={code} skill={skill} onExpand={onExpand} />
+        <SceneViewer key={`inline-${versionId}-${sceneId}`} code={code} skill={skill} onExpand={onExpand} streaming={streaming} />
       </div>
     </InlineArtifactCard>
   );
+}, (prev, next) => {
+  return (
+    prev.code === next.code &&
+    prev.skill === next.skill &&
+    prev.sceneId === next.sceneId &&
+    prev.versionId === next.versionId &&
+    prev.streaming === next.streaming
+  );
+});
+
+export function InlineScenePreview(props: InlineScenePreviewProps) {
+  return <InlineScenePreviewInner {...props} />;
 }

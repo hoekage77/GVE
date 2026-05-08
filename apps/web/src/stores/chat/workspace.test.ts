@@ -23,6 +23,8 @@ function createTestStore() {
     setPendingApproval: () => {},
     setWorkspaceRecord: (record) => args[0]({ workspaceRecord: record }),
     selectWorkspaceFile: (path) => args[0]({ selectedWorkspaceFile: path }),
+    addAgentToolLog: () => {},
+    clearAgentToolLog: () => {},
   } as TestChatState));
 }
 

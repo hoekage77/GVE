@@ -69,6 +69,22 @@ export interface SessionTaskProgress {
 
 export type SessionMessage = ApiSessionMessage;
 
+export interface AgentFileEntry {
+  path: string;
+  previewUrl: string | null;
+  lines: number | null;
+  createdAt: string;
+}
+
+export interface AgentToolLogEntry {
+  id: string;
+  tool: string;
+  status: "running" | "success" | "error";
+  output: string;
+  durationMs: number;
+  timestamp: string;
+}
+
 export interface ComposerImageAttachment {
   name: string;
   mimeType: string;
@@ -173,6 +189,10 @@ export interface ChatState {
   selectedWorkspaceFile: string | null;
   workspaceOpen: boolean;
 
+  // Agent Mode — per-turn file tracking
+  agentFiles: AgentFileEntry[];
+  agentToolLog: AgentToolLogEntry[];
+
   // Theater Mode (New Cinematic Preview)
   activeArtifactId: string | null;
   
@@ -201,6 +221,7 @@ export interface ChatState {
   sendSceneCommand: (command: SceneHistoryCommand) => Promise<void>;
   selectSceneVersion: (versionId: string) => Promise<boolean>;
   rerunScene: (options?: { codeOverride?: string | null }) => Promise<boolean>;
+  setCurrentSceneCode: (sessionId: string, code: string) => void;
   stopTurn: () => void;
   connectWebSocket: () => void;
   startDraftSession: () => void;
@@ -253,4 +274,10 @@ export interface ChatState {
   openWorkspace: () => void;
   closeWorkspace: () => void;
   toggleWorkspace: () => void;
+
+  // Agent Mode Actions
+  addAgentFile: (file: AgentFileEntry) => void;
+  clearAgentFiles: () => void;
+  addAgentToolLog: (entry: AgentToolLogEntry) => void;
+  clearAgentToolLog: () => void;
 }

@@ -2,11 +2,11 @@ export type AgentActivityInput = {
   sessionId: string;
   messageId: string;
   step: string;
-  status?: "running" | "completed" | "failed";
+  status?: "running" | "completed" | "failed" | "streaming";
   payload?: Record<string, unknown>;
 };
 
-function mapAgentActivityText(step: string, status: "running" | "completed" | "failed", payload: Record<string, unknown> = {}): string {
+function mapAgentActivityText(step: string, status: "running" | "completed" | "failed" | "streaming", payload: Record<string, unknown> = {}): string {
   const runningTexts: Record<string, string> = {
     parse_intent: "I am understanding your request and extracting intent.",
     select_skill: "I am selecting the best rendering skill for this scene.",
@@ -42,6 +42,9 @@ function mapAgentActivityText(step: string, status: "running" | "completed" | "f
   }
   if (status === "completed") {
     return completedTexts[step] ?? "I completed this step.";
+  }
+  if (status === "streaming") {
+    return "I am generating code in real-time...";
   }
   return runningTexts[step] ?? "I am processing this request.";
 }

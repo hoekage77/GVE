@@ -65,6 +65,8 @@ export interface SceneVersion {
   explanation: string | null;
   messageId?: string | null;
   source: string;
+  streaming?: boolean;
+  streamingComplete?: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -102,6 +104,7 @@ export interface SessionSceneState {
   messages?: SessionMessage[];
   orchestrationTrace?: Array<{ id: string; step: string; payload: unknown; createdAt: string }>;
   status?: "idle" | "parsing" | "selecting" | "generating" | "executing";
+  visualGoals?: Array<{ id: string; category: string; severity: string; description: string }>;
   createdAt: string;
   updatedAt: string;
 }

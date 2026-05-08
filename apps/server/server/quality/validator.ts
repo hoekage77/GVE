@@ -296,11 +296,43 @@ function checkApiUsage(code: string, skillId: string): ValidationError[] {
   return errors;
 }
 
+function hasTopLevelCode(code: string): boolean {
+  try {
+    const ast = parse(code, { ecmaVersion: 2022, sourceType: "script" });
+    for (const node of ast.body) {
+      if (node.type === "FunctionDeclaration") continue;
+      if (node.type === "ExpressionStatement" && node.expression.type === "FunctionExpression") continue;
+      return true;
+    }
+    return false;
+  } catch {
+    return false;
+  }
+}
+
 function checkSchema(code: string, skillId: string): ValidationError[] {
   const errors: ValidationError[] = [];
 
   if (skillId === "threejs") {
-    if (!/scene\s*\./.test(code) && !/new\s+THREE\./.test(code)) errors.push({ code: "SCHEMA_MISSING_SCENE", message: "Three.js code should reference 'scene' or create THREE objects." });
+    const createsScene = /new\s+THREE\.Scene\s*\(/.test(code);
+    const usesScene = /scene\s*\.\s*(add|background|children|fog|traverse|environment)/.test(code);
+    const usesCamera = /camera\.(position|lookAt|rotation|quaternion|fov|aspect)|new\s+THREE\.(Perspective|Orthographic|Array)Camera/.test(code);
+    const usesRenderer = /renderer\s*\./.test(code) || /new\s+THREE\.(WebGL|WebGPU)Renderer/.test(code);
+    const hasTopLevel = hasTopLevelCode(code);
+
+    if (!hasTopLevel && !createsScene && !usesScene && !usesCamera && !usesRenderer) {
+      errors.push({ code: "SCHEMA_PURE_HELPER", message: "Generated code contains only helper function(s) with no Three.js scene setup. The code must include scene construction, camera setup, a renderer, and an animation loop, or use the provided globals (scene, camera, renderer)." });
+    } else if (!createsScene && !usesScene) {
+      errors.push({ code: "SCHEMA_MISSING_SCENE", message: "Three.js code must reference 'scene' (e.g. scene.add()) or create one with new THREE.Scene()." });
+    }
+
+    if (!createsScene && !usesCamera) {
+      errors.push({ code: "SCHEMA_MISSING_CAMERA", message: "Three.js code must set up a camera (new THREE.PerspectiveCamera, camera.position, etc.)." });
+    }
+
+    if (!createsScene && !usesRenderer) {
+      errors.push({ code: "SCHEMA_MISSING_RENDERER", message: "Three.js code must set up a renderer (new THREE.WebGLRenderer, renderer.setSize, etc.)." });
+    }
   }
   if (skillId === "p5js") {
     if (!/function\s+setup\b/.test(code) && !/function\s+draw\b/.test(code) && !/createCanvas\s*\(/.test(code)) errors.push({ code: "SCHEMA_MISSING_LIFECYCLE", message: "p5.js code should define setup()/draw() or call createCanvas()." });
@@ -345,7 +377,7 @@ export function validateCode(code: string, skillId = "threejs", options: Validat
   const qualityResult = skillId === "threejs" ? checkThreejsQuality(code, options) : { errors: [] as ValidationError[], warnings: [] as ValidationWarning[] };
 
   const allErrors = [...syntaxErrors, ...securityErrors, ...schemaErrors, ...qualityResult.errors];
-  const hasCritical = syntaxErrors.length > 0 || securityErrors.length > 0 || qualityResult.errors.length > 0;
+  const hasCritical = syntaxErrors.length > 0 || securityErrors.length > 0 || schemaErrors.length > 0 || qualityResult.errors.length > 0;
 
   return {
     valid: allErrors.length === 0,

@@ -236,6 +236,35 @@ textarea {
   animation: agent-pulse 2s ease-in-out infinite;
 }
 
+.card-glass {
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 12px;
+  backdrop-filter: blur(8px);
+  box-shadow: inset 0 1px 0 0 rgba(255, 255, 255, 0.04);
+  transition: border-color 0.3s ease, transform 0.2s ease;
+}
+
+.card-glass:hover {
+  border-color: rgba(255, 255, 255, 0.10);
+}
+
+.card-glass-accent {
+  position: relative;
+  overflow: hidden;
+}
+
+.card-glass-accent::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(0, 120, 212, 0.25), transparent);
+  pointer-events: none;
+}
+
 .resize-handle {
   width: 4px;
   cursor: col-resize;
