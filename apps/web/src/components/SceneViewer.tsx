@@ -388,7 +388,7 @@ function buildSceneHTML(code: string, skill: string, vendorDataUrls?: Record<str
     import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
     import { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js';
     import { RGBELoader } from 'three/addons/loaders/RGBELoader.js';
-    window.THREE = { ...THREE, GLTFLoader, DRACOLoader, RGBELoader };
+    window.THREE = { ...THREE, GLTFLoader, DRACOLoader, RGBELoader, OrbitControls };
     window.OrbitControls = OrbitControls;
   ` : '';
 
@@ -969,7 +969,7 @@ const SKILL_PREAMBLES: Record<string, string> = {
     import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
     import { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js';
     import { RGBELoader } from 'three/addons/loaders/RGBELoader.js';
-    window.THREE = { ...THREE, GLTFLoader, DRACOLoader, RGBELoader };
+    window.THREE = { ...THREE, GLTFLoader, DRACOLoader, RGBELoader, OrbitControls };
     window.OrbitControls = OrbitControls;
   `,
   p5js: `

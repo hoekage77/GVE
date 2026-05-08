@@ -384,7 +384,7 @@ export async function executeInSandbox(
 
 export function wrapUserCodeWithImports(code: string, skill: string): string {
   const importPreambles: Record<string, string> = {
-    threejs: `import * as THREE from 'three';\nwindow.THREE = THREE;\ntry { const { OrbitControls } = await import('three/addons/controls/OrbitControls.js'); window.OrbitControls = OrbitControls; } catch(_e) {}\ntry { const { GLTFLoader } = await import('three/addons/loaders/GLTFLoader.js'); window.THREE.GLTFLoader = GLTFLoader; } catch(_e) {}\ntry { const { DRACOLoader } = await import('three/addons/loaders/DRACOLoader.js'); window.THREE.DRACOLoader = DRACOLoader; } catch(_e) {}\ntry { const { RGBELoader } = await import('three/addons/loaders/RGBELoader.js'); window.THREE.RGBELoader = RGBELoader; } catch(_e) {}\n`,
+    threejs: `import * as THREE from 'three';\nwindow.THREE = THREE;\ntry { const { OrbitControls } = await import('three/addons/controls/OrbitControls.js'); window.OrbitControls = OrbitControls; window.THREE.OrbitControls = OrbitControls; } catch(_e) {}\ntry { const { GLTFLoader } = await import('three/addons/loaders/GLTFLoader.js'); window.THREE.GLTFLoader = GLTFLoader; } catch(_e) {}\ntry { const { DRACOLoader } = await import('three/addons/loaders/DRACOLoader.js'); window.THREE.DRACOLoader = DRACOLoader; } catch(_e) {}\ntry { const { RGBELoader } = await import('three/addons/loaders/RGBELoader.js'); window.THREE.RGBELoader = RGBELoader; } catch(_e) {}\n`,
     p5js: `import p5 from 'p5';\nwindow.p5 = p5;\n`,
     d3js: `import * as d3 from 'd3';\nwindow.d3 = d3;\n`,
     animejs: `import anime from 'animejs';\nanime = anime.default || anime;\nwindow.anime = anime;\n`
@@ -413,7 +413,7 @@ const SKILL_CONTAINERS: Record<string, string> = {
 };
 
 const SKILL_IMPORT_PREAMBLES: Record<string, string> = {
-  threejs: `import * as THREE from 'three';\nwindow.THREE = THREE;\ntry { const { OrbitControls } = await import('three/addons/controls/OrbitControls.js'); window.OrbitControls = OrbitControls; } catch(_e) {}\ntry { const { GLTFLoader } = await import('three/addons/loaders/GLTFLoader.js'); window.THREE.GLTFLoader = GLTFLoader; } catch(_e) {}\ntry { const { DRACOLoader } = await import('three/addons/loaders/DRACOLoader.js'); window.THREE.DRACOLoader = DRACOLoader; } catch(_e) {}\ntry { const { RGBELoader } = await import('three/addons/loaders/RGBELoader.js'); window.THREE.RGBELoader = RGBELoader; } catch(_e) {}\n`,
+  threejs: `import * as THREE from 'three';\nwindow.THREE = THREE;\ntry { const { OrbitControls } = await import('three/addons/controls/OrbitControls.js'); window.OrbitControls = OrbitControls; window.THREE.OrbitControls = OrbitControls; } catch(_e) {}\ntry { const { GLTFLoader } = await import('three/addons/loaders/GLTFLoader.js'); window.THREE.GLTFLoader = GLTFLoader; } catch(_e) {}\ntry { const { DRACOLoader } = await import('three/addons/loaders/DRACOLoader.js'); window.THREE.DRACOLoader = DRACOLoader; } catch(_e) {}\ntry { const { RGBELoader } = await import('three/addons/loaders/RGBELoader.js'); window.THREE.RGBELoader = RGBELoader; } catch(_e) {}\n`,
   p5js:    `import p5 from 'p5';\nwindow.p5 = p5;\n`,
   d3js:    `import * as d3 from 'd3';\nwindow.d3 = d3;\n`,
   animejs: `import anime from 'animejs';\nanime = anime.default || anime;\nwindow.anime = anime;\n`,
